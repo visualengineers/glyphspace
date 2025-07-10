@@ -109,7 +109,7 @@ export class TooltipComponent {
             <td style="width: 40%; padding: 0; vertical-align: top; font-weight: bold; padding-right: 0.75em; word-break: break-word; overflow-wrap: break-word; white-space: normal;">
               ${label}
             </td>
-            <td style="width: 60%; padding: 0; white-space: normal; word-break: break-word; overflow-wrap: break-word; white-space: normal;">
+            <td style="width: 60%; padding: 0; vertical-align: top; white-space: normal; word-break: break-word; overflow-wrap: break-word; white-space: normal;">
               ${value}
             </td>
           </tr>`;
