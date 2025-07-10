@@ -79,10 +79,13 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
   private isPanning = false;
   private mouseInside = false;
   lastMousePosition = new THREE.Vector2();
+  lastTouchPosition: { x: number, y: number } | null = { x: 0, y: 0 };
   private mouseDownTime: number = 0;
   private readonly clickThreshold = 4; // pixels
   private readonly clickTimeThreshold = 300; // milliseconds  
   private zoomFactor = 1.1;
+  private touchZoomStartDistance: number | null = null;
+  private lastZoom: number | null = null;
 
   // Used for selecting and highlighting logic
   private mouse = new THREE.Vector2();
@@ -204,9 +207,9 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
 
     });
     this.configSub.add(
-      this.config.loadedDataSubject$.subscribe(async loadedData => {        
+      this.config.loadedDataSubject$.subscribe(async loadedData => {
         if (loadedData == "") return;
-        
+
         const data = await this.dataProvider.getGlyphData();
 
         this.ngZone.run(() => {
@@ -222,7 +225,7 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
             this.glyphGroup.clear();
             this.glyphData = data;
             this.positionBounds = undefined;
-            this.updatePositionBounds();            
+            this.updatePositionBounds();
             this.fitToView();
             this.initSimulation();
           }
@@ -1006,6 +1009,48 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
     this.lastMousePosition.set(event.clientX, event.clientY);
   }
 
+  private applyZoomAtScreenPoint(screenX: number, screenY: number, newZoom: number, oldZoom: number): void {
+    const rect = this.renderer.domElement.getBoundingClientRect();
+
+    const xNDC = ((screenX - rect.left) / rect.width) * 2 - 1;
+    const yNDC = -((screenY - rect.top) / rect.height) * 2 + 1;
+
+    const worldBefore = new THREE.Vector3(xNDC, yNDC, 0).unproject(this.camera);
+
+    this.camera.zoom = newZoom;
+    this.camera.updateProjectionMatrix();
+
+    const worldAfter = new THREE.Vector3(xNDC, yNDC, 0).unproject(this.camera);
+    const delta = worldBefore.sub(worldAfter);
+
+    this.camera.position.x += delta.x;
+    this.camera.position.y += delta.y;
+
+    if (this.target) {
+      this.target.x += delta.x;
+      this.target.y += delta.y;
+    }
+
+    this.checkZoomLevelChanged(oldZoom, newZoom);
+    this.requestRender(RenderTask.SceneRender);
+  }
+
+  private getTouchDistance(event: TouchEvent): number {
+    const dx = event.touches[0].clientX - event.touches[1].clientX;
+    const dy = event.touches[0].clientY - event.touches[1].clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+
+  private touchCenter = { x: 0, y: 0 };
+  private updateTouchCenter(event: TouchEvent): void {
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    const cx = (event.touches[0].clientX + event.touches[1].clientX) / 2;
+    const cy = (event.touches[0].clientY + event.touches[1].clientY) / 2;
+
+    this.touchCenter.x = ((cx - rect.left) / rect.width) * 2 - 1;
+    this.touchCenter.y = -((cy - rect.top) / rect.height) * 2 + 1;
+  }
+
   @HostListener('wheel', ['$event'])
   onWheel(event: WheelEvent): void {
     if (!this.camera || !this.renderer || this.magicLensComponent.isActive() || this.tooltipComponent.isFixed()) return;
@@ -1014,40 +1059,78 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
     this.tooltipComponent.cancelHoverPopup();
 
     const oldZoom = this.camera.zoom;
-
     const direction = event.deltaY < 0 ? 1 : -1;
     const scale = Math.pow(this.zoomFactor, direction);
-
-    // Clamp zoom 
     const newZoom = THREE.MathUtils.clamp(this.camera.zoom * scale, 0.5, 50);
 
-    this.updateMousePositions(event);
+    this.applyZoomAtScreenPoint(event.clientX, event.clientY, newZoom, oldZoom);
+  }
 
-    // World coordinates before zoom
-    const worldBeforeZoom = new THREE.Vector3(this.mouse.x, this.mouse.y, 0).unproject(this.camera);
+  @HostListener('touchstart', ['$event'])
+  onTouchStart(event: TouchEvent): void {
+    if (event.touches.length === 1) {
+      this.lastTouchPosition = {
+        x: event.touches[0].clientX,
+        y: event.touches[0].clientY
+      };
+    }
+    if (event.touches.length === 2) {
+      this.touchZoomStartDistance = this.getTouchDistance(event);
+      this.lastZoom = this.camera?.zoom ?? null;
+    }
+  }
 
-    // Apply zoom
-    this.camera.zoom = newZoom;
-    this.camera.updateProjectionMatrix();
+  @HostListener('touchend', ['$event'])
+  @HostListener('touchcancel', ['$event'])
+  onTouchEnd(event: TouchEvent): void {
+    if (event.touches.length < 2) {
+      this.touchZoomStartDistance = null;
+      this.lastZoom = null;
+    }
+    if (event.touches.length < 1) {
+      this.lastTouchPosition = null;
+    }
+  }
 
-    // World coordinates after zoom
-    const worldAfterZoom = new THREE.Vector3(this.mouse.x, this.mouse.y, 0).unproject(this.camera);
+  @HostListener('touchmove', ['$event'])
+  onTouchMove(event: TouchEvent): void {
+    if (!this.camera || !this.renderer) return;
+    event.preventDefault();
 
-    // Offset to maintain point under cursor
-    const delta = worldBeforeZoom.sub(worldAfterZoom);
+    if (event.touches.length === 1 && this.lastTouchPosition) {
+      const currentTouch = event.touches[0];
+      const fakeMouseEvent = {
+        clientX: currentTouch.clientX,
+        clientY: currentTouch.clientY
+      } as MouseEvent;
 
-    // Adjust only x/y of camera position
-    this.camera.position.x += delta.x;
-    this.camera.position.y += delta.y;
+      const from = new THREE.Vector2(this.lastTouchPosition.x, this.lastTouchPosition.y);
+      this.tooltipComponent.cancelHoverPopup();
 
-    // If using a target for camera orientation, update it too
-    if (this.target) {
-      this.target.x += delta.x;
-      this.target.y += delta.y;
+      panCamera(this.camera, from, fakeMouseEvent, this.target);
+      this.requestRender(RenderTask.SceneRender);
+
+      this.lastTouchPosition = {
+        x: currentTouch.clientX,
+        y: currentTouch.clientY
+      };
     }
 
-    this.checkZoomLevelChanged(oldZoom, this.camera.zoom);
-    this.requestRender(RenderTask.SceneRender);
+    if (event.touches.length === 2 && this.touchZoomStartDistance !== null) {
+
+      const currentDistance = this.getTouchDistance(event);
+      const zoomRatio = currentDistance / this.touchZoomStartDistance;
+
+      const oldZoom = this.lastZoom ?? this.camera.zoom;
+      const newZoom = THREE.MathUtils.clamp(oldZoom * zoomRatio, 0.5, 50);
+
+      const centerX = (event.touches[0].clientX + event.touches[1].clientX) / 2;
+      const centerY = (event.touches[0].clientY + event.touches[1].clientY) / 2;
+
+      this.updateTouchCenter(event); // similar to `updateMousePositions()`
+
+      this.applyZoomAtScreenPoint(centerX, centerY, newZoom, oldZoom);
+    }
   }
   //#endregion
 }
