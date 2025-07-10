@@ -1,0 +1,44 @@
+{
+    "color": "1",
+    "glyph": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+    ],
+    "label": {
+        "1": "fixed acidity",
+        "2": "volatile acidity",
+        "3": "citric acid",
+        "4": "residual sugar",
+        "5": "chlorides",
+        "6": "free sulfur dioxide",
+        "7": "total sulfur dioxide",
+        "8": "density",
+        "9": "pH",
+        "10": "sulphates",
+        "11": "alcohol",
+        "12": "quality"
+    },
+    "tooltip": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "10",
+        "11",
+        "12"
+    ],
+    "variantcontext": {
+        "1": {
+            "description": "standard context",
+            "id": "1"
+        }
+    }
+}
