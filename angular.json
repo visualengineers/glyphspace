@@ -30,6 +30,11 @@
                 "glob": "**/*",
                 "input": "public"
               },
+              {
+                "glob": "processor.py",
+                "input": "src/assets",
+                "output": "/"
+              },
               "src/assets"
             ],
             "styles": [
