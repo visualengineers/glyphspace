@@ -24,10 +24,13 @@ jobs:
       - name: 🛠️ Build Angular app
         run: npm run build -- --base-href=/glyphspace/
 
+      - name: 📄 Create .nojekyll file
+        run: echo > dist/glyphspace/browser/.nojekyll
+
       - name: 🚀 Deploy to gh-pages
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dist/glyphspace
+          publish_dir: ./dist/glyphspace/browser/
           publish_branch: gh-pages
           enable_jekyll: false  # this adds the .nojekyll file automatically
