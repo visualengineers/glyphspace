@@ -1,0 +1,66 @@
+<div class="dashboard-container">
+    <div #dashboard class="dashboard">
+        <div class="dashboard-header">
+            <button #icon class="hamburger" (click)="toggle()" data-tooltip="Toggle Menu (M)"><i class="material-icons">menu</i></button>
+            <span class="title">GLYPHSPACE</span>
+        </div>
+        <div #dashboardBody class="dashboard-body">
+            <div class="glyph-visualization">
+                <canvas #glyphCanvas width="350" height="200"></canvas>
+            </div>
+
+            <div class="dashboard-infos" [hidden]="dataProvider.totalItems == 0">
+                <span>Color: {{ colorFeature }}</span>
+                <span class="right">{{ dataProvider.totalItems }}</span>
+                <span class="right" [hidden]="dataProvider.filteredItems == dataProvider.totalItems">{{ dataProvider.filteredItems }} / </span>
+                <span class="right">Items&nbsp;</span>
+            </div>
+
+            <div class="dashboard-buttons">
+                <button data-tooltip="Fit All" (click)="fitAll()"><i class="material-icons">fullscreen</i></button>
+                <button data-tooltip="Add Canvas" (click)="addCanvas.emit()" [disabled]="totalCells >= 6"><i class="material-icons">add</i></button>
+                <button data-tooltip="Remove Canvas" (click)="removeCanvas.emit()" [disabled]="totalCells <= 1"><i class="material-icons">remove</i></button>
+                <button data-tooltip="Clear Selection" (click)="clearSelection()"><i class="material-icons">backspace</i></button>
+                <button 
+                (click)="toggleColorScale()" 
+                [class.active]="colorScaleType === 'categorical'"
+                [attr.data-tooltip]="colorScaleType === 'categorical' ? 'Categorical Color Scale' : 'Ordinal Color Scale'">
+                <i class="material-icons">
+                    {{ colorScaleType === 'categorical' ? 'palette' : 'gradient' }}
+                </i>
+                </button>
+                <button 
+                    data-tooltip="Upload" 
+                    [disabled]="uploading"
+                    (click)="fileInput.click()">
+                    <ng-container *ngIf="!uploading; else loading">
+                        <i class="material-icons">file_upload</i>
+                    </ng-container>
+                    <ng-template #loading>
+                        <span class="spinner"></span>
+                    </ng-template>
+                </button>
+                <!-- hidden file input -->
+                <input
+                    #fileInput
+                    type="file"
+                    accept=".csv,text/csv,.zip,application/zip"
+                    style="display:none"
+                    (change)="onFileSelected($event)" />
+                <button data-tooltip="Download" (click)="download()"><i class="material-icons">file_download</i></button>
+                <button data-tooltip="Help" (click)="showHelp()"><i class="material-icons">help_outline</i></button>
+            </div>
+
+            <div class="dashboard-tabs">
+                <button (click)="activeTab = 'data'" [class.active]="activeTab === 'data'">DATA</button>
+                <button (click)="activeTab = 'glyphs'" [class.active]="activeTab === 'glyphs'">GLYPHS</button>
+                <button (click)="activeTab = 'filter'" [class.active]="activeTab === 'filter'">FILTER</button>
+            </div>
+
+            <div class="dashboard-tab-content">
+                <app-data-tab [hidden]="activeTab !== 'data'"></app-data-tab>
+                <app-glyphs-tab [hidden]="activeTab !== 'glyphs'"></app-glyphs-tab>
+                <app-filter-tab [hidden]="activeTab !== 'filter'"></app-filter-tab>
+            </div>
+        </div>
+    </div>

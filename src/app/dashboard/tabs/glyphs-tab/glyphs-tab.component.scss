@@ -1,0 +1,95 @@
+@use '../../../../styles/variables' as v;
+
+.glyph-config-table {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  row-gap: 22px;
+  column-gap: 12px;
+  align-items: start;
+  font-size: 12px;
+  margin-top: 8px;
+
+  .label-cell {
+    font-weight: bold;
+    padding-top: 6px;
+    color: #444;
+  }
+
+  .control-cell {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    position: relative;
+
+    .dashboard-button {
+      width: 41px;
+      height: 41px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: transparent;
+      border: 1px solid #999;
+      cursor: pointer;
+      color: #666;
+      font-size: 24px;
+      position: relative;
+
+      &:focus-visible {
+          outline: none;
+          box-shadow: none;
+      }
+
+      &:hover {
+        color: #000;
+      }
+
+      &.active {
+        border-color: v.$active-color;
+        color: v.$active-color;
+      }
+
+      // Tooltip
+      &::after {
+        content: attr(data-tooltip);
+        position: absolute;
+        bottom: -28px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: v.$tooltip-bg;
+        color: v.$tooltip-text;
+        padding: 3px 6px;
+        font-size: 11px;
+        white-space: nowrap;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.15s ease-in-out;
+        z-index: 1000;
+      }
+
+      &:hover::after {
+        opacity: 1;
+      }
+    }
+
+    .config-toggle-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .config-toggle {
+      padding: 8px 10px;
+      font-size: 11px;
+      background-color: #ccc;
+      border: none;
+      cursor: pointer;
+      border-radius: 0px;
+      transition: background-color 0.2s;
+
+      &.active {
+        background-color: v.$active-color;
+        color: white;
+      }
+    }
+  }
+}

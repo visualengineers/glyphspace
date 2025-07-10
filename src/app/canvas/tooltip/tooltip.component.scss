@@ -1,0 +1,21 @@
+.tooltip {
+  position: fixed;
+  background: rgba(0, 0, 0, 0.75);
+  color: white;
+  padding: 4px 8px;
+  font-size: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  z-index: 10000;
+  white-space: nowrap;
+  user-select: none;
+  transition: opacity 0.15s ease-in-out;
+  opacity: 0.95;
+  max-width: 300px;
+  max-height: 600px;
+  overflow-wrap: break-word;
+  overflow-y: scroll;
+
+  &.fixed {
+    background: rgba(0, 0, 0, 1);
+  }
+}

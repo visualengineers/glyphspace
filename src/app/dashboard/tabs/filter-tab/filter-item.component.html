@@ -1,0 +1,16 @@
+<div class="option">
+  <div class="d3-chart" (click)="resize()" #chart>
+  </div>
+  <div class="context" [hidden]="configuration.colorFeature === property"></div>
+  <div class="context continuous" [hidden]="configuration.colorFeature !== property || !configuration.colorRange"></div>
+  <div class="context" [hidden]="configuration.colorFeature !== property || configuration.colorRange">
+    <div class="categorical" *ngFor="let f of colorSteps" [style.background-color]="f"></div>
+  </div>
+  <div class="label_wrap">
+    <span class="label" [style.width.px]="small ? '64' : '200'"  (click)="resize()">{{label}}</span>
+    <div class="expander" [hidden]="!active" (click)="changed()"><i class="material-icons">remove</i></div>
+    <div class="expander" [hidden]="active" (click)="changed()"><i class="material-icons">add</i></div>
+    <div class="expander" [hidden]="small" (click)="clearFilter()"><i class="material-icons">backspace</i></div>
+    <div class="expander" [hidden]="small" (click)="selectColor()"><i class="material-icons">brush</i></div>
+  </div>
+</div>

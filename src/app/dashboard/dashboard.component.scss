@@ -1,0 +1,212 @@
+@use '../../styles/variables' as v;
+
+.dashboard-container {
+    opacity: 1;
+    position: fixed;
+    top: 0;
+    right: 0;
+    z-index: 1100;
+    pointer-events: none;
+
+    .dashboard {
+        display: block;
+        width: 350px;
+        height: 100%;
+        background-color: rgba(240, 240, 240, 0.95);
+        overflow: hidden;
+        pointer-events: all;
+    }
+
+    .dashboard-header {
+        display: flex;
+        align-items: center;
+        padding: 6px 8px;
+        background-color: #e0e0e0;
+    }
+
+    .hamburger {
+        position: relative; // Make this the reference point for the tooltip
+        font-size: 20px;
+        background: none;
+        border: none;
+        cursor: pointer;
+        margin-right: 8px;
+        margin-top: -3px;
+        margin-left: -3px;
+
+        i.material-icons {
+            font-size: 20px;
+            vertical-align: middle;
+        }
+
+        // 🔽 Remove focus ring for mouse users
+        outline: none;
+
+        // Optional: more controlled focus style
+        &:focus-visible {
+            outline: none;
+            box-shadow: none;
+        }
+
+        &::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            top: 100%; // place tooltip right below the button
+            left: 50%;
+            transform: translateX(-15%);
+            margin-top: 6px;
+            max-width: 150px;
+            background: v.$tooltip-bg;
+            color: v.$tooltip-text;
+            padding: 3px 6px;
+            font-size: 12px;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.15s ease-in-out;
+            z-index: 1000;
+            box-sizing: border-box;
+        }
+
+        &:hover::after {
+            opacity: 1;
+        }
+    }
+
+    .title {
+        font-weight: bold;
+        font-size: 16px;
+    }
+
+    .dashboard-infos {
+        padding-left: 10px;
+        padding-right: 10px;
+        font-size: 0.8em;
+
+        .right {
+            float: right;
+        }
+    }
+
+    .dashboard-body {
+        height: 66vh;
+        max-height: 700px;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .glyph-visualization {
+        width: 350px;
+        height: 190px;
+    }
+
+    .dashboard-buttons {
+        padding: 4px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 2px;
+        margin: 10px 0;
+        position: relative;
+
+        button {
+            all: unset;
+            position: relative;
+            width: 41px;
+            height: 41px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: rgba(200, 200, 200, 0.5);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+
+            i.material-icons {
+                font-size: 24px;
+                color: #666;
+            }
+
+            &:disabled {
+                opacity: 0.5;
+                cursor: auto;
+                pointer-events: none;
+            }
+
+            &:hover {
+                background-color: rgba(180, 180, 180, 0.7);
+            }
+
+            &::after {
+                content: attr(data-tooltip);
+                position: absolute;
+                bottom: -28px;
+                left: 50%;
+                transform: translateX(-50%);
+                max-width: 150px;
+                background: rgba(0, 0, 0, 0.75);
+                color: #fff;
+                padding: 3px 6px;
+                font-size: 12px;
+                white-space: nowrap;
+                opacity: 0;
+                pointer-events: none;
+                transition: opacity 0.15s ease-in-out;
+                z-index: 1000;
+                box-sizing: border-box;
+                border-radius: 2px;
+            }
+
+            &:hover::after {
+                opacity: 1;
+            }
+        }
+
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid v.$gray-400;
+            border-top-color: v.$active-color;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            box-sizing: border-box;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+    }
+
+    .dashboard-tabs {
+        display: flex;
+        justify-content: space-around;
+        margin: 10px 0;
+
+        button {
+            all: unset;
+            padding: 6px 12px;
+            font-size: 16px;
+            text-transform: uppercase;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+
+            &.active {
+                border-bottom-color: #00bcd4;
+                font-weight: bold;
+            }
+        }
+    }
+
+    .dashboard-tab-content {
+        flex: 1;
+        overflow-y: auto;
+        font-size: 13px;
+        color: #333;
+        padding-left: 10px;
+    }
+}

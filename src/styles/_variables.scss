@@ -1,0 +1,35 @@
+// Gray base
+$gray-100: #f5f5f5;
+$gray-200: #e0e0e0;
+$gray-300: #c8c8c8;
+$gray-400: #a0a0a0;
+$gray-500: #888888;
+$gray-600: #666666;
+$gray-700: #444444;
+$gray-800: #222222;
+
+// Functional
+$active-color: #00bcd4; // cyan highlight
+$tooltip-bg: rgba(0, 0, 0, 0.75);
+$tooltip-text: white;
+
+// Backgrounds
+$overlay-bg: rgba(200, 200, 200, 0.25);
+$select-bg: rgba(160, 160, 160, 0.3);
+$select-bg-hover: rgba(160, 160, 160, 0.5);
+$select-bg-focus: rgba(180, 180, 180, 0.6);
+
+// Selection Rectangle
+$color-gray-border: #999;
+$color-gray-bg-light: rgba(128, 128, 128, 0.1);
+$color-gray-border-subtle: rgba(100, 100, 100, 0.5);
+$color-gray-bg-subtle: rgba(100, 100, 100, 0.05);
+
+// Histogram Colors
+$histogram-selection: #c1d8e0;
+$histogram-selected-bars: #0093d6;
+$histogram-unselected-bars: #1a1a1a;
+
+$color-scale-low: #198FBD;
+$color-scale-high: #F7295B;
+$color-scale-middle: #F7D529;

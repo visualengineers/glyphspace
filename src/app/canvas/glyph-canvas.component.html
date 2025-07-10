@@ -1,0 +1,46 @@
+<div class="scene-container">
+  <div
+    #canvasContainer class="canvas-container"
+    id="canvas-container"
+    (mouseenter)="onMouseEnter()"
+    (mouseleave)="onMouseLeave()"
+  >
+    <app-magiclens [container]="canvasContainer"
+      [glyphGroup]="glyphGroup"
+      [id]="id"
+    ></app-magiclens>
+    <app-overlaycontrols
+      [collisionAvoidance]="collisionAvoidance"
+      [aggregated]="aggregated"
+      [selectionMode]="selectionMode"
+      [magicLenseStatus]="magicLenseStatus"
+      [showSettings]="showSettings"
+
+      [timestamps]="timestamps"
+      [selectedTimestamp]="selectedTimestamp"
+
+      [algorithms]="algorithms"
+      [selectedAlgorithm]="selectedAlgorithm"
+
+      [contexts]="contexts"
+      [selectedContext]="selectedContext"
+
+      (fitToView)="fitToView()"
+      (toggleCollision)="toggleCollisionAvoidance()"
+      (toggleAggregation)="toggleAggregation()"
+      (toggleSelection)="toggleSelectionMode()"
+      (toggleLens)="toggleMagicLens()"
+      (toggleSettingsPanel)="toggleSettings()"
+      (settingsChanged)="onSettingsChange($event)"
+    />
+  </div>
+</div>
+<app-tooltip [container]="canvasContainer"></app-tooltip>
+<div
+  class="selection-rectangle"  
+  [style.left.px]="selectionBox.left"
+  [style.top.px]="selectionBox.top"
+  [style.width.px]="selectionBox.width"
+  [style.height.px]="selectionBox.height"
+  [hidden]="!isSelecting"
+></div>

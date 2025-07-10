@@ -1,0 +1,40 @@
+@use '../../styles/variables' as v;
+
+.scene-container {
+  position: relative; // Needed for overlay to anchor properly
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+
+  .canvas-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: block;
+    /* position: relative; */
+    cursor: default;
+
+    &.selecting {
+      cursor: crosshair !important;
+    }
+
+    &.lensing {
+      cursor: none !important;
+    }
+  }
+}
+
+:host {
+  display: block;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.selection-rectangle {
+  position: fixed;
+  border: 1px dashed v.$color-gray-border;
+  background-color: v.$color-gray-bg-light;
+  pointer-events: none;
+  z-index: 1000;
+}

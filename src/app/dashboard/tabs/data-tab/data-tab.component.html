@@ -1,0 +1,16 @@
+<div class="data-tab-content">
+    <ng-container *ngIf="!hasData; else selectionUI">
+        <p class="no-data-message">No dataset loaded. Upload a CSV file to begin.</p>
+    </ng-container>
+
+    <ng-template #selectionUI>
+        <div class="data-selection-dropdowns">
+            <label>
+                <div class="select-label">Dataset</div>
+                <select [(ngModel)]="selectedDataset" (ngModelChange)="onDatasetSelect($event)">
+                    <option *ngFor="let name of datasetNames" [value]="name">{{ name }}</option>
+                </select>
+            </label>
+        </div>
+    </ng-template>
+</div>

@@ -1,0 +1,9 @@
+<div
+  #tooltip
+  class="tooltip"  
+  [style.left.px]="tooltipX"
+  [style.top.px]="tooltipY"
+  [style.display]="tooltipVisible || tooltipFixed ? 'block' : 'none'"
+  [innerHTML]="tooltipText"
+>
+</div>

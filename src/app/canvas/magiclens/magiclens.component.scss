@@ -1,0 +1,13 @@
+.lens-canvas {
+  position: absolute;
+  z-index: 999; /* lower than overlay-controls, which is z-index: 1001 */
+}
+
+.lens-indicator {
+  position: absolute;
+  border: 1px solid rgba(46, 21, 21, 0.7);
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  pointer-events: none;
+}

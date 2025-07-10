@@ -1,0 +1,22 @@
+:host {
+  display: block;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+}
+
+.grid {
+  display: grid;
+  width: 100vw;
+  height: 100vh;
+  grid-template-columns: repeat(auto-fill, minmax(0, 1fr));
+  grid-auto-rows: 1fr;
+  gap: 2px;
+}
+
+.grid > * {
+  width: 100%;
+  height: 100%;
+  /* Make children fill their grid cell */
+  box-sizing: border-box;
+}

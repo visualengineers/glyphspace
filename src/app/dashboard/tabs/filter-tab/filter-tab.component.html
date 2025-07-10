@@ -1,0 +1,42 @@
+<div class="filter-tab">
+  <div class="dashboard-search">
+    <input
+      #searchInput
+      type="text"
+      [(ngModel)]="searchTerm"
+      (keydown.enter)="onSearchEnter()"
+      (focus)="onFocus()"
+      (blur)="onBlur()"
+      placeholder="Text search in features..."
+    />
+    <button
+      class="clear-btn"
+      *ngIf="searchTerms.length > 0 || searchTerm"
+      (click)="clearSearch(searchInput)"
+      data-tooltip="Clear"
+    >
+      <i class="material-icons">close</i>
+    </button>
+    <ul class="search-term-list" *ngIf="inputFocused && searchTerms.length > 0">
+      <li *ngFor="let term of searchTerms; let i = index">
+        <span>{{ term }}</span>
+        <button class="remove-btn" (click)="removeTerm(i)">
+          <i class="material-icons">close</i>
+        </button>
+      </li>
+    </ul>
+  </div>
+  <div class="filter-container">
+    <ng-container *ngFor="let featureId of featureIds; trackBy: trackByFeatureId">
+      <div class="filter-item-wrapper">
+        <app-filter-item
+          [configuration]="configuration"
+          [dataProvider]="dataProvider"
+          [histogramData]="features[featureId].histogram"
+          [label]="getFeatureName(featureId)"
+          [property]="featureId">
+        </app-filter-item>
+      </div>
+    </ng-container>
+  </div>
+</div>

@@ -1,0 +1,132 @@
+@use '../../../../styles/variables' as v;
+
+.filter-tab {
+    margin-top: 8px;
+
+    .dashboard-search {
+        position: relative;
+        margin-right: 10px;
+        padding-bottom: 15px;
+
+        input {
+            box-sizing: border-box;
+            width: 100%;
+            margin-right: 5px;
+            padding: 8px;
+            font-size: 14px;
+            border: 1px solid v.$gray-500;
+            border-radius: 0px;
+            background-color: v.$overlay-bg;
+            color: v.$gray-800;
+            outline: none;
+
+            &::placeholder {
+                color: v.$gray-500;
+            }
+
+            &:focus {
+                background-color: v.$select-bg-focus;
+            }
+        }
+
+        .clear-btn {
+            all: unset;
+            position: absolute;
+            top: 10%;
+            right: 9px;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+
+            i.material-icons {
+                font-size: 20px;
+                color: v.$gray-600;
+            }
+
+            &:hover i {
+                color: v.$gray-800;
+            }
+
+            &::after {
+                content: attr(data-tooltip);
+                position: absolute;
+                top: 100%;
+                left: 50%;
+                transform: translateX(-70%);
+                margin-top: 4px;
+                max-width: 150px;
+                background: v.$tooltip-bg;
+                color: v.$tooltip-text;
+                padding: 3px 6px;
+                font-size: 12px;
+                white-space: nowrap;
+                opacity: 0;
+                pointer-events: none;
+                transition: opacity 0.15s ease-in-out;
+                z-index: 1000;
+                border-radius: 2px;
+            }
+
+            &:hover::after {
+                opacity: 1;
+            }
+
+            &:disabled {
+                pointer-events: none;
+                opacity: 0.5;
+            }
+        }
+
+        .search-term-list {
+            position: absolute;
+            // top: 0%;
+            left: 0;
+            right: 0;
+            margin: 0px;
+            margin-top: -1px;
+            padding: 4px;
+            background: v.$gray-200;
+            border: 1px solid v.$gray-400;
+            box-shadow: 0 2px 3px rgba(0, 0, 0, 0.1);
+            z-index: 100;
+
+            li {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 4px 6px;
+                border-bottom: 1px solid v.$gray-400;
+                font-size: 13px;
+                color: v.$gray-800;
+
+                &:last-child {
+                    border-bottom: none;
+                }
+
+                .remove-btn {
+                    all: unset;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+
+                    i.material-icons {
+                        font-size: 20px;
+                        color: v.$gray-500;
+                    }
+
+                    &:hover i {
+                        color: v.$gray-700;
+                    }
+                }
+            }
+        }
+    }
+
+    .filter-container {
+        display: flex;
+        flex-wrap: wrap;
+    }
+}

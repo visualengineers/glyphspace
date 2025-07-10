@@ -1,0 +1,113 @@
+@use '../../../styles/variables' as v;
+
+.overlay-controls {
+    position: absolute;
+    top: 0px;
+    left: 0px;
+    display: flex;
+    flex-direction: row;
+    gap: 4px; // minimal spacing
+    z-index: 1001 !important;
+
+    // 🔽 Add a gentle background
+    background-color: v.$overlay-bg; // very subtle
+    padding: 2px 3px;
+
+    button {
+        all: unset; // removes background, border, etc.
+        padding: 2px;
+        cursor: pointer;
+        color: v.$gray-500; // gray icons
+        font-size: 16px;
+        line-height: 1;
+
+        i.material-icons {
+            font-size: 18px;
+            vertical-align: middle;
+        }
+
+        &:hover {
+            color: v.$gray-400; // lighter gray on hover
+        }
+
+        &.active {
+            color: v.$active-color; // cyan highlight for active buttons
+        }
+
+        &::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: -28px;
+            left: 70%;
+            transform: translateX(-50%);
+            max-width: 150px;
+            background: v.$tooltip-bg;
+            color: v.$tooltip-text;
+            padding: 3px 6px;
+            font-size: 12px;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.15s ease-in-out;
+            z-index: 1000;
+            box-sizing: border-box;
+        }
+
+        &:hover::after {
+            opacity: 1;
+        }
+    }
+}
+
+.settings-dropdown {
+    position: absolute;
+    top: 30px;
+    right: 0;
+    left: 0;
+    background-color: v.$overlay-bg;
+    padding: 6px 8px;
+    border-radius: 0;
+    z-index: 1002;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+
+    label {
+        position: relative;
+        font-size: 11px;
+        color: v.$gray-700;
+
+        select {
+            margin-top: 0;
+            font-size: 12px;
+            padding: 18px 4px 4px 2px;
+            background-color: v.$select-bg;
+            border: none;
+            border-bottom: 1px solid v.$gray-600;
+            color: v.$gray-800;
+            appearance: none;
+            width: 100%;
+            cursor: pointer;
+            outline: none;
+
+            &:hover {
+                background-color: v.$select-bg-hover;
+            }
+
+            &:focus {
+                background-color: v.$select-bg-focus;
+                border-bottom-color: v.$gray-300;
+            }
+        }
+
+        .select-label {
+            position: absolute;
+            top: 4px;
+            left: 0px;
+            font-size: 9px;
+            color: v.$gray-600;
+            text-transform: uppercase;
+            pointer-events: none;
+        }
+    }
+}

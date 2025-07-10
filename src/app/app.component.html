@@ -1,0 +1,19 @@
+<app-dashboard
+  [totalCells]="grid.length"
+  [isOpen]="true"
+  (addCanvas)="addCanvas()"
+  (removeCanvas)="removeCanvas()">
+</app-dashboard>
+
+<div
+  #canvasGrid
+  class="grid"
+  [style.gridTemplateColumns]="'repeat(' + cols + ', 1fr)'"
+  [style.gridTemplateRows]="'repeat(' + rows + ', 1fr)'"
+>
+  <glyph-canvas
+    *ngFor="let cell of grid; trackBy: trackById"
+    [id]="cell.id" 
+    >
+  </glyph-canvas>
+</div>
