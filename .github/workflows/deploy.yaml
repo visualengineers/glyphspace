@@ -22,7 +22,7 @@ jobs:
         run: npm ci
 
       - name: 🛠️ Build Angular app
-        run: npm run build -- --base-href=/glyphspace/
+        run: npm run build -- --base-href=/glyphspace/ --configuration production
 
       - name: 📄 Create .nojekyll file
         run: echo > dist/glyphspace/browser/.nojekyll

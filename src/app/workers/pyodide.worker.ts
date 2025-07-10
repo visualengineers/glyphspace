@@ -43,7 +43,7 @@ self.onmessage = async (ev: MessageEvent<WorkerRequest>) => {
 
           // Only load processor.py once
           if (!pyodide.FS.analyzePath('processor.py').exists) {
-            const pyCode = await fetch('/assets/processor.py').then(res => res.text());
+            const pyCode = await fetch('assets/processor.py').then(res => res.text());
             pyodide.FS.writeFile('processor.py', pyCode);
           }
 
