@@ -3828,7 +3828,7 @@ void main() {
             <td style="width: 40%; padding: 0; vertical-align: top; font-weight: bold; padding-right: 0.75em; word-break: break-word; overflow-wrap: break-word; white-space: normal;">
               ${i?.[o]??o}
             </td>
-            <td style="width: 60%; padding: 0; white-space: normal; word-break: break-word; overflow-wrap: break-word; white-space: normal;">
+            <td style="width: 60%; padding: 0; vertical-align: top; white-space: normal; word-break: break-word; overflow-wrap: break-word; white-space: normal;">
               ${s}
             </td>
           </tr>`).join("");return`
