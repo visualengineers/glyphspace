@@ -3,7 +3,7 @@ import { DatasetCollection } from "./app/shared/interfaces/dataset-collection";
 export const DEFAULT_DATASETCOLLECTION: DatasetCollection = [
     {
         "dataset": "wineqr",
-        "source": "wasm",
+        "source": "local",
         "items": [
             {
                 "algorithms": {

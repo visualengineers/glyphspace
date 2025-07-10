@@ -66,7 +66,7 @@ def discover_datasets() -> str:
 
         result.append({
             "dataset": base,
-            "source": "wasm",
+            "source": "local",
             "items": items
         })
 
