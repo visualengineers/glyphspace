@@ -10,7 +10,7 @@ import { forceCollide, forceSimulation, Simulation } from 'd3-force';
 import { clusterGlyphs, getGlyphFromObject } from '../shared/helpers/glyph-helper';
 import { InteractionCommand } from '../shared/enum/interaction-command';
 import { GlyphCacheObject } from '../glyph/glyph-cache-object';
-import { convertToScreenSpace, hitTest, jitterFromVector, nearlyEqual, panCamera, scalePosition } from '../shared/helpers/three-helper';
+import { convertToScreenSpace, exportThreeSceneAsPNG, hitTest, jitterFromVector, nearlyEqual, panCamera, scalePosition } from '../shared/helpers/three-helper';
 import { TooltipComponent } from "./tooltip/tooltip.component";
 import { MagiclensComponent } from "./magiclens/magiclens.component";
 import { CommonModule } from '@angular/common';
@@ -243,6 +243,15 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
         } else if (command == InteractionCommand.clearselection) {
           this.selectionFilter.clear();
           this.renderGlyphs();
+        } else if (command == InteractionCommand.exportimage) {
+          exportThreeSceneAsPNG(this.renderer, this.scene, this.camera,
+            {
+              filename: "three-scene-" + this.id + ".png",
+              scaleFactor: 2,
+              restoreAfterExport: true,
+              canvasElement: this.canvasContainer.nativeElement
+            }
+          )
         }
       })
     );

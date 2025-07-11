@@ -6,6 +6,8 @@ _Attention: this is a developer preview! The project is not yet in beta stage or
 
 Glyphspace is a complete rewrite of the [Glyphboard application](https://github.com/visualengineers/glyphboard), which combines dimensionality reduction with a seamless integration of glyph-based visualizations that are able to show the most relevant dimensions in a data set at one glance.
 
+See the running demo on Github pages: [https://visual-engineers.org/glyphspace/](https://visual-engineers.org/glyphspace/).
+
 ## Usage
 
 ... coming soon. 

@@ -3,5 +3,6 @@ export enum InteractionCommand {
     redraw,
     rerender,
     fittoscreen,
-    clearselection
+    clearselection,
+    exportimage
 }

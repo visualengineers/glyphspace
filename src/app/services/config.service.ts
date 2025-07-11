@@ -92,6 +92,11 @@ export class ConfigService {
     return this.loadedDataSubject.getValue();
   }
 
+  exportImage() {
+    this.commandSubject.next(InteractionCommand.exportimage);
+    this.commandSubject.next(InteractionCommand.noop);
+  }
+
   redraw() {
     this.commandSubject.next(InteractionCommand.redraw);
   }

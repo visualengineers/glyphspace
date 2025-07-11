@@ -186,7 +186,7 @@ export class DashboardComponent {
   }
 
   download() {
-    throw new Error('Method not implemented.');
+    this.config.exportImage();
   }
 
   showHelp() {

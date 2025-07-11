@@ -118,3 +118,54 @@ export function scalePosition(
 export function nearlyEqual(a: number, b: number, epsilon: number = 0.01): boolean {
     return Math.abs(a - b) < epsilon;
 }
+
+export function exportThreeSceneAsPNG(
+  renderer: THREE.WebGLRenderer,
+  scene: THREE.Scene,
+  camera: THREE.Camera,
+  options?: {
+    filename?: string;
+    scaleFactor?: number;
+    restoreAfterExport?: boolean;
+    canvasElement?: HTMLCanvasElement; // Pass renderer.domElement for accuracy
+  }
+): void {
+  if (!renderer || !scene || !camera) return;
+
+  const {
+    filename = 'three-scene.png',
+    scaleFactor = 1,
+    restoreAfterExport = true,
+    canvasElement = renderer.domElement
+  } = options || {};
+
+  // Get actual display size of the canvas in the DOM
+  const canvasWidth = canvasElement.clientWidth;
+  const canvasHeight = canvasElement.clientHeight;
+
+  // Backup current state
+  const originalSize = new THREE.Vector2();
+  renderer.getSize(originalSize);
+  const originalPixelRatio = renderer.getPixelRatio();
+
+  // Set high-res export size
+  renderer.setPixelRatio(window.devicePixelRatio * scaleFactor);
+  renderer.setSize(canvasWidth, canvasHeight, false);
+  renderer.render(scene, camera);
+
+  // Export image
+  const dataURL = renderer.domElement.toDataURL('image/png');
+  const link = document.createElement('a');
+  link.href = dataURL;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+
+  // Restore original render state if desired
+  if (restoreAfterExport) {
+    renderer.setPixelRatio(originalPixelRatio);
+    renderer.setSize(originalSize.x, originalSize.y, false);
+    renderer.render(scene, camera); // optional redraw
+  }
+}
