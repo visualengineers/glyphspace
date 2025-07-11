@@ -434,6 +434,14 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
       this.requestRender(RenderTask.OriginalSimulation);
     } else {
       this.cancelRender(RenderTask.OriginalSimulation);
+      this.glyphData.forEach(glyph => {
+        const cache = glyph.getCacheObject(this.id, this.selectedTimestamp, this.selectedAlgorithm);        
+        const mesh = cache.mesh;
+        if (cache && mesh) {
+          cache.x = mesh.position.x;
+          cache.y = mesh.position.y;
+        }
+      });
     }
   }
 
