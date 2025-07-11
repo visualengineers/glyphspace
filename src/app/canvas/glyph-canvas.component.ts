@@ -434,14 +434,6 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
       this.requestRender(RenderTask.OriginalSimulation);
     } else {
       this.cancelRender(RenderTask.OriginalSimulation);
-      this.glyphData.forEach(glyph => {
-        const cache = glyph.getCacheObject(this.id, this.selectedTimestamp, this.selectedAlgorithm);        
-        const mesh = cache.mesh;
-        if (cache && mesh) {
-          cache.x = mesh.position.x;
-          cache.y = mesh.position.y;
-        }
-      });
     }
   }
 
@@ -708,13 +700,16 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
 
     this.glyphData.forEach(glyph => {
       const cachedObject = glyph.getCacheObject(this.id, this.selectedTimestamp, this.selectedAlgorithm);
-      const isVisible =
-        cachedObject.position.x + r > left &&                // right edge > left pane
-        cachedObject.position.x - r < right &&                // left  edge < right pane
-        cachedObject.position.y + r > bottom &&                // top    edge > bottom pane
-        cachedObject.position.y - r < top;                     // bottom edge < top pane
-      if (!cachedObject.visible && isVisible) this.renderGlyph(glyph);
-      cachedObject.visible = isVisible;
+      const cachedMesh = cachedObject.mesh;
+      if (cachedMesh) {
+        const isVisible =
+          cachedMesh.position.x + r > left &&                // right edge > left pane
+          cachedMesh.position.x - r < right &&                // left  edge < right pane
+          cachedMesh.position.y + r > bottom &&                // top    edge > bottom pane
+          cachedMesh.position.y - r < top;                     // bottom edge < top pane
+        if (!cachedObject.visible && isVisible) this.renderGlyph(glyph);
+        cachedObject.visible = isVisible;
+      }
     });
   }
 
