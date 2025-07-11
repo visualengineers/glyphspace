@@ -110,4 +110,85 @@
             pointer-events: none;
         }
     }
+
+    .animation-control-group {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        background-color: v.$select-bg;
+
+        .select-label {
+            padding-top: 4px;
+            left: 0;
+            font-size: 9px;
+            color: v.$gray-600;
+            text-transform: uppercase;
+            pointer-events: none;
+        }
+
+        .animation-controls {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            padding-top: 3px;
+            padding-bottom: 3px;
+            gap: 4px;
+            border-bottom: 1px solid v.$gray-600;
+
+            button {
+                all: unset;
+                padding: 2px;
+                cursor: pointer;
+                color: v.$gray-600;
+                font-size: 12px;
+                line-height: 1;
+                position: relative;
+
+                i.material-icons {
+                    font-size: 18px;
+                    vertical-align: middle;
+                }
+
+                &:hover {
+                    color: v.$gray-400;
+                }
+
+                &.active {
+                    color: v.$active-color;
+                }
+
+                &::after {
+                    content: attr(data-tooltip);
+                    position: absolute;
+                    bottom: -28px;
+                    left: 70%;
+                    transform: translateX(-25%);
+                    max-width: 150px;
+                    background: v.$tooltip-bg;
+                    color: v.$tooltip-text;
+                    padding: 3px 6px;
+                    font-size: 12px;
+                    white-space: nowrap;
+                    opacity: 0;
+                    pointer-events: none;
+                    transition: opacity 0.15s ease-in-out;
+                    z-index: 1000;
+                    box-sizing: border-box;
+                }
+
+                &:hover::after {
+                    opacity: 1;
+                }
+            }
+
+            .speed-display {
+                font-size: 12px;
+                width: 15px;
+                text-align: center;
+                color: v.$gray-700;
+                user-select: none;
+                padding-top: 0px;
+            }
+        }
+    }
 }

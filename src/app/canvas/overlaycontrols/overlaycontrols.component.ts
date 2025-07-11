@@ -30,6 +30,8 @@ export class OverlayControlsComponent {
   @Output() toggleSelection = new EventEmitter<void>();
   @Output() toggleLens = new EventEmitter<void>();
   @Output() toggleSettingsPanel = new EventEmitter<void>();
+  @Output() changeAnimationSpeed = new EventEmitter<number>();
+  @Output() togglePlayback = new EventEmitter<void>();
 
   @Output() settingsChanged = new EventEmitter<{
     timestamp: string;
@@ -37,11 +39,34 @@ export class OverlayControlsComponent {
     context: string;
   }>();
 
+  animationSpeed = 10;
+  paused = true;
+
   emitSettingsChange() {
     this.settingsChanged.emit({
       timestamp: this.selectedTimestamp,
       algorithm: this.selectedAlgorithm,
       context: this.selectedContext
     });
+    this.paused = false;
+  }
+
+  increaseSpeed() {
+    if (this.animationSpeed < 10) {
+      this.animationSpeed++;
+      this.changeAnimationSpeed.emit(this.animationSpeed / 1000);
+    }
+  }
+
+  decreaseSpeed() {
+    if (this.animationSpeed > 1) {
+      this.animationSpeed--;
+      this.changeAnimationSpeed.emit(this.animationSpeed / 1000);
+    }
+  }
+
+  togglePaused() {
+    this.paused = !this.paused;
+    this.togglePlayback.emit();
   }
 }

@@ -45,25 +45,49 @@
 
     <!-- Dropdown -->
     <div class="settings-dropdown" *ngIf="showSettings">
-    <label>
-        <span class="select-label">Timestamp</span>
-        <select [(ngModel)]="selectedTimestamp" (ngModelChange)="emitSettingsChange()">
-        <option *ngFor="let t of timestamps" [value]="t">{{ t }}</option>
-        </select>
-    </label>
+        <label>
+            <span class="select-label">Timestamp</span>
+            <select [(ngModel)]="selectedTimestamp" (ngModelChange)="emitSettingsChange()">
+            <option *ngFor="let t of timestamps" [value]="t">{{ t }}</option>
+            </select>
+        </label>
 
-    <label>
-        <span class="select-label">Algorithm</span>
-        <select [(ngModel)]="selectedAlgorithm" (ngModelChange)="emitSettingsChange()">
-        <option *ngFor="let algo of algorithms" [value]="algo">{{ algo }}</option>
-        </select>
-    </label>
+        <label>
+            <span class="select-label">Algorithm</span>
+            <select [(ngModel)]="selectedAlgorithm" (ngModelChange)="emitSettingsChange()">
+            <option *ngFor="let algo of algorithms" [value]="algo">{{ algo }}</option>
+            </select>
+        </label>
 
-    <label>
-        <span class="select-label">Context</span>
-        <select [(ngModel)]="selectedContext" (ngModelChange)="emitSettingsChange()">
-        <option *ngFor="let context of contexts" [value]="context">{{ context }}</option>
-        </select>
-    </label>
+        <!-- <label>
+            <span class="select-label">Context</span>
+            <select [(ngModel)]="selectedContext" (ngModelChange)="emitSettingsChange()">
+            <option *ngFor="let context of contexts" [value]="context">{{ context }}</option>
+            </select>
+        </label> -->
+
+        <div class="animation-control-group">
+            <div class="select-label">Playback Controls</div>
+            <div class="animation-controls">
+
+                <button (click)="decreaseSpeed()" data-tooltip="Decrease Speed">
+                    <i class="material-icons">remove</i>
+                </button>
+
+                <div class="speed-display">
+                    {{ animationSpeed }}
+                </div>
+
+                <button (click)="increaseSpeed()" data-tooltip="Increase Speed">
+                    <i class="material-icons">add</i>
+                </button>
+
+                <button (click)="togglePaused()" [attr.data-tooltip]="paused ? 'Play Animation' : 'Pause Animation'">
+                <i class="material-icons">
+                    {{ paused ? 'play_arrow' : 'pause' }}
+                </i>
+                </button>
+            </div>
+        </div>
     </div>
 </div>

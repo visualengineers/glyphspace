@@ -74,6 +74,7 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
   private fitStartZoom!: number;
   private fitEndZoom!: number;
   private fitDuration = 500; // ms
+  private animationSpeed = 0.1;
 
   // Helpers for navigation
   private isPanning = false;
@@ -335,6 +336,7 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
         cached.x = cached.position.x;
         cached.y = cached.position.y;
       })
+      this.animationSpeed = 0.1;
       this.requestRender(RenderTask.OriginalSimulation);
     } else {
       this.requestRender(RenderTask.ForceSimulation);
@@ -423,14 +425,46 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
     this.showSettings = !this.showSettings;
   }
 
+  onAnimationSpeedChanged(speed: number) {
+    this.animationSpeed = speed;
+  }
+
+  onTogglePlayback() {
+    if (!this.needsRender.has(RenderTask.OriginalSimulation)) {
+      this.requestRender(RenderTask.OriginalSimulation);
+    } else {
+      this.cancelRender(RenderTask.OriginalSimulation);
+    }
+  }
+
   onSettingsChange(payload: { timestamp: string; algorithm: string; context: string }): void {
     this.selectedTimestamp = payload.timestamp;
     this.selectedAlgorithm = payload.algorithm;
     this.selectedContext = payload.context;
 
     this.positionBounds = undefined;
-    this.renderGlyphs();
-    this.fitToView();
+    this.updatePositionBounds();
+
+    this.glyphData.forEach(glyph => {
+      const cache = glyph.getCacheObject(this.id, this.selectedTimestamp, this.selectedAlgorithm);
+      if (cache && this.positionBounds) {
+        const newPos = glyph.getPosition(this.selectedTimestamp, this.selectedAlgorithm);
+        const scalePos = scalePosition(
+          newPos.x,
+          newPos.y,
+          this.positionBounds, // set this during layout initialization
+          this.canvasWidth,
+          this.canvasHeight
+        );
+        cache.position.x = scalePos.x;
+        cache.position.y = scalePos.y;
+        cache.x = scalePos.x;
+        cache.y = scalePos.y;
+      }
+    });
+
+    // this.animationSpeed = 0.01;
+    this.requestRender(RenderTask.OriginalSimulation);
     this.magicLensComponent.clearLensGlyphs();
     this.magicLensComponent.renderMagicLensGlyphs(this.selectedTimestamp, this.selectedAlgorithm);
   }
@@ -567,7 +601,7 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
     this.cancelRender(RenderTask.SceneRender);
   };
 
-  private animateBackToOriginal(speed = 0.1) {
+  private animateBackToOriginal() {
     let finished = true;
     this.glyphData.forEach(glyph => {
       const cachedObject = glyph.getCacheObject(this.id, this.selectedTimestamp, this.selectedAlgorithm);
@@ -579,11 +613,13 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
         finished = finished && finalPosition;
         mesh.position.lerp(
           new THREE.Vector3(target.x, target.y, 0),
-          speed
+          this.animationSpeed
         );
       }
     });
-    if (finished) this.needsRender.delete(RenderTask.OriginalSimulation);
+    if (finished) {
+      this.needsRender.delete(RenderTask.OriginalSimulation);
+    }
   }
 
   private scaleGroupToFit(): void {

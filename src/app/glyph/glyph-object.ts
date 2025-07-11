@@ -41,7 +41,7 @@ export class GlyphObject {
         this.dataProcessor = dataProcessor;
     }
 
-    getPosition(timestamp: string, algorithm: string): Coordinates {
+    public getPosition(timestamp: string, algorithm: string): Coordinates {
         return this.positions[timestamp][algorithm];
     }
 
