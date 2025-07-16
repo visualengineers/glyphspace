@@ -24,9 +24,10 @@ export class TextFilter extends ItemFilter {
   public override inFilter(item: GlyphObject): boolean {
     if (!item.values) return false
     
-    return Object.values(item.values).some(val =>
-      this._acceptableStrings.includes(String(val).toLowerCase())
-    );
+    return Object.values(item.values).some(val => {
+      const valStr = String(val).toLowerCase();
+      return this._acceptableStrings.some(substr => valStr.includes(substr));
+    });
   }
 
   public get acceptableStrings(): string[] {
