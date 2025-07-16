@@ -2,6 +2,8 @@ import sys
 import re
 import umap
 import os
+import math
+import random
 from sklearn.manifold import TSNE
 import json
 import pandas as pd
@@ -20,8 +22,24 @@ def current_timestamp():
     return datetime.now().strftime("%d%m%Y")
 
 def add_id_column_if_missing(df):
-    if df.columns[0].strip().lower() != "id":
+    # Find any existing 'id' column case-insensitively
+    id_cols = [col for col in df.columns if col.strip().lower() == "id"]
+    
+    # If found, rename it to uppercase 'ID' (if not already)
+    for col in id_cols:
+        if col != "ID":
+            df.rename(columns={col: "ID"}, inplace=True)
+    
+    # If after renaming, 'ID' is still not the first column, move it to first position
+    if "ID" in df.columns and df.columns[0] != "ID":
+        cols = list(df.columns)
+        cols.insert(0, cols.pop(cols.index("ID")))
+        df = df[cols]
+
+    # If no 'ID' column exists, add it as the first column
+    if "ID" not in df.columns:
         df.insert(0, "ID", [str(i) for i in range(1, len(df) + 1)])
+
     return df
 
 def discover_datasets() -> str:
@@ -103,10 +121,22 @@ def generate_schema(df, output_path_base):
     print(f"Schema file written: {filename}")
 
 def generate_features(df, output_path_base):
-    # Keep original values for "values"
+    # First, keep a copy of original values as strings for "values"
     df_values = df.astype(str).fillna("0")  # NaN replaced by string "0"
 
-    feature_cols = df.columns[1:]  # exclude ID
+    feature_cols = df.columns[1:]  # exclude ID column
+
+    # Detect potential date columns by dtype or name (adjust heuristics as needed)
+    date_cols = []
+    for col in feature_cols:
+        # Heuristic: If dtype is object and column name contains 'date' (case-insensitive)
+        if (df[col].dtype == 'object' or not pd.api.types.is_numeric_dtype(df[col])) and ('date' in col.lower()):
+            date_cols.append(col)
+
+    # Convert date columns to UNIX timestamps (seconds since epoch)
+    for col in date_cols:
+        df[col] = pd.to_datetime(df[col], errors='coerce')  # parse dates, invalid become NaT
+        df[col] = df[col].apply(lambda x: x.timestamp() if pd.notnull(x) else None)  # convert to float timestamp
 
     encoded_df = pd.DataFrame()
     encoders = {}
@@ -114,7 +144,10 @@ def generate_features(df, output_path_base):
     for col in feature_cols:
         col_data = df[col]
 
-        if not pd.api.types.is_numeric_dtype(col_data):
+        if col in date_cols:
+            # Dates are now floats (timestamps), fill NaN with 0 and convert to float
+            encoded_df[col] = col_data.fillna(0).astype(float)
+        elif not pd.api.types.is_numeric_dtype(col_data):
             le = LabelEncoder()
             col_data_filled = col_data.fillna("0").astype(str)
             encoded = le.fit_transform(col_data_filled)
@@ -123,6 +156,7 @@ def generate_features(df, output_path_base):
         else:
             encoded_df[col] = col_data.fillna(0).astype(float)
 
+    # Normalize features
     normalized_df = encoded_df.copy()
     for col in normalized_df.columns:
         col_min = normalized_df[col].min()
@@ -222,6 +256,18 @@ def generate_epsg_positions(df, output_path_base):
     if lon_col is None or lat_col is None:
         print("Longitude or latitude columns not found; skipping EPSG position file.")
         return
+    
+    # Get valid latitude and longitude ranges from the dataset
+    valid_lats = pd.to_numeric(df[lat_col], errors='coerce').dropna()
+    valid_lons = pd.to_numeric(df[lon_col], errors='coerce').dropna()
+
+    if valid_lats.empty or valid_lons.empty:
+        print("No valid coordinates to infer fallback range from.")
+        return
+
+    BUFFER = 1.0
+    LAT_RANGE = (valid_lats.min() - BUFFER, valid_lats.max() + BUFFER)
+    LON_RANGE = (valid_lons.min() - BUFFER, valid_lons.max() + BUFFER)
 
     positions = []
     for _, row in df.iterrows():
@@ -230,15 +276,18 @@ def generate_epsg_positions(df, output_path_base):
         try:
             x_val = float(row[lon_col])
         except (ValueError, TypeError):
-            x_val = None
+            x_val = float('nan')
 
         try:
             y_val = float(row[lat_col])
         except (ValueError, TypeError):
-            y_val = None
+            y_val = float('nan')
 
-        if x_val is None or y_val is None:
-            continue  # skip rows without valid coordinates
+        # Replace NaN values with random coordinates
+        if pd.isna(x_val) or math.isnan(x_val):
+            x_val = random.uniform(*LON_RANGE)
+        if pd.isna(y_val) or math.isnan(y_val):
+            y_val = random.uniform(*LAT_RANGE)
 
         positions.append({
             "id": id_val,
