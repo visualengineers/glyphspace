@@ -453,7 +453,7 @@ def process_csv_file(input_csv_path):
     generate_schema(df, output_path_base)
     features_df = generate_features(df, output_path_base)
     feature_data = extract_projection_features(df, features_df)
-    generate_meta(df, output_path_base)
+    generate_meta(features_df, output_path_base)
     generate_xy_positions(df, output_path_base)
     generate_epsg_positions(df, output_path_base)
     generate_pca_positions(feature_data, output_path_base)
