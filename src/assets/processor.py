@@ -18,24 +18,21 @@ def current_timestamp():
     return datetime.now().strftime("%d%m%Y")
 
 def add_id_column_if_missing(df):
-    # Find any existing 'id' column case-insensitively
-    id_cols = [col for col in df.columns if col.strip().lower() == "id"]
-    
-    # If found, rename it to uppercase 'ID' (if not already)
-    for col in id_cols:
-        if col != "ID":
-            df.rename(columns={col: "ID"}, inplace=True)
-    
-    # If after renaming, 'ID' is still not the first column, move it to first position
-    if "ID" in df.columns and df.columns[0] != "ID":
-        cols = list(df.columns)
-        cols.insert(0, cols.pop(cols.index("ID")))
-        df = df[cols]
+    # only one id column allowed, hence the next(..., None)
+    id_col = next((col for col in df.columns if col.strip().lower() == "id"), None)
 
-    # If no 'ID' column exists, add it as the first column
-    if "ID" not in df.columns:
-        df.insert(0, "ID", [str(i) for i in range(1, len(df) + 1)])
-
+    if id_col:
+        # pole position for id_col
+        if df.columns[0] != id_col:
+            cols = list(df.columns)
+            cols.insert(0, cols.pop(cols.index(id_col)))
+            df = df[cols]
+        # rename
+        if id_col != "ID":
+            df.rename(columns={id_col: "ID"}, inplace=True)
+    else:
+        # add
+        df.insert(0, "ID", df.index.astype(str))
     return df
 
 def generate_schema(df, output_path_base):
