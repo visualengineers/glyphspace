@@ -61,7 +61,7 @@ def generate_schema(df, output_path_base):
 
     return filename
 
-def generate_features(df, output_path_base):
+def generate_features(df, output_path_base, cardinality_threshold = 10):
     # First, keep a copy of original values as strings for "values"
     df_values = df.astype(str).fillna("0")  # NaN replaced by string "0"
 
@@ -81,21 +81,33 @@ def generate_features(df, output_path_base):
 
     encoded_df = pd.DataFrame()
     encoders = {}
+    
+    feature_col_map = []  # Mapping
 
     for col in feature_cols:
         col_data = df[col]
 
         if col in date_cols:
-            # Dates are now floats (timestamps), fill NaN with 0 and convert to float
             encoded_df[col] = col_data.fillna(0).astype(float)
+            feature_col_map.append(col)
+
         elif not pd.api.types.is_numeric_dtype(col_data):
-            le = LabelEncoder()
             col_data_filled = col_data.fillna("0").astype(str)
-            encoded = le.fit_transform(col_data_filled)
-            encoders[col] = le
-            encoded_df[col] = encoded
+            nunique = col_data_filled.nunique()
+
+            if nunique <= cardinality_threshold: # LabelEncoder assumes ordinal categories which is too strong an assumption
+                dummies = pd.get_dummies(col_data_filled, prefix=col)
+                encoded_df = pd.concat([encoded_df, dummies], axis=1)
+                feature_col_map.extend(dummies.columns.tolist())
+            else:
+                le = LabelEncoder()
+                encoded = le.fit_transform(col_data_filled)
+                encoders[col] = le
+                encoded_df[col] = encoded
+                feature_col_map.append(col)
         else:
             encoded_df[col] = col_data.fillna(0).astype(float)
+            feature_col_map.append(col)
 
     # Normalize features
     normalized_df = encoded_df.copy()
@@ -115,12 +127,18 @@ def generate_features(df, output_path_base):
     for idx, row in df.iterrows():
         id_value = row["ID"]
 
-        feature_dict = {}
-        for i in range(len(feature_cols)):
-            val = float(normalized_df.iloc[idx, i])
-            feature_dict[str(i+1)] = val
+        feature_dict = {str(i + 1): float(normalized_df.iloc[idx, i]) for i in range(len(normalized_df.columns))}
+        value_dict = {}
+        for i, orig_col in enumerate(feature_col_map):
+            if orig_col in df_values.columns:
+                value = df_values.iloc[idx, df_values.columns.get_loc(orig_col)]
+            elif "_" in orig_col and orig_col.rsplit("_", 1)[0] in df_values.columns:
+                base_col, category = orig_col.rsplit("_", 1)
+                value = "1" if df_values.iloc[idx, df_values.columns.get_loc(base_col)] == category else "0"
+            else:
+                value = "0"
+            value_dict[str(i + 1)] = value
 
-        value_dict = {str(i+1): str(df_values.iloc[idx, i+1]) for i in range(len(feature_cols))}
 
         features_list.append({
             "defaultcontext": "1",
