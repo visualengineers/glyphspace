@@ -97,7 +97,7 @@ def generate_features(df, output_path_base, cardinality_threshold = 10):
 
             if nunique <= cardinality_threshold: # LabelEncoder assumes ordinal categories which is too strong an assumption
                 dummies = pd.get_dummies(col_data_filled, prefix=col)
-                encoded_df = pd.concat([encoded_df, dummies], axis=1)
+                encoded_df = pd.concat([encoded_df, dummies.astype(float)], axis=1)
                 feature_col_map.extend(dummies.columns.tolist())
             else:
                 le = LabelEncoder()
