@@ -43,3 +43,5 @@ Thumbs.db
 
 # Miscellaneous
 /.angular/cache 
+/src/assets/__pycache__
+/src/assets/tests
