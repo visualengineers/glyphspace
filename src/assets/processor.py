@@ -70,8 +70,8 @@ def generate_features(df, output_path_base, cardinality_threshold = 10):
     # Detect potential date columns by dtype or name (adjust heuristics as needed)
     date_cols = []
     for col in feature_cols:
-        # Heuristic: If dtype is object and column name contains 'date' (case-insensitive)
-        if (df[col].dtype == 'object' or not pd.api.types.is_numeric_dtype(df[col])) and ('date' in col.lower()):
+        # Heuristic: If dtype is object and column name contains 'date' or 'time' (case-insensitive)
+        if (df[col].dtype == 'object' or not pd.api.types.is_numeric_dtype(df[col])) and (('date' in col.lower()) or ('time' in col.lower())):
             date_cols.append(col)
 
     # Convert date columns to UNIX timestamps (seconds since epoch)
