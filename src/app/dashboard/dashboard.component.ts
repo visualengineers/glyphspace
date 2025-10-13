@@ -190,7 +190,7 @@ export class DashboardComponent {
   }
 
   showHelp() {
-    window.open('https://visualengineers.github.io/glyphboard-doc/', '_blank');
+    window.open('https://github.com/visualengineers/glyphspace/', '_blank');
   }
 
   toggle(): void {
