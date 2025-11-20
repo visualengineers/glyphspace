@@ -2,6 +2,25 @@ import { DatasetCollection } from "./app/shared/interfaces/dataset-collection";
 
 export const DEFAULT_DATASETCOLLECTION: DatasetCollection = [
     {
+        "dataset": "nutrients",
+        "source": "local",
+        "items": [
+            {
+                "algorithms": {
+                    "feature": "nutrients.20112025.feature.json",
+                    "meta": "nutrients.20112025.meta.json",
+                    "position": {
+                        "umap": "nutrients.20112025.position.umap.json",
+                        "tsne": "nutrients.20112025.position.tsne.json",
+                        "pca": "nutrients.20112025.position.pca.json"
+                    },
+                    "schema": "nutrients.20112025.schema.json"
+                },
+                "time": "20112025"
+            }
+        ]
+    },
+    {
         "dataset": "wineqr",
         "source": "local",
         "items": [

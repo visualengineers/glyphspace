@@ -1,0 +1,52 @@
+{
+    "color": "1",
+    "glyph": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+    ],
+    "label": {
+        "1": "name",
+        "2": "group",
+        "3": "protein (g)",
+        "4": "calcium (g)",
+        "5": "sodium (g)",
+        "6": "fiber (g)",
+        "7": "vitaminc (g)",
+        "8": "potassium (g)",
+        "9": "carbohydrate (g)",
+        "10": "sugars (g)",
+        "11": "fat (g)",
+        "12": "water (g)",
+        "13": "calories",
+        "14": "saturated (g)",
+        "15": "monounsat (g)",
+        "16": "polyunsat (g)"
+    },
+    "tooltip": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "10",
+        "11",
+        "12",
+        "13",
+        "14",
+        "15",
+        "16"
+    ],
+    "variantcontext": {
+        "1": {
+            "description": "standard context",
+            "id": "1"
+        }
+    }
+}
