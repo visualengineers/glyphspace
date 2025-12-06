@@ -5,6 +5,7 @@
     position: fixed;
     top: 0;
     right: 0;
+    height: 100%;    
     z-index: 1100;
     pointer-events: none;
 
@@ -89,8 +90,7 @@
     }
 
     .dashboard-body {
-        height: 66vh;
-        max-height: 700px;
+        height: 100%;
         display: flex;
         flex-direction: column;
     }
