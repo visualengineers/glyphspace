@@ -778,14 +778,14 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
 
         const lensMesh = glyph.render(lensSize, this.selectedTimestamp, this.selectedAlgorithm, this.id, this.aggregated);
         if (lensMesh != null) {
-          const pos = lensMesh.position.clone();
+          // const pos = lensMesh.position.clone();
 
-          const jitter = new THREE.Vector3(
-            jitterFromVector(pos) * spread,
-            jitterFromVector(pos.clone().addScalar(1)) * spread, 0
-          );
+          // const jitter = new THREE.Vector3(
+          //   jitterFromVector(pos) * spread,
+          //   jitterFromVector(pos.clone().addScalar(1)) * spread, 0
+          // );
 
-          lensMesh.position.copy(pos.add(jitter));
+          //lensMesh.position.copy(pos.add(jitter));
           // lensMesh.scale.addScalar(scale);
           newMesh = lensMesh;
         }
@@ -900,12 +900,12 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
       this.renderGlyphs();
     }
     // TODO: Magic lens feature is broken
-    // if (event.key.toLowerCase() === 'l') {
-    //   this.toggleMagicLens();
-    //   this.clearHoveredGlyph();
-    //   this.magicLensComponent.updateMagicLens(this.lastMousePosition, this.camera, this.renderer);
-    //   this.magicLensComponent.renderMagicLensGlyphs(this.selectedTimestamp, this.selectedAlgorithm);
-    // }
+    if (event.key.toLowerCase() === 'l') {
+      this.toggleMagicLens();
+      this.clearHoveredGlyph();
+      this.magicLensComponent.updateMagicLens(this.lastMousePosition, this.camera, this.renderer);
+      this.magicLensComponent.renderMagicLensGlyphs(this.selectedTimestamp, this.selectedAlgorithm);
+    }
   }
 
   @HostListener('mousedown', ['$event'])
