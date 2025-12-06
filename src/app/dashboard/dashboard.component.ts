@@ -213,6 +213,7 @@ export class DashboardComponent {
         .transition()
         .duration(300)
         .style('width', `${this.iconWidth}px`)
+        .style('height', 'auto')
         .on('end', () => {
           this.isOpen = false;
         });
@@ -230,6 +231,7 @@ export class DashboardComponent {
       dash
         .transition()
         .duration(300)
+        .style('height', '100%')
         .style('width', `${this.fullWidth}px`)
         .on('end', () => {
           dashBody
