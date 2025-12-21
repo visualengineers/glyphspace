@@ -120,6 +120,145 @@ self.onmessage = async (ev: MessageEvent<WorkerRequest>) => {
           }
           break;
         }
+        case "profileData": {
+          const { fileName, buffer } = ev.data;
+          pyodide.FS.writeFile(fileName, new Uint8Array(buffer));
+
+          // Load preprocessing processor if not already loaded
+          if (!pyodide.FS.analyzePath('preprocessing_processor.py').exists) {
+            const pyCode = await fetch('assets/preprocessing_processor.py').then(res => res.text());
+            pyodide.FS.writeFile('preprocessing_processor.py', pyCode);
+          }
+
+          const profileJson = await pyodide.runPythonAsync(`
+            import preprocessing_processor
+            preprocessing_processor.profile_data("${fileName}")
+          `);
+
+          const profile = JSON.parse(profileJson);
+          profile.fileSize = buffer.byteLength;
+
+          postMessage(<WorkerReply>{ type: 'dataProfile', profile });
+          break;
+        }
+        case "computeHistogram": {
+          const { fileName, columnName, bins = 50 } = ev.data;
+
+          const histogramJson = await pyodide.runPythonAsync(`
+            import preprocessing_processor
+            preprocessing_processor.compute_histogram("${fileName}", "${columnName}", ${bins})
+          `);
+
+          const histogram = JSON.parse(histogramJson);
+
+          postMessage(<WorkerReply>{ type: 'histogram', columnName, data: histogram });
+          break;
+        }
+        case "detectOutliers": {
+          const { fileName, columnName, method } = ev.data;
+
+          const outliersJson = await pyodide.runPythonAsync(`
+            import preprocessing_processor
+            preprocessing_processor.detect_outliers("${fileName}", "${columnName}", "${method}")
+          `);
+
+          const outliers = JSON.parse(outliersJson);
+
+          postMessage(<WorkerReply>{ type: 'outliers', columnName, data: outliers });
+          break;
+        }
+        case "detectDuplicates": {
+          const { fileName, subsetColumns } = ev.data;
+
+          let pythonCode: string;
+          if (subsetColumns && subsetColumns.length > 0) {
+            const colsJson = JSON.stringify(subsetColumns);
+            pythonCode = `
+              import preprocessing_processor
+              import json
+              preprocessing_processor.detect_duplicates("${fileName}", ${colsJson})
+            `;
+          } else {
+            pythonCode = `
+              import preprocessing_processor
+              preprocessing_processor.detect_duplicates("${fileName}")
+            `;
+          }
+
+          const duplicatesJson = await pyodide.runPythonAsync(pythonCode);
+          const duplicates = JSON.parse(duplicatesJson);
+
+          postMessage(<WorkerReply>{ type: 'duplicates', data: duplicates });
+          break;
+        }
+        case "processWithConfig": {
+          const { fileName, config } = ev.data;
+
+          // Load config-based processor if not already loaded
+          if (!pyodide.FS.analyzePath('preprocessing_processor_config.py').exists) {
+            const pyCode = await fetch('assets/preprocessing_processor_config.py').then(res => res.text());
+            pyodide.FS.writeFile('preprocessing_processor_config.py', pyCode);
+          }
+
+          // Set up progress reporting
+          const configJson = JSON.stringify(config);
+
+          // Create a global callback function that Python can call
+          (pyodide.globals as any).set('sendProgress', (step: string, progress: number, message: string) => {
+            postMessage({
+              type: 'processingProgress',
+              step: step,
+              progress: progress,
+              message: message
+            });
+          });
+
+          // Define progress callback in Python that uses the global function
+          await pyodide.runPythonAsync(`
+import preprocessing_processor_config
+
+# Create progress callback that calls the JavaScript function
+def progress_callback(step, progress, message=''):
+    sendProgress(step, progress, message)
+
+preprocessing_processor_config.set_progress_callback(progress_callback)
+          `);
+
+          // Process the file with configuration
+          // Optimization: Write result to file instead of returning huge string
+          const outputFileName = `${fileName}.result.json`;
+
+          await pyodide.runPythonAsync(`
+import preprocessing_processor_config
+import json
+
+preprocessing_processor_config.process_with_config(
+    "${fileName}",
+    '''${configJson.replace(/'/g, "\\'")}''',
+    "${outputFileName}"
+)
+          `);
+
+          // Read the result file directly from FS (more memory efficient than passing through Python->JS FFI)
+          const resultText = pyodide.FS.readFile(outputFileName, { encoding: 'utf8' });
+          const dataset = JSON.parse(resultText);
+
+          postMessage(<WorkerReply>{ type: 'processed', dataset });
+
+          // Cleanup: files are no longer needed after processing
+          try {
+            if ((pyodide.FS as any).analyzePath(fileName).exists) {
+              (pyodide.FS as any).unlink(fileName);
+            }
+            if ((pyodide.FS as any).analyzePath(outputFileName).exists) {
+              (pyodide.FS as any).unlink(outputFileName);
+            }
+          } catch (cleanupErr) {
+            console.warn('Failed to cleanup files:', cleanupErr);
+          }
+
+          break;
+        }
       }
     } catch (err: any) {
       postMessage(<WorkerReply>{ type: 'error', message: err.message ?? String(err) });

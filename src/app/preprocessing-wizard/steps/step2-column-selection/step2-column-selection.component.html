@@ -1,0 +1,225 @@
+<div class="step2-column-selection">
+  <div class="step-header">
+    <h2>Select Columns</h2>
+    <p>Choose columns to include and view their properties at a glance</p>
+  </div>
+
+  <div class="column-actions">
+    <div class="search-box">
+      <span class="material-icons">search</span>
+      <input
+        type="text"
+        [(ngModel)]="searchTerm"
+        placeholder="Search columns..."
+        class="search-input">
+      @if (searchTerm) {
+        <button class="clear-search" (click)="searchTerm = ''">
+          <span class="material-icons">close</span>
+        </button>
+      }
+    </div>
+
+    <div class="selection-controls">
+      <button class="btn-text" (click)="selectAll()">
+        <span class="material-icons">check_box</span>
+        Select All
+      </button>
+      <button class="btn-text" (click)="deselectAll()">
+        <span class="material-icons">check_box_outline_blank</span>
+        Deselect All
+      </button>
+      <div class="selection-summary">
+        <span class="count-badge enabled">{{ enabledCount }} selected</span>
+        <span class="count-badge disabled">{{ disabledCount }} excluded</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Columns Table -->
+  <div class="columns-table-container">
+    @if (filteredColumns.length === 0) {
+      <div class="no-results">
+        <span class="material-icons">search_off</span>
+        <p>No columns match your search</p>
+      </div>
+    } @else {
+      <div class="columns-table-wrapper">
+        <table class="columns-table">
+          <thead>
+            <tr>
+              <th class="col-checkbox">
+                <input
+                  type="checkbox"
+                  [checked]="enabledCount === columns.length"
+                  [indeterminate]="enabledCount > 0 && enabledCount < columns.length"
+                  (change)="toggleAllColumns()"
+                  title="Toggle all columns">
+              </th>
+              <th class="col-name">Column Name</th>
+              <th class="col-type">Data Type</th>
+              <th class="col-count">Count</th>
+              <th class="col-unique">Unique</th>
+              <th class="col-missing">Missing</th>
+              <th class="col-distribution">Distribution</th>
+              <th class="col-stats">Statistics</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (column of filteredColumns; track column.name) {
+              <tr
+                class="column-row"
+                [class.disabled]="!isColumnEnabled(column.name)"
+                [class.has-issues]="hasIssues(column)">
+
+                <!-- Checkbox -->
+                <td class="col-checkbox">
+                  <input
+                    type="checkbox"
+                    [checked]="isColumnEnabled(column.name)"
+                    (change)="toggleColumn(column.name)"
+                    [id]="'col-' + column.name">
+                </td>
+
+                <!-- Column Name -->
+                <td class="col-name">
+                  <div class="name-cell">
+                    <span class="name-text" [title]="column.name">{{ column.name }}</span>
+                    @if (hasIssues(column)) {
+                      <span class="material-icons issue-icon" title="Quality issues detected">warning</span>
+                    }
+                  </div>
+                </td>
+
+                <!-- Data Type -->
+                <td class="col-type">
+                  <span
+                    class="data-type-badge"
+                    [ngClass]="getDataTypeBadgeClass(column.dataType)">
+                    {{ getDataTypeLabel(column.dataType) }}
+                  </span>
+                </td>
+
+                <!-- Count -->
+                <td class="col-count">
+                  {{ column.count | number }}
+                </td>
+
+                <!-- Unique -->
+                <td class="col-unique">
+                  <div class="unique-cell">
+                    <span class="unique-count">{{ column.uniqueCount | number }}</span>
+                    <span class="unique-percent">({{ getUniquePercent(column) }}%)</span>
+                  </div>
+                </td>
+
+                <!-- Missing -->
+                <td class="col-missing">
+                  @if (column.missingCount > 0) {
+                    <div class="missing-cell">
+                      <span class="missing-count">{{ column.missingCount | number }}</span>
+                      <span class="missing-percent warn">({{ column.missingPercentage.toFixed(1) }}%)</span>
+                    </div>
+                  } @else {
+                    <span class="text-muted">—</span>
+                  }
+                </td>
+
+                <!-- Distribution -->
+                <td class="col-distribution">
+                  @if (column.dataType === 'numeric' && column.histogram) {
+                    <app-sparkline-chart
+                      [data]="column.histogram.counts"
+                      [labels]="[]"
+                      [width]="100"
+                      [height]="30"
+                      [color]="isColumnEnabled(column.name) ? '#00bcd4' : '#ccc'"
+                      type="bar">
+                    </app-sparkline-chart>
+                  } @else if (column.dataType === 'date' && column.histogram) {
+                    <app-sparkline-chart
+                      [data]="column.histogram.counts"
+                      [labels]="column.histogram.labels || []"
+                      [width]="100"
+                      [height]="30"
+                      [color]="isColumnEnabled(column.name) ? '#00bcd4' : '#ccc'"
+                      type="bar">
+                    </app-sparkline-chart>
+                  } @else if (column.topValues && column.topValues.length > 0) {
+                    <app-sparkline-chart
+                      [data]="getTopValuesCounts(column)"
+                      [labels]="getTopValuesLabels(column)"
+                      [width]="100"
+                      [height]="30"
+                      [color]="isColumnEnabled(column.name) ? '#00bcd4' : '#ccc'"
+                      type="bar">
+                    </app-sparkline-chart>
+                  } @else {
+                    <span class="text-muted">—</span>
+                  }
+                </td>
+
+                <!-- Statistics -->
+                <td class="col-stats">
+                  @if (column.dataType === 'numeric' && column.min !== undefined && column.max !== undefined) {
+                    <app-box-plot
+                      [min]="column.min"
+                      [q1]="column.q1 || column.min"
+                      [median]="column.median || column.mean || 0"
+                      [q3]="column.q3 || column.max"
+                      [max]="column.max"
+                      [mean]="column.mean"
+                      [width]="150"
+                      [height]="40"
+                      [color]="isColumnEnabled(column.name) ? '#00bcd4' : '#ccc'">
+                    </app-box-plot>
+                  } @else if (column.dataType === 'date' && column.sampleValues && column.sampleValues.length > 0) {
+                    <div class="stats-cell date-range">
+                      <div class="stat-line">
+                        <span class="stat-label">Earliest:</span>
+                        <span class="stat-value">{{ formatDate(column.sampleValues[0]) }}</span>
+                      </div>
+                      <div class="stat-line">
+                        <span class="stat-label">Latest:</span>
+                        <span class="stat-value">{{ formatDate(column.sampleValues[column.sampleValues.length - 1]) }}</span>
+                      </div>
+                    </div>
+                  } @else if (column.topValues && column.topValues.length > 0) {
+                    <div class="stats-cell">
+                      @for (item of column.topValues.slice(0, 3); track item.value) {
+                        <div class="stat-line">
+                          <span class="stat-label top-value-label" [title]="item.value">
+                            {{ truncateText(item.value, 15) }}:
+                          </span>
+                          <span class="stat-value">{{ item.count }}</span>
+                        </div>
+                      }
+                    </div>
+                  } @else {
+                    <span class="text-muted">—</span>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </div>
+
+  <div class="action-buttons">
+    @if (enabledCount === 0) {
+      <div class="warning-message">
+        <span class="material-icons">warning</span>
+        Please select at least one column to continue
+      </div>
+    }
+
+    <button
+      class="btn-primary"
+      (click)="onContinue()"
+      [disabled]="enabledCount === 0">
+      Continue to Data Cleaning
+      <span class="material-icons">arrow_forward</span>
+    </button>
+  </div>
+</div>

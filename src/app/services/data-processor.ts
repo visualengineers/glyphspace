@@ -11,6 +11,7 @@ export class DataProcessorService {
     private thumbSubjects = new Map<string, BehaviorSubject<ImageBitmap | null>>();
 
     private message$ = new Subject<WorkerReply>();
+    private processingProgress$ = new Subject<{step: string; progress: number; message: string}>();
 
     constructor() {
         // Route all incoming messages into Subject
@@ -18,12 +19,18 @@ export class DataProcessorService {
             this.message$.next(data);
         };
 
-        // Handle thumbnail responses
+        // Handle thumbnail responses and progress updates
         this.message$.subscribe(msg => {
             if (msg.type === 'thumb') {
                 this.handleThumb(msg.file, msg.data);
             } else if (msg.type === 'error') {
                 console.warn('[PyodideWorker]', msg.message);
+            } else if (msg.type === 'processingProgress') {
+                this.processingProgress$.next({
+                    step: msg.step,
+                    progress: msg.progress,
+                    message: msg.message
+                });
             }
         });
     }
@@ -52,6 +59,61 @@ export class DataProcessorService {
             file
         }, msg => msg.file === file);
         return result.data;
+    }
+
+    // Preprocessing methods
+    async profileData(fileName: string, buffer: ArrayBuffer): Promise<any> {
+        const result = await this.sendRequestUntil<WorkerReply & { type: 'dataProfile' }>('dataProfile', {
+            type: 'profileData',
+            fileName,
+            buffer
+        });
+        return result.profile;
+    }
+
+    async computeHistogram(fileName: string, columnName: string, bins: number = 50): Promise<any> {
+        const result = await this.sendRequestUntil<WorkerReply & { type: 'histogram' }>('histogram', {
+            type: 'computeHistogram',
+            fileName,
+            columnName,
+            bins
+        }, msg => msg.columnName === columnName);
+        return result.data;
+    }
+
+    async detectOutliers(fileName: string, columnName: string, method: string): Promise<any> {
+        const result = await this.sendRequestUntil<WorkerReply & { type: 'outliers' }>('outliers', {
+            type: 'detectOutliers',
+            fileName,
+            columnName,
+            method
+        }, msg => msg.columnName === columnName);
+        return result.data;
+    }
+
+    async detectDuplicates(fileName: string, subsetColumns?: string[]): Promise<any> {
+        const result = await this.sendRequestUntil<WorkerReply & { type: 'duplicates' }>('duplicates', {
+            type: 'detectDuplicates',
+            fileName,
+            subsetColumns
+        }, msg => msg.type === 'duplicates');
+        return result.data;
+    }
+
+    async processWithConfig(fileName: string, config: any): Promise<DatasetCollection> {
+        const result = await this.sendRequestUntil<WorkerReply & { type: 'processed' }>('processed', {
+            type: 'processWithConfig',
+            fileName,
+            config
+        });
+        return result.dataset;
+    }
+
+    /**
+     * Observable for processing progress updates
+     */
+    get processingProgress(): Observable<{step: string; progress: number; message: string}> {
+        return this.processingProgress$.asObservable();
     }
 
     /**

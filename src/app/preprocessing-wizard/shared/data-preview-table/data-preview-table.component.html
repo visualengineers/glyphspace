@@ -1,0 +1,36 @@
+<div class="data-preview-table">
+  @if (data.length === 0) {
+    <div class="no-data">No data to display</div>
+  } @else {
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            @for (column of displayColumns; track column) {
+              <th [class.highlighted]="isColumnHighlighted(column)">
+                {{ column }}
+              </th>
+            }
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of displayData; track $index) {
+            <tr>
+              @for (column of displayColumns; track column) {
+                <td [class.highlighted]="isColumnHighlighted(column)">
+                  {{ getCellValue(row, column) }}
+                </td>
+              }
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    @if (data.length > maxRows) {
+      <div class="table-footer">
+        Showing {{ maxRows }} of {{ data.length }} rows
+      </div>
+    }
+  }
+</div>

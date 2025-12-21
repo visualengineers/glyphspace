@@ -1,0 +1,169 @@
+<div class="step1-upload">
+  <div class="step-header">
+    <h2>Upload Your Data</h2>
+    <p>Start by uploading a CSV or Parquet file to analyze and prepare your data</p>
+  </div>
+
+  @if (!profile) {
+    <!-- Upload Zone -->
+    <div
+      class="upload-zone"
+      [class.drag-over]="isDragOver"
+      [class.loading]="isLoading"
+      (dragover)="onDragOver($event)"
+      (dragleave)="onDragLeave($event)"
+      (drop)="onDrop($event)">
+
+      @if (isLoading) {
+        <div class="loading-state">
+          <div class="spinner"></div>
+          <div class="loading-text">Loading and analyzing your data...</div>
+        </div>
+      } @else {
+        <div class="upload-content">
+          <span class="material-icons upload-icon">cloud_upload</span>
+          <div class="upload-text">
+            <strong>Drag and drop your CSV or Parquet file here</strong>
+            <span>or</span>
+          </div>
+          <label for="file-input" class="upload-button">
+            Browse Files
+            <input
+              id="file-input"
+              type="file"
+              accept=".csv,.parquet"
+              (change)="onFileSelected($event)"
+              style="display: none">
+          </label>
+          <div class="upload-hint">
+            Maximum file size: 150MB
+          </div>
+        </div>
+      }
+    </div>
+
+    @if (error) {
+      <div class="error-message">
+        <span class="material-icons">error</span>
+        {{ error }}
+      </div>
+    }
+
+    <div class="requirements">
+      <h3>File Requirements</h3>
+      <ul>
+        <li>Supported formats: CSV or Parquet</li>
+        <li>First row should contain column headers</li>
+        <li>Optional: Include an "ID" column for unique identifiers</li>
+        <li>Optional: Pre-computed projections as "&lt;name&gt;-x" and "&lt;name&gt;-y" pairs</li>
+        <li>Optional: Geographic coordinates as "latitude" and "longitude"</li>
+      </ul>
+    </div>
+
+  } @else {
+    <!-- Data Profile Overview -->
+    <div class="data-profile">
+      <div class="profile-header">
+        <div class="profile-title">
+          <span class="material-icons">check_circle</span>
+          <h3>Data Loaded Successfully</h3>
+        </div>
+        <div class="profile-actions">
+          <button class="btn-secondary" (click)="importConfiguration()" title="Import saved configuration">
+            <span class="material-icons">upload</span>
+            Import Config
+          </button>
+          <button class="btn-secondary" (click)="profile = null">
+            Upload Different File
+          </button>
+        </div>
+      </div>
+
+      <div class="profile-stats">
+        <div class="stat-card">
+          <span class="material-icons">description</span>
+          <div class="stat-content">
+            <div class="stat-label">File Name</div>
+            <div class="stat-value">{{ profile.fileName }}</div>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <span class="material-icons">storage</span>
+          <div class="stat-content">
+            <div class="stat-label">File Size</div>
+            <div class="stat-value">{{ formatFileSize(profile.fileSize) }}</div>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <span class="material-icons">table_rows</span>
+          <div class="stat-content">
+            <div class="stat-label">Total Rows</div>
+            <div class="stat-value">{{ profile.totalRows }}</div>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <span class="material-icons">view_column</span>
+          <div class="stat-content">
+            <div class="stat-label">Total Columns</div>
+            <div class="stat-value">{{ profile.totalColumns }}</div>
+          </div>
+        </div>
+
+        <div class="stat-card" [ngClass]="qualityClass">
+          <span class="material-icons">assessment</span>
+          <div class="stat-content">
+            <div class="stat-label">Data Quality</div>
+            <div class="stat-value">
+              {{ profile.qualityScore.toFixed(1) }}% ({{ qualityLabel }})
+            </div>
+          </div>
+        </div>
+
+        @if (profile.duplicateCount > 0) {
+          <div class="stat-card warning">
+            <span class="material-icons">content_copy</span>
+            <div class="stat-content">
+              <div class="stat-label">Duplicates Found</div>
+              <div class="stat-value">{{ profile.duplicateCount }}</div>
+            </div>
+          </div>
+        }
+      </div>
+
+      <div class="profile-section">
+        <h4>Data Preview (First 5 rows)</h4>
+        <app-data-preview-table
+          [data]="profile.previewRows"
+          [maxRows]="5">
+        </app-data-preview-table>
+      </div>
+
+      <div class="profile-section">
+        <h4>Column Overview</h4>
+        <div class="columns-summary">
+          @for (column of profile.columns; track column.name) {
+            <div class="column-chip" [attr.data-type]="column.dataType">
+              <span class="column-name">{{ column.name }}</span>
+              <span class="column-type">{{ column.dataType }}</span>
+              @if (column.missingPercentage > 0) {
+                <span class="column-badge warning">
+                  {{ column.missingPercentage.toFixed(0) }}% missing
+                </span>
+              }
+            </div>
+          }
+        </div>
+      </div>
+
+      <div class="action-buttons">
+        <button class="btn-primary" (click)="dataLoaded.emit(profile)">
+          Continue to Column Selection
+          <span class="material-icons">arrow_forward</span>
+        </button>
+      </div>
+    </div>
+  }
+</div>

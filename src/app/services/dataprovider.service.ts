@@ -76,6 +76,10 @@ export class DataProviderService {
                         this.config.colorFeature = schema.color;
                         this.config.replaceActiveFeatures(schema.glyph);
                         this.config.featureLabels = schema.label;
+                        // Apply color scale mode if specified in schema
+                        if (schema.colorRange !== undefined) {
+                            this.config.colorRange = schema.colorRange;
+                        }
                         this.config.loadData(datasetId);
                     }
 
@@ -163,7 +167,95 @@ export class DataProviderService {
         this.dataSetCollectionSubject.next(Array.from(datasetMap.values()));
     }
 
+    /**
+     * Load a processed dataset from the preprocessing wizard
+     */
+    public loadProcessedDataset(dataset: any, datasetName: string, timestamp: string): void {
+        // Extract schema, meta, and features from the processed dataset
+        const schema: GlyphSchema = dataset.schema;
+        const meta: GlyphMeta = dataset.meta;
+        const features: GlyphFeature[] = dataset.features;
+
+        // Convert projections to positions format
+        const positions = new Map<string, GlyphPosition[]>();
+        if (dataset.projections && Array.isArray(dataset.projections)) {
+            dataset.projections.forEach((proj: any) => {
+                const posArray: GlyphPosition[] = proj.data.map((item: any) => ({
+                    id: item.id,
+                    position: { x: item.x, y: item.y }
+                }));
+                positions.set(proj.name, posArray);
+            });
+        } else if (dataset.positions) {
+            // Support direct positions object from Python worker
+            Object.entries(dataset.positions).forEach(([name, data]: [string, any]) => {
+                positions.set(name, data);
+            });
+        }
+
+        // Build and cache the dataset
+        this.buildDataSet(datasetName, timestamp, schema, meta, features, positions);
+
+        // Set as active dataset
+        this.config.colorFeature = schema.color;
+        this.config.replaceActiveFeatures(schema.glyph);
+        this.config.featureLabels = schema.label;
+        // Apply color scale mode if specified in schema
+        if (schema.colorRange !== undefined) {
+            this.config.colorRange = schema.colorRange;
+        }
+        this.config.loadData(datasetName);
+
+        // Update filtered items
+        const glyphs = this.glyphCache.get(datasetName)?.get(timestamp);
+        if (glyphs) {
+            this.totalItems = glyphs.length;
+            this.filteredItems = this.totalItems;
+        }
+    }
+
+    /**
+     * Add a processed dataset to the DatasetCollection so it appears in the selector
+     */
+    public addProcessedDatasetToCollection(datasetName: string, timestamp: string, dataset: any): void {
+        // Build position mapping from projections
+        const positionMapping: { [key: string]: string } = {};
+        if (dataset.projections && Array.isArray(dataset.projections)) {
+            dataset.projections.forEach((proj: any) => {
+                // For processed datasets, positions are already in memory (no file paths)
+                positionMapping[proj.name] = `memory://${datasetName}/${timestamp}/${proj.name}`;
+            });
+        } else if (dataset.positions) {
+            // Support direct positions object
+            Object.keys(dataset.positions).forEach(key => {
+                positionMapping[key] = `memory://${datasetName}/${timestamp}/${key}`;
+            });
+        }
+
+        // Create a new DatasetCollectionEntry for the processed dataset
+        const newEntry: DatasetCollectionEntry = {
+            dataset: datasetName,
+            source: 'wasm',  // Mark as wasm-processed dataset
+            items: [{
+                time: timestamp,
+                algorithms: {
+                    schema: `memory://${datasetName}/${timestamp}/schema`,
+                    meta: `memory://${datasetName}/${timestamp}/meta`,
+                    feature: `memory://${datasetName}/${timestamp}/features`,
+                    position: positionMapping
+                }
+            }]
+        };
+
+        // Add to collection using existing merge logic
+        this.setDatasetCollection([newEntry]);
+    }
+
     private buildDataSet(name: string, timestamp: string, schema: GlyphSchema, meta: GlyphMeta, features: GlyphFeature[], positions: Map<string, GlyphPosition[]>): number {
+        console.log(`[DataProvider] Building dataset: ${name}, timestamp: ${timestamp}`);
+        console.log(`[DataProvider] Features count: ${features.length}`);
+        console.log(`[DataProvider] Position algorithms:`, Array.from(positions.keys()));
+
         if (!this.schemaCache.has(name)) this.schemaCache.set(name, new Map());
         this.schemaCache.get(name)?.set(timestamp, schema);
 
@@ -180,23 +272,87 @@ export class DataProviderService {
             return glyph;
         });
 
-        // 2. Step: Build lookup map
-        const glyphMap = new Map<string, GlyphObject>();
-        glyphs.forEach(g => glyphMap.set(g.id, g));
+        // 2. Step: Build lookup map (optimized for large datasets)
+        console.log(`[DataProvider] Building glyph lookup map for ${glyphs.length} glyphs...`);
+        const mapStartTime = performance.now();
 
-        // 3. Step: Add positions
+        const glyphMap = new Map<string, GlyphObject>();
+
+        // Optimized: single pass with minimal conversions
+        for (const g of glyphs) {
+            const id = g.id;
+            glyphMap.set(id, g);
+
+            // Only add alternate keys if ID type suggests it's needed
+            if (typeof id === 'number') {
+                glyphMap.set(String(id), g);
+            } else if (typeof id === 'string') {
+                const asNumber = parseFloat(id);
+                if (!isNaN(asNumber)) {
+                    glyphMap.set(String(asNumber), g);
+                }
+            }
+        }
+
+        console.log(`[DataProvider] Map built in ${(performance.now() - mapStartTime).toFixed(0)}ms`);
+
+        // 3. Step: Add positions (optimized for large datasets)
+
+        let positionsAssigned = 0;
+        let positionsFailed = 0;
+        const startTime = performance.now();
 
         for (const [key, value] of positions) {
-            value.forEach((posEntry: GlyphPosition) => {
-                const glyph = glyphMap.get(posEntry.id);
-                if (glyph) {
-                    if (!glyph.positions[timestamp]) {
-                        glyph.positions[timestamp] = {};
+            console.log(`[DataProvider] Processing position algorithm: ${key}, entries: ${value.length}`);
+
+            // Batch process positions for performance
+            const batchSize = 10000;
+            for (let i = 0; i < value.length; i += batchSize) {
+                const batch = value.slice(i, Math.min(i + batchSize, value.length));
+
+                for (const posEntry of batch) {
+                    // Try multiple lookup strategies for ID matching
+                    let glyph = glyphMap.get(posEntry.id);
+
+                    if (!glyph) {
+                        // Try normalized string version
+                        glyph = glyphMap.get(String(posEntry.id));
                     }
-                    glyph.positions[timestamp][key] = { ...posEntry.position }; // or as-is
+
+                    if (!glyph && typeof posEntry.id === 'number') {
+                        // Try as float string for numeric IDs
+                        glyph = glyphMap.get(String(posEntry.id));
+                    }
+
+                    if (glyph) {
+                        if (!glyph.positions[timestamp]) {
+                            glyph.positions[timestamp] = {};
+                        }
+                        // Direct assignment without spread (faster)
+                        glyph.positions[timestamp][key] = posEntry.position;
+                        positionsAssigned++;
+                    } else {
+                        // Debug: log missing position assignments (only first few)
+                        if (positionsFailed < 5) {
+                            console.warn(`Position for ID ${posEntry.id} (${typeof posEntry.id}) not found in glyphs`);
+                        }
+                        positionsFailed++;
+                    }
                 }
-            });
+
+                // Log progress for large datasets
+                if (value.length > 50000 && (i + batchSize) % 50000 === 0) {
+                    console.log(`[DataProvider] Progress: ${i + batchSize}/${value.length} positions processed`);
+                }
+            }
         };
+
+        const elapsed = performance.now() - startTime;
+        console.log(`[DataProvider] Positions assigned: ${positionsAssigned}, failed: ${positionsFailed} (${elapsed.toFixed(0)}ms)`);
+        if (positionsAssigned > 0) {
+            const sampleGlyph = glyphs[0];
+            console.log(`[DataProvider] Sample glyph positions:`, sampleGlyph.positions);
+        }
 
         if (!this.glyphCache.has(name)) this.glyphCache.set(name, new Map());
         this.glyphCache.get(name)?.set(timestamp, glyphs);
@@ -220,6 +376,10 @@ export class DataProviderService {
             this.config.colorFeature = schema.color;
             this.config.replaceActiveFeatures(schema.glyph);
             this.config.featureLabels = schema.label;
+            // Apply color scale mode if specified in schema
+            if (schema.colorRange !== undefined) {
+                this.config.colorRange = schema.colorRange;
+            }
 
             this.totalItems = this.buildDataSet(name, timestamp, schema, meta, features, positions);
             this.filteredItems = this.totalItems;
@@ -230,19 +390,29 @@ export class DataProviderService {
     public async getGlyphData(name?: string): Promise<GlyphObject[] | undefined>
     public async getGlyphData(name?: string, timestamp?: string): Promise<GlyphObject[] | undefined> {
         if (name == undefined) name = this.config.loadedData;
+        console.log(`[DataProvider] getGlyphData called for: ${name}, timestamp: ${timestamp}`);
+
         const collection = this.dataSetCollectionSubject.getValue().find(collection => collection.dataset == name);
-        if (timestamp == undefined) {            
+        if (timestamp == undefined) {
             timestamp = collection?.items.at(0)?.time;
         }
-        if (name == undefined || timestamp == undefined) return undefined;
+        if (name == undefined || timestamp == undefined) {
+            console.warn(`[DataProvider] getGlyphData returning undefined: name=${name}, timestamp=${timestamp}`);
+            return undefined;
+        }
 
-        
         let data = this.glyphCache.get(name);
+        console.log(`[DataProvider] Cache lookup for '${name}':`, data ? 'HIT' : 'MISS');
+
         if (!data) {
+            console.log(`[DataProvider] Loading dataset from source...`);
             await this.loadDataSet(name, timestamp);
             data = this.glyphCache.get(name);
         }
+
         const glyphData = data?.get(timestamp);
+        console.log(`[DataProvider] Glyph data for timestamp '${timestamp}':`, glyphData ? `${glyphData.length} glyphs` : 'undefined');
+
         if (glyphData) this.totalItems = glyphData?.length;
         this.filteredItems = this.totalItems;
         if (collection) this.config.dataSource = collection.source
@@ -285,6 +455,10 @@ export class DataProviderService {
             this.config.colorFeature = schemaResult.color;
             this.config.replaceActiveFeatures(schemaResult.glyph);
             this.config.featureLabels = schemaResult.label;
+            // Apply color scale mode if specified in schema
+            if (schemaResult.colorRange !== undefined) {
+                this.config.colorRange = schemaResult.colorRange;
+            }
         }
 
         return schemaResult;
