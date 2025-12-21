@@ -1,0 +1,148 @@
+@use '../../../../styles/variables' as v;
+
+.help-tooltip-container {
+  position: relative;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.help-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px;
+  color: v.$gray-600;
+  transition: color 0.2s ease;
+
+  &:hover,
+  &:focus {
+    color: v.$active-color;
+    outline: none;
+  }
+
+  &:focus-visible {
+    outline: 2px solid v.$active-color;
+    outline-offset: 2px;
+    border-radius: 50%;
+  }
+
+  .material-icons {
+    font-size: 18px;
+  }
+}
+
+.tooltip-content {
+  position: absolute;
+  z-index: 1000;
+  background: white;
+  border: 1px solid v.$gray-300;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  padding: 12px;
+  max-width: 300px;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+  pointer-events: none;
+
+  &.visible {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  // Position variants
+  &.position-top {
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+
+    .tooltip-arrow {
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      border-top-color: white;
+      border-bottom: none;
+    }
+  }
+
+  &.position-bottom {
+    top: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+
+    .tooltip-arrow {
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      border-bottom-color: white;
+      border-top: none;
+    }
+  }
+
+  &.position-left {
+    right: calc(100% + 8px);
+    top: 50%;
+    transform: translateY(-50%);
+
+    .tooltip-arrow {
+      left: 100%;
+      top: 50%;
+      transform: translateY(-50%);
+      border-left-color: white;
+      border-right: none;
+    }
+  }
+
+  &.position-right {
+    left: calc(100% + 8px);
+    top: 50%;
+    transform: translateY(-50%);
+
+    .tooltip-arrow {
+      right: 100%;
+      top: 50%;
+      transform: translateY(-50%);
+      border-right-color: white;
+      border-left: none;
+    }
+  }
+}
+
+.tooltip-text {
+  font-size: 13px;
+  line-height: 1.5;
+  color: v.$gray-800;
+
+  // Support for formatted help text
+  strong {
+    font-weight: 600;
+    color: v.$gray-800;
+  }
+
+  ul, ol {
+    margin: 8px 0;
+    padding-left: 20px;
+  }
+
+  li {
+    margin: 4px 0;
+  }
+
+  code {
+    background: v.$gray-100;
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+  }
+}
+
+.tooltip-arrow {
+  position: absolute;
+  width: 0;
+  height: 0;
+  border: 6px solid transparent;
+}

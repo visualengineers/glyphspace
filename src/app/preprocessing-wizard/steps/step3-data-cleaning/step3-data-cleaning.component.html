@@ -1,7 +1,7 @@
 <div class="step3-data-cleaning">
   <div class="step-header">
-    <h2>Data Cleaning</h2>
-    <p>Handle missing values, detect outliers, and remove duplicates</p>
+    <h2>{{ stepInfo.title }}</h2>
+    <p class="step-purpose">{{ stepInfo.purpose }}</p>
   </div>
 
   @if (error) {
@@ -98,6 +98,21 @@
                     </label>
                   </div>
 
+                  <!-- Fill Value Input Field -->
+                  @if (colState.missingStrategy === MissingValueStrategy.FillValue) {
+                    <div class="fill-value-input">
+                      <label>
+                        <span class="label-text">Fill value:</span>
+                        <input
+                          type="text"
+                          [(ngModel)]="colState.config.missingValueFillValue"
+                          (ngModelChange)="onMissingValueFillChange(colState.column.name, $event || '')"
+                          placeholder="Enter fill value"
+                          class="fill-value-field" />
+                      </label>
+                    </div>
+                  }
+
                   <div class="impact-preview" [class.warning]="colState.missingStrategy === MissingValueStrategy.RemoveRows">
                     <span class="material-icons">
                       {{ colState.missingStrategy === MissingValueStrategy.Keep ? 'info' : 'warning' }}
@@ -126,8 +141,9 @@
             <p>Outlier detection is only available for numeric columns.</p>
           </div>
         } @else {
-          <div class="panel-intro">
-            <p>Detect and handle outliers in numeric columns. Choose detection method and handling strategy:</p>
+          <div class="info-box">
+            <span class="material-icons">info</span>
+            <div [innerHTML]="HELP_TEXT.general.outliers"></div>
           </div>
 
           <div class="column-cleaning-list">
@@ -231,8 +247,12 @@
             <p>All rows in your dataset are unique!</p>
           </div>
         } @else {
-          <div class="panel-intro">
-            <p>Found {{ duplicateCount }} duplicate row(s) ({{ duplicatePercentage.toFixed(1) }}% of data). Choose how to handle them:</p>
+          <div class="info-box">
+            <span class="material-icons">info</span>
+            <div>
+              <div [innerHTML]="HELP_TEXT.general.duplicates"></div>
+              <p><strong>Found {{ duplicateCount }} duplicate row(s)</strong> ({{ duplicatePercentage.toFixed(1) }}% of data)</p>
+            </div>
           </div>
 
           <div class="duplicate-summary">

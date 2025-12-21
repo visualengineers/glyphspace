@@ -7,11 +7,14 @@ import { BoxPlotComponent } from '../../shared/box-plot/box-plot.component';
 import { ColumnStatistics } from '../../models/column-statistics';
 import { ColumnConfig } from '../../models/column-config';
 import { DataType } from '../../models/data-type.enum';
+import { HelpTooltipComponent } from '../../shared/help-tooltip/help-tooltip.component';
+import { HELP_TEXT } from '../../shared/constants/help-text';
+import { STEP_INFO } from '../../shared/constants/step-info';
 
 @Component({
   selector: 'app-step2-column-selection',
   standalone: true,
-  imports: [CommonModule, FormsModule, SparklineChartComponent, BoxPlotComponent],
+  imports: [CommonModule, FormsModule, SparklineChartComponent, BoxPlotComponent, HelpTooltipComponent],
   templateUrl: './step2-column-selection.component.html',
   styleUrl: './step2-column-selection.component.scss'
 })
@@ -21,6 +24,10 @@ export class Step2ColumnSelectionComponent implements OnInit {
   columns: ColumnStatistics[] = [];
   columnConfigs: Map<string, ColumnConfig> = new Map();
   searchTerm: string = '';
+
+  // Expose help text and step info to template
+  readonly HELP_TEXT = HELP_TEXT;
+  readonly stepInfo = STEP_INFO[1]; // Step 2 (index 1)
 
   constructor(private preprocessingService: PreprocessingService) {}
 

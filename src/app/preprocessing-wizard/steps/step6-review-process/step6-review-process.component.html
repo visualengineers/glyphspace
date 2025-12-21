@@ -1,10 +1,19 @@
 <div class="step6-review-process">
   <div class="step-header">
-    <h2>Review & Process</h2>
-    <p>Review your configuration and start processing the dataset</p>
+    <h2>{{ stepInfo.title }}</h2>
+    <p class="step-purpose">{{ stepInfo.purpose }}</p>
   </div>
 
   @if (!processingComplete && !isProcessing) {
+    <!-- Warning Info Box -->
+    <div class="warning-box">
+      <span class="material-icons">warning</span>
+      <div>
+        <strong>Important:</strong> Processing may take several minutes depending on dataset size and enabled methods.
+        You can export this configuration to reuse it later.
+      </div>
+    </div>
+
     <!-- Configuration Summary -->
     <div class="summary-section">
       <h3>
@@ -60,6 +69,9 @@
       <h3>
         <span class="material-icons">list</span>
         Column Configuration Details
+        <app-help-tooltip
+          helpText="Review how each column will be processed. Encoding converts data to numeric format, scaling normalizes ranges for better visualization."
+          position="right"></app-help-tooltip>
       </h3>
 
       <div class="columns-table">

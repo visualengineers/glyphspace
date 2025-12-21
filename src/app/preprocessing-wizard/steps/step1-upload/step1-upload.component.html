@@ -1,10 +1,19 @@
 <div class="step1-upload">
   <div class="step-header">
-    <h2>Upload Your Data</h2>
-    <p>Start by uploading a CSV or Parquet file to analyze and prepare your data</p>
+    <h2>{{ stepInfo.title }}</h2>
+    <p class="step-purpose">{{ stepInfo.purpose }}</p>
   </div>
 
   @if (!profile) {
+    <!-- Help Info Box -->
+    <div class="info-box">
+      <span class="material-icons">info</span>
+      <div>
+        <strong>Supported formats:</strong> CSV and Parquet files up to 150MB.
+        Your data will be analyzed automatically to detect column types and quality issues.
+      </div>
+    </div>
+
     <!-- Upload Zone -->
     <div
       class="upload-zone"
@@ -50,13 +59,17 @@
     }
 
     <div class="requirements">
-      <h3>File Requirements</h3>
+      <h3>
+        File Requirements
+        <app-help-tooltip
+          helpText="<strong>CSV Format:</strong><br/>• First row = column headers<br/>• Comma-separated values<br/>• Optional ID column<br/><br/><strong>Parquet Format:</strong><br/>• Binary columnar format<br/>• Automatically converted to CSV"></app-help-tooltip>
+      </h3>
       <ul>
-        <li>Supported formats: CSV or Parquet</li>
-        <li>First row should contain column headers</li>
-        <li>Optional: Include an "ID" column for unique identifiers</li>
-        <li>Optional: Pre-computed projections as "&lt;name&gt;-x" and "&lt;name&gt;-y" pairs</li>
-        <li>Optional: Geographic coordinates as "latitude" and "longitude"</li>
+        <li><strong>First row</strong> should contain column headers</li>
+        <li><strong>ID column</strong> (optional): Unique identifier for each row</li>
+        <li><strong>Pre-computed coordinates</strong> (optional): "&lt;name&gt;-x" and "&lt;name&gt;-y" pairs (e.g., "pca-x", "pca-y")</li>
+        <li><strong>Geographic data</strong> (optional): "latitude" and "longitude" columns</li>
+        <li><strong>File too large?</strong> Try filtering rows in Excel or reducing columns before upload</li>
       </ul>
     </div>
 
@@ -115,7 +128,12 @@
         <div class="stat-card" [ngClass]="qualityClass">
           <span class="material-icons">assessment</span>
           <div class="stat-content">
-            <div class="stat-label">Data Quality</div>
+            <div class="stat-label">
+              Data Quality
+              <app-help-tooltip
+                helpText="Quality score measures data completeness and consistency:<br/><br/><strong>90-100%:</strong> Excellent - minimal issues<br/><strong>70-89%:</strong> Good - some missing values<br/><strong>50-69%:</strong> Fair - notable quality issues<br/><strong>&lt;50%:</strong> Poor - significant problems<br/><br/>Based on: missing values, duplicates, column variability"
+                position="bottom"></app-help-tooltip>
+            </div>
             <div class="stat-value">
               {{ profile.qualityScore.toFixed(1) }}% ({{ qualityLabel }})
             </div>

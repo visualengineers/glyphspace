@@ -4,11 +4,13 @@ import { FormsModule } from '@angular/forms';
 import { PreprocessingService } from '../../services/preprocessing.service';
 import { DataPreviewTableComponent } from '../../shared/data-preview-table/data-preview-table.component';
 import { DataProfile } from '../../models/column-statistics';
+import { HelpTooltipComponent } from '../../shared/help-tooltip/help-tooltip.component';
+import { STEP_INFO } from '../../shared/constants/step-info';
 
 @Component({
   selector: 'app-step1-upload',
   standalone: true,
-  imports: [CommonModule, FormsModule, DataPreviewTableComponent],
+  imports: [CommonModule, FormsModule, DataPreviewTableComponent, HelpTooltipComponent],
   templateUrl: './step1-upload.component.html',
   styleUrl: './step1-upload.component.scss'
 })
@@ -19,6 +21,9 @@ export class Step1UploadComponent {
   isLoading = false;
   error: string | null = null;
   profile: DataProfile | null = null;
+
+  // Expose step info to template
+  readonly stepInfo = STEP_INFO[0]; // Step 1 (index 0)
 
   constructor(private preprocessingService: PreprocessingService) {
     // Check if we already have data loaded

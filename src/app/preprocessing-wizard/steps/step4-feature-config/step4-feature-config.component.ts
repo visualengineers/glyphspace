@@ -5,11 +5,14 @@ import { PreprocessingService } from '../../services/preprocessing.service';
 import { ColumnConfig } from '../../models/column-config';
 import { ColumnStatistics } from '../../models/column-statistics';
 import { DataType, EncodingMethod, ScalingMethod } from '../../models/data-type.enum';
+import { HelpTooltipComponent } from '../../shared/help-tooltip/help-tooltip.component';
+import { HELP_TEXT } from '../../shared/constants/help-text';
+import { STEP_INFO } from '../../shared/constants/step-info';
 
 @Component({
   selector: 'app-step4-feature-config',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, HelpTooltipComponent],
   templateUrl: './step4-feature-config.component.html',
   styleUrl: './step4-feature-config.component.scss'
 })
@@ -54,6 +57,10 @@ export class Step4FeatureConfigComponent implements OnInit {
     { value: ScalingMethod.MinMax, label: 'Min-Max', description: 'Scale to [0, 1]' },
     { value: ScalingMethod.Robust, label: 'Robust', description: 'Use median and IQR' }
   ];
+
+  // Expose help text and step info to template
+  readonly HELP_TEXT = HELP_TEXT;
+  readonly stepInfo = STEP_INFO[3]; // Step 4 (index 3)
 
   constructor(public preprocessingService: PreprocessingService) {}
 

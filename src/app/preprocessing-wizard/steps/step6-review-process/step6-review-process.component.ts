@@ -5,11 +5,13 @@ import { PreprocessingService } from '../../services/preprocessing.service';
 import { ColumnConfig } from '../../models/column-config';
 import { DataType, EncodingMethod, ScalingMethod, MissingValueStrategy, OutlierStrategy } from '../../models/data-type.enum';
 import { DataProviderService } from '../../../services/dataprovider.service';
+import { HelpTooltipComponent } from '../../shared/help-tooltip/help-tooltip.component';
+import { STEP_INFO } from '../../shared/constants/step-info';
 
 @Component({
   selector: 'app-step6-review-process',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, HelpTooltipComponent],
   templateUrl: './step6-review-process.component.html',
   styleUrl: './step6-review-process.component.scss'
 })
@@ -35,6 +37,9 @@ export class Step6ReviewProcessComponent implements OnInit, OnDestroy {
   DataType = DataType;
   EncodingMethod = EncodingMethod;
   ScalingMethod = ScalingMethod;
+
+  // Expose step info to template
+  readonly stepInfo = STEP_INFO[5]; // Step 6 (index 5)
 
   private progressSubscription?: Subscription;
 

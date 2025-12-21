@@ -1,7 +1,13 @@
 <div class="step5-projection-settings">
   <div class="step-header">
-    <h2>Projection Settings</h2>
-    <p>Configure dimensionality reduction methods and their parameters</p>
+    <h2>{{ stepInfo.title }}</h2>
+    <p class="step-purpose">{{ stepInfo.purpose }}</p>
+  </div>
+
+  <!-- Info Box -->
+  <div class="info-box">
+    <span class="material-icons">info</span>
+    <div [innerHTML]="HELP_TEXT.general.projection"></div>
   </div>
 
   <!-- Projection Method Selection -->
@@ -9,6 +15,9 @@
     <h3>
       <span class="material-icons">settings</span>
       Select Projection Methods
+      <app-help-tooltip
+        helpText="<strong>Multiple methods recommended:</strong> Each method reveals different aspects of your data. PCA is fast for exploration, t-SNE reveals clusters."
+        position="right"></app-help-tooltip>
     </h3>
     <p class="section-description">
       Enable one or more dimensionality reduction methods. Each method has different strengths for visualizing high-dimensional data.
@@ -82,9 +91,7 @@
             <div class="parameter-field">
               <label class="field-label">
                 <span>Perplexity</span>
-                <span class="help-icon" title="Balance between local and global structure (5-50). Higher values consider more neighbors.">
-                  <span class="material-icons">help_outline</span>
-                </span>
+                <app-help-tooltip [helpText]="HELP_TEXT.parameters.tsnePerplexity"></app-help-tooltip>
               </label>
               <div class="input-group">
                 <input
@@ -108,9 +115,7 @@
             <div class="parameter-field">
               <label class="field-label">
                 <span>Iterations</span>
-                <span class="help-icon" title="Number of optimization iterations (250-5000). More iterations = better quality but slower.">
-                  <span class="material-icons">help_outline</span>
-                </span>
+                <app-help-tooltip [helpText]="HELP_TEXT.parameters.tsneIterations"></app-help-tooltip>
               </label>
               <div class="input-group">
                 <input

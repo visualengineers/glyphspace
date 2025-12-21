@@ -5,6 +5,9 @@ import { PreprocessingService } from '../../services/preprocessing.service';
 import { ColumnStatistics } from '../../models/column-statistics';
 import { ColumnConfig, CleaningConfig } from '../../models/column-config';
 import { MissingValueStrategy, OutlierStrategy, OutlierMethod } from '../../models/data-type.enum';
+import { HelpTooltipComponent } from '../../shared/help-tooltip/help-tooltip.component';
+import { HELP_TEXT } from '../../shared/constants/help-text';
+import { STEP_INFO } from '../../shared/constants/step-info';
 
 interface ColumnCleaningState {
   column: ColumnStatistics;
@@ -19,7 +22,7 @@ interface ColumnCleaningState {
 @Component({
   selector: 'app-step3-data-cleaning',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, HelpTooltipComponent],
   templateUrl: './step3-data-cleaning.component.html',
   styleUrl: './step3-data-cleaning.component.scss'
 })
@@ -44,6 +47,10 @@ export class Step3DataCleaningComponent implements OnInit {
 
   isProcessing = false;
   error: string | null = null;
+
+  // Expose help text and step info to template
+  readonly HELP_TEXT = HELP_TEXT;
+  readonly stepInfo = STEP_INFO[2]; // Step 3 (index 2)
 
   constructor(private preprocessingService: PreprocessingService) {
     this.cleaningConfig = this.preprocessingService.currentState.cleaningConfig;
@@ -127,6 +134,12 @@ export class Step3DataCleaningComponent implements OnInit {
     if (colState) {
       colState.missingStrategy = strategy;
     }
+  }
+
+  onMissingValueFillChange(columnName: string, fillValue: string): void {
+    this.preprocessingService.updateColumnConfig(columnName, {
+      missingValueFillValue: fillValue
+    });
   }
 
   onOutlierMethodChange(columnName: string, method: OutlierMethod): void {

@@ -1,7 +1,7 @@
 <div class="step4-feature-config">
   <div class="step-header">
-    <h2>Feature Configuration</h2>
-    <p>Configure encoding, scaling, and projection settings for each column</p>
+    <h2>{{ stepInfo.title }}</h2>
+    <p class="step-purpose">{{ stepInfo.purpose }}</p>
   </div>
 
   @if (columns.length === 0) {
@@ -11,13 +11,24 @@
       <p>Please go back to Step 2 and select at least one column.</p>
     </div>
   } @else {
+    <!-- Encoding Configuration Info Box -->
+    <div class="info-box">
+      <span class="material-icons">info</span>
+      <div>
+        <strong>Smart defaults are already set</strong> based on your data types.
+        Encoding converts data into numeric format for visualization.
+        <app-help-tooltip [helpText]="HELP_TEXT.general.smartDefaults"></app-help-tooltip>
+      </div>
+    </div>
+
     <!-- Color Feature Selection -->
     <div class="color-feature-section">
       <h3>
         <span class="material-icons">palette</span>
         Color Feature
+        <app-help-tooltip [helpText]="HELP_TEXT.general.colorFeature"></app-help-tooltip>
       </h3>
-      <p class="section-description">Select which feature will be used to color data points in visualizations</p>
+      <p class="section-description">Select which feature will be used to color data points in visualizations (optional)</p>
 
       <div class="color-feature-grid">
         @for (column of columns; track column.name) {
@@ -47,12 +58,23 @@
     <div class="glyph-mapping-section">
       <h3>
         <span class="material-icons">star_outline</span>
-        Glyph Features
+        Glyph Features (Required)
+        <app-help-tooltip [helpText]="HELP_TEXT.general.glyphFeatures"></app-help-tooltip>
       </h3>
       <p class="section-description">
         Select exactly 5 features to visualize as glyph axes.
         Drag to reorder. These features will be used after encoding is applied.
       </p>
+
+      <!-- Progress Indicator -->
+      <div class="feature-progress">
+        <span class="progress-text">{{ selectedGlyphFeatures.length }}/5 features selected</span>
+        <div class="progress-bar-container">
+          <div
+            class="progress-fill"
+            [style.width.%]="(selectedGlyphFeatures.length / 5) * 100"></div>
+        </div>
+      </div>
 
       <!-- Smart Suggestions -->
       <div class="suggestions-container">
@@ -63,6 +85,9 @@
           <span class="material-icons">auto_awesome</span>
           Use Smart Suggestions (Top 5 by Variance)
         </button>
+        <app-help-tooltip
+          helpText="Automatically selects the 5 most varied features (highest variance = most information)"
+          position="right"></app-help-tooltip>
 
         @if (suggestedFeatures.length > 0) {
           <div class="suggestion-preview">

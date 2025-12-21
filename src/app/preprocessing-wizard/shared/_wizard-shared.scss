@@ -338,3 +338,134 @@
   border-top: 1px solid v.$gray-300;
   margin-top: 16px;
 }
+
+// Info boxes for step-level guidance
+@mixin info-box {
+  @include message-info;
+  margin-bottom: 16px;
+
+  .material-icons {
+    flex-shrink: 0;
+  }
+}
+
+@mixin warning-box {
+  @include message-warning;
+  margin-bottom: 16px;
+
+  .material-icons {
+    flex-shrink: 0;
+  }
+}
+
+@mixin success-box {
+  @include message-success;
+  margin-bottom: 16px;
+
+  .material-icons {
+    flex-shrink: 0;
+  }
+}
+
+// Step purpose statement
+@mixin step-purpose {
+  text-align: center;
+  font-size: 13px;
+  color: v.$gray-600;
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+
+// Progress indicator for glyph features
+@mixin feature-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+
+  .progress-text {
+    font-size: 13px;
+    font-weight: 600;
+    color: v.$gray-700;
+  }
+
+  .progress-bar-container {
+    @include progress-bar;
+  }
+
+  .progress-fill {
+    @include progress-fill;
+  }
+}
+
+// Badge with data loss warning
+@mixin badge-data-loss {
+  @include badge-warning;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+
+  .material-icons {
+    font-size: 14px;
+  }
+}
+
+// Helper classes that can be used directly in templates
+.info-box {
+  @include info-box;
+}
+
+.warning-box {
+  @include warning-box;
+}
+
+.success-box {
+  @include success-box;
+}
+
+.step-purpose {
+  @include step-purpose;
+}
+
+.feature-progress {
+  @include feature-progress;
+}
+
+.badge-data-loss {
+  @include badge-data-loss;
+}
+
+.badge-numeric {
+  @include badge;
+  background: rgba(0, 188, 212, 0.1);
+  color: v.$active-color;
+}
+
+.badge-categorical {
+  @include badge;
+  background: rgba(156, 39, 176, 0.1);
+  color: #7B1FA2;
+}
+
+.badge-text {
+  @include badge;
+  background: rgba(255, 152, 0, 0.1);
+  color: #E65100;
+}
+
+.badge-date {
+  @include badge;
+  background: rgba(76, 175, 80, 0.1);
+  color: #388E3C;
+}
+
+.badge-boolean,
+.badge-id {
+  @include badge;
+  background: v.$gray-200;
+  color: v.$gray-700;
+}
+
+.badge-warning {
+  @include badge-warning;
+}

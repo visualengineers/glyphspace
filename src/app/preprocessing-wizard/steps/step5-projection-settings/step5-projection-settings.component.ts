@@ -3,6 +3,9 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PreprocessingService } from '../../services/preprocessing.service';
 import { ProjectionConfig } from '../../models/column-config';
+import { HelpTooltipComponent } from '../../shared/help-tooltip/help-tooltip.component';
+import { HELP_TEXT } from '../../shared/constants/help-text';
+import { STEP_INFO } from '../../shared/constants/step-info';
 
 interface ProjectionMethod {
   key: keyof Pick<ProjectionConfig, 'enablePCA' | 'enableTSNE' | 'enableUMAP'>;
@@ -14,7 +17,7 @@ interface ProjectionMethod {
 @Component({
   selector: 'app-step5-projection-settings',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, HelpTooltipComponent],
   templateUrl: './step5-projection-settings.component.html',
   styleUrl: './step5-projection-settings.component.scss'
 })
@@ -34,6 +37,10 @@ export class Step5ProjectionSettingsComponent implements OnInit {
 
   // Constants matching backend limits (public for template access)
   readonly TSNE_WARNING_THRESHOLD = 5000;
+
+  // Expose help text and step info to template
+  readonly HELP_TEXT = HELP_TEXT;
+  readonly stepInfo = STEP_INFO[4]; // Step 5 (index 4)
 
   projectionMethods: ProjectionMethod[] = [
     {
