@@ -211,25 +211,23 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
       this.config.loadedDataSubject$.subscribe(async loadedData => {
         if (loadedData == "") return;
 
-        const data = await this.dataProvider.getGlyphData();
+        this.timestamps = this.dataProvider.getTimestamps(loadedData);
+        this.algorithms = this.dataProvider.getPositions(loadedData);
+        this.contexts = this.dataProvider.getContexts(loadedData);
+
+        this.selectedTimestamp = this.timestamps[0];
+        this.selectedAlgorithm = this.algorithms[0];
+        this.selectedContext = this.contexts[0];
+
+        let data = await this.dataProvider.getGlyphData(this.config.loadedData, this.selectedTimestamp);
+        if (data) this.glyphData = data;
 
         this.ngZone.run(() => {
-          this.timestamps = this.dataProvider.getTimestamps(loadedData);
-          this.algorithms = this.dataProvider.getPositions(loadedData);
-          this.contexts = this.dataProvider.getContexts(loadedData);
-
-          this.selectedTimestamp = this.timestamps[0];
-          this.selectedAlgorithm = this.algorithms[0];
-          this.selectedContext = this.contexts[0];
-
-          if (data) {
-            this.glyphGroup.clear();
-            this.glyphData = data;
-            this.positionBounds = undefined;
-            this.updatePositionBounds();
-            this.fitToView();
-            this.initSimulation();
-          }
+          this.glyphGroup.clear();
+          this.positionBounds = undefined;
+          this.updatePositionBounds();
+          this.fitToView();
+          this.initSimulation();
         });
       })
     );

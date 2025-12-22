@@ -19,7 +19,7 @@ import { DEFAULT_DATASETCOLLECTION } from "../../default-dataset";
 })
 export class DataProviderService {
     private filters: ItemFilter[] = [];
-    private glyphCache: Map<string, Map<string, GlyphObject[]>> = new Map();
+    private glyphCache: Map<string, Map<string, GlyphObject>> = new Map();
     private metaCache: Map<string, Map<string, GlyphMeta>> = new Map();
     private schemaCache: Map<string, Map<string, GlyphSchema>> = new Map();
 
@@ -41,7 +41,7 @@ export class DataProviderService {
                 const algos = item.algorithms;
                 const datasetId = ds.dataset;
                 const time = item.time;
-
+                
                 // Build individual HTTP requests
                 const requests: { [key: string]: Observable<any> } = {
                     schema: this.http.get<any>(basePath + algos.schema),
@@ -67,6 +67,8 @@ export class DataProviderService {
                         positions.set(posKey, result[posKey]);
                     });
 
+                    console.log("Building for positions: ");
+                    console.log(positions);
                     const items = this.buildDataSet(datasetId, time, schema, meta, feature, positions);
 
                     // Set initial view for the first dataset loaded (or use condition to choose)
@@ -109,26 +111,24 @@ export class DataProviderService {
         let count = 0;
         const allFiltersEmpty = this.getFilters().length == 0 || this.getFilters().every(filter => filter.empty());
         const orFiltering = this.getFilters().filter(filter => filter.filterMode == FilterMode.Or).every(filter => filter.empty());
-        glyphData.forEach(data => {
+        glyphData.forEach((item: GlyphObject) => {
             count = 0;
-            data.forEach((item: GlyphObject) => {
-                let andFilter = true;
-                let orFilter = orFiltering;
-                this.getFilters().forEach(filter => {
-                    if (filter.empty()) {
-                        return;
-                    }
+            let andFilter = true;
+            let orFilter = orFiltering;
+            this.getFilters().forEach(filter => {
+                if (filter.empty()) {
+                    return;
+                }
 
-                    if (filter.filterMode == FilterMode.Or) {
-                        orFilter = orFilter || filter.inFilter(item);
-                    } else if (filter.filterMode == FilterMode.And) {
-                        andFilter = andFilter && filter.inFilter(item);
-                    }
-                });
+                if (filter.filterMode == FilterMode.Or) {
+                    orFilter = orFilter || filter.inFilter(item);
+                } else if (filter.filterMode == FilterMode.And) {
+                    andFilter = andFilter && filter.inFilter(item);
+                }
+            });
 
-                item.passive = allFiltersEmpty ? false : !(andFilter && orFilter);
-                if (!item.passive) count++;
-            })
+            item.passive = allFiltersEmpty ? false : !(andFilter && orFilter);
+            if (!item.passive) count++;
         });
         this.filteredItems = count;
     }
@@ -163,48 +163,71 @@ export class DataProviderService {
         this.dataSetCollectionSubject.next(Array.from(datasetMap.values()));
     }
 
-    private buildDataSet(name: string, timestamp: string, schema: GlyphSchema, meta: GlyphMeta, features: GlyphFeature[], positions: Map<string, GlyphPosition[]>): number {
+    private buildDataSet(
+        name: string,
+        timestamp: string,
+        schema: GlyphSchema,
+        meta: GlyphMeta,
+        features: GlyphFeature[],
+        positions: Map<string, GlyphPosition[]>
+    ): number {
+
+        // --- Schema & Meta (still timestamp-based) ---
         if (!this.schemaCache.has(name)) this.schemaCache.set(name, new Map());
-        this.schemaCache.get(name)?.set(timestamp, schema);
+        this.schemaCache.get(name)!.set(timestamp, schema);
 
         if (!this.metaCache.has(name)) this.metaCache.set(name, new Map());
-        this.metaCache.get(name)?.set(timestamp, meta);
+        this.metaCache.get(name)!.set(timestamp, meta);
 
-        // 1. Step: Build GlyphObjects from features
-        const glyphs: GlyphObject[] = features.map(feature => {
-            const glyph = new GlyphObject(feature.id, this.config, this.dataProcessor);
-            glyph.features = feature.features;
-            glyph.values = feature.values;
-            glyph.defaultcontext = feature.defaultcontext ? parseInt(feature.defaultcontext) : 1;
-            glyph.positions = {}; // Initialize position storage
-            return glyph;
-        });
+        // --- Glyph cache: dataset → glyphId → GlyphObject ---
+        if (!this.glyphCache.has(name)) {
+            this.glyphCache.set(name, new Map());
+        }
 
-        // 2. Step: Build lookup map
-        const glyphMap = new Map<string, GlyphObject>();
-        glyphs.forEach(g => glyphMap.set(g.id, g));
+        const glyphMap = this.glyphCache.get(name)!;
 
-        // 3. Step: Add positions
+        // --- Create or update glyphs ---
+        for (const feature of features) {
 
-        for (const [key, value] of positions) {
-            value.forEach((posEntry: GlyphPosition) => {
+            let glyph = glyphMap.get(feature.id);
+
+            // Create glyph only once
+            if (!glyph) {
+                glyph = new GlyphObject(feature.id, this.config, this.dataProcessor);
+                glyph.features = feature.features;
+                glyph.values = feature.values;
+                glyph.defaultcontext = feature.defaultcontext
+                    ? parseInt(feature.defaultcontext)
+                    : 1;
+                glyph.positions = {};
+
+                glyphMap.set(feature.id, glyph);
+            }
+
+            // Ensure timestamp bucket exists
+            if (!glyph.positions[timestamp]) {
+                glyph.positions[timestamp] = {};
+            }
+        }
+
+        // --- Add positions for this timestamp ---
+        for (const [algorithm, entries] of positions) {
+            for (const posEntry of entries) {
                 const glyph = glyphMap.get(posEntry.id);
-                if (glyph) {
-                    if (!glyph.positions[timestamp]) {
-                        glyph.positions[timestamp] = {};
-                    }
-                    glyph.positions[timestamp][key] = { ...posEntry.position }; // or as-is
-                }
-            });
-        };
+                if (!glyph) continue;
 
-        if (!this.glyphCache.has(name)) this.glyphCache.set(name, new Map());
-        this.glyphCache.get(name)?.set(timestamp, glyphs);
+                glyph.positions[timestamp][algorithm] = {
+                    ...posEntry.position
+                };
+            }
+        }
 
-        return glyphs.length;
+        return glyphMap.size;
     }
 
+
     async loadDataSet(name: string, timestamp: string) {
+        console.log("load data set " + name + " " + timestamp);
         const dataset = this.dataSetCollectionSubject.getValue().find(data => data.dataset == name);
         const item = dataset?.items.find(item => item.time == timestamp);
         if (item && dataset?.source == "wasm") {
@@ -228,25 +251,24 @@ export class DataProviderService {
 
     public async getGlyphData(): Promise<GlyphObject[] | undefined>
     public async getGlyphData(name?: string): Promise<GlyphObject[] | undefined>
-    public async getGlyphData(name?: string, timestamp?: string): Promise<GlyphObject[] | undefined> {
+    public async getGlyphData(name?: string, timestamp?: string): Promise<GlyphObject[] | undefined>
+    public async getGlyphData(name?: string, timestamp?: string, algorithm?: string): Promise<GlyphObject[] | undefined> {
         if (name == undefined) name = this.config.loadedData;
         const collection = this.dataSetCollectionSubject.getValue().find(collection => collection.dataset == name);
-        if (timestamp == undefined) {            
+        if (timestamp == undefined || timestamp == '') {
             timestamp = collection?.items.at(0)?.time;
         }
         if (name == undefined || timestamp == undefined) return undefined;
 
-        
         let data = this.glyphCache.get(name);
         if (!data) {
             await this.loadDataSet(name, timestamp);
             data = this.glyphCache.get(name);
         }
-        const glyphData = data?.get(timestamp);
-        if (glyphData) this.totalItems = glyphData?.length;
+        if (data) this.totalItems = data.size;
         this.filteredItems = this.totalItems;
         if (collection) this.config.dataSource = collection.source
-        return glyphData;
+        return data ? Array.from(data.values()) : undefined;
     }
 
     public async getMetaData(): Promise<GlyphMeta | undefined>
