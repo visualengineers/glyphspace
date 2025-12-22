@@ -64,6 +64,7 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
   private currentTicks = 0;
   private maxTicks = 50;
   aggregated = false;
+  private lensSimulation?: Simulation<GlyphCacheObject, undefined> | undefined;
 
   // Fields responsible for animating transitions in the scene
   private fitAnimationStartTime: number | null = null;
@@ -211,24 +212,31 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
       this.config.loadedDataSubject$.subscribe(async loadedData => {
         if (loadedData == "") return;
 
-        this.timestamps = this.dataProvider.getTimestamps(loadedData);
-        this.algorithms = this.dataProvider.getPositions(loadedData);
-        this.contexts = this.dataProvider.getContexts(loadedData);
-
-        this.selectedTimestamp = this.timestamps[0];
-        this.selectedAlgorithm = this.algorithms[0];
-        this.selectedContext = this.contexts[0];
-
         let data = await this.dataProvider.getGlyphData(this.config.loadedData, this.selectedTimestamp);
         if (data) this.glyphData = data;
 
         this.ngZone.run(() => {
+          this.timestamps = this.dataProvider.getTimestamps(loadedData);
+          this.algorithms = this.dataProvider.getPositions(loadedData);
+          this.contexts = this.dataProvider.getContexts(loadedData);
+
+          this.selectedTimestamp = this.timestamps[0];
+          this.selectedAlgorithm = this.algorithms[0];
+          this.selectedContext = this.contexts[0];
+
           this.glyphGroup.clear();
           this.positionBounds = undefined;
           this.updatePositionBounds();
           this.fitToView();
           this.initSimulation();
         });
+      })
+    );
+    this.configSub.add(
+      this.config.drawMagicLensGlyphsSubject$.subscribe(glyphs => {
+        if (glyphs != null) {
+          this.renderMagicLensGlyphs(glyphs);
+        }
       })
     );
     this.configSub.add(
@@ -595,7 +603,6 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
     this.updateFitAnimation();
     this.updateClipping();
     this.renderer.render(this.scene, this.camera);
-    this.magicLensComponent.renderLens(this.lastMousePosition);
     this.cancelRender(RenderTask.SceneRender);
   };
 
@@ -758,38 +765,82 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
+  private resetUnhighlightedGlyphs(highlighted: Set<string>) {
+    for (const glyph of this.glyphData) {
+      if (highlighted.has(glyph.id)) continue;
+
+      const node = glyph.getCacheObject(
+        this.id,
+        this.selectedTimestamp,
+        this.selectedAlgorithm
+      );
+
+      node.x = node.position.x;
+      node.y = node.position.y;
+      node.vx = 0;
+      node.vy = 0;
+      node.mesh?.position.set(node.position.x, node.position.y, 0);
+    }
+  }
+
+  private renderMagicLensGlyphs(glyphs: GlyphObject[]) {
+    if (this.magicLensComponent.isActive()) return;
+
+    this.lensSimulation?.stop();
+
+    const highlightedIds = new Set(glyphs.map(g => g.id));
+    this.resetUnhighlightedGlyphs(highlightedIds);
+
+    if (glyphs.length > 1) {
+      const nodes = glyphs.map(glyph =>
+        glyph.getCacheObject(
+          this.id,
+          this.selectedTimestamp,
+          this.selectedAlgorithm
+        )
+      );
+
+      this.lensSimulation = forceSimulation(nodes)
+        .force(
+          'collide',
+          forceCollide(this.sizeInfo.getRadius(ZoomLevel.high) * 4)
+        )
+        .velocityDecay(0.5)
+        .stop();
+
+      this.lensSimulation.tick(20);
+
+      nodes.forEach(node => {
+        node.mesh?.position.set(node.x ?? 0, node.y ?? 0, 0);
+      });
+    }
+
+    glyphs.forEach(glyph => {
+      const lensSize = this.sizeInfo.clone();
+      lensSize.currentZoomLevel = ZoomLevel.high;
+      lensSize.radius = lensSize.radius * 8;
+
+      let mesh = glyph.getMesh(this.selectedTimestamp, this.selectedAlgorithm, this.id);
+      if (mesh != undefined) {
+        this.glyphGroup.remove(mesh);
+      }
+      let newMesh = glyph.render(lensSize, this.selectedTimestamp, this.selectedAlgorithm, this.id, this.aggregated);
+      if (newMesh) {
+        this.glyphGroup.add(newMesh);
+      }
+    });
+
+    this.requestRender(RenderTask.SceneRender);
+  }
+
+
   private renderGlyph(glyph: GlyphObject) {
     let mesh = glyph.getMesh(this.selectedTimestamp, this.selectedAlgorithm, this.id);
     if (mesh != undefined) this.glyphGroup.remove(mesh);
 
     let newMesh = glyph.render(this.sizeInfo, this.selectedTimestamp, this.selectedAlgorithm, this.id, this.aggregated);
+    if (newMesh) this.glyphGroup.add(newMesh);
 
-    if (newMesh) {
-      // TODO: Implement new method for rendering glyphs from other lens
-      if (glyph.isInLense &&
-        !this.magicLensComponent.lensGlyphs.includes(glyph) &&
-        this.sizeInfo.currentZoomLevel == ZoomLevel.low) {
-        const lensSize = this.sizeInfo.clone();
-        lensSize.currentZoomLevel = ZoomLevel.high;
-        lensSize.radius = lensSize.radius * 8;
-        const spread = 120;
-
-        const lensMesh = glyph.render(lensSize, this.selectedTimestamp, this.selectedAlgorithm, this.id, this.aggregated);
-        if (lensMesh != null) {
-          // const pos = lensMesh.position.clone();
-
-          // const jitter = new THREE.Vector3(
-          //   jitterFromVector(pos) * spread,
-          //   jitterFromVector(pos.clone().addScalar(1)) * spread, 0
-          // );
-
-          //lensMesh.position.copy(pos.add(jitter));
-          // lensMesh.scale.addScalar(scale);
-          newMesh = lensMesh;
-        }
-      }
-      this.glyphGroup.add(newMesh);
-    }
     this.requestRender(RenderTask.SceneRender);
   }
 
@@ -899,8 +950,8 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
     }
     // TODO: Magic lens feature is broken
     if (event.key.toLowerCase() === 'l') {
-      this.toggleMagicLens();
       this.clearHoveredGlyph();
+      this.toggleMagicLens();
       this.magicLensComponent.updateMagicLens(this.lastMousePosition, this.camera, this.renderer);
       this.magicLensComponent.renderMagicLensGlyphs(this.selectedTimestamp, this.selectedAlgorithm);
     }
@@ -1008,8 +1059,9 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
 
     if (this.magicLensComponent.isActive()) {
       this.lastMousePosition.set(event.clientX, event.clientY);
-      this.magicLensComponent.renderMagicLensGlyphs(this.selectedTimestamp, this.selectedAlgorithm);
-      this.magicLensComponent.updateMagicLens(this.lastMousePosition, this.camera, this.renderer);
+      this.magicLensComponent.renderLens(this.lastMousePosition);
+      const change = this.magicLensComponent.updateMagicLens(this.lastMousePosition, this.camera, this.renderer);
+      if (change) this.magicLensComponent.renderMagicLensGlyphs(this.selectedTimestamp, this.selectedAlgorithm);
       return;
     }
 

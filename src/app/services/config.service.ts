@@ -56,6 +56,9 @@ export class ConfigService {
   private redrawGlyphSubject = new BehaviorSubject<GlyphObject | null>(null);
   redrawGlyphSubject$ = this.redrawGlyphSubject.asObservable();
 
+  private drawMagicLensGlyphsSubject = new BehaviorSubject<GlyphObject[] | null>(null);
+  drawMagicLensGlyphsSubject$ = this.drawMagicLensGlyphsSubject.asObservable();
+
   private animateGlyphSubject = new BehaviorSubject<GlyphObject | null>(null);
   animateGlyphSubject$ = this.animateGlyphSubject.asObservable();
 
@@ -70,6 +73,10 @@ export class ConfigService {
 
   reRender() {
       this.commandSubject.next(InteractionCommand.rerender);
+  }
+
+  drawMagicLensGlyphs(glyphs: GlyphObject[]) {
+    this.drawMagicLensGlyphsSubject.next(glyphs);
   }
  
   animateGlyph(glyph: GlyphObject | null) {

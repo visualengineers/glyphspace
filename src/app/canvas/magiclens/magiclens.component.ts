@@ -84,7 +84,6 @@ export class MagiclensComponent {
       this.lensGlyphGroup.clear();
     } else {
       this.updatePositions(lastMousePosition);
-      // this.renderMagicLensGlyphs();
       this.renderLens(lastMousePosition);
     }
   }
@@ -143,7 +142,6 @@ export class MagiclensComponent {
   renderMagicLensGlyphs(timestamp: string, algorithm: string, forceRerender: boolean = false): void {
     this.lensGlyphGroup.clear();
     this.lensGlyphs.forEach(glyph => {
-      // TODO: Magic lens is broken
       let cachedMesh = glyph.getCacheObject(this.parentId, timestamp, algorithm).mesh;
       if (cachedMesh == undefined || forceRerender) {
         glyph.render(this.sizeInfo, timestamp, algorithm, this.parentId, false);
@@ -199,8 +197,8 @@ export class MagiclensComponent {
     // Inform other canvases about redrawing the glyph
     this.lensGlyphs.forEach((glyph) => {
       glyph.isInLense = true;
-      this.config.redrawGlyph(glyph);
     });
+    this.config.drawMagicLensGlyphs(this.lensGlyphs);
   }
 
   renderLens(lastMousePosition: THREE.Vector2) {

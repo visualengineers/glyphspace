@@ -67,8 +67,6 @@ export class DataProviderService {
                         positions.set(posKey, result[posKey]);
                     });
 
-                    console.log("Building for positions: ");
-                    console.log(positions);
                     const items = this.buildDataSet(datasetId, time, schema, meta, feature, positions);
 
                     // Set initial view for the first dataset loaded (or use condition to choose)
