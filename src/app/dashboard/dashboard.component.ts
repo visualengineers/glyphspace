@@ -84,6 +84,7 @@ export class DashboardComponent {
     );
 
     this.setupGlyphCanvas();
+    this.toggle();
   }
 
   ngOnDestroy(): void {

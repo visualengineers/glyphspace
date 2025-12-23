@@ -5,13 +5,14 @@ import { CommonModule } from '@angular/common';
 import { DataProviderService } from './services/dataprovider.service';
 import { DashboardComponent } from './dashboard/dashboard.component';
 import { checkTextInput } from './shared/helpers/angular-helper';
+import { MenuBarComponent } from "./menubar/menubar.component";
 
 interface GlyphCanvasItem { id: number, row: number, col: number }
 
 @Component({
   standalone: true,
   selector: 'app-root',
-  imports: [CommonModule, GlyphCanvasComponent, DashboardComponent],
+  imports: [CommonModule, GlyphCanvasComponent, DashboardComponent, MenuBarComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss'
 })

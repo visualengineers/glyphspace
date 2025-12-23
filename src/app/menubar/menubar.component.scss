@@ -1,0 +1,215 @@
+.menu-bar {
+    display: grid;
+    grid-template-columns:
+        auto
+        /* left: logo */
+        1fr
+        /* center: controls */
+        360px;
+    /* right: legend anchor width */
+
+    align-items: center;
+
+    height: 64px;
+    padding: 0 16px;
+
+    background: white;
+    border-bottom: 1px solid #e5e5e5;
+}
+
+
+/* LEFT */
+.menu-left {
+    display: flex;
+    align-items: center;
+}
+
+/* CENTER */
+.menu-center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+}
+
+/* RIGHT */
+.menu-right {
+    display: flex;
+    justify-content: flex-start;
+    /* ← important */
+    align-items: center;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    img {
+        width: 28px;
+        height: 28px;
+    }
+
+    .title {
+        font-size: 18px;
+        font-weight: 600;
+    }
+}
+
+.data-control {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+
+    .label {
+        font-size: 14px;
+    }
+
+    select {
+        appearance: none;
+        /* Remove native arrow */
+        -webkit-appearance: none;
+        -moz-appearance: none;
+
+        padding: 6px 12px;
+        border-radius: 10px;
+        border: none;
+        background-color: #f2f2f2;
+        color: #333;
+        font-size: 14px;
+        cursor: pointer;
+
+        display: inline-flex;
+        align-items: center;
+
+        /* subtle hover effect */
+        &:hover {
+            background-color: #e6e6e6;
+        }
+
+        /* focus outline for accessibility */
+        &:focus {
+            outline: 2px solid #c7d2fe;
+            outline-offset: 2px;
+        }
+    }
+
+    /* Optional: add a custom arrow */
+    select {
+        height: 32px;
+        line-height: 1.2;
+        background-image: url("data:image/svg+xml;utf8,<svg fill='none' stroke='%23333' stroke-width='2' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'><path d='M6 9l6 6 6-6'/></svg>");
+        background-repeat: no-repeat;
+        background-position: right 8px center;
+        background-size: 16px 16px;
+        padding-right: 32px;
+        /* make room for arrow */
+    }
+}
+
+
+.icon-panel {
+    display: flex;
+    gap: 6px;
+    padding: 4px;
+    background: #f2f2f2;
+    border-radius: 10px;
+
+    button {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+
+        border: none;
+        background: transparent;
+        padding: 6px 10px;
+        border-radius: 8px;
+        cursor: pointer;
+
+        font-size: 13px;
+        color: #333;
+
+        &:hover {
+            background: #e0e0e0;
+        }
+
+        .material-icons {
+            font-size: 18px;
+        }
+    }
+}
+
+.canvas-control {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    .label {
+        font-size: 14px;
+    }
+
+    .add-btn {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+
+        border: none;
+        padding: 6px 12px;
+        border-radius: 10px;
+        background: #f2f2f2;
+        cursor: pointer;
+
+        &:hover {
+            background: #e6e6e6;
+        }
+    }
+}
+
+.legend-anchor {
+    position: relative;
+    width: 360px;
+    /* SAME as dropdown width */
+}
+
+.legend-toggle {
+    width: 100%;
+    /* ← stretch to panel width */
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    /* text left, icon right */
+
+    padding: 8px 14px;
+    border-radius: 12px;
+    border: none;
+
+    background: #f2f2f2;
+    cursor: pointer;
+    font-size: 14px;
+
+    z-index: 2;
+
+    &:hover {
+        background: #e6e6e6;
+    }
+
+    &.open {
+        border-bottom-left-radius: 0;
+        border-bottom-right-radius: 0;
+    }
+}
+
+.legend-toggle.open {
+    background: white;
+    border: 1px solid #e5e5e5;
+    border-bottom: none;
+}
+
+.legend-toggle .material-icons {
+    transition: transform 0.2s ease;
+}
+
+.legend-toggle.open .material-icons {
+    transform: rotate(180deg);
+}

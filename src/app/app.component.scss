@@ -1,17 +1,28 @@
 :host {
-  display: block;
+  display: flex;
+  flex-direction: column;
+
   height: 100vh;
   width: 100vw;
   overflow: hidden;
+  background-color: #f9f9f9;
 }
 
 .grid {
+  flex: 1;                 /* ← fills remaining space */
+  min-height: 0;           /* ← VERY important */
+
   display: grid;
   width: 100vw;
   height: 100vh;
+
+  box-sizing: border-box; /* ← important */
+
   grid-template-columns: repeat(auto-fill, minmax(0, 1fr));
   grid-auto-rows: 1fr;
-  gap: 2px;
+
+  gap: 24px;
+  padding: 24px;
 }
 
 .grid > * {
@@ -19,4 +30,16 @@
   height: 100%;
   /* Make children fill their grid cell */
   box-sizing: border-box;
+}
+
+.glyph-canvas {
+  border-radius: 12px;
+  border: 1px solid #ddd;
+  background: white;
+
+  overflow: hidden; /* important for canvas clipping */
+
+  box-shadow:
+    0 1px 3px rgba(0,0,0,0.08),
+    0 4px 12px rgba(0,0,0,0.05);
 }
