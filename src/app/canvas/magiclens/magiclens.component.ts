@@ -142,12 +142,7 @@ export class MagiclensComponent {
   renderMagicLensGlyphs(timestamp: string, algorithm: string, forceRerender: boolean = false): void {
     this.lensGlyphGroup.clear();
     this.lensGlyphs.forEach(glyph => {
-      let cachedMesh = glyph.getCacheObject(this.parentId, timestamp, algorithm).mesh;
-      if (cachedMesh == undefined || forceRerender) {
-        glyph.render(this.sizeInfo, timestamp, algorithm, this.parentId, false);
-        cachedMesh = glyph.getCacheObject(this.parentId, timestamp, algorithm).mesh;
-      }
-      const mesh = cachedMesh?.clone();
+      const mesh = glyph.renderGlyph(this.sizeInfo, timestamp, algorithm, this.parentId, false);
       if (mesh != null) {
         const wrapper = new THREE.Group();
         wrapper.name = "Wrapper";
