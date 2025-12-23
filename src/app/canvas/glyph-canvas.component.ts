@@ -472,7 +472,6 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
     // this.animationSpeed = 0.01;
     this.requestRender(RenderTask.OriginalSimulation);
     this.magicLensComponent.clearLensGlyphs();
-    this.magicLensComponent.renderMagicLensGlyphs(this.selectedTimestamp, this.selectedAlgorithm);
   }
 
   onMouseEnter() {
