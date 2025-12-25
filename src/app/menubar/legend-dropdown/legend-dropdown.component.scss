@@ -42,7 +42,7 @@
 
 .legend-content {
   padding: 16px;
-  max-height: 90vh;
+  max-height: calc(90vh - 64px);
   overflow-x: hidden;
   overflow-y: auto;
 
