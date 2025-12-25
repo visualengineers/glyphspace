@@ -32,6 +32,8 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
 
     private filter!: ItemFilter;
 
+    active = false;
+
     private svg: any;
     private margin = { top: 0, right: 18, bottom: 8, left: 8 };
     private width = 300;
@@ -52,6 +54,7 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
     ngOnInit(): void {
         this.filter = new FeatureFilter(this.property);
         this.filter.filterMode = FilterMode.And;
+        this.active = this.configuration.activeFeatures.indexOf(this.property) >= 0;
     }
 
     ngAfterViewInit(): void {
@@ -77,6 +80,18 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
         if (changes['histogramData'] && !changes['histogramData'].firstChange) {
             this.updateHistogram();
         }
+    }
+
+    public changed(): void {
+        this.active = !this.active;
+        const index = this.configuration.activeFeatures.indexOf(this.property);
+        if (this.active && index < 0) {
+            this.configuration?.activeFeatures.push(this.property);
+        } else if (index >= 0) {
+            this.configuration?.activeFeatures.splice(index, 1);
+        }
+
+        this.configuration?.updateConfiguration();
     }
 
     private createHistogram(): void {

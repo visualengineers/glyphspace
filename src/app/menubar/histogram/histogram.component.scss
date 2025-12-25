@@ -11,6 +11,8 @@
         color: v.$gray-700;
         margin-top: 6px;
         margin-bottom: 4px;
+        display: flex;
+        align-items: center;
     }
 
     .histogram-container {
@@ -45,4 +47,48 @@
         display: block;
     }
 
+    .expander {
+        margin-left: auto;
+        /* ← push to the right */
+
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+
+        padding: 3px 3px;
+
+        border-radius: 6px;
+        border: 1px solid #cfcfcf;
+
+        background: #ffffff;
+        color: v.$gray-800;
+
+        font-size: 10px;
+        font-weight: 500;
+
+        cursor: pointer;
+        user-select: none;
+
+        transition:
+            background-color 120ms ease,
+            border-color 120ms ease,
+            color 120ms ease,
+            box-shadow 120ms ease;
+    }
+
+    .expander:hover {
+        border-color: #b5b5b5;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    }
+
+    .expander.active {
+        background: v.$color-blue-highlight;
+        border-color: #6aa9ff;
+        color: white;
+    }
+
+    .expander i.material-icons {
+        font-size: 10px;
+        line-height: 1;
+    }
 }
