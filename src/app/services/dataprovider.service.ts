@@ -110,7 +110,6 @@ export class DataProviderService {
         const allFiltersEmpty = this.getFilters().length == 0 || this.getFilters().every(filter => filter.empty());
         const orFiltering = this.getFilters().filter(filter => filter.filterMode == FilterMode.Or).every(filter => filter.empty());
         glyphData.forEach((item: GlyphObject) => {
-            count = 0;
             let andFilter = true;
             let orFilter = orFiltering;
             this.getFilters().forEach(filter => {

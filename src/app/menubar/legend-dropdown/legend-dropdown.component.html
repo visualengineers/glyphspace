@@ -1,13 +1,48 @@
-<div
-  class="legend-dropdown"
-  [class.open]="open"
-  [style.width.px]="width"
->
+<div class="legend-dropdown" [class.open]="open" [style.width.px]="width">
   <div class="legend-content">
-    <h3>Glyph Legend</h3>
-    <p>Petal size → feature value<br />Color → category</p>
 
-    <h3>Filters</h3>
-    <p>D3 histograms, thresholds, selections…</p>
+    <div class="menu-label">GLYPH LEGEND</div>
+    <div class="glyph-visualization">
+      <canvas #glyphCanvas width="328" height="200"></canvas>
+    </div>
+
+    <div class="menu-label">DATA INFORMATION</div>
+    <div class="dashboard-infos" [hidden]="dataProvider.totalItems == 0">
+        <span>Total items&nbsp;</span>
+        <span>{{ dataProvider.totalItems }}</span>
+        
+        <span class="right" [hidden]="dataProvider.filteredItems == dataProvider.totalItems">{{ dataProvider.filteredItems }}</span>
+        <span class="right" [hidden]="dataProvider.filteredItems == dataProvider.totalItems">Filtered Items&nbsp;</span>
+    </div>
+
+    <div class="menu-label">SEARCH</div>
+    <div class="dashboard-search">
+      <input
+        #searchInput
+        type="text"
+        [(ngModel)]="searchTerm"
+        (keydown.enter)="onSearchEnter()"
+        (focus)="onFocus()"
+        (blur)="onBlur()"
+        placeholder="Text search in features..."
+      />
+      <button
+        class="clear-btn"
+        *ngIf="searchTerms.length > 0 || searchTerm"
+        (click)="clearSearch(searchInput)"
+        data-tooltip="Clear"
+      >
+        <i class="material-icons">close</i>
+      </button>
+      <ul class="search-term-list" *ngIf="inputFocused && searchTerms.length > 0">
+        <li *ngFor="let term of searchTerms; let i = index">
+          <span>{{ term }}</span>
+          <button class="remove-btn" (click)="removeTerm(i)">
+            <i class="material-icons">close</i>
+          </button>
+        </li>
+      </ul>
+    </div>
+
   </div>
 </div>
