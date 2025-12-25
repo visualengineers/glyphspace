@@ -45,7 +45,7 @@
   background: white;
   cursor: pointer;
 
-  color: #535353;
+  color: v.$gray-700;
   transition: all 0.2s ease;
 
   svg {
@@ -59,7 +59,7 @@
   }
 
   &.active {
-    background: #3b82f6;
+    background: v.$color-blue-highlight;
     /* blue highlight */
     color: white;
 

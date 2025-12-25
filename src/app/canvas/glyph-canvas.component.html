@@ -17,7 +17,22 @@
   <app-settingscontrols #settingsPanel
       [parentId]="id"
       [totalCells]="totalCells"
+
+      [collisionAvoidance]="collisionAvoidance"
+      [aggregated]="aggregated"
+
+      [algorithms]="algorithms"
+      [selectedAlgorithm]="selectedAlgorithm"
+
+      [timestamps]="timestamps"
+      [selectedTimestamp]="selectedTimestamp"Í
+
       (fitToView)="fitToView()"
+      (toggleCollision)="toggleCollisionAvoidance()"
+      (toggleAggregation)="toggleAggregation()"
+      (settingsChanged)="onSettingsChange($event)"
+      (changeAnimationSpeed)="onAnimationSpeedChanged($event)"
+      (togglePlayback)="onTogglePlayback()"
   ></app-settingscontrols>
     <app-navigationcontrols
       [visible]="mouseInside"
@@ -26,7 +41,7 @@
 
       (toggleNavigation)="toggleNavigationMode()"
       (toggleSelection)="toggleSelectionMode()"
-      (toggleLens)="toggleMagicLens()"
+      (toggleLens)="toggleMagicLens()"      
       >
     </app-navigationcontrols>
     <!-- <app-overlaycontrols
