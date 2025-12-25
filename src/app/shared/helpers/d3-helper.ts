@@ -2,6 +2,10 @@ import { GlyphConfiguration } from '../../glyph/glyph-configuration';
 import { GlyphObject } from '../../glyph/glyph-object';
 
 export function hexToRgb(hex: string | number): string {
+    if (typeof hex === 'string' && hex.indexOf('rgb') !== -1) {
+        return hex as string;
+    }   
+
     let hexString: string;
 
     if (typeof hex === 'number') {

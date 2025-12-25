@@ -157,7 +157,7 @@ export class DashboardComponent {
 
   toggleColorScale(): void {
     this.colorScaleType = this.colorScaleType === 'categorical' ? 'ordinal' : 'categorical';
-    this.config.colorRange = !this.config.colorRange;
+    this.config.colorRange = this.colorScaleType === 'categorical' ? 1 : 0;
     this.config.redraw();
   }
 

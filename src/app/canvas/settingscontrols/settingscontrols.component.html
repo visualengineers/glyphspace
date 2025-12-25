@@ -78,7 +78,46 @@
         </div>
       </div>
 
-      <div *ngSwitchCase="'color'" class="overlay-content">Color menu content</div>
+      <div *ngSwitchCase="'color'" class="overlay-content">
+
+        <!-- Apply to all -->
+        <label class="checkbox-row">
+          <input type="checkbox" [(ngModel)]="applyColorToAll" (click)="$event.stopPropagation()" />
+          <span class="custom-checkbox"></span>
+          <span class="label-text">Apply to all canvases</span>
+        </label>
+
+        <!-- Color attribute -->
+        <div class="form-group">
+          <label class="menu-label">COLOR ATTRIBUTE</label>
+          <select [(ngModel)]="selectedColorAttribute" (click)="selectColor(); $event.stopPropagation()">
+            <option *ngFor="let featureId of featureIds" [value]="featureId">
+              {{ getFeatureName(featureId) }}
+            </option>
+          </select>
+        </div>
+
+        <!-- Color scale -->
+        <div class="form-group">
+          <label class="menu-label">COLOR SCALE</label>
+
+          <div class="color-scale-select" (click)="$event.stopPropagation(); toggleColorScaleDropdown()">
+            <div class="selected-scale">
+              <div class="color-box" *ngFor="let c of getSelectedScale().representativeColors" [style.background]="c">
+              </div>
+            </div>
+
+            <div class="color-scale-options" *ngIf="colorScaleDropdownOpen">
+              <div class="color-scale-option" *ngFor="let scale of colorScales"
+                [class.active]="scale.id === selectedColorScaleId"
+                (click)="selectColorScale(scale.id); colorScaleDropdownOpen = false; $event.stopPropagation()">
+                <div class="color-box" *ngFor="let c of scale.representativeColors" [style.background]="c"></div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
 
       <div *ngSwitchCase="'glyph'" class="overlay-content">Glyph menu content</div>
 

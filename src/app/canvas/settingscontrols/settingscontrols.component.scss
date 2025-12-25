@@ -221,10 +221,11 @@
 }
 
 .play-btn {
-  flex: 1;                /* ← fills remaining horizontal space */
-  justify-content: center;
-  border-radius: 10px;
-  min-width: 56px;
+    flex: 1;
+    /* ← fills remaining horizontal space */
+    justify-content: center;
+    border-radius: 10px;
+    min-width: 56px;
 }
 
 /* Speed display */
@@ -241,4 +242,139 @@
     font-size: 13px;
     font-weight: 500;
     color: #444;
+}
+
+/* Checkbox row */
+.checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: v.$gray-600;
+    cursor: pointer;
+    user-select: none;
+    margin-bottom: 14px;
+
+    input[type="checkbox"] {
+        display: none; // hide native checkbox
+    }
+
+    .custom-checkbox {
+        width: 14px;
+        height: 14px;
+        border-radius: 6px;
+        border: 1px solid #d0d0d0;
+        background: white;
+        display: inline-block;
+        position: relative;
+        transition: all 0.2s ease;
+
+        /* center dot */
+        &::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 6px;
+            height: 6px;
+            background-color: white;
+            /* default invisible */
+            border-radius: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            transition: transform 0.2s ease, background-color 0.2s ease;
+        }
+    }
+
+    input[type="checkbox"]:checked+.custom-checkbox {
+        background-color: v.$color-blue-highlight;
+        /* $color-blue-highlight */
+        border-color: #1e88e5;
+
+        &::after {
+            background-color: white;
+            /* the dot is white on blue */
+            transform: translate(-50%, -50%) scale(1);
+        }
+    }
+
+    .label-text {
+        user-select: none;
+    }
+}
+
+/* Color scale selector */
+.color-scale-select {
+    position: relative;
+    cursor: pointer;
+    user-select: none;
+
+    .selected-scale {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 6px 8px;
+        border-radius: 8px;
+        border: 1px solid #d0d0d0;
+        background: white;
+
+        /* Custom arrow */
+        &::after {
+            content: "";
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            margin-left: auto;
+            background-image: url("data:image/svg+xml;utf8,<svg fill='none' stroke='%23333' stroke-width='2' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'><path d='M6 9l6 6 6-6'/></svg>");
+            background-repeat: no-repeat;
+            background-position: center;
+            background-size: 16px 16px;
+        }
+    }
+
+    .dropdown-icon {
+        margin-left: auto;
+        font-size: 20px;
+        color: #666;
+    }
+
+    .color-scale-options {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        width: 100%;
+        background: white;
+        border: 1px solid #d0d0d0;
+        border-radius: 8px;
+        margin-top: 4px;
+        z-index: 10;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        padding: 4px;
+    }
+
+    .color-scale-option {
+        display: flex;
+        gap: 4px;
+        padding: 4px;
+        border-radius: 6px;
+
+        &:hover {
+            background: #f0f5ff;
+        }
+
+        .color-box {
+            flex: 1;
+            /* ← each box fills equal space */
+            height: 24px;
+            /* adjust as needed */
+            border-radius: 4px;
+        }
+    }
+
+    .selected-scale .color-box {
+        flex: 1;
+        /* also scale selected display */
+        height: 20px;
+    }
 }

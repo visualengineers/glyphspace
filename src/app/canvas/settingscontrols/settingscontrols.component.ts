@@ -1,7 +1,11 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Component, EventEmitter, inject, Input, NgZone, Output } from '@angular/core';
 import { ConfigService } from '../../services/config.service';
 import { FormsModule } from '@angular/forms';
+import { FeaturesData } from '../../shared/interfaces/glyph-meta';
+import { GlyphSchema } from '../../shared/interfaces/glyph-schema';
+import { DataProviderService } from '../../services/dataprovider.service';
+import { COLOR_SCALES, ColorScale } from '../../shared/interfaces/color-scale';
 
 export type SettingMode = 'position' | 'color' | 'glyph' | null;
 
@@ -13,10 +17,20 @@ export type SettingMode = 'position' | 'color' | 'glyph' | null;
   styleUrls: ['./settingscontrols.component.scss'],
 })
 export class SettingsControlPanelComponent {
+  colorScales: ColorScale[] = COLOR_SCALES;
+
   panelVisible = false;          // toggled by parent click
   activeSetting: SettingMode = null;
   animationSpeed = 10;
   paused = true;
+  applyColorToAll = false;
+  features: FeaturesData = {};
+  featureIds: string[] = [];
+  schema?: GlyphSchema;
+  selectedColorAttribute: string = '';
+  colorScaleDropdownOpen = false;
+  selectedColorScaleId = COLOR_SCALES[0].id;
+  private ngZone!: NgZone;
 
   @Input() parentId!: number;
   @Input() totalCells: number = 0;
@@ -46,7 +60,23 @@ export class SettingsControlPanelComponent {
     context: string;
   }>();
 
-  constructor(private config: ConfigService) { }
+  constructor(private config: ConfigService, private dataProvider: DataProviderService) {
+    this.ngZone = inject(NgZone);
+
+    this.config.loadedDataSubject$.subscribe(async data => {
+      if (data == "") return;
+
+      const metaData = await this.dataProvider.getMetaData();
+      this.schema = await this.dataProvider.getSchema();
+      if (metaData?.features) {
+        this.ngZone.run(() => {
+          this.features = metaData.features;
+          this.featureIds = Object.keys(this.features);
+          this.selectedColorAttribute = this.config.colorFeature;
+        });
+      }
+    });
+  }
 
   showPanel() {
     this.panelVisible = true;
@@ -95,5 +125,33 @@ export class SettingsControlPanelComponent {
   togglePaused() {
     this.paused = !this.paused;
     this.togglePlayback.emit();
+  }
+
+  getFeatureName(id: string) {
+    return this.schema?.label[id] || "";
+  }
+
+  getSelectedScaleColors() {
+    return this.colorScales.find(s => s.id === this.selectedColorScaleId)?.representativeColors ?? [];
+  }
+
+  selectColorScale(id: number) {
+    this.selectedColorScaleId = id;
+    this.colorScaleDropdownOpen = false;
+    this.config.colorRange = id;
+    this.config.updateConfiguration();
+  }
+
+  toggleColorScaleDropdown() {
+    this.colorScaleDropdownOpen = !this.colorScaleDropdownOpen;
+  }
+
+  getSelectedScale(): ColorScale {
+    return this.colorScales.find(s => s.id === this.selectedColorScaleId)!;
+  }
+
+  selectColor(): void {
+    this.config.colorFeature = this.selectedColorAttribute;
+    this.config.updateConfiguration();
   }
 }
