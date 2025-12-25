@@ -44,5 +44,20 @@
       </ul>
     </div>
 
+    <div class="menu-label">DATA DISTRIBUTION</div>
+    <div class="filter-container">
+      <ng-container *ngFor="let featureId of featureIds; trackBy: trackByFeatureId">
+        <div class="filter-item-wrapper">
+          <app-histogram
+            [configuration]="config"
+            [dataProvider]="dataProvider"
+            [histogramData]="features[featureId].histogram"
+            [label]="getFeatureName(featureId)"
+            [property]="featureId">
+          </app-histogram>
+        </div>
+      </ng-container>
+    </div>
+
   </div>
 </div>

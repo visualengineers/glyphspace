@@ -11,11 +11,14 @@ import { TextFilter } from '../../shared/filter/text-filter';
 import { FilterMode } from '../../shared/enum/filter-mode';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { FeaturesData } from '../../shared/interfaces/glyph-meta';
+import { GlyphSchema } from '../../shared/interfaces/glyph-schema';
+import { HistogramComponent } from '../histogram/histogram.component';
 
 @Component({
   selector: 'app-legend-dropdown',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, HistogramComponent],
   templateUrl: './legend-dropdown.component.html',
   styleUrls: ['./legend-dropdown.component.scss'],
 })
@@ -26,6 +29,7 @@ export class LegendDropdownComponent {
   @Input() width = 360;
 
   dataProvider: DataProviderService
+  config: ConfigService
 
   glyphContext!: CanvasRenderingContext2D;
   lastGlyph: GlyphObject | null = null;
@@ -36,12 +40,30 @@ export class LegendDropdownComponent {
   inputFocused = false;
   private textFilter = new TextFilter();
 
+  features: FeaturesData = {};
+  featureIds: string[] = [];
+  schema?: GlyphSchema;
+
   private configSub = new Subscription();
   private ngZone!: NgZone;
 
-  constructor(private logger: LoggerService, private config: ConfigService, private dataProcessor: DataProcessorService) {
+  constructor(private logger: LoggerService, private dataProcessor: DataProcessorService) {
     this.dataProvider = inject(DataProviderService);
-    this.ngZone = inject(NgZone);
+    this.config = inject(ConfigService),
+      this.ngZone = inject(NgZone);
+
+    this.config.loadedDataSubject$.subscribe(async data => {
+      if (data == "") return;
+
+      const metaData = await this.dataProvider.getMetaData();
+      this.schema = await this.dataProvider.getSchema();
+      if (metaData?.features) {
+        this.ngZone.run(() => {
+          this.features = metaData.features;
+          this.featureIds = Object.keys(this.features);
+        });
+      }
+    });
   }
 
   ngAfterViewInit() {
@@ -177,5 +199,13 @@ export class LegendDropdownComponent {
   onBlur(): void {
     // Optional delay to allow button clicks before hiding
     setTimeout(() => this.inputFocused = false, 150);
+  }
+
+  trackByFeatureId(index: number, featureId: string): string {
+    return featureId;
+  }
+
+  getFeatureName(id: string) {
+    return this.schema?.label[id] || "";
   }
 }
