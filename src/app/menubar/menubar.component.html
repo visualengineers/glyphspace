@@ -1,60 +1,71 @@
 <header class="menu-bar">
-    <!-- LEFT -->
-    <div class="menu-left">
-        <div class="logo">
-            <img src="assets/images/glyph-flower.png" alt="Glyphspace logo" />
-            <span class="title">GLYPHSPACE</span>
+    <div class="menu-top-row">
+        <!-- LEFT -->
+        <div class="menu-left">
+            <div class="logo">
+                <img src="assets/images/glyph-flower.png" alt="Glyphspace logo" />
+                <span class="title">GLYPHSPACE</span>
+            </div>
         </div>
+
+        <button class="hamburger" (click)="menuOpen = !menuOpen" aria-label="Toggle menu">
+            <span class="material-icons">
+                {{ menuOpen ? 'close' : 'menu' }}
+            </span>
+        </button>
     </div>
 
-    <!-- CENTER -->
-    <div class="menu-center">
-        <!-- DATA -->
-        <div class="data-control">
-            <span class="label">Data</span>
-            <select [(ngModel)]="selectedDataset" (ngModelChange)="onDatasetSelect($event)">
-                <option *ngFor="let name of datasetNames" [value]="name">{{ name }}</option>
-            </select>
+    <!-- COLLAPSIBLE -->
+    <div class="menu-collapsible" [class.open]="menuOpen">
+        <!-- CENTER -->
+        <div class="menu-center">
+            <!-- DATA -->
+            <div class="data-control">
+                <span class="label">Data</span>
+                <select [(ngModel)]="selectedDataset" (ngModelChange)="onDatasetSelect($event)">
+                    <option *ngFor="let name of datasetNames" [value]="name">{{ name }}</option>
+                </select>
+            </div>
+
+            <!-- UPLOAD / EXPORT -->
+            <div class="icon-panel">
+                <button>
+                    <span class="material-icons">upload</span>
+                    <span class="btn-label">Upload</span>
+                </button>
+
+                <button>
+                    <span class="material-icons">download</span>
+                    <span class="btn-label">Export</span>
+                </button>
+            </div>
+
+            <!-- CANVAS -->
+            <div class="canvas-control">
+                <span class="label">Canvas</span>
+                <button class="add-btn" (click)="addCanvas.emit()" [disabled]="totalCells >= 6">
+                    <span class="material-icons">add</span>
+                    Add
+                </button>
+                <button class="add-btn" (click)="fitAll()" [disabled]="totalCells >= 6">
+                    <span class="material-icons">fullscreen</span>
+                    Fit all
+                </button>
+            </div>
         </div>
 
-        <!-- UPLOAD / EXPORT -->
-        <div class="icon-panel">
-            <button>
-                <span class="material-icons">upload</span>
-                <span class="btn-label">Upload</span>
-            </button>
+        <!-- RIGHT -->
+        <div class="menu-right">
+            <div class="legend-anchor">
+                <button class="legend-toggle" (click)="toggleLegend()" [class.open]="legendOpen">
+                    <span>Legend and Filters</span>
+                    <span class="material-icons">
+                        {{ legendOpen ? 'expand_less' : 'expand_more' }}
+                    </span>
+                </button>
 
-            <button>
-                <span class="material-icons">download</span>
-                <span class="btn-label">Export</span>
-            </button>
-        </div>
-
-        <!-- CANVAS -->
-        <div class="canvas-control">
-            <span class="label">Canvas</span>
-            <button class="add-btn" (click)="addCanvas.emit()" [disabled]="totalCells >= 6">
-                <span class="material-icons">add</span>
-                Add
-            </button>
-            <button class="add-btn" (click)="fitAll()" [disabled]="totalCells >= 6">
-                <span class="material-icons">fullscreen</span>
-                Fit all
-            </button>
-        </div>
-    </div>
-
-    <!-- RIGHT -->
-    <div class="menu-right">
-        <div class="legend-anchor">
-            <button class="legend-toggle" (click)="toggleLegend()" [class.open]="legendOpen">
-                <span>Legend and Filters</span>
-                <span class="material-icons">
-                    {{ legendOpen ? 'expand_less' : 'expand_more' }}
-                </span>
-            </button>
-
-            <app-legend-dropdown [open]="legendOpen" [width]="360" />
+                <app-legend-dropdown [open]="legendOpen" [width]="360" />
+            </div>
         </div>
     </div>
 </header>

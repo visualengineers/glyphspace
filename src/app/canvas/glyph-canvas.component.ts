@@ -28,7 +28,7 @@ import { SettingsControlPanelComponent } from "./settingscontrols/settingscontro
 @Component({
   selector: 'glyph-canvas',
   standalone: true,
-  imports: [CommonModule, FormsModule, TooltipComponent, MagiclensComponent, CanvasNavigationControlsComponent, OverlayControlsComponent, SettingsControlPanelComponent],
+  imports: [CommonModule, FormsModule, TooltipComponent, MagiclensComponent, CanvasNavigationControlsComponent, SettingsControlPanelComponent],
   templateUrl: './glyph-canvas.component.html',
   styleUrls: ['./glyph-canvas.component.scss']
 })

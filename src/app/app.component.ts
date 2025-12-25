@@ -12,7 +12,7 @@ interface GlyphCanvasItem { id: number, row: number, col: number }
 @Component({
   standalone: true,
   selector: 'app-root',
-  imports: [CommonModule, GlyphCanvasComponent, DashboardComponent, MenuBarComponent],
+  imports: [CommonModule, GlyphCanvasComponent, MenuBarComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss'
 })

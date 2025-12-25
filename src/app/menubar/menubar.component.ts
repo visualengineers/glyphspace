@@ -17,6 +17,7 @@ export class MenuBarComponent implements OnInit, OnDestroy {
     @Output() addCanvas = new EventEmitter<void>();
     @Input() totalCells: number = 0;
 
+    menuOpen = false;
     legendOpen = false;
     hasData = false;
     datasetNames: string[] = [];

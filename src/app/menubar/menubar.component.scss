@@ -1,46 +1,58 @@
+@use '../../styles/variables' as v;
+
 .menu-bar {
-    display: grid;
-    grid-template-columns:
-        auto
-        /* left: logo */
-        1fr
-        /* center: controls */
-        360px;
-    /* right: legend anchor width */
-
+    display: flex;
+    flex-direction: row;
     align-items: center;
-
     height: 64px;
     padding: 0 18px;
-
     background: white;
-    border-bottom: 1px solid #e5e5e5;
-
-    pointer-events: auto;
+    border-bottom: 1px solid #ddd;
 }
 
+.menu-top-row {
+    display: flex;
+    flex: 1;
+    align-items: center;
+}
 
-/* LEFT */
+/* LEFT stays left */
 .menu-left {
-    display: flex;
-    align-items: center;
-    padding-left: 8px;
+    flex: 0 0 auto;
 }
 
-/* CENTER */
-.menu-center {
+/* THIS fills remaining space */
+.menu-collapsible {
     display: flex;
     align-items: center;
-    justify-content: center;
+    flex: 1;
+    /* ← critical */
+    min-width: 0;
+}
+
+/* CENTER grows normally */
+.menu-center {
+    //       display: flex;
+    //   align-items: center;
+    //   gap: 24px;
+    position: absolute;
+    left: 50%;
+    transform: translateX(-70%);
+
+    display: flex;
+    align-items: center;
     gap: 24px;
 }
 
-/* RIGHT */
+/* RIGHT pushed all the way */
 .menu-right {
-    display: flex;
-    justify-content: flex-start;
-    /* ← important */
-    align-items: center;
+    margin-left: auto;
+    /* ← critical */
+}
+
+/* hamburger hidden on desktop */
+.hamburger {
+    display: none;
 }
 
 .logo {
@@ -215,4 +227,95 @@
 
 .legend-toggle.open .material-icons {
     transform: rotate(180deg);
+}
+
+@media (max-width: 1200px) {
+
+    /* Show the hamburger button */
+    .hamburger {
+        display: block;
+        margin-left: auto;
+        margin-right: 6px;
+        background-color: white;
+        border-color: v.$gray-700;
+        border-radius: 8px;
+        color: v.$gray-600;
+    }
+
+    /* Reset menu-bar layout for mobile */
+    .menu-bar {
+        display: flex;
+        flex-direction: column;
+        height: auto;
+        align-items: flex-start;
+        padding: 16px 18px;
+        position: relative;
+    }
+
+    .menu-top-row {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+    }
+
+    /* Collapsible menu overlays below header */
+    .menu-collapsible {
+        display: flex;
+        position: absolute;
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        min-width: 0;
+        top: 64px;
+        left: 0;
+        right: 0;
+        z-index: 920;
+        background: white;
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 400ms ease;
+        transition: height 400ms ease;
+    }
+
+    /* Open state */
+    .menu-collapsible.open {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        justify-content: flex-start !important;
+        width: 100%;
+        max-height: none !important;
+        padding: 16px;
+        background: white;
+        border-bottom: none;
+        position: static !important;
+        overflow: visible !important;
+    }
+
+    /* Reset menu-center and menu-right layout */
+    .menu-center,
+    .menu-right {
+        position: relative;
+        left: 0;
+        transform: none;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 16px;
+        width: 100%;
+        padding: 0;
+        margin: 0;
+    }
+
+    /* Buttons: icon + label left-aligned */
+    .menu-center button,
+    .menu-right button {
+        justify-content: flex-start;
+    }
+
+    /* Optional: add spacing between sections */
+    .menu-center {
+        margin-bottom: 24px;
+    }
 }
