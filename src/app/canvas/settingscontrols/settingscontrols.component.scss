@@ -1,0 +1,96 @@
+.settings-panel {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    /* left and right aligned */
+    align-items: center;
+    padding: 8px 24px;
+    /* extra horizontal padding to avoid clipping */
+    background-color: #e6f0ff;
+    border-top: none;
+    border-bottom: 1px solid #b3d2ff;
+    /* dark blue bottom line */
+    z-index: 400;
+
+    box-sizing: border-box;
+    /* ensures padding is counted inside width */
+
+    .settings-overlay {
+        position: absolute;
+        top: 100%;
+        left: 24px;
+        /* align with left edge of white button group */
+        margin-top: 4px;
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        z-index: 450;
+
+        .overlay-content {
+            padding: 12px;
+            min-width: 200px;
+        }
+    }
+}
+
+/* White button group on left */
+.settings-buttons {
+    display: flex;
+    gap: 4px;
+    background: white;
+    padding: 4px 8px;
+    border-radius: 10px;
+}
+
+.setting-btn {
+    border: none;
+    border-radius: 8px;
+    background: white;
+    cursor: pointer;
+    padding: 6px 10px;
+    font-size: 14px;
+    transition: all 0.2s ease;
+
+    &:hover:not(.active) {
+        background: #f0f4ff;
+    }
+
+    &.active {
+        background: #3b82f6;
+        color: white;
+    }
+}
+
+/* Right-aligned action buttons */
+.settings-actions {
+    display: flex;
+    gap: 8px;
+
+    /* make sure buttons stay inside the panel */
+    margin-right: 0;
+    /* remove any negative or large margin */
+    flex-shrink: 0;
+    /* prevent shrinking when panel width is constrained */
+
+    .action-btn {
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        color: black;
+        font-size: 20px;
+        padding: 4px;
+
+        &:hover {
+            color: #3b82f6;
+        }
+
+        &:disabled {
+            opacity: 0.5;
+            cursor: auto;
+            pointer-events: none;
+        }
+    }
+}

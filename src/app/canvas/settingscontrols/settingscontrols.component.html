@@ -1,0 +1,50 @@
+<div
+  class="settings-panel"
+  *ngIf="panelVisible"
+>
+  <!-- Left-aligned white button group -->
+  <div class="settings-buttons">
+    <button
+      class="setting-btn"
+      [class.active]="activeSetting==='position'"
+      (click)="toggleSetting('position')"
+    >
+      Position
+    </button>
+
+    <button
+      class="setting-btn"
+      [class.active]="activeSetting==='color'"
+      (click)="toggleSetting('color')"
+    >
+      Color
+    </button>
+
+    <button
+      class="setting-btn"
+      [class.active]="activeSetting==='glyph'"
+      (click)="toggleSetting('glyph')"
+    >
+      Glyph
+    </button>
+  </div>
+
+  <!-- Right-aligned action buttons -->
+  <div class="settings-actions">
+    <button class="action-btn" (click)="triggerDelete()" [disabled]="totalCells <= 1" title="Delete">
+      <span class="material-icons">delete</span>
+    </button>
+    <button class="action-btn" (click)="fitToView.emit()" title="FitToScreen">
+      <span class="material-icons">fullscreen</span>
+    </button>
+  </div>
+
+  <!-- Pop-up overlay menus -->
+  <div class="settings-overlay" *ngIf="activeSetting">
+    <ng-container [ngSwitch]="activeSetting">
+      <div *ngSwitchCase="'position'" class="overlay-content">Position menu content</div>
+      <div *ngSwitchCase="'color'" class="overlay-content">Color menu content</div>
+      <div *ngSwitchCase="'glyph'" class="overlay-content">Glyph menu content</div>
+    </ng-container>
+  </div>
+</div>

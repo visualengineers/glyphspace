@@ -47,6 +47,9 @@ export class ConfigService {
 
   private config = new GlyphConfiguration();
 
+  private removeCanvasSubject = new BehaviorSubject<number>(0);
+  removeCanvasSubject$ = this.removeCanvasSubject.asObservable();
+
   private glyphConfigSubject = new BehaviorSubject<GlyphConfiguration>(this.config);
   glyphConfigSubject$ = this.glyphConfigSubject.asObservable();
 
@@ -73,6 +76,10 @@ export class ConfigService {
 
   reRender() {
       this.commandSubject.next(InteractionCommand.rerender);
+  }
+
+  removeCanvas(id: number) {
+    this.removeCanvasSubject.next(id);
   }
 
   drawMagicLensGlyphs(glyphs: GlyphObject[]) {

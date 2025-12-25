@@ -6,6 +6,20 @@
   height: 100%;
   overflow: hidden;
 
+  border-radius: 12px;
+  border: 1px solid #ddd;
+  background: white;
+
+  overflow: hidden; /* important for canvas clipping */
+
+  box-shadow:
+    0 1px 3px rgba(0,0,0,0.08),
+    0 4px 12px rgba(0,0,0,0.05);
+
+  &.active {
+    border: 1px solid #b3d2ff; /* subtle blue border on first click */
+  }
+
   .canvas-container {
     position: relative;
     width: 100%;

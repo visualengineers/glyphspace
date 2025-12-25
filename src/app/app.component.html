@@ -20,7 +20,8 @@
   <glyph-canvas
     class="glyph-canvas"
     *ngFor="let cell of grid; trackBy: trackById"
-    [id]="cell.id" 
+    [id]="cell.id"
+    [totalCells]="grid.length"
     >
   </glyph-canvas>
 </div>

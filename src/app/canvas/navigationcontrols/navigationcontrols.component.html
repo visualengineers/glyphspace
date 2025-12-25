@@ -1,0 +1,31 @@
+<div class="nav-controls-panel" [class.visible]="visible">
+    <!-- Navigation mode -->
+    <button 
+        class="nav-btn" 
+        [class.active]="!magicLenseStatus && !selectionMode" 
+        (click)="toggleNavigation.emit()"
+        data-tooltip="Navigation Mode (N)"
+    >
+        <span class="material-icons">open_with</span>
+    </button>
+
+    <!-- Magic lens -->
+    <button 
+        class="nav-btn" 
+        (click)="toggleLens.emit()" 
+        [class.active]="magicLenseStatus" 
+        data-tooltip="Magic Lens (L)"
+    >
+        <span class="material-icons">search</span>
+    </button>
+
+    <!-- Selection mode -->
+    <button 
+        class="nav-btn" 
+        (click)="toggleSelection.emit()" 
+        [class.active]="selectionMode" 
+        data-tooltip="Selection Mode (S)"
+    >
+        <span class="material-icons">north_west</span>
+    </button>
+</div>

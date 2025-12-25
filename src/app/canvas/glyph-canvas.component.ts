@@ -22,20 +22,25 @@ import { FilterMode } from '../shared/enum/filter-mode';
 import { checkTextInput } from '../shared/helpers/angular-helper';
 import { LoggerService } from '../services/logger-service';
 import { RenderTask } from '../shared/enum/render-task';
+import { CanvasNavigationControlsComponent } from './navigationcontrols/navigationcontrols.component';
+import { SettingsControlPanelComponent } from "./settingscontrols/settingscontrols.component";
 
 @Component({
   selector: 'glyph-canvas',
   standalone: true,
-  imports: [CommonModule, FormsModule, TooltipComponent, MagiclensComponent, OverlayControlsComponent],
+  imports: [CommonModule, FormsModule, TooltipComponent, MagiclensComponent, CanvasNavigationControlsComponent, OverlayControlsComponent, SettingsControlPanelComponent],
   templateUrl: './glyph-canvas.component.html',
   styleUrls: ['./glyph-canvas.component.scss']
 })
 export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('canvasContainer', { static: true }) canvasContainer!: ElementRef;
+  @ViewChild('sceneContainer') sceneContainer!: ElementRef<HTMLDivElement>;
+  @ViewChild('settingsPanel') settingsPanel!: SettingsControlPanelComponent;
   @ViewChild(TooltipComponent) tooltipComponent!: TooltipComponent;
   @ViewChild(MagiclensComponent) magicLensComponent!: MagiclensComponent;
 
   @Input() id = 0;
+  @Input() totalCells: number = 0;
   private glyphData: GlyphObject[] = [];
 
   // Infrastructure fields
@@ -79,7 +84,7 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
 
   // Helpers for navigation
   private isPanning = false;
-  private mouseInside = false;
+  mouseInside = false;
   lastMousePosition = new THREE.Vector2();
   lastTouchPosition: { x: number, y: number } | null = { x: 0, y: 0 };
   private mouseDownTime: number = 0;
@@ -106,6 +111,7 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
   selectionBox = { left: 0, top: 0, width: 0, height: 0 };
 
   // Overlay controls
+  canvasActivated = false;
   showSettings = false;
   timestamps: string[] = [];
   algorithms: string[] = [];
@@ -319,6 +325,11 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
   //#endregion
 
   //#region Mode Changes
+  toggleNavigationMode(doToggle = true) {
+    this.toggleSelectionMode(false);
+    this.toggleMagicLens(false);
+  }
+
   toggleSelectionMode(doToggle = true) {
     this.selectionMode = !this.selectionMode && doToggle;
     if (this.selectionMode) {
@@ -472,6 +483,12 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
     // this.animationSpeed = 0.01;
     this.requestRender(RenderTask.OriginalSimulation);
     this.magicLensComponent.clearLensGlyphs();
+  }
+
+  onCanvasClick() {
+    if (!this.canvasActivated) {
+      this.canvasActivated = true;
+    }
   }
 
   onMouseEnter() {
@@ -883,7 +900,11 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
   //#region Selection
   private isMouseOverOverlay(event: MouseEvent): boolean {
     const el = document.elementFromPoint(event.clientX, event.clientY);
-    return el?.closest('.overlay-controls') !== null;
+    const isOverOverlay =
+      el?.closest('.settings-panel') !== null
+      || el?.closest('.tooltip-popup') !== null
+      || el?.closest('.nav-controls-panel') !== null
+    return isOverOverlay;
   }
 
   private updateSelectionBox(): void {
@@ -917,6 +938,18 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
   //#endregion
 
   //#region HostListeners
+
+  /** Listen to clicks anywhere in the document */
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent) {
+    const clickedInside = this.sceneContainer?.nativeElement.contains(event.target as Node);
+    if (!clickedInside) {
+      this.canvasActivated = false;             // revert border
+      this.settingsPanel.hidePanel();
+      // this.activeSettingPanelVisible = false;   // hide panel
+    }
+  }
+
   @HostListener('document:keydown', ['$event'])
   onKeyDown(event: KeyboardEvent): void {
     if (event.key === 'Shift') this.isShiftDown = true;

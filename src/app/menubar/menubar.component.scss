@@ -11,10 +11,12 @@
     align-items: center;
 
     height: 64px;
-    padding: 0 16px;
+    padding: 0 18px;
 
     background: white;
     border-bottom: 1px solid #e5e5e5;
+
+    pointer-events: auto;
 }
 
 
@@ -22,6 +24,7 @@
 .menu-left {
     display: flex;
     align-items: center;
+    padding-left: 8px;
 }
 
 /* CENTER */
@@ -126,7 +129,7 @@
         border-radius: 8px;
         cursor: pointer;
 
-        font-size: 13px;
+        font-size: 14px;
         color: #333;
 
         &:hover {

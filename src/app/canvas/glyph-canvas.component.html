@@ -1,15 +1,35 @@
-<div class="scene-container">
+<div class="scene-container"
+  #sceneContainer
+  [class.active]="canvasActivated"
+  (click)="onCanvasClick()"
+>
   <div
     #canvasContainer class="canvas-container"
     id="canvas-container"
+    (click)="settingsPanel.showPanel()"
     (mouseenter)="onMouseEnter()"
     (mouseleave)="onMouseLeave()"
   >
     <app-magiclens [container]="canvasContainer"
       [glyphGroup]="glyphGroup"
-      [id]="id"
+      [parentId]="id"
     ></app-magiclens>
-    <app-overlaycontrols
+  <app-settingscontrols #settingsPanel
+      [parentId]="id"
+      [totalCells]="totalCells"
+      (fitToView)="fitToView()"
+  ></app-settingscontrols>
+    <app-navigationcontrols
+      [visible]="mouseInside"
+      [selectionMode]="selectionMode"
+      [magicLenseStatus]="magicLenseStatus"
+
+      (toggleNavigation)="toggleNavigationMode()"
+      (toggleSelection)="toggleSelectionMode()"
+      (toggleLens)="toggleMagicLens()"
+      >
+    </app-navigationcontrols>
+    <!-- <app-overlaycontrols
       [collisionAvoidance]="collisionAvoidance"
       [aggregated]="aggregated"
       [selectionMode]="selectionMode"
@@ -17,13 +37,13 @@
       [showSettings]="showSettings"
 
       [timestamps]="timestamps"
-      [selectedTimestamp]="selectedTimestamp"
+      [selectedTimestamp]="selectedTimestamp"Í
 
       [algorithms]="algorithms"
       [selectedAlgorithm]="selectedAlgorithm"
 
       [contexts]="contexts"
-      [selectedContext]="selectedContext"
+      [selectedContext]="selectedContext"Í
 
       (fitToView)="fitToView()"
       (toggleCollision)="toggleCollisionAvoidance()"
@@ -34,7 +54,7 @@
       (settingsChanged)="onSettingsChange($event)"
       (changeAnimationSpeed)="onAnimationSpeedChanged($event)"
       (togglePlayback)="onTogglePlayback()"
-    />
+    /> -->
   </div>
 </div>
 <app-tooltip [container]="canvasContainer"></app-tooltip>

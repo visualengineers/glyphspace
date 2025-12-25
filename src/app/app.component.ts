@@ -31,9 +31,32 @@ export class AppComponent implements OnChanges {
 
   ngOnInit() {
     this.recalculateGrid();
+    this.updateGrid();
+
+    this.config.removeCanvasSubject$.subscribe(change => {
+      if (this.totalCells > 1) {
+        this.totalCells--;
+
+        console.log("Received remove canvas command: ", change);
+        const canvas = this.grid.find(c => c.id === change);
+        this.grid.splice(this.grid.indexOf(canvas!), 1);
+        this.recalculateGrid();
+      }
+    });
   }
 
   ngOnChanges(): void {
+  }
+
+  getNextFreeId(grid: GlyphCanvasItem[]): number {
+    const usedIds = new Set(grid.map(item => item.id));
+
+    let id = 0;
+    while (usedIds.has(id)) {
+      id++;
+    }
+
+    return id;
   }
 
   updateGrid() {
@@ -54,10 +77,6 @@ export class AppComponent implements OnChanges {
     const approxRoot = Math.sqrt(this.totalCells);
     this.rows = Math.floor(approxRoot);
     this.cols = Math.ceil(this.totalCells / this.rows);
-    this.updateGrid();
-    // this.dataProvider.getDataSet().forEach(glyph => {
-    //   glyph.setHighlighted(false);
-    // });
   }
 
   trackById(index: number, item: GlyphCanvasItem): number {
@@ -67,6 +86,19 @@ export class AppComponent implements OnChanges {
   addCanvas() {
     if (this, this.totalCells < 5) {
       this.totalCells++;
+
+      const newId = this.getNextFreeId(this.grid);
+
+      const index = this.grid.length;
+      const r = Math.floor(index / this.cols) + 1;
+      const c = index % this.cols + 1;
+
+      this.grid.push({
+        id: newId,
+        row: r,
+        col: c
+      });
+
       this.recalculateGrid();
     }
   }
@@ -75,6 +107,7 @@ export class AppComponent implements OnChanges {
     if (this.totalCells > 1) {
       this.totalCells--;
       this.recalculateGrid();
+      this.updateGrid();
     }
   }
 
@@ -85,7 +118,7 @@ export class AppComponent implements OnChanges {
   @HostListener('document:keyup', ['$event'])
   handleKeyboardEvent(event: KeyboardEvent) {
     if (checkTextInput(event)) return;
-    
+
     if (event.key === '+') {
       this.addCanvas();
     } else if (event.key === '-') {
