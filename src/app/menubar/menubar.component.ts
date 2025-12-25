@@ -16,7 +16,7 @@ import { ConfigService } from '../services/config.service';
 export class MenuBarComponent implements OnInit, OnDestroy {
     @Output() addCanvas = new EventEmitter<void>();
     @Input() totalCells: number = 0;
-    
+
     legendOpen = false;
     hasData = false;
     datasetNames: string[] = [];
@@ -63,5 +63,9 @@ export class MenuBarComponent implements OnInit, OnDestroy {
 
     download() {
         console.log('Download clicked');
+    }
+
+    fitAll() {
+        this.configService.toggleFitToScreen();
     }
 }

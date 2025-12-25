@@ -37,6 +37,10 @@
                 <span class="material-icons">add</span>
                 Add
             </button>
+            <button class="add-btn" (click)="fitAll()" [disabled]="totalCells >= 6">
+                <span class="material-icons">fullscreen</span>
+                Fit all
+            </button>
         </div>
     </div>
 
