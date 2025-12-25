@@ -34,4 +34,15 @@
     .hist-tooltip {
         pointer-events: none;
     }
+
+    .color-container {
+        margin-top: 2px;
+        width: 100%;
+        pointer-events: none; // purely visual
+    }
+
+    .color-container svg {
+        display: block;
+    }
+
 }

@@ -16,11 +16,11 @@
 
   <!-- Right-aligned action buttons -->
   <div class="settings-actions">
-    <button class="action-btn" (click)="triggerDelete()" [disabled]="totalCells <= 1" title="Remove canvas">
-      <span class="material-icons">delete</span>
-    </button>
     <button class="action-btn" (click)="fitToView.emit()" title="Fit to screen">
       <span class="material-icons">fullscreen</span>
+    </button>
+    <button class="action-btn" (click)="triggerDelete()" [disabled]="totalCells <= 1" title="Remove canvas">
+      <span class="material-icons">close</span>
     </button>
   </div>
 

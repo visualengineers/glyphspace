@@ -1,4 +1,5 @@
 <div class="histogram-item">
   <div class="histogram-label">{{ label }}</div>
   <div #histogramContainer class="histogram-container"></div>
+  <div #colorContainer class="color-container" [hidden]="configuration.colorFeature !== property"></div>
 </div>

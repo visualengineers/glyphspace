@@ -3,6 +3,8 @@ import * as d3 from 'd3';
 import { ItemFilter } from '../../shared/filter/item-filter';
 import { FeatureFilter } from '../../shared/filter/feature-filter';
 import { FilterMode } from '../../shared/enum/filter-mode';
+import { Subscription } from 'rxjs';
+import { COLOR_SCALES, ColorScale } from '../../shared/interfaces/color-scale';
 
 export type Histogram = {
     [binIndex: string]: number; // binIndex: "0" to "49"
@@ -14,7 +16,6 @@ export type Histogram = {
     styleUrls: ['./histogram.component.scss']
 })
 export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
-
     @Input() histogramData!: Histogram;
     @Input() label!: string;
     @Input() property!: string;
@@ -25,9 +26,11 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
     @Output() selectionChanged = new EventEmitter<{ property: string, minBin: number, maxBin: number }>();
 
     @ViewChild('histogramContainer', { static: true }) histogramContainer!: ElementRef<HTMLDivElement>;
+    @ViewChild('colorContainer', { static: true }) colorContainer!: ElementRef<HTMLDivElement>;
+
+    private configSub = new Subscription();
 
     private filter!: ItemFilter;
-    private dataSteps: number = 0;
 
     private svg: any;
     private margin = { top: 0, right: 18, bottom: 8, left: 8 };
@@ -38,11 +41,11 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
     private xScale: any;
     private yScale: any;
     private brush: any;
-    private minSelectedBin = -1;
-    private maxSelectedBin = -1;
 
     private defaultBarColor = '#333'; // dark gray
     private highlightColor = '#1e88e5'; // blue highlight
+
+    private colorScale: ColorScale = COLOR_SCALES[0];
 
     constructor() { }
 
@@ -53,6 +56,21 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
 
     ngAfterViewInit(): void {
         this.createHistogram();
+
+        this.configSub.add(
+            this.configuration.glyphConfigSubject$.subscribe(() => {
+                this.drawColorScale();
+            })
+        );
+    }
+
+    ngOnDestroy(): void {
+        if (this.svg) {
+            this.svg.remove(); // removes the appended <svg> element
+            this.svg = null;
+        }
+        d3.select(this.histogramContainer!.nativeElement).select('svg').remove();
+        this.configSub.unsubscribe();
     }
 
     ngOnChanges(changes: SimpleChanges): void {
@@ -134,8 +152,6 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
                 const [x0, x1] = selection;
                 const minBin = Math.round(this.xScale.invert(x0));
                 const maxBin = Math.round(this.xScale.invert(x1));
-                this.minSelectedBin = minBin;
-                this.maxSelectedBin = maxBin;
 
                 bars.attr('fill', (d: { bin: number; }) => (d.bin >= minBin && d.bin <= maxBin ? this.highlightColor : this.defaultBarColor));
 
@@ -159,6 +175,8 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
             .on('mouseout', (event: MouseEvent, d: any) => {
                 tooltip.style('opacity', 0);
             });
+
+        this.drawColorScale();
     }
 
     private filtering(selection: any): void {
@@ -191,8 +209,6 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
     }
 
     public removeFilter() {
-        this.minSelectedBin = -1;
-        this.maxSelectedBin = -1;
         this.filter.clear();
         const pos = this.dataProvider.getFilters().indexOf(this.filter);
         if (pos >= 0) this.dataProvider.getFilters().splice(pos, 1);
@@ -200,4 +216,85 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
         this.configuration.redraw();
     }
 
+    private drawColorScale(): void {
+        console.log("Drawing color scale for property:", this.property);
+        this.colorScale = COLOR_SCALES.find(cs => cs.id === this.configuration.colorRange) || COLOR_SCALES[0];
+
+        const container = this.colorContainer.nativeElement;
+        container.innerHTML = '';
+        const histogramContainer = this.histogramContainer.nativeElement;
+
+        const width = histogramContainer.clientWidth;
+        const height = 12; // subtle, compact
+
+        const svg = d3
+            .select(container)
+            .append('svg')
+            .attr('width', width)
+            .attr('height', height);
+
+        if (this.colorScale.type === 'continuous') {
+            this.drawContinuousScale(svg, width, height);
+        } else {
+            this.drawCategoricalScale(svg, width, height);
+        }
+    }
+
+    private drawContinuousScale(
+        svg: d3.Selection<SVGSVGElement, unknown, null, undefined>,
+        width: number,
+        height: number
+    ): void {
+        const gradientId = `gradient-${this.property}`;
+
+        const defs = svg.append('defs');
+
+        const gradient = defs
+            .append('linearGradient')
+            .attr('id', gradientId)
+            .attr('x1', '0%')
+            .attr('x2', '100%');
+
+        // Sample the scale smoothly
+        const steps = 20;
+        for (let i = 0; i <= steps; i++) {
+            const t = i / steps;
+            gradient
+                .append('stop')
+                .attr('offset', `${t * 100}%`)
+                .attr('stop-color', this.colorScale.scale(t));
+        }
+
+        svg
+            .append('rect')
+            .attr('width', width)
+            .attr('height', height)
+            .attr('rx', 6)
+            .attr('ry', 6)
+            .style('fill', `url(#${gradientId})`);
+    }
+
+    private drawCategoricalScale(
+        svg: d3.Selection<SVGSVGElement, unknown, null, undefined>,
+        width: number,
+        height: number
+    ): void {
+        const scale = this.colorScale.scale as d3.ScaleQuantize<string>;
+        const colors = scale.range();
+        const stepWidth = width / colors.length;
+        const radius = height / 2; // pill-like look
+
+        svg
+            .selectAll('rect')
+            .data(colors)
+            .enter()
+            .append('rect')
+            .attr('x', (_d, i) => i * stepWidth)
+            .attr('y', 0)
+            .attr('width', stepWidth + 1) // slight overlap avoids gaps
+            .attr('height', height)
+            .attr('rx', radius)
+            .attr('ry', radius)
+            .attr('fill', d => d);
+    }
 }
