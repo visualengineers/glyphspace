@@ -217,7 +217,6 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
     }
 
     private drawColorScale(): void {
-        console.log("Drawing color scale for property:", this.property);
         this.colorScale = COLOR_SCALES.find(cs => cs.id === this.configuration.colorRange) || COLOR_SCALES[0];
 
         const container = this.colorContainer.nativeElement;
