@@ -91,7 +91,7 @@
         }
 
         &:disabled {
-            opacity: 0.5;
+            opacity: 0.3;
             cursor: auto;
             pointer-events: none;
         }
@@ -366,7 +366,7 @@
         .color-box {
             flex: 1;
             /* ← each box fills equal space */
-            height: 24px;
+            height: 28px;
             /* adjust as needed */
             border-radius: 4px;
         }
@@ -375,6 +375,79 @@
     .selected-scale .color-box {
         flex: 1;
         /* also scale selected display */
-        height: 20px;
+        height: 28px;
     }
 }
+
+  .control-cell {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    position: relative;
+    max-width: 260px;
+
+    .dashboard-button {
+      width: 41px;
+      height: 41px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: transparent;
+      border: 1px solid #999;
+      cursor: pointer;
+      color: v.$gray-600;
+      font-size: 24px;
+      position: relative;
+
+      &:focus-visible {
+          outline: none;
+          box-shadow: none;
+      }
+
+      &:hover {
+        color: #000;
+      }
+
+      &.active {
+        border-color: v.$color-blue-highlight;
+        color: v.$color-blue-highlight;;
+      }
+
+      // Tooltip
+      &::after {
+        content: attr(data-tooltip);
+        position: absolute;
+        bottom: -28px;
+        left: 50%;
+        // transform: translateX(-10%);
+        background: v.$tooltip-bg;
+        color: v.$tooltip-text;
+        padding: 3px 6px;
+        font-size: 11px;
+        white-space: nowrap;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.15s ease-in-out;
+        z-index: 1000;
+      }
+
+      &:hover::after {
+        opacity: 1;
+      }
+    }
+
+    .config-toggle {
+      padding: 8px 10px;
+      font-size: 11px;
+      background-color: #ccc;
+      border: none;
+      cursor: pointer;
+      border-radius: 0px;
+      transition: background-color 0.2s;
+
+      &.active {
+        background-color: v.$color-blue-highlight;
+        color: white;
+      }
+    }
+  }

@@ -84,7 +84,7 @@
         <label class="checkbox-row">
           <input type="checkbox" [(ngModel)]="applyColorToAll" (click)="$event.stopPropagation()" />
           <span class="custom-checkbox"></span>
-          <span class="label-text">Apply to all canvases</span>
+          <span class="label-text">Color settings applied to all canvases</span>
         </label>
 
         <!-- Color attribute -->
@@ -119,7 +119,80 @@
         </div>
       </div>
 
-      <div *ngSwitchCase="'glyph'" class="overlay-content">Glyph menu content</div>
+      <div *ngSwitchCase="'glyph'" class="overlay-content">
+
+        <!-- Apply to all -->
+        <label class="checkbox-row">
+          <input type="checkbox" [(ngModel)]="applyGlyphSettingsToAll" (click)="$event.stopPropagation()" />
+          <span class="custom-checkbox"></span>
+          <span class="label-text">Glyph settings applied to all canvases</span>
+        </label>
+
+        <div class="form-group">
+          <label class="menu-label">GLYPH TYPE</label>
+
+            <div class="control-cell">
+              <button
+                class="dashboard-button"
+                [class.active]="glyphConfig.glyphType === GlyphType.Star"
+                (click)="setGlyphType(GlyphType.Star)"
+                data-tooltip="Star Shape"
+              >
+                <i class="material-icons">star</i>
+              </button>
+              <button
+                class="dashboard-button"
+                [class.active]="glyphConfig.glyphType === GlyphType.Flower"
+                (click)="setGlyphType(GlyphType.Flower)"
+                data-tooltip="Flower Shape"
+              >
+                <i class="material-icons">local_florist</i>
+              </button>
+              <button
+                  class="dashboard-button"
+                  [class.active]="glyphConfig.glyphType === GlyphType.Whisker"
+                  (click)="setGlyphType(GlyphType.Whisker)"
+                  data-tooltip="Whisker Shape"
+                  >
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <!-- Spikes radiating from center (12,12) with varying lengths -->
+                      <line x1="12" y1="12" x2="12" y2="2" />    <!-- Up, length 10 -->
+                      <line x1="12" y1="12" x2="17" y2="5" />    <!-- Up-right, length ~7 -->
+                      <line x1="12" y1="12" x2="22" y2="10" />   <!-- Right-up, length ~10 -->
+                      <line x1="12" y1="12" x2="20" y2="17" />   <!-- Right-down, length ~8 -->
+                      <line x1="12" y1="12" x2="12" y2="22" />   <!-- Down, length 10 -->
+                      <line x1="12" y1="12" x2="7" y2="19" />    <!-- Down-left, length ~7 -->
+                      <line x1="12" y1="12" x2="2" y2="14" />    <!-- Left-down, length ~10 -->
+                      <line x1="12" y1="12" x2="4" y2="7" />     <!-- Left-up, length ~8 -->
+                  </svg>
+              </button>
+              <button
+                class="dashboard-button"
+                [class.active]="glyphConfig.glyphType === GlyphType.Thumb"
+                (click)="setGlyphType(GlyphType.Thumb)"
+                data-tooltip="Thumbnails"
+              >
+                <i class="material-icons">collections</i>
+              </button>
+            </div>
+
+        </div>
+
+        <div class="form-group">
+          <label class="menu-label">GLYPH SETTINGS</label>
+          <div class="control-cell config-toggle-group">
+            <button
+              *ngFor="let opt of glyphConfig.glyphOptions"
+              class="config-toggle"
+              [class.active]="isOptionEnabled(opt.property)"
+              (click)="toggleOption(opt.property)"
+            >
+              {{ opt.label }}
+            </button>
+          </div>
+        </div>
+
+      </div>
 
     </ng-container>
   </div>

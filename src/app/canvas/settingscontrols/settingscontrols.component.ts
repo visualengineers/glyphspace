@@ -6,6 +6,8 @@ import { FeaturesData } from '../../shared/interfaces/glyph-meta';
 import { GlyphSchema } from '../../shared/interfaces/glyph-schema';
 import { DataProviderService } from '../../services/dataprovider.service';
 import { COLOR_SCALES, ColorScale } from '../../shared/interfaces/color-scale';
+import { GlyphConfiguration } from '../../glyph/glyph-configuration';
+import { GlyphType } from '../../shared/enum/glyph-type';
 
 export type SettingMode = 'position' | 'color' | 'glyph' | null;
 
@@ -23,13 +25,19 @@ export class SettingsControlPanelComponent {
   activeSetting: SettingMode = null;
   animationSpeed = 10;
   paused = true;
-  applyColorToAll = false;
+  applyColorToAll = true;
+
   features: FeaturesData = {};
   featureIds: string[] = [];
   schema?: GlyphSchema;
   selectedColorAttribute: string = '';
   colorScaleDropdownOpen = false;
   selectedColorScaleId = COLOR_SCALES[0].id;
+
+  glyphConfig = new GlyphConfiguration();
+  GlyphType = GlyphType;
+  applyGlyphSettingsToAll = true;
+
   private ngZone!: NgZone;
 
   @Input() parentId!: number;
@@ -62,7 +70,9 @@ export class SettingsControlPanelComponent {
 
   constructor(private config: ConfigService, private dataProvider: DataProviderService) {
     this.ngZone = inject(NgZone);
+  }
 
+  ngOnInit(): void {
     this.config.loadedDataSubject$.subscribe(async data => {
       if (data == "") return;
 
@@ -75,6 +85,10 @@ export class SettingsControlPanelComponent {
           this.selectedColorAttribute = this.config.colorFeature;
         });
       }
+    });
+
+    this.config.glyphConfigSubject$.subscribe(cfg => {
+      this.glyphConfig = cfg;
     });
   }
 
@@ -153,5 +167,19 @@ export class SettingsControlPanelComponent {
   selectColor(): void {
     this.config.colorFeature = this.selectedColorAttribute;
     this.config.updateConfiguration();
+  }
+
+  setGlyphType(type: GlyphType) {
+    this.glyphConfig.glyphType = type;
+    this.config.updateConfiguration();
+  }
+
+  isOptionEnabled(prop: string): boolean {
+    return (this.glyphConfig as any)[prop] === true;    
+  }
+
+  toggleOption(property: string): void {
+    (this.glyphConfig as any)[property] = !(this.glyphConfig as any)[property];
+    this.config.updateConfiguration(); // emit change
   }
 }
