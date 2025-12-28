@@ -22,20 +22,25 @@ import { FilterMode } from '../shared/enum/filter-mode';
 import { checkTextInput } from '../shared/helpers/angular-helper';
 import { LoggerService } from '../services/logger-service';
 import { RenderTask } from '../shared/enum/render-task';
+import { CanvasNavigationControlsComponent } from './navigationcontrols/navigationcontrols.component';
+import { SettingsControlPanelComponent } from "./settingscontrols/settingscontrols.component";
 
 @Component({
   selector: 'glyph-canvas',
   standalone: true,
-  imports: [CommonModule, FormsModule, TooltipComponent, MagiclensComponent, OverlayControlsComponent],
+  imports: [CommonModule, FormsModule, TooltipComponent, MagiclensComponent, CanvasNavigationControlsComponent, SettingsControlPanelComponent],
   templateUrl: './glyph-canvas.component.html',
   styleUrls: ['./glyph-canvas.component.scss']
 })
 export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('canvasContainer', { static: true }) canvasContainer!: ElementRef;
+  @ViewChild('sceneContainer') sceneContainer!: ElementRef<HTMLDivElement>;
+  @ViewChild('settingsPanel') settingsPanel!: SettingsControlPanelComponent;
   @ViewChild(TooltipComponent) tooltipComponent!: TooltipComponent;
   @ViewChild(MagiclensComponent) magicLensComponent!: MagiclensComponent;
 
   @Input() id = 0;
+  @Input() totalCells: number = 0;
   private glyphData: GlyphObject[] = [];
 
   // Infrastructure fields
@@ -64,6 +69,7 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
   private currentTicks = 0;
   private maxTicks = 50;
   aggregated = false;
+  private lensSimulation?: Simulation<GlyphCacheObject, undefined> | undefined;
 
   // Fields responsible for animating transitions in the scene
   private fitAnimationStartTime: number | null = null;
@@ -78,7 +84,7 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
 
   // Helpers for navigation
   private isPanning = false;
-  private mouseInside = false;
+  mouseInside = false;
   lastMousePosition = new THREE.Vector2();
   lastTouchPosition: { x: number, y: number } | null = { x: 0, y: 0 };
   private mouseDownTime: number = 0;
@@ -105,6 +111,7 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
   selectionBox = { left: 0, top: 0, width: 0, height: 0 };
 
   // Overlay controls
+  canvasActivated = false;
   showSettings = false;
   timestamps: string[] = [];
   algorithms: string[] = [];
@@ -211,7 +218,8 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
       this.config.loadedDataSubject$.subscribe(async loadedData => {
         if (loadedData == "") return;
 
-        const data = await this.dataProvider.getGlyphData();
+        let data = await this.dataProvider.getGlyphData(this.config.loadedData, this.selectedTimestamp);
+        if (data) this.glyphData = data;
 
         this.ngZone.run(() => {
           this.timestamps = this.dataProvider.getTimestamps(loadedData);
@@ -229,10 +237,9 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
           console.log(`[Canvas ${this.id}] Selected: timestamp=${this.selectedTimestamp}, algorithm=${this.selectedAlgorithm}`);
           console.log(`[Canvas ${this.id}] Data received:`, data ? `${data.length} glyphs` : 'null');
 
-          if (data) {
-            this.glyphGroup.clear();
-            this.glyphData = data;
+          this.glyphGroup.clear();
 
+          if (data) {
             // Debug: Check sample glyph positions
             if (data.length > 0) {
               console.log(`[Canvas ${this.id}] Sample glyph ID:`, data[0].id);
@@ -255,6 +262,13 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
             console.warn(`[Canvas ${this.id}] No data received!`);
           }
         });
+      })
+    );
+    this.configSub.add(
+      this.config.drawMagicLensGlyphsSubject$.subscribe(glyphs => {
+        if (glyphs != null) {
+          this.renderMagicLensGlyphs(glyphs);
+        }
       })
     );
     this.configSub.add(
@@ -337,6 +351,11 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
   //#endregion
 
   //#region Mode Changes
+  toggleNavigationMode(doToggle = true) {
+    this.toggleSelectionMode(false);
+    this.toggleMagicLens(false);
+  }
+
   toggleSelectionMode(doToggle = true) {
     this.selectionMode = !this.selectionMode && doToggle;
     if (this.selectionMode) {
@@ -490,7 +509,12 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
     // this.animationSpeed = 0.01;
     this.requestRender(RenderTask.OriginalSimulation);
     this.magicLensComponent.clearLensGlyphs();
-    this.magicLensComponent.renderMagicLensGlyphs(this.selectedTimestamp, this.selectedAlgorithm);
+  }
+
+  onCanvasClick() {
+    if (!this.canvasActivated) {
+      this.canvasActivated = true;
+    }
   }
 
   onMouseEnter() {
@@ -621,7 +645,6 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
     this.updateFitAnimation();
     this.updateClipping();
     this.renderer.render(this.scene, this.camera);
-    this.magicLensComponent.renderLens(this.lastMousePosition);
     this.cancelRender(RenderTask.SceneRender);
   };
 
@@ -784,38 +807,82 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
+  private resetUnhighlightedGlyphs(highlighted: Set<string>) {
+    for (const glyph of this.glyphData) {
+      if (highlighted.has(glyph.id)) continue;
+
+      const node = glyph.getCacheObject(
+        this.id,
+        this.selectedTimestamp,
+        this.selectedAlgorithm
+      );
+
+      node.x = node.position.x;
+      node.y = node.position.y;
+      node.vx = 0;
+      node.vy = 0;
+      node.mesh?.position.set(node.position.x, node.position.y, 0);
+    }
+  }
+
+  private renderMagicLensGlyphs(glyphs: GlyphObject[]) {
+    if (this.magicLensComponent.isActive()) return;
+
+    this.lensSimulation?.stop();
+
+    const highlightedIds = new Set(glyphs.map(g => g.id));
+    this.resetUnhighlightedGlyphs(highlightedIds);
+
+    if (glyphs.length > 1) {
+      const nodes = glyphs.map(glyph =>
+        glyph.getCacheObject(
+          this.id,
+          this.selectedTimestamp,
+          this.selectedAlgorithm
+        )
+      );
+
+      this.lensSimulation = forceSimulation(nodes)
+        .force(
+          'collide',
+          forceCollide(this.sizeInfo.getRadius(ZoomLevel.high) * 4)
+        )
+        .velocityDecay(0.5)
+        .stop();
+
+      this.lensSimulation.tick(20);
+
+      nodes.forEach(node => {
+        node.mesh?.position.set(node.x ?? 0, node.y ?? 0, 0);
+      });
+    }
+
+    glyphs.forEach(glyph => {
+      const lensSize = this.sizeInfo.clone();
+      lensSize.currentZoomLevel = ZoomLevel.high;
+      lensSize.radius = lensSize.radius * 8;
+
+      let mesh = glyph.getMesh(this.selectedTimestamp, this.selectedAlgorithm, this.id);
+      if (mesh != undefined) {
+        this.glyphGroup.remove(mesh);
+      }
+      let newMesh = glyph.render(lensSize, this.selectedTimestamp, this.selectedAlgorithm, this.id, this.aggregated);
+      if (newMesh) {
+        this.glyphGroup.add(newMesh);
+      }
+    });
+
+    this.requestRender(RenderTask.SceneRender);
+  }
+
+
   private renderGlyph(glyph: GlyphObject) {
     let mesh = glyph.getMesh(this.selectedTimestamp, this.selectedAlgorithm, this.id);
     if (mesh != undefined) this.glyphGroup.remove(mesh);
 
     let newMesh = glyph.render(this.sizeInfo, this.selectedTimestamp, this.selectedAlgorithm, this.id, this.aggregated);
+    if (newMesh) this.glyphGroup.add(newMesh);
 
-    if (newMesh) {
-      // TODO: Implement new method for rendering glyphs from other lens
-      if (glyph.isInLense &&
-        !this.magicLensComponent.lensGlyphs.includes(glyph) &&
-        this.sizeInfo.currentZoomLevel == ZoomLevel.low) {
-        const lensSize = this.sizeInfo.clone();
-        lensSize.currentZoomLevel = ZoomLevel.high;
-        lensSize.radius = lensSize.radius * 8;
-        const spread = 120;
-
-        const lensMesh = glyph.render(lensSize, this.selectedTimestamp, this.selectedAlgorithm, this.id, this.aggregated);
-        if (lensMesh != null) {
-          const pos = lensMesh.position.clone();
-
-          const jitter = new THREE.Vector3(
-            jitterFromVector(pos) * spread,
-            jitterFromVector(pos.clone().addScalar(1)) * spread, 0
-          );
-
-          lensMesh.position.copy(pos.add(jitter));
-          // lensMesh.scale.addScalar(scale);
-          newMesh = lensMesh;
-        }
-      }
-      this.glyphGroup.add(newMesh);
-    }
     this.requestRender(RenderTask.SceneRender);
   }
 
@@ -859,7 +926,11 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
   //#region Selection
   private isMouseOverOverlay(event: MouseEvent): boolean {
     const el = document.elementFromPoint(event.clientX, event.clientY);
-    return el?.closest('.overlay-controls') !== null;
+    const isOverOverlay =
+      el?.closest('.settings-panel') !== null
+      || el?.closest('.tooltip-popup') !== null
+      || el?.closest('.nav-controls-panel') !== null
+    return isOverOverlay;
   }
 
   private updateSelectionBox(): void {
@@ -893,6 +964,18 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
   //#endregion
 
   //#region HostListeners
+
+  /** Listen to clicks anywhere in the document */
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent) {
+    const clickedInside = this.sceneContainer?.nativeElement.contains(event.target as Node);
+    if (!clickedInside) {
+      this.canvasActivated = false;             // revert border
+      this.settingsPanel.hidePanel();
+      // this.activeSettingPanelVisible = false;   // hide panel
+    }
+  }
+
   @HostListener('document:keydown', ['$event'])
   onKeyDown(event: KeyboardEvent): void {
     if (event.key === 'Shift') this.isShiftDown = true;
@@ -924,12 +1007,12 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
       this.renderGlyphs();
     }
     // TODO: Magic lens feature is broken
-    // if (event.key.toLowerCase() === 'l') {
-    //   this.toggleMagicLens();
-    //   this.clearHoveredGlyph();
-    //   this.magicLensComponent.updateMagicLens(this.lastMousePosition, this.camera, this.renderer);
-    //   this.magicLensComponent.renderMagicLensGlyphs(this.selectedTimestamp, this.selectedAlgorithm);
-    // }
+    if (event.key.toLowerCase() === 'l') {
+      this.clearHoveredGlyph();
+      this.toggleMagicLens();
+      this.magicLensComponent.updateMagicLens(this.lastMousePosition, this.camera, this.renderer);
+      this.magicLensComponent.renderMagicLensGlyphs(this.selectedTimestamp, this.selectedAlgorithm);
+    }
   }
 
   @HostListener('mousedown', ['$event'])
@@ -1034,8 +1117,9 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
 
     if (this.magicLensComponent.isActive()) {
       this.lastMousePosition.set(event.clientX, event.clientY);
-      this.magicLensComponent.renderMagicLensGlyphs(this.selectedTimestamp, this.selectedAlgorithm);
-      this.magicLensComponent.updateMagicLens(this.lastMousePosition, this.camera, this.renderer);
+      this.magicLensComponent.renderLens(this.lastMousePosition);
+      const change = this.magicLensComponent.updateMagicLens(this.lastMousePosition, this.camera, this.renderer);
+      if (change) this.magicLensComponent.renderMagicLensGlyphs(this.selectedTimestamp, this.selectedAlgorithm);
       return;
     }
 

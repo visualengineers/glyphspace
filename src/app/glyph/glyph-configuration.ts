@@ -15,9 +15,7 @@ export class GlyphConfiguration {
   private options = [
     { property: 'useCoordinateSystem', label: 'Coordinate System' },
     { property: 'useBackground', label: 'Circle Background' },
-    { property: 'useContour', label: 'Contour' },
-    { property: 'scaleLinear', label: 'Scale Linear' },
-    { property: 'useLabels', label: 'Labels' }
+    { property: 'useContour', label: 'Contour' }
   ];
 
   get useCoordinateSystem(): boolean { return this._useCoordinateSystem; }

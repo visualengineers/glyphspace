@@ -1,40 +1,49 @@
-<div class="scene-container">
+<div class="scene-container"
+  #sceneContainer
+  [class.active]="canvasActivated"
+  (click)="onCanvasClick()"
+>
   <div
     #canvasContainer class="canvas-container"
     id="canvas-container"
+    (click)="settingsPanel.showPanel()"
     (mouseenter)="onMouseEnter()"
     (mouseleave)="onMouseLeave()"
   >
     <app-magiclens [container]="canvasContainer"
       [glyphGroup]="glyphGroup"
-      [id]="id"
+      [parentId]="id"
     ></app-magiclens>
-    <app-overlaycontrols
+  <app-settingscontrols #settingsPanel
+      [parentId]="id"
+      [totalCells]="totalCells"
+
       [collisionAvoidance]="collisionAvoidance"
       [aggregated]="aggregated"
-      [selectionMode]="selectionMode"
-      [magicLenseStatus]="magicLenseStatus"
-      [showSettings]="showSettings"
-
-      [timestamps]="timestamps"
-      [selectedTimestamp]="selectedTimestamp"
 
       [algorithms]="algorithms"
       [selectedAlgorithm]="selectedAlgorithm"
 
-      [contexts]="contexts"
-      [selectedContext]="selectedContext"
+      [timestamps]="timestamps"
+      [selectedTimestamp]="selectedTimestamp"Í
 
       (fitToView)="fitToView()"
       (toggleCollision)="toggleCollisionAvoidance()"
       (toggleAggregation)="toggleAggregation()"
-      (toggleSelection)="toggleSelectionMode()"
-      (toggleLens)="toggleMagicLens()"
-      (toggleSettingsPanel)="toggleSettings()"
       (settingsChanged)="onSettingsChange($event)"
       (changeAnimationSpeed)="onAnimationSpeedChanged($event)"
       (togglePlayback)="onTogglePlayback()"
-    />
+  ></app-settingscontrols>
+    <app-navigationcontrols
+      [visible]="mouseInside"
+      [selectionMode]="selectionMode"
+      [magicLenseStatus]="magicLenseStatus"
+
+      (toggleNavigation)="toggleNavigationMode()"
+      (toggleSelection)="toggleSelectionMode()"
+      (toggleLens)="toggleMagicLens()"      
+      >
+    </app-navigationcontrols>
   </div>
 </div>
 <app-tooltip [container]="canvasContainer"></app-tooltip>

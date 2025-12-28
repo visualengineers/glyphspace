@@ -1,9 +1,8 @@
-<app-dashboard
+<app-menubar
   [totalCells]="grid.length"
-  [isOpen]="true"
   (addCanvas)="addCanvas()"
-  (removeCanvas)="removeCanvas()">
-</app-dashboard>
+>  
+</app-menubar>
 
 <div
   #canvasGrid
@@ -12,8 +11,10 @@
   [style.gridTemplateRows]="'repeat(' + rows + ', 1fr)'"
 >
   <glyph-canvas
+    class="glyph-canvas"
     *ngFor="let cell of grid; trackBy: trackById"
-    [id]="cell.id" 
+    [id]="cell.id"
+    [totalCells]="grid.length"
     >
   </glyph-canvas>
 </div>

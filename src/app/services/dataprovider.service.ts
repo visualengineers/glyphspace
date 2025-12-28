@@ -19,7 +19,7 @@ import { DEFAULT_DATASETCOLLECTION } from "../../default-dataset";
 })
 export class DataProviderService {
     private filters: ItemFilter[] = [];
-    private glyphCache: Map<string, Map<string, GlyphObject[]>> = new Map();
+    private glyphCache: Map<string, Map<string, GlyphObject>> = new Map();
     private metaCache: Map<string, Map<string, GlyphMeta>> = new Map();
     private schemaCache: Map<string, Map<string, GlyphSchema>> = new Map();
 
@@ -41,7 +41,7 @@ export class DataProviderService {
                 const algos = item.algorithms;
                 const datasetId = ds.dataset;
                 const time = item.time;
-
+                
                 // Build individual HTTP requests
                 const requests: { [key: string]: Observable<any> } = {
                     schema: this.http.get<any>(basePath + algos.schema),
@@ -78,7 +78,8 @@ export class DataProviderService {
                         this.config.featureLabels = schema.label;
                         // Apply color scale mode if specified in schema
                         if (schema.colorRange !== undefined) {
-                            this.config.colorRange = schema.colorRange;
+                            // Convert boolean to color scale ID: true -> 0 (continuous), false -> 3 (categorical)
+                            this.config.colorRange = schema.colorRange ? 0 : 3;
                         }
                         this.config.loadData(datasetId);
                     }
@@ -113,26 +114,23 @@ export class DataProviderService {
         let count = 0;
         const allFiltersEmpty = this.getFilters().length == 0 || this.getFilters().every(filter => filter.empty());
         const orFiltering = this.getFilters().filter(filter => filter.filterMode == FilterMode.Or).every(filter => filter.empty());
-        glyphData.forEach(data => {
-            count = 0;
-            data.forEach((item: GlyphObject) => {
-                let andFilter = true;
-                let orFilter = orFiltering;
-                this.getFilters().forEach(filter => {
-                    if (filter.empty()) {
-                        return;
-                    }
+        glyphData.forEach((item: GlyphObject) => {
+            let andFilter = true;
+            let orFilter = orFiltering;
+            this.getFilters().forEach(filter => {
+                if (filter.empty()) {
+                    return;
+                }
 
-                    if (filter.filterMode == FilterMode.Or) {
-                        orFilter = orFilter || filter.inFilter(item);
-                    } else if (filter.filterMode == FilterMode.And) {
-                        andFilter = andFilter && filter.inFilter(item);
-                    }
-                });
+                if (filter.filterMode == FilterMode.Or) {
+                    orFilter = orFilter || filter.inFilter(item);
+                } else if (filter.filterMode == FilterMode.And) {
+                    andFilter = andFilter && filter.inFilter(item);
+                }
+            });
 
-                item.passive = allFiltersEmpty ? false : !(andFilter && orFilter);
-                if (!item.passive) count++;
-            })
+            item.passive = allFiltersEmpty ? false : !(andFilter && orFilter);
+            if (!item.passive) count++;
         });
         this.filteredItems = count;
     }
@@ -213,14 +211,15 @@ export class DataProviderService {
         this.config.featureLabels = schema.label;
         // Apply color scale mode if specified in schema
         if (schema.colorRange !== undefined) {
-            this.config.colorRange = schema.colorRange;
+            // Convert boolean to color scale ID: true -> 0 (continuous), false -> 3 (categorical)
+            this.config.colorRange = schema.colorRange ? 0 : 3;
         }
         this.config.loadData(datasetName);
 
         // Update filtered items
-        const glyphs = this.glyphCache.get(datasetName)?.get(timestamp);
-        if (glyphs) {
-            this.totalItems = glyphs.length;
+        const glyphMap = this.glyphCache.get(datasetName);
+        if (glyphMap) {
+            this.totalItems = glyphMap.size;
             this.filteredItems = this.totalItems;
         }
     }
@@ -262,116 +261,71 @@ export class DataProviderService {
         this.setDatasetCollection([newEntry]);
     }
 
-    private buildDataSet(name: string, timestamp: string, schema: GlyphSchema, meta: GlyphMeta, features: GlyphFeature[], positions: Map<string, GlyphPosition[]>): number {
-        console.log(`[DataProvider] Building dataset: ${name}, timestamp: ${timestamp}`);
-        console.log(`[DataProvider] Features count: ${features.length}`);
-        console.log(`[DataProvider] Position algorithms:`, Array.from(positions.keys()));
+    private buildDataSet(
+        name: string,
+        timestamp: string,
+        schema: GlyphSchema,
+        meta: GlyphMeta,
+        features: GlyphFeature[],
+        positions: Map<string, GlyphPosition[]>
+    ): number {
 
+        // --- Schema & Meta (still timestamp-based) ---
         if (!this.schemaCache.has(name)) this.schemaCache.set(name, new Map());
-        this.schemaCache.get(name)?.set(timestamp, schema);
+        this.schemaCache.get(name)!.set(timestamp, schema);
 
         if (!this.metaCache.has(name)) this.metaCache.set(name, new Map());
-        this.metaCache.get(name)?.set(timestamp, meta);
+        this.metaCache.get(name)!.set(timestamp, meta);
 
-        // 1. Step: Build GlyphObjects from features
-        const glyphs: GlyphObject[] = features.map(feature => {
-            const glyph = new GlyphObject(feature.id, this.config, this.dataProcessor);
-            glyph.features = feature.features;
-            glyph.values = feature.values;
-            glyph.defaultcontext = feature.defaultcontext ? parseInt(feature.defaultcontext) : 1;
-            glyph.positions = {}; // Initialize position storage
-            return glyph;
-        });
+        // --- Glyph cache: dataset → glyphId → GlyphObject ---
+        if (!this.glyphCache.has(name)) {
+            this.glyphCache.set(name, new Map());
+        }
 
-        // 2. Step: Build lookup map (optimized for large datasets)
-        console.log(`[DataProvider] Building glyph lookup map for ${glyphs.length} glyphs...`);
-        const mapStartTime = performance.now();
+        const glyphMap = this.glyphCache.get(name)!;
 
-        const glyphMap = new Map<string, GlyphObject>();
+        // --- Create or update glyphs ---
+        for (const feature of features) {
 
-        // Optimized: single pass with minimal conversions
-        for (const g of glyphs) {
-            const id = g.id;
-            glyphMap.set(id, g);
+            let glyph = glyphMap.get(feature.id);
 
-            // Only add alternate keys if ID type suggests it's needed
-            if (typeof id === 'number') {
-                glyphMap.set(String(id), g);
-            } else if (typeof id === 'string') {
-                const asNumber = parseFloat(id);
-                if (!isNaN(asNumber)) {
-                    glyphMap.set(String(asNumber), g);
-                }
+            // Create glyph only once
+            if (!glyph) {
+                glyph = new GlyphObject(feature.id, this.config, this.dataProcessor);
+                glyph.features = feature.features;
+                glyph.values = feature.values;
+                glyph.defaultcontext = feature.defaultcontext
+                    ? parseInt(feature.defaultcontext)
+                    : 1;
+                glyph.positions = {};
+
+                glyphMap.set(feature.id, glyph);
+            }
+
+            // Ensure timestamp bucket exists
+            if (!glyph.positions[timestamp]) {
+                glyph.positions[timestamp] = {};
             }
         }
 
-        console.log(`[DataProvider] Map built in ${(performance.now() - mapStartTime).toFixed(0)}ms`);
+        // --- Add positions for this timestamp ---
+        for (const [algorithm, entries] of positions) {
+            for (const posEntry of entries) {
+                const glyph = glyphMap.get(posEntry.id);
+                if (!glyph) continue;
 
-        // 3. Step: Add positions (optimized for large datasets)
-
-        let positionsAssigned = 0;
-        let positionsFailed = 0;
-        const startTime = performance.now();
-
-        for (const [key, value] of positions) {
-            console.log(`[DataProvider] Processing position algorithm: ${key}, entries: ${value.length}`);
-
-            // Batch process positions for performance
-            const batchSize = 10000;
-            for (let i = 0; i < value.length; i += batchSize) {
-                const batch = value.slice(i, Math.min(i + batchSize, value.length));
-
-                for (const posEntry of batch) {
-                    // Try multiple lookup strategies for ID matching
-                    let glyph = glyphMap.get(posEntry.id);
-
-                    if (!glyph) {
-                        // Try normalized string version
-                        glyph = glyphMap.get(String(posEntry.id));
-                    }
-
-                    if (!glyph && typeof posEntry.id === 'number') {
-                        // Try as float string for numeric IDs
-                        glyph = glyphMap.get(String(posEntry.id));
-                    }
-
-                    if (glyph) {
-                        if (!glyph.positions[timestamp]) {
-                            glyph.positions[timestamp] = {};
-                        }
-                        // Direct assignment without spread (faster)
-                        glyph.positions[timestamp][key] = posEntry.position;
-                        positionsAssigned++;
-                    } else {
-                        // Debug: log missing position assignments (only first few)
-                        if (positionsFailed < 5) {
-                            console.warn(`Position for ID ${posEntry.id} (${typeof posEntry.id}) not found in glyphs`);
-                        }
-                        positionsFailed++;
-                    }
-                }
-
-                // Log progress for large datasets
-                if (value.length > 50000 && (i + batchSize) % 50000 === 0) {
-                    console.log(`[DataProvider] Progress: ${i + batchSize}/${value.length} positions processed`);
-                }
+                glyph.positions[timestamp][algorithm] = {
+                    ...posEntry.position
+                };
             }
-        };
-
-        const elapsed = performance.now() - startTime;
-        console.log(`[DataProvider] Positions assigned: ${positionsAssigned}, failed: ${positionsFailed} (${elapsed.toFixed(0)}ms)`);
-        if (positionsAssigned > 0) {
-            const sampleGlyph = glyphs[0];
-            console.log(`[DataProvider] Sample glyph positions:`, sampleGlyph.positions);
         }
 
-        if (!this.glyphCache.has(name)) this.glyphCache.set(name, new Map());
-        this.glyphCache.get(name)?.set(timestamp, glyphs);
-
-        return glyphs.length;
+        return glyphMap.size;
     }
 
+
     async loadDataSet(name: string, timestamp: string) {
+        console.log("load data set " + name + " " + timestamp);
         const dataset = this.dataSetCollectionSubject.getValue().find(data => data.dataset == name);
         const item = dataset?.items.find(item => item.time == timestamp);
         if (item && dataset?.source == "wasm") {
@@ -389,7 +343,8 @@ export class DataProviderService {
             this.config.featureLabels = schema.label;
             // Apply color scale mode if specified in schema
             if (schema.colorRange !== undefined) {
-                this.config.colorRange = schema.colorRange;
+                // Convert boolean to color scale ID: true -> 0 (continuous), false -> 3 (categorical)
+                this.config.colorRange = schema.colorRange ? 0 : 3;
             }
 
             this.totalItems = this.buildDataSet(name, timestamp, schema, meta, features, positions);
@@ -399,18 +354,16 @@ export class DataProviderService {
 
     public async getGlyphData(): Promise<GlyphObject[] | undefined>
     public async getGlyphData(name?: string): Promise<GlyphObject[] | undefined>
-    public async getGlyphData(name?: string, timestamp?: string): Promise<GlyphObject[] | undefined> {
+    public async getGlyphData(name?: string, timestamp?: string): Promise<GlyphObject[] | undefined>
+    public async getGlyphData(name?: string, timestamp?: string, algorithm?: string): Promise<GlyphObject[] | undefined> {
         if (name == undefined) name = this.config.loadedData;
         console.log(`[DataProvider] getGlyphData called for: ${name}, timestamp: ${timestamp}`);
 
         const collection = this.dataSetCollectionSubject.getValue().find(collection => collection.dataset == name);
-        if (timestamp == undefined) {
+        if (timestamp == undefined || timestamp == '') {
             timestamp = collection?.items.at(0)?.time;
         }
-        if (name == undefined || timestamp == undefined) {
-            console.warn(`[DataProvider] getGlyphData returning undefined: name=${name}, timestamp=${timestamp}`);
-            return undefined;
-        }
+        if (name == undefined || timestamp == undefined) return undefined;
 
         let data = this.glyphCache.get(name);
         console.log(`[DataProvider] Cache lookup for '${name}':`, data ? 'HIT' : 'MISS');
@@ -420,14 +373,10 @@ export class DataProviderService {
             await this.loadDataSet(name, timestamp);
             data = this.glyphCache.get(name);
         }
-
-        const glyphData = data?.get(timestamp);
-        console.log(`[DataProvider] Glyph data for timestamp '${timestamp}':`, glyphData ? `${glyphData.length} glyphs` : 'undefined');
-
-        if (glyphData) this.totalItems = glyphData?.length;
+        if (data) this.totalItems = data.size;
         this.filteredItems = this.totalItems;
         if (collection) this.config.dataSource = collection.source
-        return glyphData;
+        return data ? Array.from(data.values()) : undefined;
     }
 
     public async getMetaData(): Promise<GlyphMeta | undefined>
@@ -468,7 +417,8 @@ export class DataProviderService {
             this.config.featureLabels = schemaResult.label;
             // Apply color scale mode if specified in schema
             if (schemaResult.colorRange !== undefined) {
-                this.config.colorRange = schemaResult.colorRange;
+                // Convert boolean to color scale ID: true -> 0 (continuous), false -> 3 (categorical)
+                this.config.colorRange = schemaResult.colorRange ? 0 : 3;
             }
         }
 

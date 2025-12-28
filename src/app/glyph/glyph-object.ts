@@ -87,6 +87,13 @@ export class GlyphObject {
     }
 
     public render(sizeInfo: GlyphSizeInfo, timestamp: string, algorithm: string, owner = 0, clustered = false): THREE.Object3D | null {
+        const mesh = this.renderGlyph(sizeInfo, timestamp, algorithm, owner, clustered);
+        const cacheObject = this.getCacheObject(owner, timestamp, algorithm);
+        if (mesh) cacheObject.mesh = mesh;
+        return mesh;
+    }
+
+    public renderGlyph(sizeInfo: GlyphSizeInfo, timestamp: string, algorithm: string, owner = 0, clustered = false): THREE.Object3D | null {
         const cacheObject = this.getCacheObject(owner, timestamp, algorithm);
         const cachedMesh = cacheObject.mesh;
 
@@ -126,8 +133,7 @@ export class GlyphObject {
         const y = cachedMesh ? cachedMesh.position.y : cacheObject.y ?? 0;
         mesh.position.set(x, y, 0);
         mesh.userData = { item: new WeakRef(this) };
-        mesh.renderOrder = this.passive ? 1 : 99;
-        cacheObject.mesh = mesh;
+        mesh.renderOrder = this.passive ? 1 : 99;        
 
         return mesh;
     }

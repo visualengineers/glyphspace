@@ -8,44 +8,25 @@ import { hexToRgb } from '../shared/helpers/d3-helper';
 import { GlyphConfiguration } from '../glyph/glyph-configuration';
 import { ItemFilter } from '../shared/filter/item-filter';
 import { IdFilter } from '../shared/filter/id-filter';
+import { COLOR_SCALES, ColorScale } from '../shared/interfaces/color-scale';
 
 @Injectable({
   providedIn: 'root',
 })
 export class ConfigService {
-  // categorical color scale, that uses discrete color values on the domain 0-1
-  private categoryColor = d3
-    .scaleQuantize()
-    .domain([0.0, 1.0])
-    .range([
-      '#4f366d',
-      '#933765',
-      '#d08f51',
-      '#286367',
-      '#8BC34A',
-      '#FFC107',
-      '#2196F3',
-      '#FF5722',
-      '#607D8B',
-      '#BF3330'
-    ] as any);
-
-  // continuous color scale that interpolates the domain 0-1 on two color values
-  // Reminder: If you change the colors here, don't forget to change $color-scale-low
-  // and $color-scale-high in colors.scss
-  private rangeColor = d3
-    .scaleLinear<any, any>()
-    .domain([0.0, 0.5, 1.0])
-    .range(['#198FBD', '#F7D529', '#F7295B']);
-
+  colorScales: ColorScale[] = COLOR_SCALES;
+  
   private _activeFeatures: string[] = [];
   private _colorFeature: string = "";
   private _scaleLinear: boolean = false;
-  private _colorRange: boolean = true; // switch between continuous and discrete color scale
   private _featureLabels: Record<string, string> = {};
   private _dataSource: string = "";
+  private _selectedColorScale: number = 0;
 
   private config = new GlyphConfiguration();
+
+  private removeCanvasSubject = new BehaviorSubject<number>(0);
+  removeCanvasSubject$ = this.removeCanvasSubject.asObservable();
 
   private glyphConfigSubject = new BehaviorSubject<GlyphConfiguration>(this.config);
   glyphConfigSubject$ = this.glyphConfigSubject.asObservable();
@@ -55,6 +36,9 @@ export class ConfigService {
 
   private redrawGlyphSubject = new BehaviorSubject<GlyphObject | null>(null);
   redrawGlyphSubject$ = this.redrawGlyphSubject.asObservable();
+
+  private drawMagicLensGlyphsSubject = new BehaviorSubject<GlyphObject[] | null>(null);
+  drawMagicLensGlyphsSubject$ = this.drawMagicLensGlyphsSubject.asObservable();
 
   private animateGlyphSubject = new BehaviorSubject<GlyphObject | null>(null);
   animateGlyphSubject$ = this.animateGlyphSubject.asObservable();
@@ -70,6 +54,14 @@ export class ConfigService {
 
   reRender() {
       this.commandSubject.next(InteractionCommand.rerender);
+  }
+
+  removeCanvas(id: number) {
+    this.removeCanvasSubject.next(id);
+  }
+
+  drawMagicLensGlyphs(glyphs: GlyphObject[]) {
+    this.drawMagicLensGlyphsSubject.next(glyphs);
   }
  
   animateGlyph(glyph: GlyphObject | null) {
@@ -133,15 +125,15 @@ export class ConfigService {
   }
 
   get color(): any {
-    return this._colorRange ? this.rangeColor : this.categoryColor;
+    return this.colorScales.find(s => s.id === this._selectedColorScale)?.scale;
   }
 
-  get colorRange(): boolean {
-    return this._colorRange;
+  get colorRange(): number {
+    return this._selectedColorScale;
   }
 
-  set colorRange(flag: boolean) {
-    this._colorRange = flag;
+  set colorRange(id: number) {
+    this._selectedColorScale = id;
   }
 
   get activeFeatures() {
