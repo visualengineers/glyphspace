@@ -310,14 +310,26 @@ export class DataProviderService {
 
         // --- Add positions for this timestamp ---
         for (const [algorithm, entries] of positions) {
+            console.log(`[DataProvider] Adding ${entries.length} positions for algorithm: ${algorithm}`);
+            let matchCount = 0;
             for (const posEntry of entries) {
-                const glyph = glyphMap.get(posEntry.id);
-                if (!glyph) continue;
+                // Ensure ID is string for consistency
+                const idStr = String(posEntry.id);
+                const glyph = glyphMap.get(idStr);
+                if (!glyph) {
+                    if (matchCount === 0) {
+                        console.warn(`[DataProvider] No glyph found for ID: ${idStr} (type: ${typeof posEntry.id})`);
+                        console.log(`[DataProvider] Available glyph IDs sample:`, Array.from(glyphMap.keys()).slice(0, 5));
+                    }
+                    continue;
+                }
 
                 glyph.positions[timestamp][algorithm] = {
                     ...posEntry.position
                 };
+                matchCount++;
             }
+            console.log(`[DataProvider] Matched ${matchCount}/${entries.length} positions for ${algorithm}`);
         }
 
         return glyphMap.size;

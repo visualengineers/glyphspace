@@ -3,13 +3,14 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subscription } from 'rxjs';
 import { LegendDropdownComponent } from './legend-dropdown/legend-dropdown.component';
+import { PreprocessingWizardComponent } from '../preprocessing-wizard/preprocessing-wizard.component';
 import { DataProviderService } from '../services/dataprovider.service';
 import { ConfigService } from '../services/config.service';
 
 @Component({
     selector: 'app-menubar',
     standalone: true,
-    imports: [LegendDropdownComponent, CommonModule, FormsModule],
+    imports: [LegendDropdownComponent, PreprocessingWizardComponent, CommonModule, FormsModule],
     templateUrl: './menubar.component.html',
     styleUrls: ['./menubar.component.scss'],
 })
@@ -19,6 +20,7 @@ export class MenuBarComponent implements OnInit, OnDestroy {
 
     menuOpen = false;
     legendOpen = false;
+    showWizard = false;
     hasData = false;
     datasetNames: string[] = [];
     selectedDataset: string | null = null;
@@ -59,7 +61,11 @@ export class MenuBarComponent implements OnInit, OnDestroy {
     }
 
     upload() {
-        console.log('Upload clicked');
+        this.showWizard = true;
+    }
+
+    closePreprocessingWizard() {
+        this.showWizard = false;
     }
 
     download() {

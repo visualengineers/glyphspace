@@ -3,7 +3,7 @@
 .preprocessing-wizard {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: 100%;
   background: v.$gray-100;
 }
 
@@ -90,7 +90,7 @@
 }
 
 .step-container {
-  min-height: calc(100vh - 250px);
+  // Removed fixed min-height to allow flexible sizing in overlay
 }
 
 .step-placeholder {
