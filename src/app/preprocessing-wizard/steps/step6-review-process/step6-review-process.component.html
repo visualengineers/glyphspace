@@ -263,13 +263,59 @@
           </div>
           <div class="stat-item">
             <span class="material-icons">check</span>
-            <span>{{ enabledMethods.length }} projection(s) computed</span>
+            <span>PCA projection ready</span>
           </div>
           <div class="stat-item">
             <span class="material-icons">check</span>
             <span>Data cleaning applied</span>
           </div>
         </div>
+
+        <!-- Background Projection Status -->
+        @if (getBackgroundProjectionsArray().length > 0) {
+          <div class="background-status-section">
+            <h4>
+              <span class="material-icons">schedule</span>
+              Background Projections
+            </h4>
+            <div class="projection-status-list">
+              @for (proj of getBackgroundProjectionsArray(); track proj.method) {
+                <div class="projection-status-item" [class]="'status-' + proj.status">
+                  <div class="status-header">
+                    <span class="method-name">{{ proj.method.toUpperCase() }}</span>
+                    @if (proj.status === 'running') {
+                      <span class="status-badge status-running">
+                        <span class="material-icons spinning">sync</span>
+                        Running
+                      </span>
+                    }
+                    @if (proj.status === 'complete') {
+                      <span class="status-badge status-complete">
+                        <span class="material-icons">check_circle</span>
+                        Complete
+                      </span>
+                    }
+                    @if (proj.status === 'error') {
+                      <span class="status-badge status-error">
+                        <span class="material-icons">error</span>
+                        Error
+                      </span>
+                    }
+                  </div>
+                  @if (proj.status === 'running') {
+                    <div class="progress-bar-small">
+                      <div class="progress-fill-small" [style.width.%]="proj.progress"></div>
+                    </div>
+                    <p class="status-message">{{ proj.message }}</p>
+                  }
+                  @if (proj.status === 'complete') {
+                    <p class="status-message">Available in dashboard dropdown</p>
+                  }
+                </div>
+              }
+            </div>
+          </div>
+        }
 
         <div class="success-actions">
           <button class="btn-secondary" (click)="startOver()">

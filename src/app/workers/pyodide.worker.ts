@@ -259,6 +259,16 @@ preprocessing_processor_config.process_with_config(
 
           break;
         }
+        case "getProcessedFeatures": {
+          // Read processed features CSV exported by Python for JavaScript projections
+          try {
+            const csvText = pyodide.FS.readFile('processed_features.csv', { encoding: 'utf8' });
+            postMessage(<WorkerReply>{ type: 'processedFeatures', data: csvText });
+          } catch (err: any) {
+            postMessage(<WorkerReply>{ type: 'error', message: `Failed to read processed features: ${err.message}` });
+          }
+          break;
+        }
       }
     } catch (err: any) {
       postMessage(<WorkerReply>{ type: 'error', message: err.message ?? String(err) });

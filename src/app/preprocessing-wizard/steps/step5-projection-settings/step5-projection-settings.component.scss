@@ -26,6 +26,35 @@
   }
 }
 
+// Background Processing Info Box
+.background-processing-info {
+  background: rgba(156, 39, 176, 0.05);
+  border-left: 4px solid #9C27B0;
+  padding: 12px 16px;
+  border-radius: 4px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 24px;
+
+  .material-icons {
+    font-size: 24px;
+    color: #9C27B0;
+    flex-shrink: 0;
+  }
+
+  div {
+    font-size: 13px;
+    color: v.$gray-700;
+    line-height: 1.5;
+
+    strong {
+      font-weight: 600;
+      color: #7B1FA2;
+    }
+  }
+}
+
 // Methods Section
 .methods-section {
   margin-bottom: 24px;
@@ -131,11 +160,40 @@
   align-items: center;
   margin-bottom: 8px;
 
+  .header-with-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
   h4 {
     margin: 0;
     font-size: 16px;
     font-weight: 600;
     color: v.$gray-800;
+  }
+
+  .speed-badge {
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+
+    &.badge-fast {
+      background: rgba(76, 175, 80, 0.15);
+      color: #2E7D32;
+    }
+
+    &.badge-medium {
+      background: rgba(255, 152, 0, 0.15);
+      color: #E65100;
+    }
+
+    &.badge-slow {
+      background: rgba(244, 67, 54, 0.15);
+      color: #C62828;
+    }
   }
 
   input[type="checkbox"] {

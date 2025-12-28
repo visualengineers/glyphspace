@@ -5,7 +5,6 @@ import { PreprocessingService } from '../../services/preprocessing.service';
 import { ColumnStatistics } from '../../models/column-statistics';
 import { ColumnConfig, CleaningConfig } from '../../models/column-config';
 import { MissingValueStrategy, OutlierStrategy, OutlierMethod } from '../../models/data-type.enum';
-import { HelpTooltipComponent } from '../../shared/help-tooltip/help-tooltip.component';
 import { HELP_TEXT } from '../../shared/constants/help-text';
 import { STEP_INFO } from '../../shared/constants/step-info';
 
@@ -22,7 +21,7 @@ interface ColumnCleaningState {
 @Component({
   selector: 'app-step3-data-cleaning',
   standalone: true,
-  imports: [CommonModule, FormsModule, HelpTooltipComponent],
+  imports: [CommonModule, FormsModule],
   templateUrl: './step3-data-cleaning.component.html',
   styleUrl: './step3-data-cleaning.component.scss'
 })

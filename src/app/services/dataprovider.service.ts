@@ -153,10 +153,21 @@ export class DataProviderService {
             const existing = datasetMap.get(incoming.dataset);
 
             if (existing) {
-                // Merge items, avoiding duplicates by `time`
-                const existingTimes = new Set(existing.items.map(item => item.time));
-                const newItems = incoming.items.filter(item => !existingTimes.has(item.time));
-                existing.items.push(...newItems);
+                // Merge items - update existing timestamps or add new ones
+                for (const incomingItem of incoming.items) {
+                    const existingItem = existing.items.find(item => item.time === incomingItem.time);
+
+                    if (existingItem) {
+                        // Update existing item's algorithms (merge position algorithms)
+                        existingItem.algorithms.position = {
+                            ...existingItem.algorithms.position,
+                            ...incomingItem.algorithms.position
+                        };
+                    } else {
+                        // Add new timestamp item
+                        existing.items.push(incomingItem);
+                    }
+                }
             } else {
                 // New dataset, add whole entry
                 datasetMap.set(incoming.dataset, { ...incoming, items: [...incoming.items] });

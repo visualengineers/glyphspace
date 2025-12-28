@@ -8,10 +8,12 @@ import { HELP_TEXT } from '../../shared/constants/help-text';
 import { STEP_INFO } from '../../shared/constants/step-info';
 
 interface ProjectionMethod {
-  key: keyof Pick<ProjectionConfig, 'enablePCA' | 'enableTSNE' | 'enableUMAP'>;
+  key: keyof Pick<ProjectionConfig, 'enablePCA' | 'enableFastMap' | 'enableTSNE' | 'enableUMAP'>;
   name: string;
   description: string;
   icon: string;
+  badge?: string;
+  disabled?: boolean;
 }
 
 @Component({
@@ -24,15 +26,13 @@ interface ProjectionMethod {
 export class Step5ProjectionSettingsComponent implements OnInit {
   projectionConfig: ProjectionConfig = {
     enablePCA: true,
+    enableFastMap: false,
     enableTSNE: false,
     enableUMAP: false,
-    enableEPSG: false,
     tsnePerplexity: 30,
     tsneIterations: 1000,
-    tsneLearningRate: 200,
     umapNeighbors: 15,
-    umapMinDist: 0.1,
-    umapMetric: 'euclidean'
+    umapMinDist: 0.1
   };
 
   // Constants matching backend limits (public for template access)
@@ -45,21 +45,32 @@ export class Step5ProjectionSettingsComponent implements OnInit {
   projectionMethods: ProjectionMethod[] = [
     {
       key: 'enablePCA',
-      name: 'PCA',
-      description: 'Principal Component Analysis - Fast, linear dimensionality reduction',
-      icon: 'analytics'
+      name: 'PCA (Immediate)',
+      description: 'Principal Component Analysis - Fast linear projection, shows immediately after processing',
+      icon: 'analytics',
+      badge: 'Fast',
+      disabled: false
+    },
+    {
+      key: 'enableFastMap',
+      name: 'FastMap (Background)',
+      description: 'Fast distance-preserving projection - Computes in background after PCA',
+      icon: 'map',
+      badge: 'Medium'
     },
     {
       key: 'enableTSNE',
-      name: 't-SNE',
-      description: 't-Distributed Stochastic Neighbor Embedding - Preserves local structure',
-      icon: 'bubble_chart'
+      name: 't-SNE (Background)',
+      description: 'Preserves local structure - Computes in background, may take minutes for large datasets',
+      icon: 'bubble_chart',
+      badge: 'Slow'
     },
     {
       key: 'enableUMAP',
-      name: 'UMAP (Not Available)',
-      description: 'UMAP requires umap-learn package which is not available in the browser version. Use desktop version for UMAP support.',
-      icon: 'scatter_plot'
+      name: 'UMAP (Background)',
+      description: 'Balances local and global structure - Computes in background after PCA',
+      icon: 'scatter_plot',
+      badge: 'Slow'
     }
   ];
 
@@ -74,17 +85,16 @@ export class Step5ProjectionSettingsComponent implements OnInit {
   }
 
   /**
-   * Check if a method is disabled (UMAP not available in browser)
+   * Check if a method is disabled
    */
   isMethodDisabled(method: ProjectionMethod): boolean {
-    return method.key === 'enableUMAP';
+    return method.disabled || false;
   }
 
   /**
    * Toggle a projection method on/off
    */
   toggleProjectionMethod(method: ProjectionMethod): void {
-    // UMAP is not available in browser version
     if (this.isMethodDisabled(method)) {
       return;
     }
@@ -138,6 +148,7 @@ export class Step5ProjectionSettingsComponent implements OnInit {
    */
   hasEnabledMethod(): boolean {
     return this.projectionConfig.enablePCA ||
+           this.projectionConfig.enableFastMap ||
            this.projectionConfig.enableTSNE ||
            this.projectionConfig.enableUMAP;
   }
@@ -148,6 +159,7 @@ export class Step5ProjectionSettingsComponent implements OnInit {
   getEnabledMethodsCount(): number {
     let count = 0;
     if (this.projectionConfig.enablePCA) count++;
+    if (this.projectionConfig.enableFastMap) count++;
     if (this.projectionConfig.enableTSNE) count++;
     if (this.projectionConfig.enableUMAP) count++;
     return count;

@@ -47,16 +47,14 @@ export const DEFAULT_CLEANING_CONFIG: CleaningConfig = {
 };
 
 export const DEFAULT_PROJECTION_CONFIG: ProjectionConfig = {
-  enablePCA: true,
+  enablePCA: true,        // Always enabled - runs first for immediate visualization
+  enableFastMap: false,   // NEW: FastMap projection (background)
   enableTSNE: false,
-  enableUMAP: false,  // UMAP not available in browser (requires umap-learn, not available in Pyodide)
-  enableEPSG: true,
+  enableUMAP: false,      // Now available via DruidJS (JavaScript)
 
   tsnePerplexity: 30,
   tsneIterations: 1000,
-  tsneLearningRate: 200,
 
   umapNeighbors: 15,
-  umapMinDist: 0.1,
-  umapMetric: 'euclidean'
+  umapMinDist: 0.1
 };

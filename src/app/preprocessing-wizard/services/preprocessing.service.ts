@@ -460,6 +460,57 @@ export class PreprocessingService {
     }
   }
 
+  /**
+   * Get processed features CSV exported by Python for JavaScript projections
+   */
+  public async getProcessedFeaturesCSV(): Promise<string> {
+    return await this.dataProcessor.getProcessedFeatures();
+  }
+
+  /**
+   * Add projection positions to the processed dataset
+   */
+  public async addProjectionPositions(
+    method: string,
+    positions: Array<{id: string | number; x: number; y: number}>
+  ): Promise<void> {
+    const state = this.currentState;
+
+    if (!state.processedDataset) {
+      throw new Error('No processed dataset available');
+    }
+
+    // The dataset structure from worker
+    const collection = state.processedDataset as any;
+    const datasetKey = collection.selectedDataset ||
+      (collection.datasets ? Object.keys(collection.datasets)[0] : null);
+
+    if (!datasetKey || !collection.datasets) {
+      throw new Error('Invalid dataset structure');
+    }
+
+    const dataset = collection.datasets[datasetKey];
+
+    if (!dataset) {
+      throw new Error('Dataset not found');
+    }
+
+    // Initialize positions object if it doesn't exist
+    if (!dataset.positions) {
+      dataset.positions = {};
+    }
+
+    // Convert positions to the format expected by DataProvider
+    // Format: [{id: x, position: {x: ..., y: ...}}]
+    dataset.positions[method] = positions.map(p => ({
+      id: p.id,
+      position: { x: p.x, y: p.y }
+    }));
+
+    // Update state to trigger any observers
+    this.updateState({ processedDataset: collection });
+  }
+
   private buildProcessingConfig(): any {
     const state = this.currentState;
 

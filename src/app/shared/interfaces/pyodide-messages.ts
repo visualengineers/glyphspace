@@ -11,7 +11,8 @@ export type WorkerRequest =
   | { type: "detectOutliers"; fileName: string; columnName: string; method: string }
   | { type: "detectDuplicates"; fileName: string; subsetColumns?: string[] }
   | { type: "cleanData"; fileName: string; config: any }
-  | { type: "processWithConfig"; fileName: string; config: any };
+  | { type: "processWithConfig"; fileName: string; config: any }
+  | { type: "getProcessedFeatures" };
 
 export type WorkerReply =
   | { type: "processed"; dataset: DatasetCollection }
@@ -25,4 +26,5 @@ export type WorkerReply =
   | { type: "outliers"; columnName: string; data: any }
   | { type: "duplicates"; data: any }
   | { type: "dataCleaned"; result: any }
-  | { type: "processingProgress"; step: string; progress: number; message: string };
+  | { type: "processingProgress"; step: string; progress: number; message: string }
+  | { type: "processedFeatures"; data: string };

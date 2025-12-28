@@ -10,6 +10,16 @@
     <div [innerHTML]="HELP_TEXT.general.projection"></div>
   </div>
 
+  <!-- Background Processing Info Box -->
+  <div class="info-box background-processing-info">
+    <span class="material-icons">schedule</span>
+    <div>
+      <strong>Background Processing:</strong> PCA runs first and loads immediately.
+      Other selected projections (FastMap, t-SNE, UMAP) compute in the background and notify you when ready.
+      You can start exploring your data with PCA while others are being computed.
+    </div>
+  </div>
+
   <!-- Projection Method Selection -->
   <div class="methods-section">
     <h3>
@@ -35,7 +45,14 @@
           </div>
           <div class="card-content">
             <div class="card-header-row">
-              <h4>{{ method.name }}</h4>
+              <div class="header-with-badge">
+                <h4>{{ method.name }}</h4>
+                @if (method.badge) {
+                  <span class="speed-badge" [class]="'badge-' + method.badge.toLowerCase()">
+                    {{ method.badge }}
+                  </span>
+                }
+              </div>
               <input
                 type="checkbox"
                 [checked]="projectionConfig[method.key]"

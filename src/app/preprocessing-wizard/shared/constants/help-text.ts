@@ -95,22 +95,96 @@ export const HELP_TEXT = {
   projections: {
     pca: {
       name: 'PCA (Principal Component Analysis)',
-      description: 'Fast and reliable linear dimensionality reduction',
-      bestFor: 'Linear relationships, quick exploration, understanding overall variance',
-      characteristics: 'Creates smooth, broad patterns. Computationally efficient even for large datasets.'
+      when: 'Shows immediately',
+      description: 'Fast linear dimensionality reduction that captures the directions of maximum variance in your data.',
+      bestFor: [
+        'Quick initial exploration',
+        'Understanding overall data structure',
+        'Identifying main patterns and outliers',
+        'Linear relationships between features'
+      ],
+      characteristics: 'Creates smooth, broad patterns. Points far apart in PCA are genuinely different.',
+      speed: 'Very fast (&lt;1 second for most datasets)',
+      technical: 'Computes eigenvalues of covariance matrix. Always runs first to provide immediate visualization.'
     },
+
+    fastmap: {
+      name: 'FastMap',
+      when: 'Computes in background, notifies when ready',
+      description: 'Distance-preserving projection that maintains pairwise distances between datapoints.',
+      bestFor: [
+        'Preserving relative distances',
+        'Understanding data clusters',
+        'Faster alternative to MDS',
+        'Medium-sized datasets'
+      ],
+      characteristics: 'Tries to keep distances proportional. Faster than t-SNE but less detail.',
+      speed: 'Medium (few seconds for &lt;10k rows)',
+      technical: 'Uses pivot-based distance preservation. Good balance between speed and quality.'
+    },
+
     tsne: {
       name: 't-SNE (t-Distributed Stochastic Neighbor Embedding)',
-      description: 'Preserves local structure and reveals clusters',
-      bestFor: 'Finding groups and clusters in your data, understanding local relationships',
-      characteristics: '⚠ Slower on large datasets (&gt;5000 rows). May take several minutes to compute.',
-      warning: 'Results can vary between runs. Not suitable for interpreting distances between clusters.'
+      when: 'Computes in background, may take minutes',
+      description: 'Focuses on preserving local neighborhoods - great for finding clusters and structure.',
+      bestFor: [
+        'Discovering clusters and groups',
+        'Revealing local structure',
+        'Visualizing high-dimensional data',
+        'Pattern recognition'
+      ],
+      characteristics: 'Emphasizes local relationships. Clusters are meaningful, but distances between clusters are not.',
+      speed: 'Slow (seconds to minutes depending on dataset size)',
+      parameters: {
+        perplexity: 'Balances local vs. global structure (5-50). Higher = more global context.',
+        iterations: 'More iterations = better quality, but slower (500-5000)'
+      },
+      technical: 'Uses gradient descent to minimize KL divergence. Computationally intensive.',
+      warnings: [
+        'Global structure (distances between clusters) may be misleading',
+        'Different runs may produce different results',
+        'Can be very slow on large datasets (&gt;10k rows)'
+      ]
     },
+
     umap: {
       name: 'UMAP (Uniform Manifold Approximation and Projection)',
-      description: 'Preserves both local and global structure',
-      bestFor: 'Balance between local clusters and global patterns',
-      characteristics: '<strong>⚠ Not available in browser version</strong> - requires Python umap-learn package. Use desktop version for UMAP support.'
+      when: 'Computes in background',
+      description: 'Balances both local and global structure - faster than t-SNE with comparable quality.',
+      bestFor: [
+        'Balancing local and global structure',
+        'Preserving more global relationships than t-SNE',
+        'Faster results on large datasets',
+        'General-purpose visualization'
+      ],
+      characteristics: 'Maintains both cluster structure AND meaningful distances between clusters.',
+      speed: 'Slow (but faster than t-SNE)',
+      parameters: {
+        neighbors: 'Size of local neighborhood (2-200). Higher = more global structure.',
+        minDist: 'Minimum distance between points (0.0-0.99). Lower = tighter clusters.'
+      },
+      technical: 'Based on Riemannian geometry and topological data analysis.',
+      warnings: [
+        'Can be memory-intensive for very large datasets',
+        'JavaScript version may differ slightly from Python implementation'
+      ]
+    },
+
+    backgroundProcessing: {
+      title: 'How Background Processing Works',
+      description: `
+        <strong>Immediate Start:</strong> After data cleaning, PCA runs immediately and loads into the dashboard.
+        You can start exploring your data right away.<br/><br/>
+
+        <strong>Background Computation:</strong> While you explore the PCA view, other selected projections
+        (FastMap, t-SNE, UMAP) compute in the background without blocking your workflow.<br/><br/>
+
+        <strong>Notifications:</strong> When each projection finishes, you'll see a notification with an
+        option to switch to that view. The projection is automatically added to the dropdown.<br/><br/>
+
+        <strong>Progress Tracking:</strong> Check the projection status indicator in the top-right corner
+        of the dashboard to see which projections are ready, computing, or pending.
+      `
     }
   },
 

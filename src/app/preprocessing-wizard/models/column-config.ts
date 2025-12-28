@@ -38,20 +38,23 @@ export interface CleaningConfig {
 }
 
 export interface ProjectionConfig {
-  enablePCA: boolean;
-  enableTSNE: boolean;
-  enableUMAP: boolean;
-  enableEPSG: boolean;
+  enablePCA: boolean;         // Always enabled, runs first (foreground)
+  enableFastMap: boolean;     // NEW: FastMap projection (background)
+  enableTSNE: boolean;        // Now runs in JavaScript (background)
+  enableUMAP: boolean;        // Now runs in JavaScript (background)
 
-  // t-SNE parameters
+  // t-SNE parameters (DruidJS)
   tsnePerplexity: number;
   tsneIterations: number;
-  tsneLearningRate: number;
 
-  // UMAP parameters
+  // UMAP parameters (DruidJS)
   umapNeighbors: number;
   umapMinDist: number;
-  umapMetric: string;
+
+  // Deprecated/removed parameters:
+  // - tsneLearningRate: Not used by DruidJS t-SNE
+  // - umapMetric: DruidJS may not support custom metrics
+  // - enableEPSG: Not implementing geographic projection
 }
 
 export interface CleaningResult {

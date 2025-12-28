@@ -110,6 +110,17 @@ export class DataProcessorService {
     }
 
     /**
+     * Get processed features CSV exported by Python for JavaScript projections
+     * This is called after processWithConfig to retrieve the feature matrix
+     */
+    async getProcessedFeatures(): Promise<string> {
+        const result = await this.sendRequestUntil<WorkerReply & { type: 'processedFeatures' }>('processedFeatures', {
+            type: 'getProcessedFeatures'
+        });
+        return result.data;
+    }
+
+    /**
      * Observable for processing progress updates
      */
     get processingProgress(): Observable<{step: string; progress: number; message: string}> {

@@ -7,12 +7,9 @@ import json
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import StandardScaler, MinMaxScaler, RobustScaler, LabelEncoder
-from sklearn.decomposition import PCA
-from sklearn.manifold import TSNE
 
-# Dimensionality reduction configuration constants
-TSNE_WARNING_THRESHOLD = 5000      # Show warnings above this (will take longer)
-INCREMENTAL_PCA_THRESHOLD = 10000  # Use IncrementalPCA for large datasets
+# NOTE: Removed PCA, IncrementalPCA, TSNE imports - now handled by DruidJS in JavaScript
+# All dimensionality reduction is done in the browser for better UX
 
 # Feature building progress reporting
 FEATURE_BUILD_CHUNK_SIZE = 20000   # Report progress every N rows during feature list construction
@@ -268,132 +265,41 @@ def compute_projections(df, config):
     x_mean, x_std = float(X.mean()), float(X.std())
     print(f'[PCA Input] Features: {X.shape[1]}, Range: [{x_min:.3f}, {x_max:.3f}], Mean: {x_mean:.3f}, Std: {x_std:.3f}')
 
-    projections = []
+    # =======================================================================
+    # ALL PROJECTION CODE REMOVED - Now handled by DruidJS in JavaScript
+    # =======================================================================
+    #
+    # This function now ONLY exports processed features to CSV for JavaScript
+    # DruidJS will compute PCA, FastMap, t-SNE, and UMAP in the browser
+    #
+    # Benefits:
+    # - PCA loads immediately (no blocking wait)
+    # - Background projections don't freeze UI
+    # - UMAP now works (not limited by Pyodide)
+    # - Simpler Python code (just data cleaning/encoding)
+    # =======================================================================
 
-    # PCA - use IncrementalPCA for large datasets
-    if proj_config.get('enablePCA', True):
-        n_samples = len(X)
+    n_samples = len(X)
+    n_features = X.shape[1]
 
-        if n_samples > INCREMENTAL_PCA_THRESHOLD:
-            from sklearn.decomposition import IncrementalPCA
+    # Export processed features to CSV for JavaScript projections
+    report_progress('Exporting features for JavaScript projections', 60,
+                   f'Preparing {n_features} features, {n_samples:,} rows for DruidJS')
 
-            batch_size = min(1000, n_samples // 10)
-            report_progress('Computing PCA', 55,
-                f'Using IncrementalPCA: {n_samples:,} rows, batch_size={batch_size}, {X.shape[1]} features')
+    # Create DataFrame with ID column + all feature columns
+    feature_df = pd.DataFrame(X, columns=projection_cols)
+    feature_df.insert(0, 'ID', id_values)
 
-            pca = IncrementalPCA(n_components=2, batch_size=batch_size)
-            pca_result = pca.fit_transform(X)
+    # Write to CSV in Pyodide virtual filesystem
+    # JavaScript will read this file via worker communication
+    feature_df.to_csv('processed_features.csv', index=False)
 
-            # Log explained variance to verify PCA quality
-            explained_var = pca.explained_variance_ratio_
-            total_var = sum(explained_var)
-            report_progress('PCA computed', 60,
-                f'Variance: PC1={explained_var[0]:.1%}, PC2={explained_var[1]:.1%}, Total={total_var:.1%}')
-        else:
-            report_progress('Computing PCA', 55, f'Running PCA on {n_samples:,} rows')
-            pca = PCA(n_components=2, random_state=42)
-            pca_result = pca.fit_transform(X)
+    report_progress('Features exported', 70,
+                   f'Ready for JavaScript projections: {n_features} dims, {n_samples:,} rows')
 
-            # Log explained variance
-            explained_var = pca.explained_variance_ratio_
-            total_var = sum(explained_var)
-            report_progress('PCA computed', 60,
-                f'Variance: PC1={explained_var[0]:.1%}, PC2={explained_var[1]:.1%}, Total={total_var:.1%}')
-
-        # FIX: Vectorized construction with consistent ID types
-        # Keep IDs as numbers if they're numeric, otherwise as strings
-        projections.append({
-            'name': 'pca',
-            'data': [
-                {
-                    'id': (float(id_values[i]) if not isinstance(id_values[i], (str, np.str_))
-                           else str(id_values[i])),
-                    'x': float(pca_result[i, 0]),
-                    'y': float(pca_result[i, 1])
-                }
-                for i in range(len(df))
-            ]
-        })
-
-    # t-SNE with adaptive parameters (no hard limit)
-    if proj_config.get('enableTSNE', False):
-        n_samples = len(X)
-
-        # Adaptive perplexity: min(user_config, n_samples/3, 50)
-        # Ensures: 5 ≤ perplexity < n_samples and ≤ 50
-        user_perplexity = proj_config.get('tsnePerplexity', 30)
-        max_allowed = min(n_samples - 1, 50)
-        adaptive_perplexity = min(user_perplexity, max(5, n_samples // 3), max_allowed)
-
-        # Adaptive iterations - reduce for very large datasets
-        # Formula: scale down gradually for datasets > 2000 rows
-        user_iterations = proj_config.get('tsneIterations', 1000)
-        if n_samples > 10000:
-            # Very large: 10-20% of iterations
-            scale_factor = max(0.1, 0.2 - (n_samples - 10000) / 100000)
-            adaptive_iterations = int(user_iterations * scale_factor)
-        elif n_samples > 5000:
-            # Large: 20-50% of iterations
-            scale_factor = 0.2 + (10000 - n_samples) / 5000 * 0.3
-            adaptive_iterations = int(user_iterations * scale_factor)
-        elif n_samples > 2000:
-            # Medium-large: 50-75% of iterations
-            scale_factor = 0.5 + (5000 - n_samples) / 3000 * 0.25
-            adaptive_iterations = int(user_iterations * scale_factor)
-        else:
-            # Small-medium: 100% of iterations
-            adaptive_iterations = user_iterations
-
-        # Estimate processing time
-        if n_samples > 20000:
-            time_estimate = "15-30 minutes"
-        elif n_samples > 10000:
-            time_estimate = "5-15 minutes"
-        elif n_samples > 5000:
-            time_estimate = "2-5 minutes"
-        elif n_samples > 2000:
-            time_estimate = "1-2 minutes"
-        else:
-            time_estimate = "< 1 minute"
-
-        report_progress('Computing t-SNE', 65,
-            f't-SNE: {n_samples:,} rows, {adaptive_iterations} iter, est. {time_estimate}')
-
-        # t-SNE with verbose output
-        tsne = TSNE(
-            n_components=2,
-            perplexity=adaptive_perplexity,
-            n_iter=adaptive_iterations,
-            learning_rate=proj_config.get('tsneLearningRate', 200),
-            random_state=42,
-            verbose=1  # Enable console output for debugging
-        )
-
-        tsne_result = tsne.fit_transform(X)
-
-        # FIX: Vectorized construction with consistent ID types
-        projections.append({
-            'name': 'tsne',
-            'data': [
-                {
-                    'id': (float(id_values[i]) if not isinstance(id_values[i], (str, np.str_))
-                           else str(id_values[i])),
-                    'x': float(tsne_result[i, 0]),
-                    'y': float(tsne_result[i, 1])
-                }
-                for i in range(len(df))
-            ]
-        })
-
-        report_progress('t-SNE computed', 75,
-            f't-SNE completed ({adaptive_iterations} iterations)')
-
-    # UMAP (Uniform Manifold Approximation and Projection)
-    # NOT IMPLEMENTED: Requires umap-learn package (not available in Pyodide)
-    # Configuration preserved in UI for future implementation
-    # Note: UMAP would be faster than t-SNE for large datasets
-
-    return projections
+    # Return empty projections list - projections will be computed in JavaScript
+    # and added to the dataset after it's loaded into the dashboard
+    return []
 
 
 def build_dataset_collection(df_original, df_processed, feature_names, projections, config):
