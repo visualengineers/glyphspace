@@ -286,8 +286,10 @@ export class DataProviderService {
 
         // --- Create or update glyphs ---
         for (const feature of features) {
+            // Ensure ID is string for consistency
+            const idStr = String(feature.id);
 
-            let glyph = glyphMap.get(feature.id);
+            let glyph = glyphMap.get(idStr);
 
             // Create glyph only once
             if (!glyph) {
@@ -299,7 +301,7 @@ export class DataProviderService {
                     : 1;
                 glyph.positions = {};
 
-                glyphMap.set(feature.id, glyph);
+                glyphMap.set(idStr, glyph);
             }
 
             // Ensure timestamp bucket exists
