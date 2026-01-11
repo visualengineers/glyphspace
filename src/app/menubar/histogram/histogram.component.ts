@@ -42,7 +42,7 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
     active = false;
 
     private svg: any;
-    private margin = { top: 0, right: 18, bottom: 8, left: 8 };
+    private margin = { top: 6, right: 6, bottom: 6, left: 6 };
     private width = 300;
     private height = 60;
     private innerHeight = 60;
@@ -129,32 +129,78 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
         }
     }
 
-    private prepareStackedBins(): StackedBin[] {
-        const rawBins = Object.keys(this.histogramData)
-            .map(k => ({ bin: +k, value: this.histogramData[k] }))
-            .filter(d => d.value > 0)              // ✅ remove zero bins
-            .sort((a, b) => a.bin - b.bin);
+    // private prepareStackedBins(): StackedBin[] {
+    //     const rawBins = Object.keys(this.histogramData)
+    //         .map(k => ({ bin: +k, value: this.histogramData[k] }))
+    //         .filter(d => d.value > 0)              // remove zero bins
+    //         .sort((a, b) => a.bin - b.bin);
 
-        const GAP = 2;
+    //     const GAP = 2;
+    //     const MIN_WIDTH = 4;
+
+    //     const total = rawBins.reduce((sum, d) => sum + d.value, 0);
+
+    //     const xScale = d3.scaleLinear()
+    //         .domain([0, total])
+    //         .range([0, this.width]);
+
+    //     let cursor = 0;
+
+    //     const binsWithCoords: StackedBin[] = [];
+
+    //     rawBins.map((d, i) => {
+    //         const desiredWidth = xScale(d.value) - xScale(0);
+    //         let width = Math.max(desiredWidth, MIN_WIDTH);
+
+    //         if (i === rawBins.length - 1 && cursor + width > this.width) {
+    //             width = Math.max(Math.min(width, this.width - cursor), 0);
+    //         }
+
+    //         const x0 = cursor;
+    //         const x1 = x0 + width;
+
+    //         binsWithCoords.push({
+    //             ...d,
+    //             x0,
+    //             x1
+    //         });
+
+    //         cursor = x1 + GAP;
+    //     });
+    //     return binsWithCoords;
+    // }
+
+    private prepareStackedBins(): StackedBin[] {
+        const GAP = 1;
         const MIN_WIDTH = 6;
 
-        const total = rawBins.reduce((sum, d) => sum + d.value, 0);
+        // Filter non-zero bins and sort
+        const rawBins = Object.keys(this.histogramData)
+            .map(k => ({ bin: +k, value: this.histogramData[k] }))
+            .filter(d => d.value > 0)
+            .sort((a, b) => a.bin - b.bin);
 
-        const xScale = d3.scaleLinear()
-            .domain([0, total])
-            .range([0, this.width]);
+        const nBars = rawBins.length;
+        const totalValue = rawBins.reduce((sum, d) => sum + d.value, 0);
+        const totalGapWidth = GAP * (nBars - 1);
+        const availableWidth = this.width - totalGapWidth;
 
+        // First pass: proportional widths
+        let widths = rawBins.map(d => Math.max((d.value / totalValue) * availableWidth, MIN_WIDTH));
+
+        // Adjust widths if sum exceeds availableWidth
+        const totalWidth = widths.reduce((sum, w) => sum + w, 0);
+        if (totalWidth > availableWidth) {
+            const scaleDown = availableWidth / totalWidth;
+            widths = widths.map(w => w * scaleDown);
+        }
+
+        // Build x0/x1 cumulatively
         let cursor = 0;
-
-        return rawBins.map(d => {
-            const desiredWidth = xScale(d.value) - xScale(0);
-            const width = Math.max(desiredWidth, MIN_WIDTH);
-
+        return rawBins.map((d, i) => {
             const x0 = cursor;
-            const x1 = x0 + width;
-
+            const x1 = x0 + widths[i];
             cursor = x1 + GAP;
-
             return {
                 ...d,
                 x0,
@@ -240,8 +286,6 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
     private drawNumericHistogram(): void {
         if (!this.histogramData || !this.svg) return;
 
-        const container = this.histogramContainer.nativeElement;
-
         const bins = Object.keys(this.histogramData)
             .map(k => ({ bin: +k, value: this.histogramData[k] }));
 
@@ -250,6 +294,7 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
             .range([0, this.width]);
 
         const maxVal = d3.max(bins, d => d.value) || 1;
+
         this.yScale = d3.scaleLinear()
             .domain([0, maxVal])
             .range([this.innerHeight, 0]);
@@ -351,12 +396,12 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
 
     private filteringFromBins(selectedBins: number[]): void {
         this.clearFeatureFilters();
-        
+
         if (!selectedBins || selectedBins.length === 0) {
             this.dataProvider.refreshFilters();
             this.configuration.redraw();
             return;
-        }        
+        }
 
         const steps = 1 / Object.keys(this.histogramData).length;
 
