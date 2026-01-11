@@ -53,6 +53,7 @@
             [dataProvider]="dataProvider"
             [histogramData]="features[featureId].histogram"
             [label]="getFeatureName(featureId)"
+            [type]="getFeatureType(featureId)"
             [property]="featureId">
           </app-histogram>
         </div>

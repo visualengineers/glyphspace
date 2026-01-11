@@ -3,6 +3,7 @@ export type Histogram = {
 };
 
 export type FeatureStats = {
+  type: string; // "categorical" | "numeric"
   histogram: Histogram;
   max: number;
   min: number;
