@@ -93,6 +93,10 @@ export class SettingsControlPanelComponent {
     });
   }
 
+  hideMenus() {
+    this.activeSetting = null;
+  }
+
   showPanel() {
     this.panelVisible = true;
   }

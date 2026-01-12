@@ -955,9 +955,12 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
   onDocumentClick(event: MouseEvent) {
     const clickedInside = this.sceneContainer?.nativeElement.contains(event.target as Node);
     if (!clickedInside) {
-      this.canvasActivated = false;             // revert border
+      this.canvasActivated = false; // revert border
       this.settingsPanel.hidePanel();
-      // this.activeSettingPanelVisible = false;   // hide panel
+    } else {
+      if ((event.target as HTMLElement).localName === "canvas") {
+        this.settingsPanel.hideMenus();
+      }
     }
   }
 
