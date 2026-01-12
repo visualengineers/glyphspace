@@ -52,6 +52,7 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
     private brush: any;
     private brushSelection: [number, number] | null = null;
     private selectedBins = new Set<number>();
+    private cachedStackedBins: StackedBin[] | null = null;
 
     private defaultBarColor = '#333'; // dark gray
     private colorScale: ColorScale = COLOR_SCALES[0];
@@ -120,6 +121,9 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
     private updateChart(): void {
         if (!this.svg || !this.histogramData) return;
 
+        // Clear cached bins when data changes
+        this.cachedStackedBins = null;
+
         this.svg.selectAll('*').remove();
 
         // Validate and infer effective type based on data characteristics
@@ -135,22 +139,28 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
     /**
      * Determine the effective rendering type based on declared type and data characteristics.
      * If categorical type has too many bins, fall back to numeric histogram.
+     * Uses cached stacked bins to avoid duplicating prepareStackedBins logic.
      */
     private getEffectiveType(): string {
-        const binCount = Object.keys(this.histogramData).length;
-        const MAX_CATEGORICAL_BINS = 20;
+        // Prepare stacked bins once and cache for reuse
+        if (!this.cachedStackedBins) {
+            this.cachedStackedBins = this.prepareStackedBins();
+        }
 
-        // If declared as categorical but has too many bins, treat as numeric
-        if (this.type === 'categorical' && binCount > MAX_CATEGORICAL_BINS) {
+        const nonZeroBinCount = this.cachedStackedBins.length;
+        const MAX_CATEGORICAL_BINS = 40;
+
+        // If declared as categorical but has too many non-zero bins, treat as numeric
+        if (this.type === 'categorical' && nonZeroBinCount > MAX_CATEGORICAL_BINS) {
             console.warn(
-                `Feature "${this.property}" has ${binCount} categories (>${MAX_CATEGORICAL_BINS}), rendering as numeric histogram`
+                `Feature "${this.property}" has ${nonZeroBinCount} categories (>${MAX_CATEGORICAL_BINS}), rendering as numeric histogram`
             );
             return 'numeric';
         }
 
-        // If no type specified, infer from bin count
+        // If no type specified, infer from non-zero bin count
         if (!this.type || this.type === 'unknown') {
-            return binCount <= 10 ? 'categorical' : 'numeric';
+            return nonZeroBinCount <= 10 ? 'categorical' : 'numeric';
         }
 
         return this.type;
@@ -261,7 +271,8 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
         // Clear brush selection when switching to categorical mode
         this.brushSelection = null;
 
-        const bins = this.prepareStackedBins();
+        // Use cached bins if available, otherwise prepare them
+        const bins = this.cachedStackedBins || this.prepareStackedBins();
         const tooltip = this.createTooltip();
 
         this.svg.selectAll('*').remove();
