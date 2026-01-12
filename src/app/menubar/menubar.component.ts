@@ -63,7 +63,7 @@ export class MenuBarComponent implements OnInit, OnDestroy {
     }
 
     download() {
-        console.log('Download clicked');
+        if (this.selectedDataset) this.dataProvider.exportFilteredGlyphsAsCSV(this.selectedDataset);
     }
 
     fitAll() {

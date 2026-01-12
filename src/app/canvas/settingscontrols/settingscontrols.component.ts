@@ -56,6 +56,7 @@ export class SettingsControlPanelComponent {
   @Input() selectedContext!: string;
 
   @Output() fitToView = new EventEmitter<void>();
+  @Output() takeScreenshot = new EventEmitter<void>();
   @Output() delete = new EventEmitter<void>();
   @Output() toggleCollision = new EventEmitter<void>();
   @Output() toggleAggregation = new EventEmitter<void>();

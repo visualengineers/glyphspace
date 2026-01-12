@@ -399,6 +399,17 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
+  takeScreenshot() {
+    exportThreeSceneAsPNG(this.renderer, this.scene, this.camera,
+      {
+        filename: "three-scene-" + this.id + ".png",
+        scaleFactor: 2,
+        restoreAfterExport: true,
+        canvasElement: this.canvasContainer.nativeElement
+      }
+    )
+  }
+
   fitToView() {
     if (this.collisionAvoidance) this.toggleCollisionAvoidance();
 
@@ -974,13 +985,16 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
     if (event.key.toLowerCase() === 'd') {
       this.toggleSettings();
     }
+    if (event.key.toLowerCase() === 'n') {
+      if (this.selectionMode) this.toggleSelectionMode();
+      if (this.magicLensComponent.isActive()) this.toggleMagicLens();
+    }
     if (event.key.toLowerCase() === 's') {
       this.toggleSelectionMode();
     }
     if (event.key.toLowerCase() === 'x') {
       this.renderGlyphs();
     }
-    // TODO: Magic lens feature is broken
     if (event.key.toLowerCase() === 'l') {
       this.clearHoveredGlyph();
       this.toggleMagicLens();
