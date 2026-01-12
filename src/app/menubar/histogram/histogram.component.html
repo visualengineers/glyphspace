@@ -1,13 +1,15 @@
 <div class="histogram-item">
   <div class="histogram-label">
     {{ label }}
-    <button class="expander" [class.active]="active" (click)="changed()"
-      [title]="active ? 'remove from glyph' : 'add to glyph'" type="button">
-      <i class="material-icons">
-        {{ active ? 'remove' : 'add' }}
-      </i>
-    </button>
+    <div class="right-controls">
+      <span class="type-tag">{{ type }}</span>
+      <button class="expander" [class.active]="active" (click)="changed()"
+        [title]="active ? 'remove from glyph' : 'add to glyph'" type="button">
+        <i class="material-icons">
+          {{ active ? 'remove' : 'add' }}
+        </i>
+      </button>
+    </div>
   </div>
   <div #histogramContainer class="histogram-container"></div>
-  <div #colorContainer class="color-container" [hidden]="configuration.colorFeature !== property"></div>
 </div>

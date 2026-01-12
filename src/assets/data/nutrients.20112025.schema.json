@@ -25,6 +25,24 @@
         "15": "monounsat (g)",
         "16": "polyunsat (g)"
     },
+    "types": {
+        "1": "categorical",
+        "2": "categorical",
+        "3": "numeric",
+        "4": "numeric",
+        "5": "numeric",
+        "6": "numeric",
+        "7": "numeric",
+        "8": "numeric",
+        "9": "numeric",
+        "10": "numeric",
+        "11": "numeric",
+        "12": "numeric",
+        "13": "numeric",
+        "14": "numeric",
+        "15": "numeric",
+        "16": "numeric"
+    },
     "tooltip": [
         "1",
         "2",
