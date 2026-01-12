@@ -1,0 +1,36 @@
+.box-plot {
+  display: block;
+
+  .whisker,
+  .whisker-cap,
+  .median {
+    transition: stroke-width 0.2s ease;
+  }
+
+  .box {
+    transition: fill-opacity 0.2s ease;
+  }
+
+  .mean {
+    transition: r 0.2s ease;
+  }
+
+  &:hover {
+    .whisker,
+    .whisker-cap {
+      stroke-width: 2;
+    }
+
+    .median {
+      stroke-width: 2.5;
+    }
+
+    .box {
+      fill-opacity: 0.3;
+    }
+
+    .mean {
+      r: 4;
+    }
+  }
+}

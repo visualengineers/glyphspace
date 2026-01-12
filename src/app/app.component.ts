@@ -6,13 +6,14 @@ import { DataProviderService } from './services/dataprovider.service';
 import { DashboardComponent } from './dashboard/dashboard.component';
 import { checkTextInput } from './shared/helpers/angular-helper';
 import { MenuBarComponent } from "./menubar/menubar.component";
+import { ToastComponent } from './shared/components/toast/toast.component';
 
 interface GlyphCanvasItem { id: number, row: number, col: number }
 
 @Component({
   standalone: true,
   selector: 'app-root',
-  imports: [CommonModule, GlyphCanvasComponent, MenuBarComponent],
+  imports: [CommonModule, GlyphCanvasComponent, MenuBarComponent, ToastComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss'
 })

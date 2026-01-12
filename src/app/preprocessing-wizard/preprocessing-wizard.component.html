@@ -1,0 +1,57 @@
+<div class="preprocessing-wizard">
+  <div class="wizard-header">
+    <div class="header-content">
+      <h1>Data Preprocessing Wizard</h1>
+      <div class="header-actions">
+        <button class="btn-icon" (click)="reset()" title="Start Over">
+          <span class="material-icons">refresh</span>
+        </button>
+        <button class="btn-icon" (click)="closeWizard()" title="Close">
+          <span class="material-icons">close</span>
+        </button>
+      </div>
+    </div>
+
+    <app-progress-stepper
+      [steps]="steps"
+      [currentStep]="currentStep"
+      (stepClick)="onStepClick($event)">
+    </app-progress-stepper>
+  </div>
+
+  <div class="wizard-content">
+    @if (error) {
+      <div class="error-banner">
+        <span class="material-icons">error</span>
+        <span>{{ error }}</span>
+        <button class="btn-close" (click)="error = null">
+          <span class="material-icons">close</span>
+        </button>
+      </div>
+    }
+
+    <div class="step-container">
+      @switch (currentStep) {
+        @case (0) {
+          <app-step1-upload (dataLoaded)="onDataLoaded($event)"></app-step1-upload>
+        }
+        @case (1) {
+          <app-step2-column-selection (continue)="nextStep()"></app-step2-column-selection>
+        }
+        @case (2) {
+          <app-step3-data-cleaning (continue)="nextStep()"></app-step3-data-cleaning>
+        }
+        @case (3) {
+          <app-step4-feature-config></app-step4-feature-config>
+        }
+        @case (4) {
+          <app-step5-projection-settings></app-step5-projection-settings>
+        }
+        @case (5) {
+          <app-step6-review-process (finish)="onWizardComplete()"></app-step6-review-process>
+        }
+      }
+    </div>
+  </div>
+
+</div>

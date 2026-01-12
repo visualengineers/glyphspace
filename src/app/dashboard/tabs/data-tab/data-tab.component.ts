@@ -4,10 +4,11 @@ import { DataProviderService } from '../../../services/dataprovider.service';
 import { ConfigService } from '../../../services/config.service';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { PreprocessingWizardComponent } from '../../../preprocessing-wizard/preprocessing-wizard.component';
 
 @Component({
   selector: 'app-data-tab',
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, PreprocessingWizardComponent],
   templateUrl: './data-tab.component.html',
   styleUrl: './data-tab.component.scss'
 })
@@ -16,6 +17,7 @@ export class DataTabComponent implements OnInit, OnDestroy {
   datasetNames: string[] = [];
 
   selectedDataset: string | null = null;
+  showWizard = false;
 
   private dataSub = new Subscription();
 
@@ -46,5 +48,13 @@ export class DataTabComponent implements OnInit, OnDestroy {
 
   onContextSelect(context: string) {
     // Do something with selected context
+  }
+
+  openPreprocessingWizard() {
+    this.showWizard = true;
+  }
+
+  closePreprocessingWizard() {
+    this.showWizard = false;
   }
 }
