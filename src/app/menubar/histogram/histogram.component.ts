@@ -122,11 +122,38 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
 
         this.svg.selectAll('*').remove();
 
-        if (this.type === 'numeric') {
+        // Validate and infer effective type based on data characteristics
+        const effectiveType = this.getEffectiveType();
+
+        if (effectiveType === 'numeric') {
             this.drawNumericHistogram();
         } else {
             this.drawCategoricalStack();
         }
+    }
+
+    /**
+     * Determine the effective rendering type based on declared type and data characteristics.
+     * If categorical type has too many bins, fall back to numeric histogram.
+     */
+    private getEffectiveType(): string {
+        const binCount = Object.keys(this.histogramData).length;
+        const MAX_CATEGORICAL_BINS = 20;
+
+        // If declared as categorical but has too many bins, treat as numeric
+        if (this.type === 'categorical' && binCount > MAX_CATEGORICAL_BINS) {
+            console.warn(
+                `Feature "${this.property}" has ${binCount} categories (>${MAX_CATEGORICAL_BINS}), rendering as numeric histogram`
+            );
+            return 'numeric';
+        }
+
+        // If no type specified, infer from bin count
+        if (!this.type || this.type === 'unknown') {
+            return binCount <= 10 ? 'categorical' : 'numeric';
+        }
+
+        return this.type;
     }
 
     // private prepareStackedBins(): StackedBin[] {
@@ -231,6 +258,9 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
     private drawCategoricalStack(): void {
         if (!this.histogramData || !this.svg) return;
 
+        // Clear brush selection when switching to categorical mode
+        this.brushSelection = null;
+
         const bins = this.prepareStackedBins();
         const tooltip = this.createTooltip();
 
@@ -285,6 +315,9 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
 
     private drawNumericHistogram(): void {
         if (!this.histogramData || !this.svg) return;
+
+        // Clear categorical selection when switching to numeric mode
+        this.selectedBins.clear();
 
         const bins = Object.keys(this.histogramData)
             .map(k => ({ bin: +k, value: this.histogramData[k] }));
@@ -403,20 +436,38 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
             return;
         }
 
-        const steps = 1 / Object.keys(this.histogramData).length;
+        const effectiveType = this.getEffectiveType();
+        const totalBins = Object.keys(this.histogramData).length;
 
-        selectedBins.forEach(bin => {
-            const minValue = bin * steps;
-            const maxValue = Math.min((bin + 1) * steps, 1.0);
+        if (effectiveType === 'categorical') {
+            // For categorical: Filter by discrete bin indices
+            // Each bin represents a distinct category, not a continuous range
+            selectedBins.forEach(bin => {
+                const filter = new FeatureFilter(this.property);
 
-            const filter = new FeatureFilter(this.property);
+                // Calculate the exact normalized range for this specific bin
+                const binWidth = 1 / totalBins;
+                filter.minValue = bin * binWidth;
+                filter.maxValue = (bin + 1) * binWidth;
+                filter.filterMode = FilterMode.Or;
 
-            filter.minValue = minValue;
-            filter.maxValue = maxValue;
-            filter.filterMode = FilterMode.Or;
+                this.dataProvider.getFilters().push(filter);
+            });
+        } else {
+            // For numeric: Filter by continuous range
+            // Bins represent ranges of continuous values
+            const steps = 1 / totalBins;
 
-            this.dataProvider.getFilters().push(filter);
-        });
+            selectedBins.forEach(bin => {
+                const filter = new FeatureFilter(this.property);
+
+                filter.minValue = bin * steps;
+                filter.maxValue = Math.min((bin + 1) * steps, 1.0);
+                filter.filterMode = FilterMode.Or;
+
+                this.dataProvider.getFilters().push(filter);
+            });
+        }
 
         this.dataProvider.refreshFilters();
         this.configuration.redraw();

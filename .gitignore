@@ -45,3 +45,4 @@ Thumbs.db
 /.angular/cache 
 /src/assets/__pycache__
 /src/assets/tests
+.claude/settings.local.json
