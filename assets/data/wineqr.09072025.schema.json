@@ -21,6 +21,20 @@
         "11": "alcohol",
         "12": "quality"
     },
+    "types": {
+        "1": "numeric",
+        "2": "numeric",
+        "3": "numeric",
+        "4": "numeric",
+        "5": "numeric",
+        "6": "numeric",
+        "7": "numeric",
+        "8": "numeric",
+        "9": "numeric",
+        "10": "numeric",
+        "11": "numeric",
+        "12": "categorical"
+    },
     "tooltip": [
         "1",
         "2",
