@@ -8,6 +8,7 @@ import { DataProviderService } from '../../../services/dataprovider.service';
 import { HelpTooltipComponent } from '../../shared/help-tooltip/help-tooltip.component';
 import { STEP_INFO } from '../../shared/constants/step-info';
 import { ProjectionService, ProjectionResult } from '../../../services/projection.service';
+import { ToastService } from '../../../services/toast.service';
 
 @Component({
   selector: 'app-step6-review-process',
@@ -52,6 +53,7 @@ export class Step6ReviewProcessComponent implements OnInit, OnDestroy {
     public preprocessingService: PreprocessingService,
     private dataProvider: DataProviderService,
     private projectionService: ProjectionService,
+    private toastService: ToastService,
     private cdr: ChangeDetectorRef,
     private ngZone: NgZone
   ) { }
@@ -141,61 +143,6 @@ export class Step6ReviewProcessComponent implements OnInit, OnDestroy {
       case DataType.ID: return 'badge-id';
       default: return 'badge-unknown';
     }
-  }
-
-  /**
-   * Download configuration as JSON
-   */
-  downloadConfiguration(): void {
-    try {
-      const config = this.preprocessingService.exportConfiguration();
-      const blob = new Blob([config], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${this.preprocessingService.currentState.datasetName}_config.json`;
-      link.click();
-
-      URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error('Failed to download configuration:', error);
-      this.error = 'Failed to download configuration';
-    }
-  }
-
-  /**
-   * Import configuration from JSON file
-   */
-  importConfiguration(): void {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.json';
-
-    input.onchange = (event: any) => {
-      const file = event.target.files?.[0];
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = (e: any) => {
-        try {
-          const json = e.target.result;
-          this.preprocessingService.importConfiguration(json);
-
-          // Reload the component data
-          this.ngOnInit();
-
-          // Show success message (could be enhanced with a toast notification)
-          alert('Configuration imported successfully!');
-        } catch (error: any) {
-          console.error('Failed to import configuration:', error);
-          this.error = error.message || 'Failed to import configuration. Please check the file format.';
-        }
-      };
-      reader.readAsText(file);
-    };
-
-    input.click();
   }
 
   /**
@@ -377,16 +324,20 @@ export class Step6ReviewProcessComponent implements OnInit, OnDestroy {
 
       console.log(`${name} projection complete in ${(result.computeTime / 1000).toFixed(1)}s`);
 
-      // TODO: Show toast notification when implemented
-      // this.showToast(
-      //   `${name} projection ready! (${(result.computeTime / 1000).toFixed(1)}s)`,
-      //   'success'
-      // );
+      // Show success toast notification
+      this.ngZone.run(() => {
+        this.toastService.success(
+          `${name} projection ready! (${(result.computeTime / 1000).toFixed(1)}s)`,
+          4000
+        );
+      });
 
     } catch (error: any) {
       console.error(`${name} projection failed:`, error);
-      // TODO: Show error toast when implemented
-      // this.showToast(`${name} projection failed: ${error.message}`, 'error');
+      // Show error toast notification
+      this.ngZone.run(() => {
+        this.toastService.error(`${name} projection failed: ${error.message}`, 6000);
+      });
     }
   }
 

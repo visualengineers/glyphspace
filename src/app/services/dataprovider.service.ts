@@ -286,14 +286,14 @@ export class DataProviderService {
 
         // --- Create or update glyphs ---
         for (const feature of features) {
-            // Ensure ID is string for consistency
+            // Always normalize ID to string for consistent lookups
             const idStr = String(feature.id);
 
             let glyph = glyphMap.get(idStr);
 
             // Create glyph only once
             if (!glyph) {
-                glyph = new GlyphObject(feature.id, this.config, this.dataProcessor);
+                glyph = new GlyphObject(idStr, this.config, this.dataProcessor);
                 glyph.features = feature.features;
                 glyph.values = feature.values;
                 glyph.defaultcontext = feature.defaultcontext
@@ -315,12 +315,12 @@ export class DataProviderService {
             console.log(`[DataProvider] Adding ${entries.length} positions for algorithm: ${algorithm}`);
             let matchCount = 0;
             for (const posEntry of entries) {
-                // Ensure ID is string for consistency
+                // Always normalize position ID to string for consistent lookups
                 const idStr = String(posEntry.id);
                 const glyph = glyphMap.get(idStr);
                 if (!glyph) {
                     if (matchCount === 0) {
-                        console.warn(`[DataProvider] No glyph found for ID: ${idStr} (type: ${typeof posEntry.id})`);
+                        console.warn(`[DataProvider] No glyph found for ID: ${idStr}`);
                         console.log(`[DataProvider] Available glyph IDs sample:`, Array.from(glyphMap.keys()).slice(0, 5));
                     }
                     continue;

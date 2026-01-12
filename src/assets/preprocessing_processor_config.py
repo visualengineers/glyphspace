@@ -11,8 +11,8 @@ from sklearn.preprocessing import StandardScaler, MinMaxScaler, RobustScaler, La
 # NOTE: Removed PCA, IncrementalPCA, TSNE imports - now handled by DruidJS in JavaScript
 # All dimensionality reduction is done in the browser for better UX
 
-# Feature building progress reporting
-FEATURE_BUILD_CHUNK_SIZE = 20000   # Report progress every N rows during feature list construction
+# Feature building progress reporting and chunking
+FEATURE_BUILD_CHUNK_SIZE = 5000    # Process and report progress in chunks for better responsiveness
 
 # Progress callback - will be set by worker
 progress_callback = None
@@ -312,76 +312,45 @@ def build_dataset_collection(df_original, df_processed, feature_names, projectio
     # Pre-extract original column values for O(1) access (avoids slow pandas iloc)
     # This optimization provides 40-50% speedup for large datasets
     original_values_cache = {}
-    base_col_map = {}  # feature_col -> base_col mapping
-    onehot_category_map = {}  # feature_col -> category for one-hot encoded
-    onehot_base_cols = set()  # Track which base columns are one-hot encoded
+    base_col_list = []  # Pre-built list of base columns for each feature (array indexing)
+    use_cache = []  # Boolean array indicating if we should use cache for this feature
 
     for col in feature_names:
-        base_col = col.split('_')[0]
-        base_col_map[col] = base_col
+        base_col = col.split('_')[0] if '_' in col else col
+        base_col_list.append(base_col)
 
-        if base_col in df_original.columns and base_col not in original_values_cache:
-            # Cache the entire column as numpy array for O(1) access
-            original_values_cache[base_col] = df_original[base_col].values
+        if base_col in df_original.columns:
+            if base_col not in original_values_cache:
+                # Cache the entire column as numpy array for O(1) access
+                original_values_cache[base_col] = df_original[base_col].values
+            use_cache.append(True)
+        else:
+            use_cache.append(False)
 
-        if '_' in col and base_col not in df_original.columns:
-            # One-hot encoded column - extract category name
-            onehot_category_map[col] = col.split('_', 1)[1]
-            onehot_base_cols.add(base_col)
-
-    # Build features list with optimized lookups and progress reporting
+    # Build features list with optimized vectorized lookups and progress reporting
     features_list = []
     n_rows = len(df_processed)
     last_progress = 85
+    n_features = len(feature_names)
 
+    # Process in chunks for better progress reporting and responsiveness
     for idx in range(n_rows):
-        # FIX: Keep ID as original type (number if numeric) for consistent lookups
-        row_id = id_values[idx]
-        # Convert to string only if it's not already numeric
-        if isinstance(row_id, (str, np.str_)):
-            row_id = str(row_id)
-        else:
-            # Keep as float/int for numeric IDs to match position IDs
-            row_id = float(row_id) if not np.isnan(float(row_id)) else str(row_id)
+        # Always convert ID to string for consistency across the system
+        row_id = str(id_values[idx])
 
-        # Feature values (normalized) - already vectorized
-        feature_dict = {str(i + 1): float(feature_values[idx, i]) for i in range(len(feature_names))}
+        # Feature values (normalized) - single vectorized dict comprehension
+        feature_dict = {str(i + 1): float(feature_values[idx, i]) for i in range(n_features)}
 
-        # FIX: Build value_dict showing original column values
-        # For one-hot encoded columns, only show the active category value
+        # Build value_dict - optimized with pre-built arrays
         value_dict = {}
-        processed_onehot_bases = set()  # Track which one-hot base columns we've already added
-
-        for i, col in enumerate(feature_names):
-            base_col = base_col_map[col]  # O(1) lookup instead of split
-
-            if base_col in original_values_cache:
+        for i in range(n_features):
+            if use_cache[i]:
                 # Fast O(1) numpy array access - direct column from original data
-                orig_val = original_values_cache[base_col][idx]
+                orig_val = original_values_cache[base_col_list[i]][idx]
                 value_dict[str(i + 1)] = str(orig_val) if pd.notna(orig_val) else '0'
-            elif col in onehot_category_map and base_col not in processed_onehot_bases:
-                # One-hot encoded - find which category is active (value = 1)
-                # Only process each one-hot base column once
-                active_category = None
-                for j, other_col in enumerate(feature_names):
-                    if base_col_map[other_col] == base_col and other_col in onehot_category_map:
-                        if feature_values[idx, j] > 0.5:  # This category is active
-                            active_category = onehot_category_map[other_col]
-                            break
-
-                # Store the active category value (or first category if none active)
-                if active_category:
-                    value_dict[str(i + 1)] = active_category
-                else:
-                    # If no category is active, use the first one's category as fallback
-                    value_dict[str(i + 1)] = onehot_category_map.get(col, '0')
-
-                processed_onehot_bases.add(base_col)
-            elif col not in onehot_category_map or base_col in processed_onehot_bases:
-                # Skip duplicate one-hot columns (already processed)
-                if base_col in processed_onehot_bases:
-                    continue
-                value_dict[str(i + 1)] = '0'
+            else:
+                # Fallback for derived columns
+                value_dict[str(i + 1)] = str(feature_values[idx, i])
 
         features_list.append({
             'id': row_id,
@@ -390,7 +359,7 @@ def build_dataset_collection(df_original, df_processed, feature_names, projectio
             'values': value_dict
         })
 
-        # Progress reporting every FEATURE_BUILD_CHUNK_SIZE rows
+        # Progress reporting every FEATURE_BUILD_CHUNK_SIZE rows for better UX
         if (idx + 1) % FEATURE_BUILD_CHUNK_SIZE == 0:
             # Progress scales from 85% to 93% (8% total for feature building)
             progress = 85 + int(((idx + 1) / n_rows) * 8)
@@ -414,22 +383,8 @@ def build_dataset_collection(df_original, df_processed, feature_names, projectio
             color_feature_idx = i + 1
             break
 
-    # Build improved labels (show base column names for one-hot encoded features)
-    improved_labels = {}
-    seen_base_cols = set()
-
-    for i, col in enumerate(feature_names):
-        base_col = col.split('_')[0]
-
-        # For one-hot encoded columns, use base column name only once
-        if base_col in onehot_base_cols:
-            if base_col not in seen_base_cols:
-                improved_labels[str(i + 1)] = base_col
-                seen_base_cols.add(base_col)
-            # Skip duplicate one-hot columns in labels
-        else:
-            # Regular columns - use as-is
-            improved_labels[str(i + 1)] = col
+    # Build labels - simple mapping since label encoding is default (no one-hot explosion)
+    improved_labels = {str(i + 1): col for i, col in enumerate(feature_names)}
 
     # Build glyph feature mapping from user selection
     user_glyph_features = config.get('glyphFeatures', [])
@@ -469,26 +424,34 @@ def build_dataset_collection(df_original, df_processed, feature_names, projectio
             except ValueError:
                 print(f'[WARNING] Tooltip feature not found: {feature_name}')
     else:
-        # Default: include non-duplicate features
-        tooltip_features = []
-        seen_tooltip_bases = set()
-
-        for i, col in enumerate(feature_names):
-            base_col = col.split('_')[0]
-
-            # Only add first occurrence of one-hot encoded base columns
-            if base_col in onehot_base_cols:
-                if base_col not in seen_tooltip_bases:
-                    tooltip_features.append(str(i + 1))
-                    seen_tooltip_bases.add(base_col)
-            else:
-                # Regular columns - always include
-                tooltip_features.append(str(i + 1))
+        # Default: include all features (simplified - no one-hot duplicates with label encoding)
+        tooltip_features = [str(i + 1) for i in range(len(feature_names))]
 
     # Get color scale mode from config (auto-detected in wizard)
     color_scale_mode = config.get('colorScaleMode', 'continuous')
     # Convert to boolean for compatibility: true = continuous (rangeColor), false = categorical (categoryColor)
     color_range_boolean = (color_scale_mode == 'continuous')
+
+    # Build types mapping (feature ID -> original data type)
+    feature_types = {}
+    for i, col in enumerate(feature_names):
+        base_col = col.split('_')[0] if '_' in col else col
+        col_config = column_configs.get(base_col, {})
+        # Get original data type (before encoding/processing)
+        original_type = col_config.get('dataType', 'unknown')
+
+        # Map to schema-friendly type names
+        type_map = {
+            'numeric': 'numeric',
+            'categorical': 'categorical',
+            'text': 'text',
+            'date': 'date',
+            'time': 'date',  # Map time to date
+            'boolean': 'boolean',
+            'id': 'id',
+            'coordinate': 'numeric'  # Coordinates are numeric
+        }
+        feature_types[str(i + 1)] = type_map.get(original_type, 'unknown')
 
     schema = {
         'color': str(color_feature_idx) if color_feature_idx else ('1' if feature_names else None),
@@ -496,6 +459,7 @@ def build_dataset_collection(df_original, df_processed, feature_names, projectio
         'label': improved_labels,
         'tooltip': tooltip_features,  # User-defined or default
         'colorRange': color_range_boolean,  # Auto-detected color scale mode
+        'types': feature_types,  # NEW: Original data types for each feature
         'variantcontext': {
             '1': {
                 'id': '1',
@@ -518,8 +482,8 @@ def build_dataset_collection(df_original, df_processed, feature_names, projectio
         col_variance = float(np.var(col_values))
         col_std = float(np.std(col_values))
 
-        # Histogram - reduced from 50 to 25 bins for 50% faster computation
-        counts, _ = np.histogram(col_values, bins=25, density=True)
+        # Histogram - reduced to 20 bins for faster computation and smaller JSON
+        counts, _ = np.histogram(col_values, bins=20, density=True)
         histogram = {str(j): float(count) for j, count in enumerate(counts)}
 
         meta_features[str(i + 1)] = {

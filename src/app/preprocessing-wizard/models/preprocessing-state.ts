@@ -42,8 +42,7 @@ export interface ProcessingProgress {
 }
 
 export const DEFAULT_CLEANING_CONFIG: CleaningConfig = {
-  removeDuplicates: false,
-  oneHotThreshold: 10
+  removeDuplicates: false
 };
 
 export const DEFAULT_PROJECTION_CONFIG: ProjectionConfig = {

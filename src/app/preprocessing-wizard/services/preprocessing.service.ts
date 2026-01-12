@@ -80,18 +80,9 @@ export class PreprocessingService {
     this.updateState({ isProcessing: true, error: null });
 
     try {
-      let buffer: ArrayBuffer;
-      let fileName: string;
-
-      // Check if file is Parquet and convert to CSV if needed
-      if (file.name.toLowerCase().endsWith('.parquet')) {
-        const result = await this.convertParquetToCSV(file);
-        buffer = result.buffer;
-        fileName = result.fileName;
-      } else {
-        buffer = await file.arrayBuffer();
-        fileName = file.name;
-      }
+      // Load CSV file directly
+      const buffer = await file.arrayBuffer();
+      const fileName = file.name;
 
       // Send file to worker for profiling
       const profile = await this.dataProcessor.profileData(fileName, buffer);
@@ -103,7 +94,7 @@ export class PreprocessingService {
       });
 
       // Generate dataset name and timestamp
-      const datasetName = file.name.replace(/\.(csv|parquet)$/i, '');
+      const datasetName = file.name.replace(/\.csv$/i, '');
       const timestamp = new Date().toISOString().split('T')[0].replace(/-/g, '');
 
       this.updateState({
@@ -127,70 +118,6 @@ export class PreprocessingService {
     }
   }
 
-  private async convertParquetToCSV(file: File): Promise<{ buffer: ArrayBuffer; fileName: string }> {
-    try {
-      // Dynamically import parquet-wasm
-      const parquetWasm = await import('parquet-wasm/esm');
-      await parquetWasm.default();
-
-      // Read Parquet file
-      const arrayBuffer = await file.arrayBuffer();
-      const parquetData = new Uint8Array(arrayBuffer);
-
-      // Parse Parquet file to Arrow table
-      const arrowTable = parquetWasm.readParquet(parquetData);
-
-      // Convert Arrow table to CSV
-      const csvString = this.arrowTableToCSV(arrowTable);
-
-      // Convert CSV string to ArrayBuffer
-      const encoder = new TextEncoder();
-      const csvBuffer = encoder.encode(csvString).buffer;
-
-      // Generate CSV filename
-      const csvFileName = file.name.replace(/\.parquet$/i, '.csv');
-
-      return { buffer: csvBuffer, fileName: csvFileName };
-    } catch (error: any) {
-      throw new Error(`Failed to convert Parquet file: ${error.message}`);
-    }
-  }
-
-  private arrowTableToCSV(table: any): string {
-    const numRows = table.numRows;
-    const schema = table.schema;
-    const fields = schema.fields;
-
-    // Build CSV header
-    const headers = fields.map((field: any) => field.name);
-    const rows: string[] = [headers.join(',')];
-
-    // Extract data row by row
-    for (let i = 0; i < numRows; i++) {
-      const rowValues: string[] = [];
-      for (const field of fields) {
-        const column = table.getChild(field.name);
-        const value = column.get(i);
-
-        // Handle null values and escape commas/quotes
-        if (value === null || value === undefined) {
-          rowValues.push('');
-        } else {
-          const stringValue = String(value);
-          // Escape quotes and wrap in quotes if contains comma or quote
-          if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
-            rowValues.push(`"${stringValue.replace(/"/g, '""')}"`);
-          } else {
-            rowValues.push(stringValue);
-          }
-        }
-      }
-      rows.push(rowValues.join(','));
-    }
-
-    return rows.join('\n');
-  }
-
   private createDefaultColumnConfig(col: ColumnStatistics): ColumnConfig {
     let encodingMethod = EncodingMethod.None;
     let scalingMethod = ScalingMethod.None;
@@ -203,9 +130,8 @@ export class PreprocessingService {
         scalingMethod = ScalingMethod.MinMax;
         break;
       case DataType.Categorical:
-        encodingMethod = col.uniqueCount <= this.currentState.cleaningConfig.oneHotThreshold
-          ? EncodingMethod.OneHot
-          : EncodingMethod.Label;
+        // Default to Label encoding (simpler, no feature explosion)
+        encodingMethod = EncodingMethod.Label;
         break;
       case DataType.Text:
         includeInProjection = false;
@@ -502,8 +428,9 @@ export class PreprocessingService {
 
     // Convert positions to the format expected by DataProvider
     // Format: [{id: x, position: {x: ..., y: ...}}]
+    // Always normalize IDs to string for consistency
     dataset.positions[method] = positions.map(p => ({
-      id: p.id,
+      id: String(p.id),
       position: { x: p.x, y: p.y }
     }));
 
@@ -537,37 +464,6 @@ export class PreprocessingService {
       tooltipFeatures: state.tooltipFeatures.length > 0 ? state.tooltipFeatures : null,
       colorScaleMode: state.colorScaleMode
     };
-  }
-
-  // Export/Import configuration
-  public exportConfiguration(): string {
-    const state = this.currentState;
-    const config = {
-      datasetName: state.datasetName,
-      columns: Array.from(state.columnConfigs.entries()),
-      cleaning: state.cleaningConfig,
-      projections: state.projectionConfig
-    };
-
-    return JSON.stringify(config, null, 2);
-  }
-
-  public importConfiguration(json: string): void {
-    try {
-      const config = JSON.parse(json);
-      const columnConfigs = new Map<string, ColumnConfig>(config.columns);
-
-      this.updateState({
-        columnConfigs,
-        cleaningConfig: config.cleaning || DEFAULT_CLEANING_CONFIG,
-        projectionConfig: config.projections || DEFAULT_PROJECTION_CONFIG
-      });
-
-      this.saveStateToStorage();
-    } catch (error) {
-      console.error('Failed to import configuration:', error);
-      throw new Error('Invalid configuration file');
-    }
   }
 
   // State management

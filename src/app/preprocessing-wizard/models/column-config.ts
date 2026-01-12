@@ -34,7 +34,6 @@ export interface ColumnConfig {
 
 export interface CleaningConfig {
   removeDuplicates: boolean;
-  oneHotThreshold: number;
 }
 
 export interface ProjectionConfig {

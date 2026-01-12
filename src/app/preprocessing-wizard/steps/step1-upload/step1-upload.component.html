@@ -9,7 +9,7 @@
     <div class="info-box">
       <span class="material-icons">info</span>
       <div>
-        <strong>Supported formats:</strong> CSV and Parquet files up to 150MB.
+        <strong>Supported formats:</strong> CSV files up to 150MB.
         Your data will be analyzed automatically to detect column types and quality issues.
       </div>
     </div>
@@ -32,7 +32,7 @@
         <div class="upload-content">
           <span class="material-icons upload-icon">cloud_upload</span>
           <div class="upload-text">
-            <strong>Drag and drop your CSV or Parquet file here</strong>
+            <strong>Drag and drop your CSV file here</strong>
             <span>or</span>
           </div>
           <label for="file-input" class="upload-button">
@@ -40,7 +40,7 @@
             <input
               id="file-input"
               type="file"
-              accept=".csv,.parquet"
+              accept=".csv"
               (change)="onFileSelected($event)"
               style="display: none">
           </label>
@@ -62,7 +62,7 @@
       <h3>
         File Requirements
         <app-help-tooltip
-          helpText="<strong>CSV Format:</strong><br/>• First row = column headers<br/>• Comma-separated values<br/>• Optional ID column<br/><br/><strong>Parquet Format:</strong><br/>• Binary columnar format<br/>• Automatically converted to CSV"></app-help-tooltip>
+          helpText="<strong>CSV Format:</strong><br/>• First row = column headers<br/>• Comma-separated values<br/>• Optional ID column"></app-help-tooltip>
       </h3>
       <ul>
         <li><strong>First row</strong> should contain column headers</li>
@@ -82,10 +82,6 @@
           <h3>Data Loaded Successfully</h3>
         </div>
         <div class="profile-actions">
-          <button class="btn-secondary" (click)="importConfiguration()" title="Import saved configuration">
-            <span class="material-icons">upload</span>
-            Import Config
-          </button>
           <button class="btn-secondary" (click)="profile = null">
             Upload Different File
           </button>

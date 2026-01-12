@@ -42,11 +42,11 @@ export class Step4FeatureConfigComponent implements OnInit {
   ScalingMethod = ScalingMethod;
   Array = Array;
 
-  // Enum value arrays for dropdowns
+  // Enum value arrays for dropdowns (Label encoding is now default for categorical)
   encodingMethods = [
     { value: EncodingMethod.None, label: 'None', description: 'Keep original values' },
+    { value: EncodingMethod.Label, label: 'Label (Recommended)', description: 'Integer encoding (0, 1, 2...)' },
     { value: EncodingMethod.OneHot, label: 'One-Hot', description: 'Binary columns per category' },
-    { value: EncodingMethod.Label, label: 'Label', description: 'Integer encoding (0, 1, 2...)' },
     { value: EncodingMethod.Normalize, label: 'Normalize', description: 'Scale to [0, 1]' },
     { value: EncodingMethod.Standardize, label: 'Standardize', description: 'Z-score normalization' }
   ];

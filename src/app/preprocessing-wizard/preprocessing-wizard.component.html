@@ -54,25 +54,4 @@
     </div>
   </div>
 
-  <div class="wizard-footer">
-    <button
-      class="btn-secondary"
-      (click)="previousStep()"
-      [disabled]="currentStep === 0 || isProcessing">
-      <span class="material-icons">arrow_back</span>
-      Previous
-    </button>
-
-    <div class="footer-info">
-      Step {{ currentStep + 1 }} of {{ steps.length }}
-    </div>
-
-    <button
-      class="btn-primary"
-      (click)="nextStep()"
-      [disabled]="!canGoNext() || isProcessing || currentStep === 5">
-      Next
-      <span class="material-icons">arrow_forward</span>
-    </button>
-  </div>
 </div>

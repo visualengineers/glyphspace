@@ -114,39 +114,4 @@ export class Step1UploadComponent {
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
   }
 
-  /**
-   * Import configuration from JSON file
-   */
-  importConfiguration(): void {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.json';
-
-    input.onchange = (event: any) => {
-      const file = event.target.files?.[0];
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = (e: any) => {
-        try {
-          const json = e.target.result;
-          this.preprocessingService.importConfiguration(json);
-
-          // Reload profile if needed
-          const state = this.preprocessingService.currentState;
-          if (state.dataProfile) {
-            this.profile = state.dataProfile;
-          }
-
-          alert('Configuration imported successfully! You can now continue with the wizard or adjust settings.');
-        } catch (error: any) {
-          console.error('Failed to import configuration:', error);
-          this.error = error.message || 'Failed to import configuration. Please check the file format.';
-        }
-      };
-      reader.readAsText(file);
-    };
-
-    input.click();
-  }
 }
