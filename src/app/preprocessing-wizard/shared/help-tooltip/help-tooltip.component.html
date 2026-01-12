@@ -1,0 +1,28 @@
+<div class="help-tooltip-container">
+  <button
+    class="help-icon"
+    (mouseenter)="showTooltip()"
+    (mouseleave)="hideTooltip()"
+    (click)="toggleTooltip()"
+    (keydown.enter)="toggleTooltip()"
+    (keydown.space)="toggleTooltip()"
+    [attr.aria-label]="'Help: ' + helpText"
+    [attr.aria-expanded]="isVisible"
+    type="button"
+    tabindex="0">
+    <span class="material-icons">help_outline</span>
+  </button>
+
+  <div
+    class="tooltip-content"
+    [class.visible]="isVisible"
+    [class.position-top]="position === 'top'"
+    [class.position-bottom]="position === 'bottom'"
+    [class.position-left]="position === 'left'"
+    [class.position-right]="position === 'right'"
+    role="tooltip"
+    [attr.aria-hidden]="!isVisible">
+    <div class="tooltip-text" [innerHTML]="helpText"></div>
+    <div class="tooltip-arrow"></div>
+  </div>
+</div>

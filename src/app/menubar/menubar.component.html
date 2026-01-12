@@ -29,7 +29,7 @@
 
             <!-- UPLOAD / EXPORT -->
             <div class="icon-panel">
-                <button>
+                <button (click)="upload()">
                     <span class="material-icons">upload</span>
                     <span class="btn-label">Upload</span>
                 </button>
@@ -69,3 +69,9 @@
         </div>
     </div>
 </header>
+
+@if (showWizard) {
+    <div class="wizard-overlay">
+        <app-preprocessing-wizard (close)="closePreprocessingWizard()"></app-preprocessing-wizard>
+    </div>
+}
