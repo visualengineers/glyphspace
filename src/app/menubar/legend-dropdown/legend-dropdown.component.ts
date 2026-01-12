@@ -210,6 +210,6 @@ export class LegendDropdownComponent {
   }
 
   getFeatureType(id: string) {
-    return this.schema?.types[id] || "";
+    return this.schema?.types ? this.schema?.types[id] || "" : "";
   }
 }

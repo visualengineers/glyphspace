@@ -2,7 +2,6 @@ export interface GlyphSchema {
   color: string;
   glyph: string[];
   label: Record<string, string>;
-  types: Record<string, string>;
   tooltip: string[];
   colorRange?: boolean;  // Optional: true = continuous (rangeColor), false = categorical (categoryColor)
   types?: Record<string, string>;  // Optional: feature ID -> data type ('numeric', 'categorical', 'text', 'date', 'boolean')
