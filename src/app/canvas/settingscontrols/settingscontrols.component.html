@@ -2,15 +2,18 @@
   <!-- Left-aligned white button group -->
   <div class="settings-buttons">
     <button class="setting-btn" [class.active]="activeSetting==='position'" (click)="toggleSetting('position')">
-      Position
+      Position:
+      <span>{{ this.selectedAlgorithm }}</span>
     </button>
 
     <button class="setting-btn" [class.active]="activeSetting==='color'" (click)="toggleSetting('color')">
-      Color
+      Color:
+      <span>{{ getFeatureName(this.selectedColorAttribute) }}</span>
     </button>
 
     <button class="setting-btn" [class.active]="activeSetting==='glyph'" (click)="toggleSetting('glyph')">
-      Glyph
+      Glyph:
+      <span>{{ getGlyphName(this.glyphConfig.glyphType) }}</span>
     </button>
   </div>
 

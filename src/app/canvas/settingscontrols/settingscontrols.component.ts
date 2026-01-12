@@ -145,6 +145,17 @@ export class SettingsControlPanelComponent {
     return this.schema?.label[id] || "";
   }
 
+  getGlyphName(glyph: GlyphType): string {
+    switch (glyph) {
+      case GlyphType.Star: return "Star";
+      case GlyphType.Flower: return "Flower";
+      case GlyphType.Whisker: return "Whisker";
+      case GlyphType.Dot: return "Dot";
+      case GlyphType.Thumb: return "Thumbnail";
+      default: return "Unknown";
+    }
+  }
+
   getSelectedScaleColors() {
     return this.colorScales.find(s => s.id === this.selectedColorScaleId)?.representativeColors ?? [];
   }
@@ -175,7 +186,7 @@ export class SettingsControlPanelComponent {
   }
 
   isOptionEnabled(prop: string): boolean {
-    return (this.glyphConfig as any)[prop] === true;    
+    return (this.glyphConfig as any)[prop] === true;
   }
 
   toggleOption(property: string): void {
