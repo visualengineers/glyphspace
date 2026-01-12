@@ -80,7 +80,18 @@ export class GlyphObject {
 
         let currentColor = 0x00cc88;
         if (this.features != null) {
-            currentColor = this.config.color(this.features["1"][this.config.colorFeature]);
+            let featureValue = this.features["1"][this.config.colorFeature];
+
+            // Normalize categorical values to [0,1] range for proper color mapping
+            const featureType = this.config.featureTypes[this.config.colorFeature];
+            if (featureType === 'categorical') {
+                const maxValue = this.config.featureMaxValues[this.config.colorFeature];
+                if (maxValue !== undefined && maxValue > 0) {
+                    featureValue = featureValue / maxValue;
+                }
+            }
+
+            currentColor = this.config.color(featureValue);
         }
 
         return currentColor;

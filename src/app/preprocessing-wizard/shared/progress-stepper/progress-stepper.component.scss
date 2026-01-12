@@ -5,6 +5,70 @@
   padding: 16px 0;
   background: v.$gray-200;
   border-bottom: 1px solid v.$gray-300;
+
+  &.vertical {
+    height: 100%;
+    padding: 24px 16px;
+    border-bottom: none;
+
+    .stepper-container {
+      flex-direction: column;
+      max-width: none;
+      gap: 0;
+    }
+
+    .step-wrapper {
+      flex-direction: column;
+      flex: none;
+
+      &:last-child {
+        flex: none;
+      }
+    }
+
+    .step {
+      flex-direction: row;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      border-radius: 8px;
+
+      &.clickable:hover {
+        background: rgba(0, 0, 0, 0.05);
+      }
+
+      &.active {
+        background: rgba(68, 138, 255, 0.1);
+      }
+    }
+
+    .step-circle {
+      width: 36px;
+      height: 36px;
+      flex-shrink: 0;
+
+      .material-icons {
+        font-size: 20px;
+      }
+    }
+
+    .step-number {
+      font-size: 15px;
+    }
+
+    .step-label {
+      font-size: 14px;
+      text-align: left;
+      flex: 1;
+      white-space: normal;
+    }
+
+    .step-connector {
+      width: 2px;
+      height: 20px;
+      margin: 0 0 0 29px;
+    }
+  }
 }
 
 .stepper-container {
@@ -132,5 +196,33 @@
 
   .step-connector {
     margin: 0 8px;
+  }
+
+  .progress-stepper.vertical {
+    .step {
+      padding: 10px;
+    }
+
+    .step-label {
+      font-size: 13px;
+    }
+
+    .step-circle {
+      width: 32px;
+      height: 32px;
+
+      .material-icons {
+        font-size: 18px;
+      }
+    }
+
+    .step-number {
+      font-size: 14px;
+    }
+
+    .step-connector {
+      height: 16px;
+      margin-left: 27px;
+    }
   }
 }

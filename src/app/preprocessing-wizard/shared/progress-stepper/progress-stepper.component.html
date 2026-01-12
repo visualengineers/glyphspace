@@ -1,4 +1,4 @@
-<div class="progress-stepper">
+<div class="progress-stepper" [class.vertical]="vertical">
   <div class="stepper-container">
     @for (step of steps; track $index) {
       <div class="step-wrapper">

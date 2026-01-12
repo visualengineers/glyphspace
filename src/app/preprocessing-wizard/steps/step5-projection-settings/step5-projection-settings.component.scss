@@ -156,7 +156,7 @@
 
 .card-header-row {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
   margin-bottom: 8px;
 
@@ -241,7 +241,7 @@
 
 .parameter-header {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
   padding: 12px 16px;
   background: v.$gray-100;
@@ -292,7 +292,7 @@
 .field-label {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   font-size: 13px;
   font-weight: 600;
   color: v.$gray-800;
@@ -420,7 +420,7 @@
 
 .action-buttons {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
   gap: 12px;
   padding-top: 16px;
