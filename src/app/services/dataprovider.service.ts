@@ -41,7 +41,7 @@ export class DataProviderService {
                 const algos = item.algorithms;
                 const datasetId = ds.dataset;
                 const time = item.time;
-                
+
                 // Build individual HTTP requests
                 const requests: { [key: string]: Observable<any> } = {
                     schema: this.http.get<any>(basePath + algos.schema),
@@ -474,4 +474,98 @@ export class DataProviderService {
         return result;
     }
 
+    private escapeCSV(value: any): string {
+        const str = String(value ?? '');
+        return `"${str.replace(/"/g, '""')}"`;
+    }
+
+    private downloadBlob(blob: Blob, fileName: string): void {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+
+        a.href = url;
+        a.download = fileName;
+        a.click();
+
+        URL.revokeObjectURL(url);
+    }
+
+    public exportFilteredGlyphsAsCSV(
+        datasetKey: string
+    ): void {
+        const glyphMap = this.glyphCache.get(datasetKey);
+        const schemaMap = this.schemaCache.get(datasetKey);
+
+        if (!glyphMap || !schemaMap) {
+            console.warn('Missing glyph or schema cache for dataset:', datasetKey);
+            return;
+        }
+
+        // --------------------------------------------------
+        // 1. Collect feature keys + labels from schema.label
+        // --------------------------------------------------
+        const featureKeyToLabel = new Map<string, string>();
+
+        schemaMap.forEach((schema: GlyphSchema) => {
+            Object.entries(schema.label).forEach(([featureKey, label]) => {
+                featureKeyToLabel.set(featureKey, label);
+            });
+        });
+
+        const orderedFeatureKeys = Array.from(featureKeyToLabel.keys());
+        const orderedLabels = orderedFeatureKeys.map(
+            key => featureKeyToLabel.get(key)!
+        );
+
+        if (orderedFeatureKeys.length === 0) {
+            console.warn('No features found in schema labels');
+            return;
+        }
+
+        // --------------------------------------------------
+        // 2. Collect active glyphs
+        // --------------------------------------------------
+        const activeGlyphs = Array.from(glyphMap.values())
+            .filter(glyph => !glyph.passive);
+
+        if (activeGlyphs.length === 0) {
+            console.warn('No active glyphs to export');
+            return;
+        }
+
+        // --------------------------------------------------
+        // 3. CSV header (labels!)
+        // --------------------------------------------------
+        const headers = ['id', ...orderedLabels];
+        const rows: string[] = [];
+        rows.push(headers.join(','));
+
+        // --------------------------------------------------
+        // 4. CSV rows
+        // --------------------------------------------------
+        activeGlyphs.forEach(glyph => {
+            const rawValues = glyph.values || {};
+
+            const row = [
+                this.escapeCSV(glyph.id),
+                ...orderedFeatureKeys.map(key =>
+                    this.escapeCSV(rawValues[key] ?? '')
+                )
+            ];
+
+            rows.push(row.join(','));
+        });
+
+        // --------------------------------------------------
+        // 5. Download
+        // --------------------------------------------------
+        const csvContent = '\ufeff' + rows.join('\n');
+        const blob = new Blob([csvContent], {
+            type: 'text/csv;charset=utf-8;'
+        });
+
+        const timestamp = new Date().toISOString().replace(/[-:]/g, '').slice(0, 15);
+        const fileName = `glyphspace-export-${timestamp}-${datasetKey}-${activeGlyphs.length}.csv`;
+        this.downloadBlob(blob, fileName);
+    }
 }
