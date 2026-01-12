@@ -1,0 +1,78 @@
+@use '../../../../styles/variables' as v;
+
+.data-preview-table {
+  background: white;
+  border-radius: 4px;
+  border: 1px solid v.$gray-200;
+  overflow: hidden;
+}
+
+.no-data {
+  padding: 32px;
+  text-align: center;
+  color: v.$gray-500;
+}
+
+.table-container {
+  overflow-x: auto;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+thead {
+  position: sticky;
+  top: 0;
+  background: v.$gray-100;
+  z-index: 10;
+
+  th {
+    padding: 10px 12px;
+    text-align: left;
+    font-weight: 600;
+    color: v.$gray-800;
+    border-bottom: 2px solid v.$gray-200;
+    white-space: nowrap;
+
+    &.highlighted {
+      background: rgba(0, 188, 212, 0.1);
+      color: v.$active-color;
+    }
+  }
+}
+
+tbody {
+  tr {
+    &:nth-child(even) {
+      background: v.$gray-100;
+    }
+
+    &:hover {
+      background: v.$gray-200;
+    }
+  }
+
+  td {
+    padding: 10px 12px;
+    border-bottom: 1px solid v.$gray-100;
+    color: v.$gray-600;
+
+    &.highlighted {
+      background: rgba(76, 175, 80, 0.1);
+    }
+  }
+}
+
+.table-footer {
+  padding: 10px 12px;
+  background: v.$gray-100;
+  border-top: 1px solid v.$gray-200;
+  font-size: 13px;
+  color: v.$gray-600;
+  text-align: center;
+}

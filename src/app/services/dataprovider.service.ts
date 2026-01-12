@@ -76,6 +76,11 @@ export class DataProviderService {
                         this.config.colorFeature = schema.color;
                         this.config.replaceActiveFeatures(schema.glyph);
                         this.config.featureLabels = schema.label;
+                        // Apply color scale mode if specified in schema
+                        if (schema.colorRange !== undefined) {
+                            // Convert boolean to color scale ID: true -> 0 (continuous), false -> 3 (categorical)
+                            this.config.colorRange = schema.colorRange ? 0 : 3;
+                        }
                         this.config.loadData(datasetId);
                     }
 
@@ -146,10 +151,21 @@ export class DataProviderService {
             const existing = datasetMap.get(incoming.dataset);
 
             if (existing) {
-                // Merge items, avoiding duplicates by `time`
-                const existingTimes = new Set(existing.items.map(item => item.time));
-                const newItems = incoming.items.filter(item => !existingTimes.has(item.time));
-                existing.items.push(...newItems);
+                // Merge items - update existing timestamps or add new ones
+                for (const incomingItem of incoming.items) {
+                    const existingItem = existing.items.find(item => item.time === incomingItem.time);
+
+                    if (existingItem) {
+                        // Update existing item's algorithms (merge position algorithms)
+                        existingItem.algorithms.position = {
+                            ...existingItem.algorithms.position,
+                            ...incomingItem.algorithms.position
+                        };
+                    } else {
+                        // Add new timestamp item
+                        existing.items.push(incomingItem);
+                    }
+                }
             } else {
                 // New dataset, add whole entry
                 datasetMap.set(incoming.dataset, { ...incoming, items: [...incoming.items] });
@@ -158,6 +174,91 @@ export class DataProviderService {
 
         // Convert back to array and emit
         this.dataSetCollectionSubject.next(Array.from(datasetMap.values()));
+    }
+
+    /**
+     * Load a processed dataset from the preprocessing wizard
+     */
+    public loadProcessedDataset(dataset: any, datasetName: string, timestamp: string): void {
+        // Extract schema, meta, and features from the processed dataset
+        const schema: GlyphSchema = dataset.schema;
+        const meta: GlyphMeta = dataset.meta;
+        const features: GlyphFeature[] = dataset.features;
+
+        // Convert projections to positions format
+        const positions = new Map<string, GlyphPosition[]>();
+        if (dataset.projections && Array.isArray(dataset.projections)) {
+            dataset.projections.forEach((proj: any) => {
+                const posArray: GlyphPosition[] = proj.data.map((item: any) => ({
+                    id: item.id,
+                    position: { x: item.x, y: item.y }
+                }));
+                positions.set(proj.name, posArray);
+            });
+        } else if (dataset.positions) {
+            // Support direct positions object from Python worker
+            Object.entries(dataset.positions).forEach(([name, data]: [string, any]) => {
+                positions.set(name, data);
+            });
+        }
+
+        // Build and cache the dataset
+        this.buildDataSet(datasetName, timestamp, schema, meta, features, positions);
+
+        // Set as active dataset
+        this.config.colorFeature = schema.color;
+        this.config.replaceActiveFeatures(schema.glyph);
+        this.config.featureLabels = schema.label;
+        // Apply color scale mode if specified in schema
+        if (schema.colorRange !== undefined) {
+            // Convert boolean to color scale ID: true -> 0 (continuous), false -> 3 (categorical)
+            this.config.colorRange = schema.colorRange ? 0 : 3;
+        }
+        this.config.loadData(datasetName);
+
+        // Update filtered items
+        const glyphMap = this.glyphCache.get(datasetName);
+        if (glyphMap) {
+            this.totalItems = glyphMap.size;
+            this.filteredItems = this.totalItems;
+        }
+    }
+
+    /**
+     * Add a processed dataset to the DatasetCollection so it appears in the selector
+     */
+    public addProcessedDatasetToCollection(datasetName: string, timestamp: string, dataset: any): void {
+        // Build position mapping from projections
+        const positionMapping: { [key: string]: string } = {};
+        if (dataset.projections && Array.isArray(dataset.projections)) {
+            dataset.projections.forEach((proj: any) => {
+                // For processed datasets, positions are already in memory (no file paths)
+                positionMapping[proj.name] = `memory://${datasetName}/${timestamp}/${proj.name}`;
+            });
+        } else if (dataset.positions) {
+            // Support direct positions object
+            Object.keys(dataset.positions).forEach(key => {
+                positionMapping[key] = `memory://${datasetName}/${timestamp}/${key}`;
+            });
+        }
+
+        // Create a new DatasetCollectionEntry for the processed dataset
+        const newEntry: DatasetCollectionEntry = {
+            dataset: datasetName,
+            source: 'wasm',  // Mark as wasm-processed dataset
+            items: [{
+                time: timestamp,
+                algorithms: {
+                    schema: `memory://${datasetName}/${timestamp}/schema`,
+                    meta: `memory://${datasetName}/${timestamp}/meta`,
+                    feature: `memory://${datasetName}/${timestamp}/features`,
+                    position: positionMapping
+                }
+            }]
+        };
+
+        // Add to collection using existing merge logic
+        this.setDatasetCollection([newEntry]);
     }
 
     private buildDataSet(
@@ -185,12 +286,14 @@ export class DataProviderService {
 
         // --- Create or update glyphs ---
         for (const feature of features) {
+            // Always normalize ID to string for consistent lookups
+            const idStr = String(feature.id);
 
-            let glyph = glyphMap.get(feature.id);
+            let glyph = glyphMap.get(idStr);
 
             // Create glyph only once
             if (!glyph) {
-                glyph = new GlyphObject(feature.id, this.config, this.dataProcessor);
+                glyph = new GlyphObject(idStr, this.config, this.dataProcessor);
                 glyph.features = feature.features;
                 glyph.values = feature.values;
                 glyph.defaultcontext = feature.defaultcontext
@@ -198,7 +301,7 @@ export class DataProviderService {
                     : 1;
                 glyph.positions = {};
 
-                glyphMap.set(feature.id, glyph);
+                glyphMap.set(idStr, glyph);
             }
 
             // Ensure timestamp bucket exists
@@ -209,14 +312,26 @@ export class DataProviderService {
 
         // --- Add positions for this timestamp ---
         for (const [algorithm, entries] of positions) {
+            console.log(`[DataProvider] Adding ${entries.length} positions for algorithm: ${algorithm}`);
+            let matchCount = 0;
             for (const posEntry of entries) {
-                const glyph = glyphMap.get(posEntry.id);
-                if (!glyph) continue;
+                // Always normalize position ID to string for consistent lookups
+                const idStr = String(posEntry.id);
+                const glyph = glyphMap.get(idStr);
+                if (!glyph) {
+                    if (matchCount === 0) {
+                        console.warn(`[DataProvider] No glyph found for ID: ${idStr}`);
+                        console.log(`[DataProvider] Available glyph IDs sample:`, Array.from(glyphMap.keys()).slice(0, 5));
+                    }
+                    continue;
+                }
 
                 glyph.positions[timestamp][algorithm] = {
                     ...posEntry.position
                 };
+                matchCount++;
             }
+            console.log(`[DataProvider] Matched ${matchCount}/${entries.length} positions for ${algorithm}`);
         }
 
         return glyphMap.size;
@@ -240,6 +355,11 @@ export class DataProviderService {
             this.config.colorFeature = schema.color;
             this.config.replaceActiveFeatures(schema.glyph);
             this.config.featureLabels = schema.label;
+            // Apply color scale mode if specified in schema
+            if (schema.colorRange !== undefined) {
+                // Convert boolean to color scale ID: true -> 0 (continuous), false -> 3 (categorical)
+                this.config.colorRange = schema.colorRange ? 0 : 3;
+            }
 
             this.totalItems = this.buildDataSet(name, timestamp, schema, meta, features, positions);
             this.filteredItems = this.totalItems;
@@ -251,6 +371,8 @@ export class DataProviderService {
     public async getGlyphData(name?: string, timestamp?: string): Promise<GlyphObject[] | undefined>
     public async getGlyphData(name?: string, timestamp?: string, algorithm?: string): Promise<GlyphObject[] | undefined> {
         if (name == undefined) name = this.config.loadedData;
+        console.log(`[DataProvider] getGlyphData called for: ${name}, timestamp: ${timestamp}`);
+
         const collection = this.dataSetCollectionSubject.getValue().find(collection => collection.dataset == name);
         if (timestamp == undefined || timestamp == '') {
             timestamp = collection?.items.at(0)?.time;
@@ -258,7 +380,10 @@ export class DataProviderService {
         if (name == undefined || timestamp == undefined) return undefined;
 
         let data = this.glyphCache.get(name);
+        console.log(`[DataProvider] Cache lookup for '${name}':`, data ? 'HIT' : 'MISS');
+
         if (!data) {
+            console.log(`[DataProvider] Loading dataset from source...`);
             await this.loadDataSet(name, timestamp);
             data = this.glyphCache.get(name);
         }
@@ -304,6 +429,11 @@ export class DataProviderService {
             this.config.colorFeature = schemaResult.color;
             this.config.replaceActiveFeatures(schemaResult.glyph);
             this.config.featureLabels = schemaResult.label;
+            // Apply color scale mode if specified in schema
+            if (schemaResult.colorRange !== undefined) {
+                // Convert boolean to color scale ID: true -> 0 (continuous), false -> 3 (categorical)
+                this.config.colorRange = schemaResult.colorRange ? 0 : 3;
+            }
         }
 
         return schemaResult;

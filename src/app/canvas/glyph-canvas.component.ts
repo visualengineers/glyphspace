@@ -226,15 +226,41 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
           this.algorithms = this.dataProvider.getPositions(loadedData);
           this.contexts = this.dataProvider.getContexts(loadedData);
 
+          console.log(`[Canvas ${this.id}] Dataset loaded: ${loadedData}`);
+          console.log(`[Canvas ${this.id}] Timestamps:`, this.timestamps);
+          console.log(`[Canvas ${this.id}] Algorithms:`, this.algorithms);
+
           this.selectedTimestamp = this.timestamps[0];
           this.selectedAlgorithm = this.algorithms[0];
           this.selectedContext = this.contexts[0];
 
+          console.log(`[Canvas ${this.id}] Selected: timestamp=${this.selectedTimestamp}, algorithm=${this.selectedAlgorithm}`);
+          console.log(`[Canvas ${this.id}] Data received:`, data ? `${data.length} glyphs` : 'null');
+
           this.glyphGroup.clear();
-          this.positionBounds = undefined;
-          this.updatePositionBounds();
-          this.fitToView();
-          this.initSimulation();
+
+          if (data) {
+            // Debug: Check sample glyph positions
+            if (data.length > 0) {
+              console.log(`[Canvas ${this.id}] Sample glyph ID:`, data[0].id);
+              console.log(`[Canvas ${this.id}] Sample glyph positions:`, data[0].positions);
+
+              // Check if position exists for selected timestamp/algorithm
+              const hasPosition = data[0].positions?.[this.selectedTimestamp]?.[this.selectedAlgorithm];
+              console.log(`[Canvas ${this.id}] Position exists for ${this.selectedTimestamp}/${this.selectedAlgorithm}:`, hasPosition ? 'YES' : 'NO');
+
+              if (hasPosition) {
+                console.log(`[Canvas ${this.id}] First glyph position:`, hasPosition);
+              }
+            }
+
+            this.positionBounds = undefined;
+            this.updatePositionBounds();
+            this.fitToView();
+            this.initSimulation();
+          } else {
+            console.warn(`[Canvas ${this.id}] No data received!`);
+          }
         });
       })
     );

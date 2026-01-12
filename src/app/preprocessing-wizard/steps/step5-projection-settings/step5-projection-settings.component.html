@@ -1,0 +1,301 @@
+<div class="step5-projection-settings">
+  <div class="step-header">
+    <h2>{{ stepInfo.title }}</h2>
+    <p class="step-purpose">{{ stepInfo.purpose }}</p>
+  </div>
+
+  <!-- Info Box -->
+  <div class="info-box">
+    <span class="material-icons">info</span>
+    <div [innerHTML]="HELP_TEXT.general.projection"></div>
+  </div>
+
+  <!-- Background Processing Info Box -->
+  <div class="info-box background-processing-info">
+    <span class="material-icons">schedule</span>
+    <div>
+      <strong>Background Processing:</strong> PCA runs first and loads immediately.
+      Other selected projections (FastMap, t-SNE, UMAP) compute in the background and notify you when ready.
+      You can start exploring your data with PCA while others are being computed.
+    </div>
+  </div>
+
+  <!-- Projection Method Selection -->
+  <div class="methods-section">
+    <h3>
+      <span class="material-icons">settings</span>
+      Select Projection Methods
+      <app-help-tooltip
+        helpText="<strong>Multiple methods recommended:</strong> Each method reveals different aspects of your data. PCA is fast for exploration, t-SNE reveals clusters."
+        position="right"></app-help-tooltip>
+    </h3>
+    <p class="section-description">
+      Enable one or more dimensionality reduction methods. Each method has different strengths for visualizing high-dimensional data.
+    </p>
+
+    <div class="methods-grid">
+      @for (method of projectionMethods; track method.key) {
+        <div
+          class="method-card"
+          [class.enabled]="projectionConfig[method.key]"
+          [class.disabled]="isMethodDisabled(method)"
+          (click)="toggleProjectionMethod(method)">
+          <div class="card-icon">
+            <span class="material-icons">{{ method.icon }}</span>
+          </div>
+          <div class="card-content">
+            <div class="card-header-row">
+              <div class="header-with-badge">
+                <h4>{{ method.name }}</h4>
+                @if (method.badge) {
+                  <span class="speed-badge" [class]="'badge-' + method.badge.toLowerCase()">
+                    {{ method.badge }}
+                  </span>
+                }
+              </div>
+              <input
+                type="checkbox"
+                [checked]="projectionConfig[method.key]"
+                [disabled]="isMethodDisabled(method)"
+                (click)="$event.stopPropagation()"
+                (change)="toggleProjectionMethod(method)">
+            </div>
+            <p class="card-description">{{ method.description }}</p>
+          </div>
+        </div>
+      }
+    </div>
+  </div>
+
+  <!-- Parameters Section -->
+  <div class="parameters-section">
+    <h3>
+      <span class="material-icons">tune</span>
+      Method Parameters
+    </h3>
+    <p class="section-description">
+      Adjust hyperparameters for each enabled method. Hover over the help icon for guidance.
+    </p>
+
+    <!-- PCA Parameters -->
+    @if (projectionConfig.enablePCA) {
+      <div class="parameter-card">
+        <div class="parameter-header">
+          <div class="header-left">
+            <span class="material-icons">analytics</span>
+            <h4>PCA Parameters</h4>
+          </div>
+        </div>
+
+        <div class="parameter-body">
+          <p class="parameter-note">PCA will automatically determine the optimal number of components based on explained variance.</p>
+        </div>
+      </div>
+    }
+
+    <!-- t-SNE Parameters -->
+    @if (projectionConfig.enableTSNE) {
+      <div class="parameter-card">
+        <div class="parameter-header">
+          <div class="header-left">
+            <span class="material-icons">bubble_chart</span>
+            <h4>t-SNE Parameters</h4>
+          </div>
+        </div>
+
+        <div class="parameter-body">
+          <div class="parameter-row">
+            <div class="parameter-field">
+              <label class="field-label">
+                <span>Perplexity</span>
+                <app-help-tooltip [helpText]="HELP_TEXT.parameters.tsnePerplexity"></app-help-tooltip>
+              </label>
+              <div class="input-group">
+                <input
+                  type="range"
+                  min="5"
+                  max="50"
+                  [value]="projectionConfig.tsnePerplexity"
+                  (input)="onTSNEPerplexityChange(+$any($event.target).value)"
+                  class="range-input">
+                <input
+                  type="number"
+                  min="5"
+                  max="50"
+                  [value]="projectionConfig.tsnePerplexity"
+                  (input)="onTSNEPerplexityChange(+$any($event.target).value)"
+                  class="number-input">
+              </div>
+              <p class="field-hint">Default: 30. Typical range: 10-50</p>
+            </div>
+
+            <div class="parameter-field">
+              <label class="field-label">
+                <span>Iterations</span>
+                <app-help-tooltip [helpText]="HELP_TEXT.parameters.tsneIterations"></app-help-tooltip>
+              </label>
+              <div class="input-group">
+                <input
+                  type="range"
+                  min="250"
+                  max="5000"
+                  step="250"
+                  [value]="projectionConfig.tsneIterations"
+                  (input)="onTSNEIterationsChange(+$any($event.target).value)"
+                  class="range-input">
+                <input
+                  type="number"
+                  min="250"
+                  max="5000"
+                  step="250"
+                  [value]="projectionConfig.tsneIterations"
+                  (input)="onTSNEIterationsChange(+$any($event.target).value)"
+                  class="number-input">
+              </div>
+              <p class="field-hint">Default: 1000. Typical range: 500-2000</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- t-SNE Warning Section -->
+      @if (projectionConfig.enableTSNE) {
+        <div class="tsne-warning-section">
+          <!-- Dataset Size Info -->
+          <div class="info-box">
+            <span class="material-icons">info</span>
+            <p>Dataset size: {{ getDatasetRowCount() | number }} rows</p>
+          </div>
+
+          <!-- Warning for Large Datasets -->
+          @if (shouldShowTSNEWarning()) {
+            <div class="warning-box">
+              <span class="material-icons">warning</span>
+              <div class="warning-content">
+                <p><strong>{{ getTSNETimeEstimate() }}</strong></p>
+                <p>
+                  t-SNE is computationally expensive for large datasets.
+                  Adaptive parameters will be used to improve performance:
+                </p>
+                <ul class="adaptive-info">
+                  <li>Perplexity adjusted based on dataset size</li>
+                  <li>Iterations reduced for faster convergence on very large datasets</li>
+                  <li>Detailed progress updates shown during computation</li>
+                </ul>
+                <p class="hint">
+                  💡 Processing will continue with progress updates. Consider using PCA alone for fastest results on very large datasets.
+                </p>
+              </div>
+            </div>
+          }
+        </div>
+      }
+    }
+
+    <!-- UMAP Parameters -->
+    @if (projectionConfig.enableUMAP) {
+      <div class="parameter-card">
+        <div class="parameter-header">
+          <div class="header-left">
+            <span class="material-icons">scatter_plot</span>
+            <h4>UMAP Parameters</h4>
+          </div>
+        </div>
+
+        <div class="parameter-body">
+          <div class="parameter-row">
+            <div class="parameter-field">
+              <label class="field-label">
+                <span>Number of Neighbors</span>
+                <span class="help-icon" title="Size of local neighborhood (2-200). Lower values = more local structure, higher = more global.">
+                  <span class="material-icons">help_outline</span>
+                </span>
+              </label>
+              <div class="input-group">
+                <input
+                  type="range"
+                  min="2"
+                  max="200"
+                  [value]="projectionConfig.umapNeighbors"
+                  (input)="onUMAPNeighborsChange(+$any($event.target).value)"
+                  class="range-input">
+                <input
+                  type="number"
+                  min="2"
+                  max="200"
+                  [value]="projectionConfig.umapNeighbors"
+                  (input)="onUMAPNeighborsChange(+$any($event.target).value)"
+                  class="number-input">
+              </div>
+              <p class="field-hint">Default: 15. Typical range: 5-50</p>
+            </div>
+
+            <div class="parameter-field">
+              <label class="field-label">
+                <span>Minimum Distance</span>
+                <span class="help-icon" title="Minimum distance between points (0.0-0.99). Lower values = tighter clusters.">
+                  <span class="material-icons">help_outline</span>
+                </span>
+              </label>
+              <div class="input-group">
+                <input
+                  type="range"
+                  min="0"
+                  max="0.99"
+                  step="0.01"
+                  [value]="projectionConfig.umapMinDist"
+                  (input)="onUMAPMinDistChange(+$any($event.target).value)"
+                  class="range-input">
+                <input
+                  type="number"
+                  min="0"
+                  max="0.99"
+                  step="0.01"
+                  [value]="projectionConfig.umapMinDist"
+                  (input)="onUMAPMinDistChange(+$any($event.target).value)"
+                  class="number-input">
+              </div>
+              <p class="field-hint">Default: 0.1. Typical range: 0.01-0.5</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    }
+
+    @if (!hasEnabledMethod()) {
+      <div class="no-methods-message">
+        <span class="material-icons">info</span>
+        <p>Please enable at least one projection method above to configure parameters.</p>
+      </div>
+    }
+  </div>
+
+  <!-- Summary -->
+  <div class="summary-section">
+    <div class="info-message">
+      <span class="material-icons">info</span>
+      <div class="message-content">
+        <p><strong>Summary:</strong> {{ getEnabledMethodsCount() }} projection method(s) enabled.</p>
+        <p>These projections will be computed during final processing (Step 6).</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Action Buttons -->
+  <div class="action-buttons">
+    @if (!hasEnabledMethod()) {
+      <div class="warning-message">
+        <span class="material-icons">warning</span>
+        <span>Please enable at least one projection method to continue.</span>
+      </div>
+    }
+
+    <button
+      class="btn-primary"
+      (click)="onContinue()"
+      [disabled]="!hasEnabledMethod()">
+      <span>Continue to Summary</span>
+      <span class="material-icons">arrow_forward</span>
+    </button>
+  </div>
+</div>

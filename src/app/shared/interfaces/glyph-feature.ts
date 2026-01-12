@@ -10,7 +10,7 @@ export interface Features {
 // The main item structure
 export interface GlyphFeature {
     defaultcontext: string;
-    id: string;
+    id: string | number;  // Support both string and numeric IDs
     features: Features;
     values: StringStringMap;
 }

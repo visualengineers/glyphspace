@@ -3,6 +3,8 @@ export interface GlyphSchema {
   glyph: string[];
   label: Record<string, string>;
   tooltip: string[];
+  colorRange?: boolean;  // Optional: true = continuous (rangeColor), false = categorical (categoryColor)
+  types?: Record<string, string>;  // Optional: feature ID -> data type ('numeric', 'categorical', 'text', 'date', 'boolean')
   variantcontext: Record<string, {
     description: string;
     id: string;

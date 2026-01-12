@@ -1,0 +1,106 @@
+<div class="column-statistics" [class.compact]="compact">
+  <div class="stats-header">
+    <div class="column-name">{{ statistics.name }}</div>
+    <span class="data-type-badge" [ngClass]="dataTypeBadgeClass">
+      {{ dataTypeLabel }}
+    </span>
+  </div>
+
+  @if (hasIssues) {
+    <div class="issue-warning">
+      <span class="material-icons">warning</span>
+      {{ issueDescription }}
+    </div>
+  }
+
+  <div class="stats-content">
+    <!-- Completeness bar -->
+    <div class="stat-row">
+      <div class="stat-label">Completeness</div>
+      <div class="completeness-bar">
+        <div
+          class="completeness-fill"
+          [style.width.%]="completenessPercentage"
+          [class.good]="completenessPercentage >= 90"
+          [class.warning]="completenessPercentage >= 50 && completenessPercentage < 90"
+          [class.poor]="completenessPercentage < 50">
+        </div>
+      </div>
+      <div class="stat-value">
+        {{ statistics.count }} / {{ statistics.count + statistics.missingCount }}
+        ({{ completenessPercentage.toFixed(1) }}%)
+      </div>
+    </div>
+
+    <!-- Missing values -->
+    @if (statistics.missingCount > 0) {
+      <div class="stat-row">
+        <div class="stat-label">Missing</div>
+        <div class="stat-value text-warning">
+          {{ statistics.missingCount }}
+          ({{ statistics.missingPercentage.toFixed(1) }}%)
+        </div>
+      </div>
+    }
+
+    <!-- Unique values -->
+    <div class="stat-row">
+      <div class="stat-label">Unique values</div>
+      <div class="stat-value">{{ statistics.uniqueCount }}</div>
+    </div>
+
+    @if (!compact) {
+      <!-- Numeric statistics -->
+      @if (statistics.dataType === 'numeric' && statistics.min !== undefined) {
+        <div class="stats-section">
+          <div class="section-title">Numeric Statistics</div>
+          <div class="stat-row">
+            <div class="stat-label">Min</div>
+            <div class="stat-value">{{ statistics.min !== undefined ? statistics.min.toFixed(3) : 'N/A' }}</div>
+          </div>
+          <div class="stat-row">
+            <div class="stat-label">Max</div>
+            <div class="stat-value">{{ statistics.max !== undefined ? statistics.max.toFixed(3) : 'N/A' }}</div>
+          </div>
+          <div class="stat-row">
+            <div class="stat-label">Mean</div>
+            <div class="stat-value">{{ statistics.mean !== undefined ? statistics.mean.toFixed(3) : 'N/A' }}</div>
+          </div>
+          <div class="stat-row">
+            <div class="stat-label">Median</div>
+            <div class="stat-value">{{ statistics.median !== undefined ? statistics.median.toFixed(3) : 'N/A' }}</div>
+          </div>
+          <div class="stat-row">
+            <div class="stat-label">Std Dev</div>
+            <div class="stat-value">{{ statistics.stdDev !== undefined ? statistics.stdDev.toFixed(3) : 'N/A' }}</div>
+          </div>
+        </div>
+      }
+
+      <!-- Categorical top values -->
+      @if (statistics.topValues && statistics.topValues.length > 0) {
+        <div class="stats-section">
+          <div class="section-title">Top Values</div>
+          @for (item of statistics.topValues; track item.value) {
+            <div class="stat-row">
+              <div class="stat-label">{{ item.value }}</div>
+              <div class="stat-value">{{ item.count }}</div>
+            </div>
+          }
+        </div>
+      }
+
+      <!-- Sample values -->
+      @if (statistics.sampleValues && statistics.sampleValues.length > 0) {
+        <div class="stats-section">
+          <div class="section-title">Sample Values</div>
+          <div class="sample-values">
+            @for (value of statistics.sampleValues; track value) {
+              <span class="sample-chip">{{ value }}</span>
+            }
+          </div>
+        </div>
+      }
+    }
+  </div>
+</div>

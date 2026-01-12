@@ -1,0 +1,356 @@
+<div class="step3-data-cleaning">
+  <div class="step-header">
+    <h2>{{ stepInfo.title }}</h2>
+    <p class="step-purpose">{{ stepInfo.purpose }}</p>
+  </div>
+
+  @if (error) {
+    <div class="error-message">
+      <span class="material-icons">error</span>
+      {{ error }}
+    </div>
+  }
+
+  <div class="tabs">
+    <button
+      class="tab-button"
+      [class.active]="activeTab === 'missing'"
+      (click)="setActiveTab('missing')">
+      <span class="material-icons">report_problem</span>
+      Missing Values
+      @if (columnsWithMissing.length > 0) {
+        <span class="tab-badge">{{ columnsWithMissing.length }}</span>
+      }
+    </button>
+    <button
+      class="tab-button"
+      [class.active]="activeTab === 'outliers'"
+      (click)="setActiveTab('outliers')">
+      <span class="material-icons">scatter_plot</span>
+      Outliers
+      @if (numericColumns.length > 0) {
+        <span class="tab-badge">{{ numericColumns.length }}</span>
+      }
+    </button>
+    <button
+      class="tab-button"
+      [class.active]="activeTab === 'duplicates'"
+      (click)="setActiveTab('duplicates')">
+      <span class="material-icons">content_copy</span>
+      Duplicates
+    </button>
+  </div>
+
+  <div class="tab-content">
+    <!-- Missing Values Tab -->
+    @if (activeTab === 'missing') {
+      <div class="missing-values-panel">
+        @if (columnsWithMissing.length === 0) {
+          <div class="no-issues">
+            <span class="material-icons">check_circle</span>
+            <h3>No Missing Values</h3>
+            <p>All columns have complete data!</p>
+          </div>
+        } @else {
+          <div class="panel-intro">
+            <p>Found {{ columnsWithMissing.length }} column(s) with missing values. Choose how to handle them:</p>
+          </div>
+
+          <div class="column-cleaning-list">
+            @for (colState of columnsWithMissing; track colState.column.name) {
+              <div class="cleaning-card">
+                <div class="card-header">
+                  <div class="column-info">
+                    <h4>{{ colState.column.name }}</h4>
+                    <span class="data-type-badge" [attr.data-type]="colState.column.dataType">
+                      {{ colState.column.dataType }}
+                    </span>
+                  </div>
+                  <div class="missing-stats">
+                    <span class="missing-count">
+                      {{ colState.column.missingCount }} missing
+                    </span>
+                    <span class="missing-percentage">
+                      ({{ colState.column.missingPercentage.toFixed(1) }}%)
+                    </span>
+                  </div>
+                </div>
+
+                <div class="card-body">
+                  <div class="strategy-selector">
+                    <label>
+                      <span class="label-text">Strategy:</span>
+                      <select
+                        [(ngModel)]="colState.missingStrategy"
+                        (ngModelChange)="onMissingStrategyChange(colState.column.name, $event)"
+                        class="strategy-select">
+                        <option [value]="MissingValueStrategy.Keep">Keep as-is</option>
+                        <option [value]="MissingValueStrategy.RemoveRows">Remove rows</option>
+                        @if (colState.column.dataType === 'numeric') {
+                          <option [value]="MissingValueStrategy.FillMean">Fill with mean</option>
+                          <option [value]="MissingValueStrategy.FillMedian">Fill with median</option>
+                        }
+                        @if (colState.column.dataType === 'categorical') {
+                          <option [value]="MissingValueStrategy.FillMode">Fill with mode</option>
+                        }
+                        <option [value]="MissingValueStrategy.FillValue">Fill with value</option>
+                      </select>
+                    </label>
+                  </div>
+
+                  <!-- Fill Value Input Field -->
+                  @if (colState.missingStrategy === MissingValueStrategy.FillValue) {
+                    <div class="fill-value-input">
+                      <label>
+                        <span class="label-text">Fill value:</span>
+                        <input
+                          type="text"
+                          [(ngModel)]="colState.config.missingValueFillValue"
+                          (ngModelChange)="onMissingValueFillChange(colState.column.name, $event || '')"
+                          placeholder="Enter fill value"
+                          class="fill-value-field" />
+                      </label>
+                    </div>
+                  }
+
+                  <div class="impact-preview" [class.warning]="colState.missingStrategy === MissingValueStrategy.RemoveRows">
+                    <span class="material-icons">
+                      {{ colState.missingStrategy === MissingValueStrategy.Keep ? 'info' : 'warning' }}
+                    </span>
+                    <span>{{ getImpactMessage(colState) }}</span>
+                  </div>
+
+                  <div class="completeness-bar">
+                    <div class="completeness-fill" [style.width.%]="100 - colState.column.missingPercentage"></div>
+                  </div>
+                </div>
+              </div>
+            }
+          </div>
+        }
+      </div>
+    }
+
+    <!-- Outliers Tab -->
+    @if (activeTab === 'outliers') {
+      <div class="outliers-panel">
+        @if (numericColumns.length === 0) {
+          <div class="no-issues">
+            <span class="material-icons">info</span>
+            <h3>No Numeric Columns</h3>
+            <p>Outlier detection is only available for numeric columns.</p>
+          </div>
+        } @else {
+          <div class="info-box">
+            <span class="material-icons">info</span>
+            <div [innerHTML]="HELP_TEXT.general.outliers"></div>
+          </div>
+
+          <div class="column-cleaning-list">
+            @for (colState of numericColumns; track colState.column.name) {
+              <div class="cleaning-card">
+                <div class="card-header">
+                  <div class="column-info">
+                    <h4>{{ colState.column.name }}</h4>
+                    <span class="data-type-badge" [attr.data-type]="colState.column.dataType">
+                      {{ colState.column.dataType }}
+                    </span>
+                  </div>
+                  @if (colState.outlierCount !== undefined) {
+                    <div class="outlier-stats">
+                      <span class="outlier-count" [class.has-outliers]="colState.outlierCount > 0">
+                        {{ colState.outlierCount }} outliers
+                      </span>
+                      @if (colState.outlierCount > 0) {
+                        <span class="outlier-percentage">
+                          ({{ ((colState.outlierCount / totalRows) * 100).toFixed(1) }}%)
+                        </span>
+                      }
+                    </div>
+                  }
+                </div>
+
+                <div class="card-body">
+                  <div class="outlier-controls">
+                    <label>
+                      <span class="label-text">Detection Method:</span>
+                      <select
+                        [(ngModel)]="colState.outlierMethod"
+                        (ngModelChange)="onOutlierMethodChange(colState.column.name, $event)"
+                        class="strategy-select">
+                        <option [value]="OutlierMethod.IQR_1_5">{{ getOutlierMethodLabel(OutlierMethod.IQR_1_5) }}</option>
+                        <option [value]="OutlierMethod.IQR_2_0">{{ getOutlierMethodLabel(OutlierMethod.IQR_2_0) }}</option>
+                        <option [value]="OutlierMethod.IQR_3_0">{{ getOutlierMethodLabel(OutlierMethod.IQR_3_0) }}</option>
+                        <option [value]="OutlierMethod.ZScore_2">{{ getOutlierMethodLabel(OutlierMethod.ZScore_2) }}</option>
+                        <option [value]="OutlierMethod.ZScore_3">{{ getOutlierMethodLabel(OutlierMethod.ZScore_3) }}</option>
+                        <option [value]="OutlierMethod.ZScore_4">{{ getOutlierMethodLabel(OutlierMethod.ZScore_4) }}</option>
+                      </select>
+                    </label>
+
+                    <label>
+                      <span class="label-text">Action:</span>
+                      <select
+                        [(ngModel)]="colState.outlierStrategy"
+                        (ngModelChange)="onOutlierStrategyChange(colState.column.name, $event)"
+                        class="strategy-select">
+                        <option [value]="OutlierStrategy.Keep">Keep</option>
+                        <option [value]="OutlierStrategy.Remove">Remove rows</option>
+                        <option [value]="OutlierStrategy.Cap">Cap at boundaries</option>
+                      </select>
+                    </label>
+                  </div>
+
+                  <div class="impact-preview" [class.warning]="colState.outlierStrategy === OutlierStrategy.Remove">
+                    <span class="material-icons">
+                      {{ colState.outlierStrategy === OutlierStrategy.Keep ? 'info' : 'warning' }}
+                    </span>
+                    <span>{{ getOutlierImpactMessage(colState) }}</span>
+                  </div>
+
+                  <div class="stats-row">
+                    <div class="stat-item">
+                      <span class="stat-label">Min:</span>
+                      <span class="stat-value">{{ colState.column.min?.toFixed(2) }}</span>
+                    </div>
+                    <div class="stat-item">
+                      <span class="stat-label">Q1:</span>
+                      <span class="stat-value">{{ colState.column.q1?.toFixed(2) }}</span>
+                    </div>
+                    <div class="stat-item">
+                      <span class="stat-label">Median:</span>
+                      <span class="stat-value">{{ colState.column.median?.toFixed(2) }}</span>
+                    </div>
+                    <div class="stat-item">
+                      <span class="stat-label">Q3:</span>
+                      <span class="stat-value">{{ colState.column.q3?.toFixed(2) }}</span>
+                    </div>
+                    <div class="stat-item">
+                      <span class="stat-label">Max:</span>
+                      <span class="stat-value">{{ colState.column.max?.toFixed(2) }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            }
+          </div>
+        }
+      </div>
+    }
+
+    <!-- Duplicates Tab -->
+    @if (activeTab === 'duplicates') {
+      <div class="duplicates-panel">
+        @if (duplicateCount === 0) {
+          <div class="no-issues">
+            <span class="material-icons">check_circle</span>
+            <h3>No Duplicate Rows</h3>
+            <p>All rows in your dataset are unique!</p>
+          </div>
+        } @else {
+          <div class="info-box">
+            <span class="material-icons">info</span>
+            <div>
+              <div [innerHTML]="HELP_TEXT.general.duplicates"></div>
+              <p><strong>Found {{ duplicateCount }} duplicate row(s)</strong> ({{ duplicatePercentage.toFixed(1) }}% of data)</p>
+            </div>
+          </div>
+
+          <div class="duplicate-summary">
+            <div class="summary-card">
+              <div class="card-icon">
+                <span class="material-icons">content_copy</span>
+              </div>
+              <div class="card-content">
+                <div class="card-title">Duplicate Rows</div>
+                <div class="card-stats">
+                  <span class="stat-large">{{ duplicateCount }}</span>
+                  <span class="stat-label">out of {{ totalRows }} rows</span>
+                </div>
+                <div class="percentage-bar">
+                  <div class="percentage-fill" [style.width.%]="duplicatePercentage"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="action-card">
+              <h4>Removal Strategy</h4>
+              <div class="toggle-option">
+                <label class="toggle-label">
+                  <input
+                    type="checkbox"
+                    [(ngModel)]="cleaningConfig.removeDuplicates"
+                    (ngModelChange)="toggleRemoveDuplicates($event)"
+                    class="toggle-checkbox">
+                  <span class="toggle-text">Remove duplicate rows</span>
+                </label>
+              </div>
+              <div class="impact-preview" [class.warning]="cleaningConfig.removeDuplicates">
+                <span class="material-icons">
+                  {{ cleaningConfig.removeDuplicates ? 'warning' : 'info' }}
+                </span>
+                <span>
+                  @if (cleaningConfig.removeDuplicates) {
+                    Will remove {{ duplicateCount }} duplicate rows ({{ duplicatePercentage.toFixed(1) }}% of data)
+                  } @else {
+                    No changes will be made - duplicates will be kept
+                  }
+                </span>
+              </div>
+              <div class="note-box">
+                <span class="material-icons">info</span>
+                <p>First occurrence of each duplicate will be kept, subsequent duplicates will be removed.</p>
+              </div>
+            </div>
+          </div>
+
+          @if (sampleDuplicates.length > 0) {
+            <div class="sample-duplicates">
+              <h4>Sample Duplicate Rows (First {{ sampleDuplicates.length }})</h4>
+              <div class="table-container">
+                <table class="duplicate-table">
+                  <thead>
+                    <tr>
+                      @for (colName of columnNames; track colName) {
+                        <th>{{ colName }}</th>
+                      }
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (row of sampleDuplicates; track $index) {
+                      <tr>
+                        @for (colName of columnNames; track colName) {
+                          <td>{{ row[colName] || '' }}</td>
+                        }
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          }
+        }
+      </div>
+    }
+  </div>
+
+  <div class="action-buttons">
+    @if (hasCleaningActions) {
+      <div class="info-message">
+        <span class="material-icons">info</span>
+        Cleaning actions will be applied during final processing (Step 6)
+      </div>
+    } @else {
+      <div class="info-message">
+        <span class="material-icons">check_circle</span>
+        No cleaning actions configured - data will remain as-is
+      </div>
+    }
+
+    <button
+      class="btn-primary"
+      (click)="onContinue()">
+      Continue to Feature Configuration
+      <span class="material-icons">arrow_forward</span>
+    </button>
+  </div>
+</div>

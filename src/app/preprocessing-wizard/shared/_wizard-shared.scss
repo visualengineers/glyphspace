@@ -1,0 +1,471 @@
+@use '../../../styles/variables' as v;
+
+// Shared wizard styles following GlyphSpace design system
+
+// Step containers
+@mixin step-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 16px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+@mixin step-header {
+  text-align: center;
+  margin-bottom: 16px;
+
+  h2 {
+    font-size: 16px;
+    font-weight: bold;
+    color: v.$gray-800;
+    margin-bottom: 6px;
+  }
+
+  p {
+    font-size: 13px;
+    color: v.$gray-600;
+  }
+}
+
+// Cards and panels
+@mixin card {
+  background: white;
+  border: 1px solid v.$gray-300;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+@mixin card-header {
+  padding: 12px;
+  border-bottom: 1px solid v.$gray-300;
+  background: v.$gray-100;
+
+  h3, h4 {
+    margin: 0;
+    font-size: 13px;
+    color: v.$gray-800;
+    font-weight: 600;
+  }
+}
+
+@mixin card-body {
+  padding: 12px;
+}
+
+// Buttons
+@mixin btn-base {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 13px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+
+  .material-icons {
+    font-size: 18px;
+  }
+}
+
+@mixin btn-primary {
+  @include btn-base;
+  background: v.$active-color;
+  color: white;
+  font-weight: 600;
+
+  &:hover:not(:disabled) {
+    opacity: 0.9;
+  }
+
+  &:disabled {
+    background: v.$gray-400;
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+}
+
+@mixin btn-secondary {
+  @include btn-base;
+  background: rgba(200, 200, 200, 0.5);
+  color: v.$gray-700;
+
+  &:hover:not(:disabled) {
+    background: rgba(180, 180, 180, 0.7);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+@mixin btn-text {
+  @include btn-base;
+  background: white;
+  border: 1px solid v.$gray-300;
+  color: v.$gray-700;
+
+  &:hover {
+    background: v.$gray-100;
+    border-color: v.$gray-400;
+  }
+}
+
+// Badges
+@mixin badge {
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+@mixin badge-info {
+  @include badge;
+  background: rgba(0, 188, 212, 0.1);
+  color: v.$active-color;
+}
+
+@mixin badge-warning {
+  @include badge;
+  background: rgba(255, 152, 0, 0.1);
+  color: #E65100;
+}
+
+@mixin badge-success {
+  @include badge;
+  background: rgba(76, 175, 80, 0.1);
+  color: #388E3C;
+}
+
+@mixin badge-gray {
+  @include badge;
+  background: v.$gray-200;
+  color: v.$gray-700;
+}
+
+// Data type badges
+@mixin data-type-badge {
+  @include badge;
+
+  &[data-type="numeric"] {
+    @include badge-info;
+  }
+
+  &[data-type="categorical"] {
+    background: rgba(156, 39, 176, 0.1);
+    color: #7B1FA2;
+  }
+
+  &[data-type="text"] {
+    @include badge-warning;
+  }
+
+  &[data-type="date"] {
+    @include badge-success;
+  }
+
+  &[data-type="boolean"],
+  &[data-type="id"] {
+    @include badge-gray;
+  }
+}
+
+// Messages
+@mixin message-base {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 2px;
+  font-size: 13px;
+
+  .material-icons {
+    font-size: 18px;
+  }
+}
+
+@mixin message-info {
+  @include message-base;
+  background: rgba(0, 188, 212, 0.1);
+  border-left: 3px solid v.$active-color;
+  color: #00838f;
+}
+
+@mixin message-warning {
+  @include message-base;
+  background: rgba(255, 152, 0, 0.1);
+  border-left: 3px solid #FF9800;
+  color: #E65100;
+}
+
+@mixin message-success {
+  @include message-base;
+  background: rgba(76, 175, 80, 0.1);
+  border-left: 3px solid #4CAF50;
+  color: #2E7D32;
+}
+
+@mixin message-error {
+  @include message-base;
+  background: rgba(244, 67, 54, 0.1);
+  border-left: 3px solid #F44336;
+  color: #C62828;
+}
+
+// Form elements
+@mixin input-base {
+  padding: 8px 10px;
+  border: 1px solid v.$gray-300;
+  border-radius: 2px;
+  font-size: 13px;
+  background: white;
+  transition: border-color 0.2s ease;
+
+  &:hover {
+    border-color: v.$gray-400;
+  }
+
+  &:focus {
+    outline: none;
+    border-color: v.$active-color;
+  }
+}
+
+@mixin select {
+  @include input-base;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  padding-right: 28px;
+}
+
+@mixin checkbox {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: v.$active-color;
+}
+
+// Tables
+@mixin table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+
+  thead {
+    background: v.$gray-100;
+    border-bottom: 2px solid v.$gray-300;
+  }
+
+  th {
+    padding: 8px 10px;
+    text-align: left;
+    font-weight: 600;
+    color: v.$gray-700;
+    white-space: nowrap;
+  }
+
+  td {
+    padding: 8px 10px;
+    border-top: 1px solid v.$gray-200;
+    color: v.$gray-800;
+  }
+
+  tbody tr {
+    &:hover {
+      background: v.$gray-100;
+    }
+  }
+}
+
+// Progress bars
+@mixin progress-bar {
+  width: 100%;
+  height: 6px;
+  background: v.$gray-200;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+@mixin progress-fill {
+  height: 100%;
+  background: v.$active-color;
+  transition: width 0.3s ease;
+}
+
+// No content states
+@mixin no-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
+
+  .material-icons {
+    font-size: 48px;
+    color: v.$gray-400;
+    margin-bottom: 12px;
+  }
+
+  h3 {
+    font-size: 16px;
+    color: v.$gray-700;
+    margin-bottom: 6px;
+  }
+
+  p {
+    font-size: 13px;
+    color: v.$gray-600;
+    margin: 4px 0;
+  }
+}
+
+// Action buttons footer
+@mixin action-buttons-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid v.$gray-300;
+  margin-top: 16px;
+}
+
+// Info boxes for step-level guidance
+@mixin info-box {
+  @include message-info;
+  margin-bottom: 16px;
+
+  .material-icons {
+    flex-shrink: 0;
+  }
+}
+
+@mixin warning-box {
+  @include message-warning;
+  margin-bottom: 16px;
+
+  .material-icons {
+    flex-shrink: 0;
+  }
+}
+
+@mixin success-box {
+  @include message-success;
+  margin-bottom: 16px;
+
+  .material-icons {
+    flex-shrink: 0;
+  }
+}
+
+// Step purpose statement
+@mixin step-purpose {
+  text-align: center;
+  font-size: 13px;
+  color: v.$gray-600;
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+
+// Progress indicator for glyph features
+@mixin feature-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+
+  .progress-text {
+    font-size: 13px;
+    font-weight: 600;
+    color: v.$gray-700;
+  }
+
+  .progress-bar-container {
+    @include progress-bar;
+  }
+
+  .progress-fill {
+    @include progress-fill;
+  }
+}
+
+// Badge with data loss warning
+@mixin badge-data-loss {
+  @include badge-warning;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+
+  .material-icons {
+    font-size: 14px;
+  }
+}
+
+// Helper classes that can be used directly in templates
+.info-box {
+  @include info-box;
+}
+
+.warning-box {
+  @include warning-box;
+}
+
+.success-box {
+  @include success-box;
+}
+
+.step-purpose {
+  @include step-purpose;
+}
+
+.feature-progress {
+  @include feature-progress;
+}
+
+.badge-data-loss {
+  @include badge-data-loss;
+}
+
+.badge-numeric {
+  @include badge;
+  background: rgba(0, 188, 212, 0.1);
+  color: v.$active-color;
+}
+
+.badge-categorical {
+  @include badge;
+  background: rgba(156, 39, 176, 0.1);
+  color: #7B1FA2;
+}
+
+.badge-text {
+  @include badge;
+  background: rgba(255, 152, 0, 0.1);
+  color: #E65100;
+}
+
+.badge-date {
+  @include badge;
+  background: rgba(76, 175, 80, 0.1);
+  color: #388E3C;
+}
+
+.badge-boolean,
+.badge-id {
+  @include badge;
+  background: v.$gray-200;
+  color: v.$gray-700;
+}
+
+.badge-warning {
+  @include badge-warning;
+}
