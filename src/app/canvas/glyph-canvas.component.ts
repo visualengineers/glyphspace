@@ -63,6 +63,11 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
   private disabledBackgroundColor = new THREE.Color(0xf0f0f0);
   private viewRect = { left: 0, right: 0, top: 0, bottom: 0 };
 
+  // Safety mechanism to prevent infinite render loops
+  private renderGlyphsCallCount = 0;
+  private renderGlyphsResetTimer: any = null;
+  private readonly MAX_RENDER_CALLS_PER_SECOND = 20;
+
   // D3 force simulation and aggregation
   private simulation: Simulation<GlyphCacheObject, undefined> | undefined;
   collisionAvoidance = false;
@@ -226,33 +231,13 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
           this.algorithms = this.dataProvider.getPositions(loadedData);
           this.contexts = this.dataProvider.getContexts(loadedData);
 
-          console.log(`[Canvas ${this.id}] Dataset loaded: ${loadedData}`);
-          console.log(`[Canvas ${this.id}] Timestamps:`, this.timestamps);
-          console.log(`[Canvas ${this.id}] Algorithms:`, this.algorithms);
-
           this.selectedTimestamp = this.timestamps[0];
           this.selectedAlgorithm = this.algorithms[0];
           this.selectedContext = this.contexts[0];
 
-          console.log(`[Canvas ${this.id}] Selected: timestamp=${this.selectedTimestamp}, algorithm=${this.selectedAlgorithm}`);
-          console.log(`[Canvas ${this.id}] Data received:`, data ? `${data.length} glyphs` : 'null');
-
           this.glyphGroup.clear();
 
           if (data) {
-            // Debug: Check sample glyph positions
-            if (data.length > 0) {
-              console.log(`[Canvas ${this.id}] Sample glyph ID:`, data[0].id);
-              console.log(`[Canvas ${this.id}] Sample glyph positions:`, data[0].positions);
-
-              // Check if position exists for selected timestamp/algorithm
-              const hasPosition = data[0].positions?.[this.selectedTimestamp]?.[this.selectedAlgorithm];
-              console.log(`[Canvas ${this.id}] Position exists for ${this.selectedTimestamp}/${this.selectedAlgorithm}:`, hasPosition ? 'YES' : 'NO');
-
-              if (hasPosition) {
-                console.log(`[Canvas ${this.id}] First glyph position:`, hasPosition);
-              }
-            }
 
             this.positionBounds = undefined;
             this.updatePositionBounds();
@@ -790,6 +775,21 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private renderGlyphs(force = false): void {
     if (this.scene === undefined) return;
+
+    // Safety mechanism to prevent infinite render loops
+    this.renderGlyphsCallCount++;
+    if (this.renderGlyphsResetTimer) {
+      clearTimeout(this.renderGlyphsResetTimer);
+    }
+    this.renderGlyphsResetTimer = setTimeout(() => {
+      this.renderGlyphsCallCount = 0;
+    }, 1000);
+
+    if (this.renderGlyphsCallCount > this.MAX_RENDER_CALLS_PER_SECOND) {
+      console.error(`Infinite render loop detected (${this.renderGlyphsCallCount} calls/sec). Breaking loop.`);
+      this.renderGlyphsCallCount = 0;
+      return;
+    }
 
     this.glyphData.forEach((glyph: GlyphObject) => {
       const cacheObject = glyph.getCacheObject(this.id, this.selectedTimestamp, this.selectedAlgorithm);

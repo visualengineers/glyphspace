@@ -451,15 +451,37 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
         const totalBins = Object.keys(this.histogramData).length;
 
         if (effectiveType === 'categorical') {
-            // For categorical: Filter by discrete bin indices
-            // Each bin represents a distinct category, not a continuous range
+            // For categorical: Filter by discrete bin indices mapped to actual integer values
+            // Histograms are in normalized space (0-1), but actual feature values are unnormalized integers
+
+            // Get the max value for this feature to denormalize the filter range
+            const featureMaxValues = this.configuration?.featureMaxValues || {};
+            const maxValue = featureMaxValues[this.property];
+
+            if (maxValue === undefined) {
+                console.warn(`[Histogram ${this.property}] No max value found in featureMaxValues, cannot create filter`);
+                return;
+            }
+
             selectedBins.forEach(bin => {
                 const filter = new FeatureFilter(this.property);
 
-                // Calculate the exact normalized range for this specific bin
-                const binWidth = 1 / totalBins;
-                filter.minValue = bin * binWidth;
-                filter.maxValue = (bin + 1) * binWidth;
+                // Calculate normalized bin range (histogram is in 0-1 space)
+                const binWidth = 1.0 / totalBins;
+                const binCenter = (bin + 0.5) * binWidth;
+                const tolerance = 1.5 * binWidth;
+
+                const normalizedMin = Math.max(0, binCenter - tolerance);
+                const normalizedMax = Math.min(1, binCenter + tolerance);
+
+                // Denormalize to actual data range [0, maxValue]
+                const actualMin = Math.floor(normalizedMin * maxValue);
+                const actualMax = Math.ceil(normalizedMax * maxValue);
+
+                // WORKAROUND: Set filter range to match unnormalized values directly,
+                // bypassing the 0-1 constraint by using the private properties
+                (filter as any)._minValue = actualMin - 0.5; // Add tolerance for integer matching
+                (filter as any)._maxValue = actualMax + 0.5;
                 filter.filterMode = FilterMode.Or;
 
                 this.dataProvider.getFilters().push(filter);

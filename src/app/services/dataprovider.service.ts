@@ -214,6 +214,13 @@ export class DataProviderService {
             // Convert boolean to color scale ID: true -> 0 (continuous), false -> 3 (categorical)
             this.config.colorRange = schema.colorRange ? 0 : 3;
         }
+        // CRITICAL: Store feature types from schema (needed for categorical color normalization)
+        if (schema.types) {
+            this.config.featureTypes = schema.types;
+        }
+        // CRITICAL: Extract max values from metadata (needed for categorical color scaling)
+        this.extractFeatureMaxValuesFromMeta(datasetName, timestamp);
+
         this.config.loadData(datasetName);
 
         // Update filtered items
@@ -503,6 +510,29 @@ export class DataProviderService {
                         }
                     }
                 });
+            }
+        });
+
+        this.config.featureMaxValues = maxValues;
+    }
+
+    /**
+     * Extract max values from metadata for all features
+     * This is more efficient than scanning all glyphs when metadata is available
+     */
+    private extractFeatureMaxValuesFromMeta(datasetName: string, timestamp: string): void {
+        const metaMap = this.metaCache.get(datasetName);
+        if (!metaMap) return;
+
+        const meta = metaMap.get(timestamp);
+        if (!meta || !meta.features) return;
+
+        const maxValues: Record<string, number> = {};
+
+        // Extract max values from metadata for all features
+        Object.entries(meta.features).forEach(([featureId, stats]) => {
+            if (stats.max !== undefined) {
+                maxValues[featureId] = stats.max;
             }
         });
 
