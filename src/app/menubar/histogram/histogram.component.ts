@@ -62,7 +62,6 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
     ngOnInit(): void {
         this.filter = new FeatureFilter(this.property);
         this.filter.filterMode = FilterMode.And;
-        this.active = this.configuration.activeFeatures.indexOf(this.property) >= 0;
     }
 
     ngAfterViewInit(): void {
@@ -129,6 +128,7 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
 
         // Clear cached bins when data changes
         this.cachedStackedBins = null;
+        this.active = this.configuration.activeFeatures.indexOf(this.property) >= 0;
 
         this.svg.selectAll('*').remove();
 
