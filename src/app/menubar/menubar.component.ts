@@ -49,7 +49,8 @@ export class MenuBarComponent implements OnInit, OnDestroy {
     }
 
     onDatasetSelect(name: string) {
-        this.configService.loadData(name);
+        this.dataProvider.clearFilters();
+        this.configService.loadData(name);        
     }
 
     onContextSelect(context: string) {

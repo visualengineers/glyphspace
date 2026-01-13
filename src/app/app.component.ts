@@ -85,7 +85,7 @@ export class AppComponent implements OnChanges {
   }
 
   addCanvas() {
-    if (this, this.totalCells < 5) {
+    if (this, this.totalCells < 4) {
       this.totalCells++;
 
       const newId = this.getNextFreeId(this.grid);

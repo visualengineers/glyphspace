@@ -31,7 +31,7 @@ export class GlyphObject {
     highlighted = false;
     isInLense = false;
     lensCenter: THREE.Vector3 = new THREE.Vector3(0, 0, 0);
-    highlightColor: number = 0xe3ccd3;
+    highlightColor: number = 0x9b274d;
     passivecolor: number = 0xe0e0e0;
     axesColor: number = 0xa0a0a0;
 

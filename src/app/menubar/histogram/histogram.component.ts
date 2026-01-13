@@ -62,7 +62,6 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
     ngOnInit(): void {
         this.filter = new FeatureFilter(this.property);
         this.filter.filterMode = FilterMode.And;
-        this.active = this.configuration.activeFeatures.indexOf(this.property) >= 0;
     }
 
     ngAfterViewInit(): void {
@@ -72,6 +71,12 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
             this.configuration.glyphConfigSubject$.subscribe(() => {
                 this.colorScale = COLOR_SCALES.find(cs => cs.id === this.configuration.colorRange) || COLOR_SCALES[0];
                 this.updateChart();
+            })
+        );
+        this.configSub.add(
+            this.configuration.loadedDataSubject$.subscribe(() => {
+                this.brushSelection = null;
+                this.selectedBins.clear();
             })
         );
     }
@@ -123,6 +128,7 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
 
         // Clear cached bins when data changes
         this.cachedStackedBins = null;
+        this.active = this.configuration.activeFeatures.indexOf(this.property) >= 0;
 
         this.svg.selectAll('*').remove();
 
@@ -165,47 +171,6 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
 
         return this.type;
     }
-
-    // private prepareStackedBins(): StackedBin[] {
-    //     const rawBins = Object.keys(this.histogramData)
-    //         .map(k => ({ bin: +k, value: this.histogramData[k] }))
-    //         .filter(d => d.value > 0)              // remove zero bins
-    //         .sort((a, b) => a.bin - b.bin);
-
-    //     const GAP = 2;
-    //     const MIN_WIDTH = 4;
-
-    //     const total = rawBins.reduce((sum, d) => sum + d.value, 0);
-
-    //     const xScale = d3.scaleLinear()
-    //         .domain([0, total])
-    //         .range([0, this.width]);
-
-    //     let cursor = 0;
-
-    //     const binsWithCoords: StackedBin[] = [];
-
-    //     rawBins.map((d, i) => {
-    //         const desiredWidth = xScale(d.value) - xScale(0);
-    //         let width = Math.max(desiredWidth, MIN_WIDTH);
-
-    //         if (i === rawBins.length - 1 && cursor + width > this.width) {
-    //             width = Math.max(Math.min(width, this.width - cursor), 0);
-    //         }
-
-    //         const x0 = cursor;
-    //         const x1 = x0 + width;
-
-    //         binsWithCoords.push({
-    //             ...d,
-    //             x0,
-    //             x1
-    //         });
-
-    //         cursor = x1 + GAP;
-    //     });
-    //     return binsWithCoords;
-    // }
 
     private prepareStackedBins(): StackedBin[] {
         const GAP = 1;
@@ -334,7 +299,7 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
             .map(k => ({ bin: +k, value: this.histogramData[k] }));
 
         this.xScale = d3.scaleLinear()
-            .domain([0, bins.length - 1])
+            .domain([0, bins.length])
             .range([0, this.width]);
 
         const maxVal = d3.max(bins, d => d.value) || 1;
