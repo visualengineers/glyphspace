@@ -43,11 +43,11 @@
             <!-- CANVAS -->
             <div class="canvas-control">
                 <span class="label">Canvas</span>
-                <button class="add-btn" (click)="addCanvas.emit()" [disabled]="totalCells >= 6">
+                <button class="add-btn" (click)="addCanvas.emit()" [disabled]="totalCells >= 4">
                     <span class="material-icons">add</span>
                     Add
                 </button>
-                <button class="add-btn" (click)="fitAll()" [disabled]="totalCells >= 6">
+                <button class="add-btn" (click)="fitAll()">
                     <span class="material-icons">fullscreen</span>
                     Fit all
                 </button>
