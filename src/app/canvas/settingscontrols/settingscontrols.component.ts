@@ -161,8 +161,31 @@ export class SettingsControlPanelComponent {
     }
   }
 
-  getSelectedScaleColors() {
-    return this.colorScales.find(s => s.id === this.selectedColorScaleId)?.representativeColors ?? [];
+  getContinuousGradient(scale: any, steps = 10): string {
+    const domain = scale.scale.domain();
+    const min = domain[0];
+    const max = domain[domain.length - 1];
+
+    const colors: string[] = [];
+
+    for (let i = 0; i < steps; i++) {
+      const t = i / (steps - 1);
+      const value = min + t * (max - min);
+      colors.push(scale.scale(value));
+    }
+
+    return `linear-gradient(to right, ${colors.join(', ')})`;
+  }
+
+  getCategoricalColors(scaleDef: any): string[] {
+    const scale = scaleDef.scale;
+
+    // Ordinal / Quantize / Quantile scales
+    if (typeof scale.range === 'function') {
+      return scale.range();
+    }
+
+    return [];
   }
 
   selectColorScale(id: number) {
