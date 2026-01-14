@@ -27,6 +27,10 @@ export class Step4FeatureConfigComponent implements OnInit {
   suggestedFeatures: string[] = [];
   featureVariances: Map<string, number> = new Map();
 
+  // Flexible glyph dimensions (3-12)
+  readonly MIN_GLYPH_FEATURES = 3;
+  readonly MAX_GLYPH_FEATURES = 12;
+
   // Drag & drop state
   draggedFeature: string | null = null;
   draggedFromList: 'selected' | 'available' = 'available';
@@ -158,7 +162,7 @@ export class Step4FeatureConfigComponent implements OnInit {
     );
 
     // Re-suggest if selection is now invalid
-    if (this.selectedGlyphFeatures.length < 5) {
+    if (this.selectedGlyphFeatures.length < this.MIN_GLYPH_FEATURES) {
       this.applySuggestedFeatures();
     }
   }
@@ -214,8 +218,11 @@ export class Step4FeatureConfigComponent implements OnInit {
    * Check if configuration is valid to continue
    */
   canContinue(): boolean {
-    // At least one column must be included in projection AND exactly 5 glyph features selected
-    return this.getProjectionCount() > 0 && this.selectedGlyphFeatures.length === 5;
+    // At least one column must be included in projection AND 3-12 glyph features selected
+    const featureCount = this.selectedGlyphFeatures.length;
+    return this.getProjectionCount() > 0 &&
+           featureCount >= this.MIN_GLYPH_FEATURES &&
+           featureCount <= this.MAX_GLYPH_FEATURES;
   }
 
   /**
@@ -293,10 +300,11 @@ export class Step4FeatureConfigComponent implements OnInit {
       this.calculateSmartSuggestions();
     }
 
+    // Use top 5 suggestions by default (can be adjusted by user later)
     this.selectedGlyphFeatures = [...this.suggestedFeatures.slice(0, 5)];
 
-    // Pad with cycling through available features if < 5
-    while (this.selectedGlyphFeatures.length < 5 && this.availableFeatures.length > 0) {
+    // Pad with cycling through available features if < MIN (only if we have fewer than minimum)
+    while (this.selectedGlyphFeatures.length < this.MIN_GLYPH_FEATURES && this.availableFeatures.length > 0) {
       const cycleIndex = this.selectedGlyphFeatures.length % this.availableFeatures.length;
       const nextFeature = this.availableFeatures[cycleIndex];
 
@@ -344,8 +352,8 @@ export class Step4FeatureConfigComponent implements OnInit {
     if (!this.draggedFeature) return;
 
     if (this.draggedFromList === 'available') {
-      // Add to selection if < 5
-      if (this.selectedGlyphFeatures.length < 5 && !this.isFeatureSelected(this.draggedFeature)) {
+      // Add to selection if < MAX
+      if (this.selectedGlyphFeatures.length < this.MAX_GLYPH_FEATURES && !this.isFeatureSelected(this.draggedFeature)) {
         this.selectedGlyphFeatures.push(this.draggedFeature);
         this.saveGlyphFeatures();
       }
@@ -361,7 +369,7 @@ export class Step4FeatureConfigComponent implements OnInit {
    * Add/Remove features
    */
   addGlyphFeature(feature: string): void {
-    if (this.selectedGlyphFeatures.length >= 5) {
+    if (this.selectedGlyphFeatures.length >= this.MAX_GLYPH_FEATURES) {
       return; // Already at max
     }
 
@@ -393,7 +401,9 @@ export class Step4FeatureConfigComponent implements OnInit {
    * Save to service
    */
   saveGlyphFeatures(): void {
-    if (this.selectedGlyphFeatures.length === 5) {
+    // Save whenever we have a valid number of features (3-12)
+    if (this.selectedGlyphFeatures.length >= this.MIN_GLYPH_FEATURES &&
+        this.selectedGlyphFeatures.length <= this.MAX_GLYPH_FEATURES) {
       this.preprocessingService.setGlyphFeatures(this.selectedGlyphFeatures);
     }
   }

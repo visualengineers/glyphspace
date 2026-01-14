@@ -62,17 +62,18 @@
         <app-help-tooltip [helpText]="HELP_TEXT.general.glyphFeatures"></app-help-tooltip>
       </h3>
       <p class="section-description">
-        Select exactly 5 features to visualize as glyph axes.
+        Select 3-12 features to visualize as glyph axes.
         Drag to reorder. These features will be used after encoding is applied.
       </p>
 
       <!-- Progress Indicator -->
       <div class="feature-progress">
-        <span class="progress-text">{{ selectedGlyphFeatures.length }}/5 features selected</span>
+        <span class="progress-text">{{ selectedGlyphFeatures.length }} features selected (3-12 required)</span>
         <div class="progress-bar-container">
           <div
             class="progress-fill"
-            [style.width.%]="(selectedGlyphFeatures.length / 5) * 100"></div>
+            [style.width.%]="(selectedGlyphFeatures.length / 12) * 100"
+            [class.complete]="selectedGlyphFeatures.length >= 3 && selectedGlyphFeatures.length <= 12"></div>
         </div>
       </div>
 
@@ -99,7 +100,7 @@
 
       <!-- Selected Glyph Features (Drag & Drop) -->
       <div class="glyph-features-selected">
-        <h4>Selected Glyph Features ({{ selectedGlyphFeatures.length }}/5)</h4>
+        <h4>Selected Glyph Features ({{ selectedGlyphFeatures.length }})</h4>
 
         @if (selectedGlyphFeatures.length === 0) {
           <div class="empty-state">
@@ -132,10 +133,16 @@
           </div>
         }
 
-        @if (selectedGlyphFeatures.length < 5) {
+        @if (selectedGlyphFeatures.length < 3) {
           <div class="validation-warning">
             <span class="material-icons">warning</span>
-            <span>{{ 5 - selectedGlyphFeatures.length }} more feature(s) needed</span>
+            <span>At least {{ 3 - selectedGlyphFeatures.length }} more feature(s) required</span>
+          </div>
+        }
+        @if (selectedGlyphFeatures.length > 12) {
+          <div class="validation-warning">
+            <span class="material-icons">warning</span>
+            <span>Too many features selected. Maximum is 12, please remove {{ selectedGlyphFeatures.length - 12 }}</span>
           </div>
         }
       </div>

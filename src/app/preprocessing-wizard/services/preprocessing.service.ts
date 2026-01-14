@@ -208,9 +208,9 @@ export class PreprocessingService {
 
   // Glyph feature mapping
   public setGlyphFeatures(features: string[]): void {
-    // Validate exactly 5 features
-    if (features.length !== 5) {
-      throw new Error('Exactly 5 glyph features required');
+    // Validate 3-12 features
+    if (features.length < 3 || features.length > 12) {
+      throw new Error('3-12 glyph features required');
     }
     this.updateState({ glyphFeatures: features });
     this.saveStateToStorage();
