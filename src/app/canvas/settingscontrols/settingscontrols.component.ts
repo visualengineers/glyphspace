@@ -120,6 +120,11 @@ export class SettingsControlPanelComponent {
     this.config.removeCanvas(this.parentId);
   }
 
+  clearSelection() {
+    this.dataProvider.clearFilters();
+    this.config.clearSelection();
+  }
+
   emitSettingsChange() {
     this.settingsChanged.emit({
       timestamp: this.selectedTimestamp,
