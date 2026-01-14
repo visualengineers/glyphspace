@@ -52,7 +52,6 @@
         <p>No columns match your search</p>
       </div>
     } @else {
-      <div class="columns-table-wrapper">
         <table class="columns-table">
           <thead>
             <tr>
@@ -81,10 +80,6 @@
               <th class="col-distribution">
                 Distribution
                 <app-help-tooltip [helpText]="HELP_TEXT.tableHeaders.distribution" position="bottom"></app-help-tooltip>
-              </th>
-              <th class="col-stats">
-                Statistics
-                <app-help-tooltip [helpText]="HELP_TEXT.tableHeaders.statistics" position="bottom"></app-help-tooltip>
               </th>
             </tr>
           </thead>
@@ -150,74 +145,15 @@
 
                 <!-- Distribution -->
                 <td class="col-distribution">
-                  @if (column.dataType === 'numeric' && column.histogram) {
-                    <app-sparkline-chart
-                      [data]="column.histogram.counts"
-                      [labels]="[]"
-                      [width]="100"
-                      [height]="30"
-                      [color]="isColumnEnabled(column.name) ? '#00bcd4' : '#ccc'"
-                      type="bar">
-                    </app-sparkline-chart>
-                  } @else if (column.dataType === 'date' && column.histogram) {
-                    <app-sparkline-chart
-                      [data]="column.histogram.counts"
-                      [labels]="column.histogram.labels || []"
-                      [width]="100"
-                      [height]="30"
-                      [color]="isColumnEnabled(column.name) ? '#00bcd4' : '#ccc'"
-                      type="bar">
-                    </app-sparkline-chart>
-                  } @else if (column.topValues && column.topValues.length > 0) {
-                    <app-sparkline-chart
-                      [data]="getTopValuesCounts(column)"
-                      [labels]="getTopValuesLabels(column)"
-                      [width]="100"
-                      [height]="30"
-                      [color]="isColumnEnabled(column.name) ? '#00bcd4' : '#ccc'"
-                      type="bar">
-                    </app-sparkline-chart>
-                  } @else {
-                    <span class="text-muted">—</span>
-                  }
-                </td>
-
-                <!-- Statistics -->
-                <td class="col-stats">
-                  @if (column.dataType === 'numeric' && column.min !== undefined && column.max !== undefined) {
-                    <app-box-plot
-                      [min]="column.min"
-                      [q1]="column.q1 || column.min"
-                      [median]="column.median || column.mean || 0"
-                      [q3]="column.q3 || column.max"
-                      [max]="column.max"
-                      [mean]="column.mean"
-                      [width]="150"
-                      [height]="40"
-                      [color]="isColumnEnabled(column.name) ? '#00bcd4' : '#ccc'">
-                    </app-box-plot>
-                  } @else if (column.dataType === 'date' && column.sampleValues && column.sampleValues.length > 0) {
-                    <div class="stats-cell date-range">
-                      <div class="stat-line">
-                        <span class="stat-label">Earliest:</span>
-                        <span class="stat-value">{{ formatDate(column.sampleValues[0]) }}</span>
-                      </div>
-                      <div class="stat-line">
-                        <span class="stat-label">Latest:</span>
-                        <span class="stat-value">{{ formatDate(column.sampleValues[column.sampleValues.length - 1]) }}</span>
-                      </div>
-                    </div>
-                  } @else if (column.topValues && column.topValues.length > 0) {
-                    <div class="stats-cell">
-                      @for (item of column.topValues.slice(0, 3); track item.value) {
-                        <div class="stat-line">
-                          <span class="stat-label top-value-label" [title]="item.value">
-                            {{ truncateText(item.value, 15) }}:
-                          </span>
-                          <span class="stat-value">{{ item.count }}</span>
-                        </div>
-                      }
-                    </div>
+                  @if (getColumnHistogramData(column); as histogramData) {
+                    <app-wizard-histogram
+                      [data]="histogramData"
+                      [dataType]="column.dataType"
+                      [color]="getDataTypeColor(column.dataType)"
+                      [width]="120"
+                      [height]="50"
+                      [enabled]="isColumnEnabled(column.name)">
+                    </app-wizard-histogram>
                   } @else {
                     <span class="text-muted">—</span>
                   }
@@ -226,7 +162,6 @@
             }
           </tbody>
         </table>
-      </div>
     }
   </div>
 

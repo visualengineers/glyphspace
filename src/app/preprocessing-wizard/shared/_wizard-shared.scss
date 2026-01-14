@@ -148,30 +148,38 @@
   color: v.$gray-700;
 }
 
-// Data type badges
+// Data type badges - using centralized colors
 @mixin data-type-badge {
   @include badge;
 
   &[data-type="numeric"] {
-    @include badge-info;
+    background: v.$data-type-numeric-bg;
+    color: v.$data-type-numeric;
   }
 
   &[data-type="categorical"] {
-    background: rgba(156, 39, 176, 0.1);
-    color: #7B1FA2;
+    background: v.$data-type-categorical-bg;
+    color: v.$data-type-categorical;
   }
 
   &[data-type="text"] {
-    @include badge-warning;
+    background: v.$data-type-text-bg;
+    color: v.$data-type-text;
   }
 
   &[data-type="date"] {
-    @include badge-success;
+    background: v.$data-type-date-bg;
+    color: v.$data-type-date;
   }
 
-  &[data-type="boolean"],
+  &[data-type="boolean"] {
+    background: v.$data-type-boolean-bg;
+    color: v.$data-type-boolean;
+  }
+
   &[data-type="id"] {
-    @include badge-gray;
+    background: v.$data-type-id-bg;
+    color: v.$data-type-id;
   }
 }
 
@@ -437,33 +445,38 @@
 
 .badge-numeric {
   @include badge;
-  background: rgba(0, 188, 212, 0.1);
-  color: v.$active-color;
+  background: v.$data-type-numeric-bg;
+  color: v.$data-type-numeric;
 }
 
 .badge-categorical {
   @include badge;
-  background: rgba(156, 39, 176, 0.1);
-  color: #7B1FA2;
+  background: v.$data-type-categorical-bg;
+  color: v.$data-type-categorical;
 }
 
 .badge-text {
   @include badge;
-  background: rgba(255, 152, 0, 0.1);
-  color: #E65100;
+  background: v.$data-type-text-bg;
+  color: v.$data-type-text;
 }
 
 .badge-date {
   @include badge;
-  background: rgba(76, 175, 80, 0.1);
-  color: #388E3C;
+  background: v.$data-type-date-bg;
+  color: v.$data-type-date;
 }
 
-.badge-boolean,
+.badge-boolean {
+  @include badge;
+  background: v.$data-type-boolean-bg;
+  color: v.$data-type-boolean;
+}
+
 .badge-id {
   @include badge;
-  background: v.$gray-200;
-  color: v.$gray-700;
+  background: v.$data-type-id-bg;
+  color: v.$data-type-id;
 }
 
 .badge-warning {

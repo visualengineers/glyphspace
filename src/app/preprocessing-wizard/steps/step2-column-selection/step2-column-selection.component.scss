@@ -119,19 +119,16 @@
 // Table Layout
 .columns-table-container {
   flex: 1;
-  overflow-y: auto;
+  overflow: auto;
   background: white;
   border: 1px solid v.$gray-200;
   border-radius: 4px;
   margin-bottom: 16px;
 }
 
-.columns-table-wrapper {
-  overflow-x: auto;
-}
-
 .columns-table {
   width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
   font-size: 13px;
 
@@ -154,42 +151,40 @@
       text-transform: uppercase;
       letter-spacing: 0.5px;
       white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
 
       &.col-checkbox {
-        width: 40px;
+        width: 50px;
         padding-left: 16px;
       }
 
       &.col-name {
-        min-width: 200px;
+        width: 25%;
       }
 
       &.col-type {
-        min-width: 120px;
+        width: 12%;
       }
 
       &.col-count {
-        min-width: 100px;
+        width: 10%;
         text-align: right;
       }
 
       &.col-unique {
-        min-width: 120px;
+        width: 12%;
         text-align: right;
       }
 
       &.col-missing {
-        min-width: 120px;
+        width: 12%;
         text-align: right;
       }
 
       &.col-distribution {
-        min-width: 130px;
+        width: auto;
         text-align: center;
-      }
-
-      &.col-stats {
-        min-width: 180px;
       }
     }
   }
@@ -234,6 +229,7 @@
 
         &.col-distribution {
           text-align: center;
+          position: relative;
         }
       }
     }
@@ -265,33 +261,33 @@
   text-transform: uppercase;
 
   &.badge-numeric {
-    background: rgba(33, 150, 243, 0.1);
-    color: #1976D2;
+    background: v.$data-type-numeric-bg;
+    color: v.$data-type-numeric;
   }
 
   &.badge-categorical {
-    background: rgba(156, 39, 176, 0.1);
-    color: #7B1FA2;
+    background: v.$data-type-categorical-bg;
+    color: v.$data-type-categorical;
   }
 
   &.badge-text {
-    background: rgba(76, 175, 80, 0.1);
-    color: #388E3C;
+    background: v.$data-type-text-bg;
+    color: v.$data-type-text;
   }
 
   &.badge-date {
-    background: rgba(255, 152, 0, 0.1);
-    color: #F57C00;
+    background: v.$data-type-date-bg;
+    color: v.$data-type-date;
   }
 
   &.badge-boolean {
-    background: rgba(0, 188, 212, 0.1);
-    color: #00838F;
+    background: v.$data-type-boolean-bg;
+    color: v.$data-type-boolean;
   }
 
   &.badge-id {
-    background: rgba(158, 158, 158, 0.1);
-    color: #616161;
+    background: v.$data-type-id-bg;
+    color: v.$data-type-id;
   }
 }
 
@@ -318,37 +314,6 @@
     color: #FF9800;
     font-weight: 600;
   }
-}
-
-.stats-cell {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.stat-line {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  font-size: 12px;
-}
-
-.stat-label {
-  color: v.$gray-600;
-  min-width: 40px;
-
-  &.top-value-label {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    max-width: 100px;
-  }
-}
-
-.stat-value {
-  font-weight: 500;
-  color: v.$gray-800;
-  font-variant-numeric: tabular-nums;
 }
 
 .text-muted {
@@ -397,20 +362,6 @@
 }
 
 // Responsive
-@media (max-width: 1200px) {
-  .columns-table {
-    thead th {
-      &.col-stats {
-        display: none;
-      }
-    }
-
-    tbody td.col-stats {
-      display: none;
-    }
-  }
-}
-
 @media (max-width: 900px) {
   .columns-table {
     thead th {

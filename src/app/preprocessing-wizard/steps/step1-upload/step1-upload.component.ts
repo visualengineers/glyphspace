@@ -66,15 +66,15 @@ export class Step1UploadComponent {
   private async handleFile(file: File): Promise<void> {
     // Validate file type
     const fileName = file.name.toLowerCase();
-    if (!fileName.endsWith('.csv') && !fileName.endsWith('.parquet')) {
-      this.error = 'Please upload a CSV or Parquet file';
+    if (!fileName.endsWith('.csv')) {
+      this.error = 'Please upload a CSV';
       return;
     }
 
-    // Validate file size (150MB limit)
-    const maxSize = 150 * 1024 * 1024;
+    // Validate file size (50MB limit)
+    const maxSize = 50 * 1024 * 1024;
     if (file.size > maxSize) {
-      this.error = 'File size exceeds 150MB limit';
+      this.error = 'File size exceeds 50MB limit';
       return;
     }
 
