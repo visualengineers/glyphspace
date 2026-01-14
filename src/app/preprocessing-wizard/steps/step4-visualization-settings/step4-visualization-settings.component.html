@@ -1,0 +1,617 @@
+<div class="step4-visualization-settings">
+  <div class="step-header">
+    <h2>{{ stepInfo.title }}</h2>
+    <p class="step-purpose">{{ stepInfo.purpose }}</p>
+  </div>
+
+  <!-- Section Tabs -->
+  <div class="section-tabs">
+    <button
+      class="tab-button"
+      [class.active]="activeSection === 'configure'"
+      (click)="goToSection('configure')">
+      <span class="material-icons">tune</span>
+      Configure
+    </button>
+    <button
+      class="tab-button"
+      [class.active]="activeSection === 'review'"
+      [class.can-proceed]="canProceedToReview()"
+      [disabled]="!canProceedToReview()"
+      (click)="goToSection('review')">
+      <span class="material-icons">summarize</span>
+      Review
+      @if (!canProceedToReview()) {
+        <span class="material-icons warning-icon">warning</span>
+      }
+    </button>
+  </div>
+
+  <!-- ========================================================================== -->
+  <!-- CONFIGURE SECTION -->
+  <!-- ========================================================================== -->
+  @if (activeSection === 'configure') {
+    <div class="configure-section">
+      <!-- Color Feature Selection -->
+      <div class="config-panel">
+        <h3>
+          <span class="material-icons">palette</span>
+          Color Feature (Optional)
+          <app-help-tooltip [helpText]="HELP_TEXT.general.colorFeature"></app-help-tooltip>
+        </h3>
+        <p class="panel-description">Select which feature will be used to color data points in visualizations</p>
+
+        <div class="color-feature-grid">
+          @for (column of columns; track column.name) {
+            <div
+              class="color-option"
+              [class.selected]="colorFeature === column.name"
+              (click)="setColorFeature(column.name)">
+              <input
+                type="radio"
+                [name]="'colorFeature'"
+                [checked]="colorFeature === column.name"
+                [id]="'color-' + column.name">
+              <label [for]="'color-' + column.name">
+                <span class="column-name">{{ column.name }}</span>
+                <span class="data-type-badge" [ngClass]="getDataTypeBadgeClass(column.dataType)">
+                  {{ column.dataType }}
+                </span>
+              </label>
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- Glyph Features -->
+      <div class="config-panel">
+        <h3>
+          <span class="material-icons">star_outline</span>
+          Glyph Features (3-12 Required)
+          <app-help-tooltip [helpText]="HELP_TEXT.general.glyphFeatures"></app-help-tooltip>
+        </h3>
+        <p class="panel-description">
+          Select 3-12 features to visualize as glyph axes. Drag to reorder.
+        </p>
+
+        <!-- Progress Indicator -->
+        <div class="feature-progress">
+          <span class="progress-text">{{ selectedGlyphFeatures.length }} features selected (3-12 required)</span>
+          <div class="progress-bar-container">
+            <div
+              class="progress-fill"
+              [style.width.%]="(selectedGlyphFeatures.length / 12) * 100"
+              [class.complete]="selectedGlyphFeatures.length >= 3 && selectedGlyphFeatures.length <= 12"></div>
+          </div>
+        </div>
+
+        <!-- Smart Suggestions -->
+        <div class="suggestions-container">
+          <button class="btn-suggestion" (click)="applySuggestedFeatures()" [disabled]="suggestedFeatures.length === 0">
+            <span class="material-icons">auto_awesome</span>
+            Use Smart Suggestions (Top 5 by Variance)
+          </button>
+          <app-help-tooltip
+            helpText="Automatically selects the 5 most varied features (highest variance = most information)"
+            position="right"></app-help-tooltip>
+        </div>
+
+        <!-- Selected Glyph Features -->
+        <div class="glyph-features-selected">
+          <h4>Selected Glyph Features ({{ selectedGlyphFeatures.length }})</h4>
+
+          @if (selectedGlyphFeatures.length === 0) {
+            <div class="empty-state">
+              <span class="material-icons">info</span>
+              <p>No features selected. Click "Use Smart Suggestions" or drag features from below.</p>
+            </div>
+          } @else {
+            <div class="feature-list-selected" (drop)="onDropInSelected($event)" (dragover)="onDragOver($event)">
+              @for (feature of selectedGlyphFeatures; track feature; let i = $index) {
+                <div
+                  class="feature-chip selected"
+                  draggable="true"
+                  (dragstart)="onDragStart($event, feature, 'selected', i)"
+                  (dragend)="onDragEnd($event)">
+                  <span class="feature-order">{{ i + 1 }}</span>
+                  <span class="feature-name">{{ feature }}</span>
+                  <button class="btn-remove" (click)="removeGlyphFeature(i)" type="button" title="Remove feature">
+                    <span class="material-icons">close</span>
+                  </button>
+                </div>
+              }
+            </div>
+          }
+
+          @if (selectedGlyphFeatures.length < 3) {
+            <div class="validation-warning">
+              <span class="material-icons">warning</span>
+              <span>At least {{ 3 - selectedGlyphFeatures.length }} more feature(s) required</span>
+            </div>
+          }
+          @if (selectedGlyphFeatures.length > 12) {
+            <div class="validation-warning">
+              <span class="material-icons">warning</span>
+              <span>Too many features. Remove {{ selectedGlyphFeatures.length - 12 }}</span>
+            </div>
+          }
+        </div>
+
+        <!-- Available Features Pool -->
+        <div class="available-features-pool">
+          <h4>Available Features (After Encoding)</h4>
+          <p class="help-text">Drag features to the selection area above or click to add.</p>
+
+          <div class="feature-grid">
+            @for (feature of availableFeatures; track feature) {
+              <div
+                class="feature-chip available"
+                [class.disabled]="isFeatureSelected(feature)"
+                draggable="true"
+                (dragstart)="onDragStart($event, feature, 'available', -1)"
+                (dragend)="onDragEnd($event)"
+                (click)="addGlyphFeature(feature)">
+                <span class="feature-name">{{ feature }}</span>
+                @if (getFeatureVariance(feature) !== null) {
+                  <span class="feature-variance">σ²={{ getFeatureVariance(feature)?.toFixed(3) }}</span>
+                }
+                @if (isFeatureSelected(feature)) {
+                  <span class="material-icons selected-icon">check_circle</span>
+                }
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+
+      <!-- Projection Methods -->
+      <div class="config-panel">
+        <h3>
+          <span class="material-icons">settings</span>
+          Projection Methods
+          <app-help-tooltip [helpText]="HELP_TEXT.general.projection"></app-help-tooltip>
+        </h3>
+        <p class="panel-description">
+          Enable one or more dimensionality reduction methods. PCA runs first and loads immediately.
+          Other methods (FastMap, t-SNE, UMAP) compute in the background.
+        </p>
+
+        <div class="methods-grid">
+          @for (method of projectionMethods; track method.key) {
+            <div
+              class="method-card"
+              [class.enabled]="projectionConfig[method.key]"
+              [class.disabled]="isMethodDisabled(method)"
+              (click)="toggleProjectionMethod(method)">
+              <div class="card-icon">
+                <span class="material-icons">{{ method.icon }}</span>
+              </div>
+              <div class="card-content">
+                <div class="card-header-row">
+                  <div class="header-with-badge">
+                    <h4>{{ method.name }}</h4>
+                    @if (method.badge) {
+                      <span class="speed-badge" [class]="'badge-' + method.badge.toLowerCase()">{{ method.badge }}</span>
+                    }
+                  </div>
+                  <input
+                    type="checkbox"
+                    [checked]="projectionConfig[method.key]"
+                    [disabled]="isMethodDisabled(method)"
+                    (click)="$event.stopPropagation()">
+                </div>
+                <p class="card-description">{{ method.description }}</p>
+              </div>
+            </div>
+          }
+        </div>
+
+        <!-- Method Parameters -->
+        @if (projectionConfig.enableTSNE || projectionConfig.enableUMAP) {
+          <div class="parameters-section">
+            <h4>Method Parameters</h4>
+
+            <!-- t-SNE Parameters -->
+            @if (projectionConfig.enableTSNE) {
+              <div class="parameter-card">
+                <div class="parameter-header">
+                  <span class="material-icons">bubble_chart</span>
+                  <h5>t-SNE Parameters</h5>
+                </div>
+                <div class="parameter-body">
+                  <div class="parameter-row">
+                    <div class="parameter-field">
+                      <label>
+                        Perplexity
+                        <app-help-tooltip [helpText]="HELP_TEXT.parameters.tsnePerplexity"></app-help-tooltip>
+                      </label>
+                      <div class="input-group">
+                        <input
+                          type="range"
+                          min="5"
+                          max="50"
+                          [value]="projectionConfig.tsnePerplexity"
+                          (input)="onTSNEPerplexityChange(+$any($event.target).value)"
+                          class="range-input">
+                        <input
+                          type="number"
+                          min="5"
+                          max="50"
+                          [value]="projectionConfig.tsnePerplexity"
+                          (input)="onTSNEPerplexityChange(+$any($event.target).value)"
+                          class="number-input">
+                      </div>
+                    </div>
+
+                    <div class="parameter-field">
+                      <label>
+                        Iterations
+                        <app-help-tooltip [helpText]="HELP_TEXT.parameters.tsneIterations"></app-help-tooltip>
+                      </label>
+                      <div class="input-group">
+                        <input
+                          type="range"
+                          min="250"
+                          max="5000"
+                          step="250"
+                          [value]="projectionConfig.tsneIterations"
+                          (input)="onTSNEIterationsChange(+$any($event.target).value)"
+                          class="range-input">
+                        <input
+                          type="number"
+                          min="250"
+                          max="5000"
+                          step="250"
+                          [value]="projectionConfig.tsneIterations"
+                          (input)="onTSNEIterationsChange(+$any($event.target).value)"
+                          class="number-input">
+                      </div>
+                    </div>
+                  </div>
+
+                  @if (shouldShowTSNEWarning()) {
+                    <div class="warning-box">
+                      <span class="material-icons">warning</span>
+                      <div>
+                        <p><strong>{{ getTSNETimeEstimate() }}</strong></p>
+                        <p>t-SNE computation will run in the background. You can explore your data with PCA while waiting.</p>
+                      </div>
+                    </div>
+                  }
+                </div>
+              </div>
+            }
+
+            <!-- UMAP Parameters -->
+            @if (projectionConfig.enableUMAP) {
+              <div class="parameter-card">
+                <div class="parameter-header">
+                  <span class="material-icons">scatter_plot</span>
+                  <h5>UMAP Parameters</h5>
+                </div>
+                <div class="parameter-body">
+                  <div class="parameter-row">
+                    <div class="parameter-field">
+                      <label>Number of Neighbors</label>
+                      <div class="input-group">
+                        <input
+                          type="range"
+                          min="2"
+                          max="200"
+                          [value]="projectionConfig.umapNeighbors"
+                          (input)="onUMAPNeighborsChange(+$any($event.target).value)"
+                          class="range-input">
+                        <input
+                          type="number"
+                          min="2"
+                          max="200"
+                          [value]="projectionConfig.umapNeighbors"
+                          (input)="onUMAPNeighborsChange(+$any($event.target).value)"
+                          class="number-input">
+                      </div>
+                    </div>
+
+                    <div class="parameter-field">
+                      <label>Minimum Distance</label>
+                      <div class="input-group">
+                        <input
+                          type="range"
+                          min="0"
+                          max="0.99"
+                          step="0.01"
+                          [value]="projectionConfig.umapMinDist"
+                          (input)="onUMAPMinDistChange(+$any($event.target).value)"
+                          class="range-input">
+                        <input
+                          type="number"
+                          min="0"
+                          max="0.99"
+                          step="0.01"
+                          [value]="projectionConfig.umapMinDist"
+                          (input)="onUMAPMinDistChange(+$any($event.target).value)"
+                          class="number-input">
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            }
+          </div>
+        }
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="action-buttons">
+        @if (!canProceedToReview()) {
+          <div class="warning-message">
+            <span class="material-icons">warning</span>
+            <span>Please select 3-12 glyph features and at least one projection method to continue.</span>
+          </div>
+        }
+
+        <button class="btn-secondary" (click)="goBack()">
+          <span class="material-icons">arrow_back</span>
+          <span>Back</span>
+        </button>
+
+        <button class="btn-primary" (click)="goToSection('review')" [disabled]="!canProceedToReview()">
+          <span>Continue to Review</span>
+          <span class="material-icons">arrow_forward</span>
+        </button>
+      </div>
+    </div>
+  }
+
+  <!-- ========================================================================== -->
+  <!-- REVIEW SECTION -->
+  <!-- ========================================================================== -->
+  @if (activeSection === 'review') {
+    <div class="review-section">
+      <!-- Configuration Summary -->
+      <div class="summary-cards">
+        <div class="summary-card">
+          <div class="card-icon"><span class="material-icons">view_column</span></div>
+          <div class="card-content">
+            <span class="card-label">Columns Selected</span>
+            <span class="card-value">{{ enabledColumns }} / {{ totalColumns }}</span>
+          </div>
+        </div>
+
+        <div class="summary-card">
+          <div class="card-icon"><span class="material-icons">tune</span></div>
+          <div class="card-content">
+            <span class="card-label">Projection Features</span>
+            <span class="card-value">{{ projectionColumns }}</span>
+          </div>
+        </div>
+
+        <div class="summary-card">
+          <div class="card-icon"><span class="material-icons">palette</span></div>
+          <div class="card-content">
+            <span class="card-label">Color Feature</span>
+            <span class="card-value">{{ colorFeature || 'None' }}</span>
+          </div>
+        </div>
+
+        <div class="summary-card">
+          <div class="card-icon"><span class="material-icons">star_outline</span></div>
+          <div class="card-content">
+            <span class="card-label">Glyph Features</span>
+            <span class="card-value">{{ selectedGlyphFeatures.length }}</span>
+          </div>
+        </div>
+
+        <div class="summary-card">
+          <div class="card-icon"><span class="material-icons">settings</span></div>
+          <div class="card-content">
+            <span class="card-label">Projection Methods</span>
+            <span class="card-value">{{ enabledMethods.join(', ') }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Column Details Table -->
+      <div class="details-section">
+        <h3>
+          <span class="material-icons">list</span>
+          Column Configuration Details
+        </h3>
+
+        <div class="columns-table">
+          <div class="table-header">
+            <span class="col-name">Column</span>
+            <span class="col-type">Type</span>
+            <span class="col-encoding">Encoding</span>
+            <span class="col-scaling">Scaling</span>
+            <span class="col-projection">In Projection</span>
+          </div>
+
+          @for (config of columnConfigs; track config.name) {
+            @if (config.enabled) {
+              <div class="table-row">
+                <span class="col-name">
+                  <span class="column-name-text">{{ config.name }}</span>
+                  @if (config.isColorFeature) {
+                    <span class="color-badge" title="Color Feature">
+                      <span class="material-icons">palette</span>
+                    </span>
+                  }
+                </span>
+                <span class="col-type">
+                  <span class="data-type-badge" [ngClass]="getDataTypeBadgeClass(config.targetType)">
+                    {{ getDataTypeLabel(config.targetType) }}
+                  </span>
+                </span>
+                <span class="col-encoding">{{ getEncodingLabel(config.encodingMethod) }}</span>
+                <span class="col-scaling">
+                  @if (config.targetType === DataType.Numeric || config.targetType === DataType.Date) {
+                    {{ getScalingLabel(config.scalingMethod) }}
+                  } @else {
+                    <span class="text-muted">N/A</span>
+                  }
+                </span>
+                <span class="col-projection">
+                  @if (config.includeInProjection) {
+                    <span class="status-badge status-yes">
+                      <span class="material-icons">check_circle</span>
+                      Yes
+                    </span>
+                  } @else {
+                    <span class="status-badge status-no">
+                      <span class="material-icons">cancel</span>
+                      No
+                    </span>
+                  }
+                </span>
+              </div>
+            }
+          }
+        </div>
+      </div>
+
+      <!-- Warning Box -->
+      <div class="warning-box">
+        <span class="material-icons">warning</span>
+        <div>
+          <strong>Important:</strong> Processing may take several minutes depending on dataset size and enabled methods.
+          PCA will complete first, allowing you to explore your data immediately. Other projections will compute in the background.
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="action-buttons">
+        <button class="btn-secondary" (click)="goToSection('configure')">
+          <span class="material-icons">arrow_back</span>
+          <span>Back to Edit</span>
+        </button>
+
+        <button class="btn-primary" (click)="startProcessing()">
+          <span class="material-icons">play_arrow</span>
+          <span>Start Processing</span>
+        </button>
+      </div>
+    </div>
+  }
+
+  <!-- ========================================================================== -->
+  <!-- PROCESSING SECTION -->
+  <!-- ========================================================================== -->
+  @if (activeSection === 'processing') {
+    @if (isProcessing) {
+      <!-- Processing View -->
+      <div class="processing-view">
+        <div class="processing-card">
+          <div class="processing-icon">
+            <span class="material-icons spinning">sync</span>
+          </div>
+
+          <h3>Processing Your Data</h3>
+          <p class="processing-message">{{ processingStep || 'Applying your preprocessing configuration...' }}</p>
+
+          <div class="progress-bar">
+            <div class="progress-fill" [style.width.%]="processingProgress"></div>
+          </div>
+
+          <div class="progress-text">{{ processingProgress }}%</div>
+        </div>
+      </div>
+    }
+
+    @if (processingComplete && !isProcessing) {
+      <!-- Success View -->
+      <div class="success-view">
+        <div class="success-card">
+          <div class="success-icon">
+            <span class="material-icons">check_circle</span>
+          </div>
+
+          <h3>Processing Complete!</h3>
+          <p class="success-message">Your dataset has been successfully processed and is ready for visualization.</p>
+
+          <div class="success-stats">
+            <div class="stat-item">
+              <span class="material-icons">check</span>
+              <span>{{ enabledColumns }} columns processed</span>
+            </div>
+            <div class="stat-item">
+              <span class="material-icons">check</span>
+              <span>PCA projection ready</span>
+            </div>
+            <div class="stat-item">
+              <span class="material-icons">check</span>
+              <span>Data cleaning applied</span>
+            </div>
+          </div>
+
+          <!-- Background Projection Status -->
+          @if (getBackgroundProjectionsArray().length > 0) {
+            <div class="background-status-section">
+              <h4>
+                <span class="material-icons">schedule</span>
+                Background Projections
+              </h4>
+              <div class="projection-status-list">
+                @for (proj of getBackgroundProjectionsArray(); track proj.method) {
+                  <div class="projection-status-item" [class]="'status-' + proj.status">
+                    <div class="status-header">
+                      <span class="method-name">{{ proj.method.toUpperCase() }}</span>
+                      @if (proj.status === 'running') {
+                        <span class="status-badge status-running">
+                          <span class="material-icons spinning">sync</span>
+                          Running
+                        </span>
+                      }
+                      @if (proj.status === 'complete') {
+                        <span class="status-badge status-complete">
+                          <span class="material-icons">check_circle</span>
+                          Complete
+                        </span>
+                      }
+                      @if (proj.status === 'error') {
+                        <span class="status-badge status-error">
+                          <span class="material-icons">error</span>
+                          Error
+                        </span>
+                      }
+                    </div>
+                    @if (proj.status === 'running') {
+                      <div class="progress-bar-small">
+                        <div class="progress-fill-small" [style.width.%]="proj.progress"></div>
+                      </div>
+                      <p class="status-message">{{ proj.message }}</p>
+                    }
+                    @if (proj.status === 'complete') {
+                      <p class="status-message">Available in dashboard dropdown</p>
+                    }
+                  </div>
+                }
+              </div>
+            </div>
+          }
+
+          <div class="success-actions">
+            <button class="btn-secondary" (click)="startOver()">
+              <span class="material-icons">refresh</span>
+              <span>Process Another Dataset</span>
+            </button>
+
+            <button class="btn-primary" (click)="goToDashboard()">
+              <span class="material-icons">dashboard</span>
+              <span>Open in Glyphspace</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    }
+
+    @if (error) {
+      <!-- Error Message -->
+      <div class="error-message">
+        <span class="material-icons">error</span>
+        <div class="message-content">
+          <strong>Error:</strong> {{ error }}
+        </div>
+      </div>
+    }
+  }
+</div>

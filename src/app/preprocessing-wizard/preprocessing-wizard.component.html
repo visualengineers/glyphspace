@@ -39,16 +39,10 @@
           <app-step2-column-selection (continue)="nextStep()"></app-step2-column-selection>
         }
         @case (2) {
-          <app-step3-data-cleaning (continue)="nextStep()"></app-step3-data-cleaning>
+          <app-step3-configure-data-features></app-step3-configure-data-features>
         }
         @case (3) {
-          <app-step4-feature-config></app-step4-feature-config>
-        }
-        @case (4) {
-          <app-step5-projection-settings></app-step5-projection-settings>
-        }
-        @case (5) {
-          <app-step6-review-process (finish)="onWizardComplete()"></app-step6-review-process>
+          <app-step4-visualization-settings (finish)="onWizardComplete()"></app-step4-visualization-settings>
         }
       }
     </div>

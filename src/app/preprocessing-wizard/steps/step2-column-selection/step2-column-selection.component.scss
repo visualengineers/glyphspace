@@ -345,7 +345,7 @@
 // Action Buttons
 .action-buttons {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
   gap: 12px;
   padding-top: 16px;
@@ -354,7 +354,7 @@
 
 .warning-message {
   @include wizard.message-warning;
-  flex: 1;
+  margin-right: auto;
 }
 
 .btn-primary {

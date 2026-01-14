@@ -18,19 +18,11 @@ export const STEP_INFO: Record<number, StepInfo> = {
     purpose: 'Choose which columns to include in your visualization. Deselect ID fields and irrelevant columns.'
   },
   2: {
-    title: 'Clean Data',
-    purpose: 'Remove or fix data quality issues like missing values, outliers, and duplicate rows.'
+    title: 'Configure Data & Features',
+    purpose: 'Configure data cleaning, encoding, scaling, and projection settings for each column in a unified table view.'
   },
   3: {
-    title: 'Configure Features',
-    purpose: 'Configure how data is encoded for visualization and select 5 features for your glyphs.'
-  },
-  4: {
-    title: 'Projection Settings',
-    purpose: 'Choose dimensionality reduction methods to create 2D visualizations from your multi-dimensional data.'
-  },
-  5: {
-    title: 'Review & Process',
-    purpose: 'Review your configuration and process the data. This creates the final visualization-ready dataset.'
+    title: 'Visualization Settings',
+    purpose: 'Select color and glyph features, choose projection methods, review your configuration, and process your data.'
   }
 };
