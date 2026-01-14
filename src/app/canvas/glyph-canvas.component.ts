@@ -24,6 +24,7 @@ import { LoggerService } from '../services/logger-service';
 import { RenderTask } from '../shared/enum/render-task';
 import { CanvasNavigationControlsComponent } from './navigationcontrols/navigationcontrols.component';
 import { SettingsControlPanelComponent } from "./settingscontrols/settingscontrols.component";
+import { GlyphInstancedRenderer } from '../glyph/glyph-instance-renderer';
 
 @Component({
   selector: 'glyph-canvas',
@@ -53,6 +54,7 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
   // Basic THREE.js properties
   public scene!: THREE.Scene;
   private renderer!: THREE.WebGLRenderer;
+  private glyphRenderer: any;
   private camera!: THREE.OrthographicCamera;
   private target: THREE.Vector3 = new THREE.Vector3(0, 0, 0);
   glyphGroup = new THREE.Group();
@@ -208,8 +210,53 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
     this.renderer.domElement.style.width = '100%';
     this.renderer.domElement.style.height = '100%';
     this.renderer.domElement.style.display = 'block'; // prevent extra spacing
-    this.scene.add(this.glyphGroup);
+    // this.scene.add(this.glyphGroup);
     container.appendChild(this.renderer.domElement);
+  }
+
+  private buildFeatureTexture(glyphs: GlyphObject[]): THREE.DataTexture {
+    const numGlyphs = glyphs.length;
+
+    // Determine the max number of features across all glyphs
+    const maxFeatures = Math.max(
+      ...glyphs.map(g => {
+        const ctx = g.getFeatureContext(g.currentContext);
+        return ctx ? ctx.segments : 0;
+      })
+    );
+
+    // Allocate Float32Array for RGBA (4 values per pixel)
+    const data = new Float32Array(numGlyphs * maxFeatures * 4);
+
+    glyphs.forEach((glyph, row) => {
+      const ctx = glyph.getFeatureContext(glyph.currentContext);
+      const values = ctx?.values || [];
+
+      for (let col = 0; col < maxFeatures; col++) {
+        const value = values[col] ?? 0; // use 0 if glyph has fewer features
+        const idx = (row * maxFeatures + col) * 4;
+        data[idx + 0] = value; // R channel holds the feature
+        data[idx + 1] = 0;     // G channel unused
+        data[idx + 2] = 0;     // B channel unused
+        data[idx + 3] = 1;     // A channel full opacity
+      }
+    });
+
+    // Create the THREE.js DataTexture
+    const texture = new THREE.DataTexture(
+      data,
+      maxFeatures,
+      numGlyphs,
+      THREE.RGBAFormat,
+      THREE.FloatType
+    );
+
+    texture.needsUpdate = true;
+    texture.minFilter = THREE.NearestFilter;
+    texture.magFilter = THREE.NearestFilter;
+    texture.flipY = false;
+
+    return texture;
   }
 
   private subscribeToEvents() {
@@ -244,6 +291,18 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
           if (data) {
             // Debug: Check sample glyph positions
             if (data.length > 0) {
+              // --- 1. Build feature texture ---
+              const featureTexture = this.buildFeatureTexture(this.glyphData);
+
+              // --- 2. Initialize or update the GPU renderer ---
+              if (!this.glyphRenderer) {
+                this.glyphRenderer = new GlyphInstancedRenderer(data.length, featureTexture);
+                this.scene.add(this.glyphRenderer.mesh);
+              } else {
+                // If glyphRenderer already exists, update texture and max glyph count
+                this.glyphRenderer.updateFeatureTexture(featureTexture, data.length);
+              }
+
               console.log(`[Canvas ${this.id}] Sample glyph ID:`, data[0].id);
               console.log(`[Canvas ${this.id}] Sample glyph positions:`, data[0].positions);
 
@@ -803,17 +862,36 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private renderGlyphs(force = false): void {
-    if (this.scene === undefined) return;
+    if (!this.scene || !this.glyphRenderer) return;
 
+    // === Upload each glyph's instance data to the GPU ===
     this.glyphData.forEach((glyph: GlyphObject) => {
-      const cacheObject = glyph.getCacheObject(this.id, this.selectedTimestamp, this.selectedAlgorithm);
-      const oldMesh = cacheObject.mesh;
-      if (oldMesh) this.glyphGroup.remove(oldMesh);
+      // Only send visible glyphs to GPU
+      const cacheObject = glyph.getCacheObject(
+        this.id,
+        this.selectedTimestamp,
+        this.selectedAlgorithm
+      );
+
       if (cacheObject.visible || force) {
-        const mesh = glyph.render(this.sizeInfo, this.selectedTimestamp, this.selectedAlgorithm, this.id, this.aggregated);
-        if (mesh != null) this.glyphGroup.add(mesh);
+        glyph.uploadToGPU(
+          this.glyphRenderer,
+          this.sizeInfo,
+          this.selectedTimestamp,
+          this.selectedAlgorithm,
+          this.id,
+          this.aggregated
+        );
+      } else {
+        // Hide instance
+        this.glyphRenderer.skipInstance(glyph);
       }
     });
+
+    // Ensure the InstancedMesh is in the scene (once)
+    if (!this.scene.children.includes(this.glyphRenderer.mesh)) {
+      this.scene.add(this.glyphRenderer.mesh);
+    }
 
     this.updatePositionBounds();
     this.requestRender(RenderTask.SceneRender);

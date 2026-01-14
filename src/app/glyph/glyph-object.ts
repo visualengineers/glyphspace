@@ -12,6 +12,7 @@ import { GlyphType } from "../shared/enum/glyph-type";
 import { GlyphSizeInfo } from "./glyph-size-info";
 import { DataProcessorService } from "../services/data-processor";
 import { createGrayPlaceholderTexture } from "../shared/helpers/three-helper";
+import { GlyphInstancedRenderer } from "./glyph-instance-renderer";
 
 export class GlyphObject {
     id: string;
@@ -59,6 +60,48 @@ export class GlyphObject {
         return cacheObject;
     }
 
+    public uploadToGPU(
+        renderer: GlyphInstancedRenderer,
+        sizeInfo: GlyphSizeInfo,
+        timestamp: string,
+        algorithm: string,
+        owner = 0,
+        clustered = false
+    ): void {
+        const cache = this.getCacheObject(owner, timestamp, algorithm);
+
+        // === CLUSTER CULLING (unchanged semantics)
+        if (
+            sizeInfo.currentZoomLevel === ZoomLevel.low &&
+            clustered &&
+            cache.isClustered &&
+            !cache.isClusterRepresentative
+        ) {
+            renderer.skipInstance(this);
+            return;
+        }
+
+        const pos = this.positions[timestamp][algorithm];
+        const color = this.getCurrentColor();
+        const ctx = this.getFeatureContext(this.currentContext);
+
+        renderer.setInstanceData(this, {
+            position: new THREE.Vector2(pos.x, pos.y),
+            radius: sizeInfo.radius,
+            color,
+            glyphType: this.resolveGlyphType(sizeInfo),
+            isClusterRepresentative: cache.isClusterRepresentative,
+            features: ctx
+        });
+    }
+
+    private resolveGlyphType(sizeInfo: GlyphSizeInfo): GlyphType {
+        if (sizeInfo.currentZoomLevel === ZoomLevel.low) {
+            return GlyphType.Dot;
+        }
+        return this.config.getConfiguration().glyphType;
+    }
+
     public getMesh(timestamp: string, algorithm: string, owner = 0): Object3D | undefined {
         const cacheObject = this.getCacheObject(owner, timestamp, algorithm);
         return cacheObject.mesh;
@@ -70,20 +113,21 @@ export class GlyphObject {
         this.highlighted = highlight;
     }
 
-    private getCurrentColor(trueColor = false): number {
+    public getCurrentColor(trueColor = false): THREE.Color {
         if (this.highlighted && !trueColor) {
-            return this.highlightColor;
+            return new THREE.Color(this.highlightColor);
         }
         if (this.passive && !trueColor) {
-            return this.passivecolor;
+            return new THREE.Color(this.passivecolor);
         }
 
-        let currentColor = 0x00cc88;
-        if (this.features != null) {
-            currentColor = this.config.color(this.features["1"][this.config.colorFeature]);
+        let c = 0x00cc88;
+        if (this.features) {
+            c = this.config.color(
+                this.features["1"][this.config.colorFeature]
+            );
         }
-
-        return currentColor;
+        return new THREE.Color(c);
     }
 
     public render(sizeInfo: GlyphSizeInfo, timestamp: string, algorithm: string, owner = 0, clustered = false): THREE.Object3D | null {
@@ -416,7 +460,7 @@ export class GlyphObject {
     }
 
     // === Shared feature extraction and setup ===
-    private getFeatureContext(contextId: number) {
+    public getFeatureContext(contextId: number) {
         if (!this.features) return null;
 
         const featureMap = Object.fromEntries(
