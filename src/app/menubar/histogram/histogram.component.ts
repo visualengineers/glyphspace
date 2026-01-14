@@ -62,11 +62,10 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
     ngOnInit(): void {
         this.filter = new FeatureFilter(this.property);
         this.filter.filterMode = FilterMode.And;
+        this.createHistogram();
     }
 
     ngAfterViewInit(): void {
-        this.createHistogram();
-
         this.configSub.add(
             this.configuration.glyphConfigSubject$.subscribe(() => {
                 this.colorScale = COLOR_SCALES.find(cs => cs.id === this.configuration.colorRange) || COLOR_SCALES[0];

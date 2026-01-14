@@ -113,8 +113,8 @@
           <div class="color-scale-select" (click)="$event.stopPropagation(); toggleColorScaleDropdown()">
             <div class="selected-scale" *ngIf="getSelectedScale() as scale">
 
-              <!-- CONTINUOUS -->
-              <div *ngIf="scale.type === 'continuous'" class="color-gradient"
+              <!-- NUMERIC -->
+              <div *ngIf="scale.type === 'numeric'" class="color-gradient"
                 [style.background]="getContinuousGradient(scale)"></div>
 
               <!-- CATEGORICAL -->
@@ -125,21 +125,37 @@
             </div>
 
             <div class="color-scale-options" *ngIf="colorScaleDropdownOpen">
-              <div class="color-scale-option" *ngFor="let scale of colorScales"
-                [class.active]="scale.id === selectedColorScaleId"
-                (click)="selectColorScale(scale.id); colorScaleDropdownOpen = false; $event.stopPropagation()">
 
-                <!-- CONTINUOUS -->
-                <div *ngIf="scale.type === 'continuous'" class="color-gradient"
-                  [style.background]="getContinuousGradient(scale)"></div>
+              <ng-container *ngFor="let group of groupedColorScales; let gi = index">
 
-                <!-- CATEGORICAL -->
-                <ng-container *ngIf="scale.type === 'categorical'">
-                  <div class="color-box" *ngFor="let c of getCategoricalColors(scale)" [style.background]="c"></div>
-                </ng-container>
+                <!-- Group header -->
+                <div class="color-scale-group-label">
+                  {{ group.group }}
+                </div>
 
-              </div>
+                <!-- Group items -->
+                <div class="color-scale-option" *ngFor="let scale of group.scales"
+                  [class.active]="scale.id === selectedColorScaleId"
+                  (click)="selectColorScale(scale.id); colorScaleDropdownOpen = false; $event.stopPropagation()">
+
+                  <!-- NUMERIC -->
+                  <div *ngIf="scale.type === 'numeric'" class="color-gradient"
+                    [style.background]="getContinuousGradient(scale)"></div>
+
+                  <!-- CATEGORICAL -->
+                  <ng-container *ngIf="scale.type === 'categorical'">
+                    <div class="color-box" *ngFor="let c of getCategoricalColors(scale)" [style.background]="c"></div>
+                  </ng-container>
+
+                </div>
+
+                <!-- Divider (not after last group) -->
+                <div class="color-scale-group-divider" *ngIf="gi < groupedColorScales.length - 1"></div>
+
+              </ng-container>
+
             </div>
+
           </div>
         </div>
 

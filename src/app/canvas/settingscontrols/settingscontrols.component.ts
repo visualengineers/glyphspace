@@ -23,6 +23,11 @@ export class SettingsControlPanelComponent {
 
   colorScales: ColorScale[] = COLOR_SCALES;
 
+  groupedColorScales: {
+    group: string;
+    scales: any[];
+  }[] = [];
+
   panelActive = false;
   activeSetting: SettingMode = null;
   animationSpeed = 10;
@@ -76,6 +81,8 @@ export class SettingsControlPanelComponent {
   }
 
   ngOnInit(): void {
+    this.groupedColorScales = this.groupColorScales(this.colorScales);
+
     this.config.loadedDataSubject$.subscribe(async data => {
       if (data == "") return;
 
@@ -168,6 +175,23 @@ export class SettingsControlPanelComponent {
     }
   }
 
+  private groupColorScales(scales: any[]) {
+    const map = new Map<string, any[]>();
+
+    for (const scale of scales) {
+      const group = scale.group ?? 'Other';
+      if (!map.has(group)) {
+        map.set(group, []);
+      }
+      map.get(group)!.push(scale);
+    }
+
+    return Array.from(map.entries()).map(([group, scales]) => ({
+      group,
+      scales
+    }));
+  }
+
   getContinuousGradient(scale: any, steps = 10): string {
     const domain = scale.scale.domain();
     const min = domain[0];
@@ -212,6 +236,14 @@ export class SettingsControlPanelComponent {
 
   selectColor(): void {
     this.config.colorFeature = this.selectedColorAttribute;
+
+    const featureType = this.schema?.types[this.selectedColorAttribute];
+    const colorScaleType = this.getSelectedScale().type;
+    
+    if ( featureType != colorScaleType ) {
+      const matchingScale = this.colorScales.find(s => s.type == featureType)?.id;
+      if (matchingScale != undefined) this.selectColorScale(matchingScale);
+    }
     this.config.updateConfiguration();
   }
 
