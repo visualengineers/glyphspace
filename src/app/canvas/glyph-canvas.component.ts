@@ -85,6 +85,8 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
   // Helpers for navigation
   private isPanning = false;
   mouseInside = false;
+  private mouseIdleTimer: any;
+  private readonly MOUSE_IDLE_MS = 2000;
   lastMousePosition = new THREE.Vector2();
   lastTouchPosition: { x: number, y: number } | null = { x: 0, y: 0 };
   private mouseDownTime: number = 0;
@@ -523,18 +525,29 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
     this.magicLensComponent.clearLensGlyphs();
   }
 
-  onCanvasClick() {
-    if (!this.canvasActivated) {
-      this.canvasActivated = true;
+  private resetMouseIdleTimer(): void {
+    this.clearMouseIdleTimer();
+
+    this.mouseIdleTimer = setTimeout(() => {
+      this.mouseInside = false;
+    }, this.MOUSE_IDLE_MS);
+  }
+
+  private clearMouseIdleTimer(): void {
+    if (this.mouseIdleTimer) {
+      clearTimeout(this.mouseIdleTimer);
+      this.mouseIdleTimer = null;
     }
   }
 
   onMouseEnter() {
     this.mouseInside = true;
     this.isShiftDown = false;
+    this.resetMouseIdleTimer();
   }
 
   onMouseLeave() {
+    this.clearMouseIdleTimer();
     this.mouseInside = false;
     this.isShiftDown = false;
     if (this.magicLensComponent.isActive() && !this.magicLensComponent.isFixed()) {
@@ -983,8 +996,11 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
     const clickedInside = this.sceneContainer?.nativeElement.contains(event.target as Node);
     if (!clickedInside) {
       this.canvasActivated = false; // revert border
-      this.settingsPanel.hidePanel();
+      this.settingsPanel.deactivatePanel();
     } else {
+      this.canvasActivated = true;
+      this.resetMouseIdleTimer();
+      this.settingsPanel.activatePanel();
       if ((event.target as HTMLElement).localName === "canvas") {
         this.settingsPanel.hideMenus();
       }
@@ -1108,6 +1124,9 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
 
   @HostListener('mousemove', ['$event'])
   onMouseMove(event: MouseEvent): void {
+    this.mouseInside = true;
+    this.resetMouseIdleTimer();
+
     if (this.isMouseOverOverlay(event) || this.tooltipComponent.isFixed()) {
       this.isSelecting = false;
       this.tooltipComponent.cancelHoverPopup();

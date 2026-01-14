@@ -11,14 +11,24 @@
     align-items: center;
     padding: 12px 14px;
     /* extra horizontal padding to avoid clipping */
-    background-color: #e6f0ff;
+    background-color: v.$gray-100;
     border-top: none;
-    border-bottom: 1px solid #b3d2ff;
+    border-bottom: 1px solid v.$gray-200;
     /* dark blue bottom line */
     z-index: 400;
 
     box-sizing: border-box;
     /* ensures padding is counted inside width */
+
+    /* Initially hidden */
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+
+    &.active {
+        background-color: #e6f0ff;
+        border-bottom: 1px solid #b3d2ff;
+    }
 
     .settings-overlay {
         position: absolute;
@@ -36,6 +46,12 @@
             min-width: 200px;
         }
     }
+}
+
+.settings-panel.visible {
+    opacity: 1;
+    pointer-events: auto;
+    /* enable interaction */
 }
 
 /* White button group on left */

@@ -1,4 +1,4 @@
-<div class="settings-panel" *ngIf="panelVisible">
+<div class="settings-panel" [class.active]="panelActive" [class.visible]="visible || panelActive">
   <!-- Left-aligned white button group -->
   <div class="settings-buttons">
     <button class="setting-btn" [class.active]="activeSetting==='position'" (click)="toggleSetting('position')">

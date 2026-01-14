@@ -19,9 +19,11 @@ export type SettingMode = 'position' | 'color' | 'glyph' | null;
   styleUrls: ['./settingscontrols.component.scss'],
 })
 export class SettingsControlPanelComponent {
+  @Input() visible = false; // controls fade in/out
+
   colorScales: ColorScale[] = COLOR_SCALES;
 
-  panelVisible = false;          // toggled by parent click
+  panelActive = false;
   activeSetting: SettingMode = null;
   animationSpeed = 10;
   paused = true;
@@ -97,12 +99,12 @@ export class SettingsControlPanelComponent {
     this.activeSetting = null;
   }
 
-  showPanel() {
-    this.panelVisible = true;
+  activatePanel() {
+    this.panelActive = true;
   }
 
-  hidePanel() {
-    this.panelVisible = false;
+  deactivatePanel() {
+    this.panelActive = false;
     this.activeSetting = null;
   }
 
