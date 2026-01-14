@@ -59,7 +59,7 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
   private animationFrameId: number | undefined;
   private needsRender = new Set<RenderTask>();
   private resizeObserver!: ResizeObserver;
-  private standardBackgroundColor = new THREE.Color(0xfafafa);
+  private standardBackgroundColor = new THREE.Color(0xffffff);
   private disabledBackgroundColor = new THREE.Color(0xf0f0f0);
   private viewRect = { left: 0, right: 0, top: 0, bottom: 0 };
 
@@ -415,8 +415,9 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
   toggleFixMagicLens(doToggle = true): void {
     this.magicLensComponent.toggleFix(doToggle);
     if (this.magicLensComponent.isFixed()) {
-      this.scene.background = this.disabledBackgroundColor
-      this.canvasContainer.nativeElement.classList.remove('lensing');;
+      this.scene.background = this.disabledBackgroundColor;
+      this.canvasContainer.nativeElement.classList.remove('lensing');
+      this.requestRender(RenderTask.SceneRender);
     } else {
       if (this.magicLensComponent.isActive()) {
         this.canvasContainer.nativeElement.classList.add('lensing');
