@@ -58,7 +58,8 @@
 .wizard-content {
   flex: 1;
   overflow-y: auto;
-  padding: 16px 0;
+  display: flex;
+  flex-direction: column;
   background: v.$wizard-content-bg;
 }
 
@@ -92,7 +93,10 @@
 }
 
 .step-container {
-  // Removed fixed min-height to allow flexible sizing in overlay
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .step-placeholder {

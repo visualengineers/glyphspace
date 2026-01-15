@@ -1,6 +1,7 @@
-import { Component, Output, EventEmitter } from '@angular/core';
+import { Component, Output, EventEmitter, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Subscription } from 'rxjs';
 import { PreprocessingService } from '../../services/preprocessing.service';
 import { DataPreviewTableComponent } from '../../shared/data-preview-table/data-preview-table.component';
 import { DataProfile } from '../../models/column-statistics';
@@ -14,8 +15,10 @@ import { STEP_INFO } from '../../shared/constants/step-info';
   templateUrl: './step1-upload.component.html',
   styleUrl: './step1-upload.component.scss'
 })
-export class Step1UploadComponent {
+export class Step1UploadComponent implements OnInit, OnDestroy {
   @Output() dataLoaded = new EventEmitter<DataProfile>();
+
+  private subscription = new Subscription();
 
   isDragOver = false;
   isLoading = false;
@@ -25,12 +28,19 @@ export class Step1UploadComponent {
   // Expose step info to template
   readonly stepInfo = STEP_INFO[0]; // Step 1 (index 0)
 
-  constructor(private preprocessingService: PreprocessingService) {
-    // Check if we already have data loaded
-    const state = this.preprocessingService.currentState;
-    if (state.dataProfile) {
-      this.profile = state.dataProfile;
-    }
+  constructor(private preprocessingService: PreprocessingService) {}
+
+  ngOnInit(): void {
+    // Subscribe to state changes to react to reset
+    this.subscription.add(
+      this.preprocessingService.state$.subscribe(state => {
+        this.profile = state.dataProfile;
+      })
+    );
+  }
+
+  ngOnDestroy(): void {
+    this.subscription.unsubscribe();
   }
 
   onFileSelected(event: Event): void {
