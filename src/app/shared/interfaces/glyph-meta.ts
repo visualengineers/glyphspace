@@ -5,6 +5,7 @@ export type Histogram = {
 export type FeatureStats = {
   type: string; // "categorical" | "numeric"
   histogram: Histogram;
+  categories?: string[]; // add optional categorical values for this feature
   max: number;
   min: number;
   median: number;

@@ -5,6 +5,8 @@ import { FeatureFilter } from '../../shared/filter/feature-filter';
 import { FilterMode } from '../../shared/enum/filter-mode';
 import { Subscription } from 'rxjs';
 import { COLOR_SCALES, ColorScale } from '../../shared/interfaces/color-scale';
+import { DataProviderService } from '../../services/dataprovider.service';
+import { GlyphMeta } from '../../shared/interfaces/glyph-meta';
 
 export type Histogram = {
     [binIndex: string]: number; // binIndex: "0" to "49"
@@ -24,6 +26,7 @@ type StackedBin = {
 })
 export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
     @Input() histogramData!: Histogram;
+    @Input() categories: string[] | undefined;
     @Input() label!: string;
     @Input() type!: string;
     @Input() property!: string;
@@ -53,6 +56,7 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
     private brushSelection: [number, number] | null = null;
     private selectedBins = new Set<number>();
     private cachedStackedBins: StackedBin[] | null = null;
+    private binToCategory = new Map<number, string>();
 
     private defaultBarColor = '#333'; // dark gray
     private colorScale: ColorScale = COLOR_SCALES[0];
@@ -237,6 +241,7 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
 
         // Use cached bins if available, otherwise prepare them
         const bins = this.cachedStackedBins || this.prepareStackedBins();
+        this.buildBinCategoryMap();
         const tooltip = this.createTooltip();
 
         this.svg.selectAll('*').remove();
@@ -264,7 +269,7 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
 
                 tooltip
                     .style('opacity', 1)
-                    .text(`Bin ${d.bin}: ${d.value}`)
+                    .text(`${this.getCategoricalValue(d.bin, d.value)}`)
                     .style('left', `${x + 10}px`)
                     .style('top', `${y - 8}px`);
             })
@@ -286,6 +291,34 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
             });
 
         this.updateCategoricalSelection(bars, originalBinCount);
+    }
+
+    private buildBinCategoryMap() {
+        this.binToCategory.clear();
+        if (!this.categories?.length) return;
+
+        const nonZeroBins = Object.entries(this.histogramData)
+            .filter(([, v]) => v !== 0)
+            .map(([k]) => +k);
+
+        // Optional safety check
+        if (nonZeroBins.length !== this.categories.length) {
+            console.warn(
+                'Histogram/category length mismatch',
+                nonZeroBins.length,
+                this.categories.length
+            );
+        }
+
+        nonZeroBins.forEach((bin, i) => {
+            if (this.categories && this.categories[i] !== undefined) {
+                this.binToCategory.set(bin, this.categories[i]);
+            }
+        });
+    }
+
+    private getCategoricalValue(bin: number, value: number) {
+        return this.binToCategory.get(bin) ?? value;
     }
 
     private drawNumericHistogram(): void {
