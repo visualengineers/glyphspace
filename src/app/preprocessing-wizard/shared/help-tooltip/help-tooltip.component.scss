@@ -35,86 +35,41 @@
 }
 
 .tooltip-content {
-  position: absolute;
-  z-index: 1000;
+  position: fixed;
+  z-index: 10000;
   background: white;
   border: 1px solid v.$gray-300;
   border-radius: 4px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   padding: 12px;
-  max-width: 300px;
+  width: 280px;
+  max-width: 280px;
   opacity: 0;
   visibility: hidden;
-  transition: opacity 0.2s ease, visibility 0.2s ease;
+  transition: opacity 0.15s ease, visibility 0.15s ease;
   pointer-events: none;
+  box-sizing: border-box;
+  overflow: hidden;
 
   &.visible {
     opacity: 1;
     visibility: visible;
-  }
-
-  // Position variants
-  &.position-top {
-    bottom: calc(100% + 8px);
-    left: 50%;
-    transform: translateX(-50%);
-
-    .tooltip-arrow {
-      top: 100%;
-      left: 50%;
-      transform: translateX(-50%);
-      border-top-color: white;
-      border-bottom: none;
-    }
-  }
-
-  &.position-bottom {
-    top: calc(100% + 8px);
-    left: 50%;
-    transform: translateX(-50%);
-
-    .tooltip-arrow {
-      bottom: 100%;
-      left: 50%;
-      transform: translateX(-50%);
-      border-bottom-color: white;
-      border-top: none;
-    }
-  }
-
-  &.position-left {
-    right: calc(100% + 8px);
-    top: 50%;
-    transform: translateY(-50%);
-
-    .tooltip-arrow {
-      left: 100%;
-      top: 50%;
-      transform: translateY(-50%);
-      border-left-color: white;
-      border-right: none;
-    }
-  }
-
-  &.position-right {
-    left: calc(100% + 8px);
-    top: 50%;
-    transform: translateY(-50%);
-
-    .tooltip-arrow {
-      right: 100%;
-      top: 50%;
-      transform: translateY(-50%);
-      border-right-color: white;
-      border-left: none;
-    }
+    pointer-events: auto;
   }
 }
 
 .tooltip-text {
   font-size: 13px;
+  font-weight: 400;
   line-height: 1.5;
   color: v.$gray-800;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  white-space: normal;
+  text-transform: none;
+  letter-spacing: normal;
+  max-width: 100%;
 
   // Support for formatted help text
   strong {
@@ -138,11 +93,4 @@
     font-family: 'Courier New', monospace;
     font-size: 12px;
   }
-}
-
-.tooltip-arrow {
-  position: absolute;
-  width: 0;
-  height: 0;
-  border: 6px solid transparent;
 }

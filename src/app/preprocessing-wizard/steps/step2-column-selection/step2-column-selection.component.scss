@@ -5,8 +5,8 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  padding: 16px;
-  max-width: 1600px;
+  padding: 16px 32px;
+  max-width: 1150px;
   margin: 0 auto;
 }
 
@@ -136,7 +136,7 @@
     position: sticky;
     top: 0;
     z-index: 10;
-    background: v.$gray-100;
+    background: v.$wizard-table-header-bg;
 
     tr {
       border-bottom: 2px solid v.$gray-300;
@@ -151,8 +151,12 @@
       text-transform: uppercase;
       letter-spacing: 0.5px;
       white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+
+      .header-with-tooltip {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+      }
 
       &.col-checkbox {
         width: 50px;
@@ -344,17 +348,22 @@
 
 // Action Buttons
 .action-buttons {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  gap: 12px;
-  padding-top: 16px;
-  border-top: 1px solid v.$gray-200;
+  @include wizard.action-buttons-footer;
+
+  .btn-secondary {
+    @include wizard.btn-secondary;
+  }
+
+  .buttons-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-left: auto;
+  }
 }
 
 .warning-message {
   @include wizard.message-warning;
-  margin-right: auto;
 }
 
 .btn-primary {

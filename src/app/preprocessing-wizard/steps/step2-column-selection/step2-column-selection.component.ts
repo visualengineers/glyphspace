@@ -97,6 +97,10 @@ export class Step2ColumnSelectionComponent implements OnInit {
     }
   }
 
+  goBack(): void {
+    this.preprocessingService.previousStep();
+  }
+
   getColumnConfig(columnName: string): ColumnConfig | undefined {
     return this.columnConfigs.get(columnName);
   }
@@ -201,14 +205,14 @@ export class Step2ColumnSelectionComponent implements OnInit {
   }
 
   /**
-   * Get color for data type (bright vibrant colors matching _variables.scss)
+   * Get color for data type (matching updated _variables.scss)
    */
   getDataTypeColor(dataType: DataType): string {
     switch (dataType) {
-      case DataType.Numeric: return '#198FBD';      // Blue
-      case DataType.Categorical: return '#F7295B';  // Red/Pink
-      case DataType.Text: return '#8BC34A';         // Green
-      case DataType.Date: return '#F7D529';         // Yellow
+      case DataType.Numeric: return '#16A34A';      // Green
+      case DataType.Categorical: return '#7C3AED';  // Purple
+      case DataType.Text: return '#8BC34A';         // Light Green
+      case DataType.Date: return '#EA580C';         // Orange (Temporal)
       case DataType.Boolean: return '#00bcd4';      // Cyan
       case DataType.ID: return '#888888';           // Gray
       default: return '#888888';

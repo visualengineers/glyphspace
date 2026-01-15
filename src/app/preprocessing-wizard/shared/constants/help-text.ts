@@ -228,7 +228,12 @@ export const HELP_TEXT = {
     missing: 'Percentage of rows with no value in this column.<br/><br/><strong>&gt;50% missing</strong> may indicate poor data quality and could cause issues.',
     unique: 'Number of distinct (different) values in this column.<br/><br/><strong>High uniqueness</strong> in categorical columns can cause performance issues with one-hot encoding.',
     distribution: 'Visual representation of value distribution.<br/><br/><strong>Sparkline:</strong> Shows frequency of top categorical values<br/><strong>Box plot:</strong> Shows numeric quartiles and outliers',
-    statistics: 'Summary statistics for numeric columns.<br/><br/>Includes min, max, mean, median, and standard deviation.'
+    statistics: 'Summary statistics for numeric columns.<br/><br/>Includes min, max, mean, median, and standard deviation.',
+    // Configure Data & Features column headers
+    encoding: 'Defines how data values are transformed.<br/><br/><strong>Numeric data:</strong> Can be left as-is (None), scaled to a 0–1 range (Normalize), or centered and scaled to unit variance (Standardize).<br/><br/><strong>Categorical data:</strong> Can be converted to numeric IDs (Label) or to separate binary columns for each category (One-hot).',
+    scaling: 'Adjusts numeric values to make them comparable.<br/><br/><strong>None:</strong> No scaling<br/><strong>Standard:</strong> Standardization to mean 0 and unit variance<br/><strong>Min-Max:</strong> Scaling to a fixed range like 0–1<br/><strong>Robust:</strong> Scaling based on percentiles to reduce outlier effects',
+    missingValues: 'Controls how missing data is handled.<br/><br/><strong>Keep:</strong> Keep them as-is<br/><strong>Remove rows:</strong> Remove rows containing them<br/><strong>Fill mode:</strong> Fill with the most common value<br/><strong>Fill value:</strong> Fill with a custom value',
+    outliers: 'Controls how extreme values are handled.<br/><br/>Outliers can be detected using the <strong>interquartile range (IQR)</strong> or <strong>z-Score</strong> (measuring how far a value is from the mean in standard deviations).<br/><br/><strong>Keep:</strong> Keep outliers<br/><strong>Remove:</strong> Remove rows with outliers<br/><strong>Cap:</strong> Limit values to the threshold'
   },
 
   // General concepts

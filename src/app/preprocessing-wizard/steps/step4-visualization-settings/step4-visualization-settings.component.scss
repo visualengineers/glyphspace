@@ -626,7 +626,7 @@
         }
 
         .table-header {
-          background: v.$gray-100;
+          background: v.$wizard-table-header-bg;
           border-bottom: 2px solid v.$gray-300;
           font-weight: 600;
           color: v.$gray-700;
@@ -928,15 +928,21 @@
   .action-buttons {
     @include w.action-buttons-footer;
 
-    .warning-message {
-      @include w.message-warning;
-      margin-right: auto;
-      padding: 8px 12px;
-      font-size: 13px;
-    }
-
     .btn-secondary {
       @include w.btn-secondary;
+    }
+
+    .buttons-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-left: auto;
+    }
+
+    .warning-message {
+      @include w.message-warning;
+      padding: 8px 12px;
+      font-size: 13px;
     }
 
     .btn-primary {

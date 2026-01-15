@@ -115,9 +115,10 @@
     width: 100%;
     border-collapse: collapse;
     font-size: 13px;
+    background: v.$wizard-table-bg;
 
     thead {
-      background: v.$gray-100;
+      background: v.$wizard-table-header-bg;
       position: sticky;
       top: 0;
       z-index: 10;
@@ -130,6 +131,12 @@
         border-bottom: 2px solid v.$gray-300;
         white-space: nowrap;
         font-size: 12px;
+
+        .header-with-tooltip {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+        }
       }
 
       .col-expand {
@@ -289,13 +296,16 @@
     .outlier-config {
       display: flex;
       flex-direction: column;
-      gap: 4px;
+      gap: 6px;
 
       .fill-value-input {
         @include w.input-base;
         width: 100%;
+        max-width: 140px;
         font-size: 12px;
         padding: 5px 8px;
+        margin-top: 2px;
+        box-sizing: border-box;
       }
 
       .loading-indicator {
@@ -545,11 +555,20 @@
   // Action Buttons
   .action-buttons {
     @include w.action-buttons-footer;
-    justify-content: flex-end;
+
+    .btn-secondary {
+      @include w.btn-secondary;
+    }
+
+    .buttons-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-left: auto;
+    }
 
     .warning-message {
       @include w.message-warning;
-      margin-right: auto;
       padding: 8px 12px;
       font-size: 13px;
     }

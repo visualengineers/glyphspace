@@ -318,6 +318,19 @@
 
 .action-buttons {
   @include wizard.action-buttons-footer;
+
+  .buttons-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .buttons-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-left: auto;
+  }
 }
 
 .btn-primary {

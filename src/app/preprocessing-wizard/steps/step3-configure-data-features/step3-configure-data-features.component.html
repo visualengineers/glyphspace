@@ -71,10 +71,30 @@
             <th class="col-expand"></th>
             <th class="col-name">Column</th>
             <th class="col-type">Type</th>
-            <th class="col-encoding">Encoding</th>
-            <th class="col-scaling">Scaling</th>
-            <th class="col-missing">Missing Values</th>
-            <th class="col-outliers">Outliers</th>
+            <th class="col-encoding">
+              <span class="header-with-tooltip">
+                Encoding
+                <app-help-tooltip [helpText]="HELP_TEXT.tableHeaders.encoding" position="bottom"></app-help-tooltip>
+              </span>
+            </th>
+            <th class="col-scaling">
+              <span class="header-with-tooltip">
+                Scaling
+                <app-help-tooltip [helpText]="HELP_TEXT.tableHeaders.scaling" position="bottom"></app-help-tooltip>
+              </span>
+            </th>
+            <th class="col-missing">
+              <span class="header-with-tooltip">
+                Missing Values
+                <app-help-tooltip [helpText]="HELP_TEXT.tableHeaders.missingValues" position="bottom"></app-help-tooltip>
+              </span>
+            </th>
+            <th class="col-outliers">
+              <span class="header-with-tooltip">
+                Outliers
+                <app-help-tooltip [helpText]="HELP_TEXT.tableHeaders.outliers" position="bottom"></app-help-tooltip>
+              </span>
+            </th>
             <th class="col-projection">In Projection</th>
           </tr>
         </thead>
@@ -369,20 +389,27 @@
 
     <!-- Action Buttons -->
     <div class="action-buttons">
-      @if (!canContinue()) {
-        <div class="warning-message">
-          <span class="material-icons">warning</span>
-          <span>Please include at least one column in projection to continue.</span>
-        </div>
-      }
-
-      <button
-        class="btn-primary"
-        (click)="onContinue()"
-        [disabled]="!canContinue()">
-        <span>Continue to Visualization Settings</span>
-        <span class="material-icons">arrow_forward</span>
+      <button class="btn-secondary" (click)="goBack()">
+        <span class="material-icons">arrow_back</span>
+        <span>Back</span>
       </button>
+
+      <div class="buttons-right">
+        @if (!canContinue()) {
+          <div class="warning-message">
+            <span class="material-icons">warning</span>
+            <span>Please include at least one column in projection to continue.</span>
+          </div>
+        }
+
+        <button
+          class="btn-primary"
+          (click)="onContinue()"
+          [disabled]="!canContinue()">
+          <span>Continue to Visualization Settings</span>
+          <span class="material-icons">arrow_forward</span>
+        </button>
+      </div>
     </div>
   }
 </div>

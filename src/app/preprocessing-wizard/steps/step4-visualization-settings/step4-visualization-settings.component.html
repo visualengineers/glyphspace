@@ -342,22 +342,24 @@
 
       <!-- Action Buttons -->
       <div class="action-buttons">
-        @if (!canProceedToReview()) {
-          <div class="warning-message">
-            <span class="material-icons">warning</span>
-            <span>Please select 3-12 glyph features and at least one projection method to continue.</span>
-          </div>
-        }
-
         <button class="btn-secondary" (click)="goBack()">
           <span class="material-icons">arrow_back</span>
           <span>Back</span>
         </button>
 
-        <button class="btn-primary" (click)="goToSection('review')" [disabled]="!canProceedToReview()">
-          <span>Continue to Review</span>
-          <span class="material-icons">arrow_forward</span>
-        </button>
+        <div class="buttons-right">
+          @if (!canProceedToReview()) {
+            <div class="warning-message">
+              <span class="material-icons">warning</span>
+              <span>Please select 3-12 glyph features and at least one projection method to continue.</span>
+            </div>
+          }
+
+          <button class="btn-primary" (click)="goToSection('review')" [disabled]="!canProceedToReview()">
+            <span>Continue to Review</span>
+            <span class="material-icons">arrow_forward</span>
+          </button>
+        </div>
       </div>
     </div>
   }
@@ -485,10 +487,12 @@
           <span>Back to Edit</span>
         </button>
 
-        <button class="btn-primary" (click)="startProcessing()">
-          <span class="material-icons">play_arrow</span>
-          <span>Start Processing</span>
-        </button>
+        <div class="buttons-right">
+          <button class="btn-primary" (click)="startProcessing()">
+            <span class="material-icons">play_arrow</span>
+            <span>Start Processing</span>
+          </button>
+        </div>
       </div>
     </div>
   }

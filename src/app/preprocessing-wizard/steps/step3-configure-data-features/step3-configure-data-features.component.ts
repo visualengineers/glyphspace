@@ -400,4 +400,8 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit {
       this.preprocessingService.nextStep();
     }
   }
+
+  goBack(): void {
+    this.preprocessingService.previousStep();
+  }
 }
