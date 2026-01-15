@@ -99,7 +99,7 @@
         <!-- Color attribute -->
         <div class="form-group">
           <label class="menu-label">COLOR ATTRIBUTE</label>
-          <select [(ngModel)]="selectedColorAttribute" (click)="selectColor(); $event.stopPropagation()">
+          <select [(ngModel)]="selectedColorAttribute" (ngModelChange)="selectColor()" (click)="$event.stopPropagation()">
             <option *ngFor="let featureId of featureIds" [value]="featureId">
               {{ getFeatureName(featureId) }}
             </option>

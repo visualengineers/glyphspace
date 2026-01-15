@@ -93,6 +93,8 @@ export class SettingsControlPanelComponent {
           this.features = metaData.features;
           this.featureIds = Object.keys(this.features);
           this.selectedColorAttribute = this.config.colorFeature;
+          // Sync color scale selection with config
+          this.selectedColorScaleId = this.config.colorRange;
         });
       }
     });

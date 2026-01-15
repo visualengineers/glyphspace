@@ -78,8 +78,8 @@ export class DataProviderService {
                         this.config.featureLabels = schema.label;
                         // Apply color scale mode if specified in schema
                         if (schema.colorRange !== undefined) {
-                            // Convert boolean to color scale ID: true -> 0 (continuous), false -> 3 (categorical)
-                            this.config.colorRange = schema.colorRange ? 0 : 3;
+                            // Convert boolean to color scale ID: true -> 0 (continuous), false -> 4 (categorical)
+                            this.config.colorRange = schema.colorRange ? 0 : 4;
                         }
                         // Notify subscribers (like histogram) that config has changed
                         this.config.updateConfiguration();
@@ -216,8 +216,8 @@ export class DataProviderService {
         this.config.featureLabels = schema.label;
         // Apply color scale mode if specified in schema
         if (schema.colorRange !== undefined) {
-            // Convert boolean to color scale ID: true -> 0 (continuous), false -> 3 (categorical)
-            this.config.colorRange = schema.colorRange ? 0 : 3;
+            // Convert boolean to color scale ID: true -> 0 (continuous), false -> 4 (categorical)
+            this.config.colorRange = schema.colorRange ? 0 : 4;
         }
         // CRITICAL: Store feature types from schema (needed for categorical color normalization)
         if (schema.types) {
@@ -375,8 +375,8 @@ export class DataProviderService {
             this.config.featureLabels = schema.label;
             // Apply color scale mode if specified in schema
             if (schema.colorRange !== undefined) {
-                // Convert boolean to color scale ID: true -> 0 (continuous), false -> 3 (categorical)
-                this.config.colorRange = schema.colorRange ? 0 : 3;
+                // Convert boolean to color scale ID: true -> 0 (continuous), false -> 4 (categorical)
+                this.config.colorRange = schema.colorRange ? 0 : 4;
             }
             // Notify subscribers (like histogram) that config has changed
             this.config.updateConfiguration();
@@ -451,8 +451,8 @@ export class DataProviderService {
             this.config.featureLabels = schemaResult.label;
             // Apply color scale mode if specified in schema
             if (schemaResult.colorRange !== undefined) {
-                // Convert boolean to color scale ID: true -> 0 (continuous), false -> 3 (categorical)
-                this.config.colorRange = schemaResult.colorRange ? 0 : 3;
+                // Convert boolean to color scale ID: true -> 0 (continuous), false -> 4 (categorical)
+                this.config.colorRange = schemaResult.colorRange ? 0 : 4;
             }
             // Store feature types from schema
             if (schemaResult.types) {
