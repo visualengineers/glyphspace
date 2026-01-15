@@ -280,10 +280,10 @@ def compute_projections(df, config):
     # =======================================================================
     #
     # This function now ONLY exports processed features to CSV for JavaScript
-    # DruidJS will compute PCA, FastMap, t-SNE, and UMAP in the browser
+    # DruidJS will compute IsoMap, PCA, t-SNE, and UMAP in the browser
     #
     # Benefits:
-    # - PCA loads immediately (no blocking wait)
+    # - IsoMap loads immediately (non-linear manifold learning)
     # - Background projections don't freeze UI
     # - UMAP now works (not limited by Pyodide)
     # - Simpler Python code (just data cleaning/encoding)
