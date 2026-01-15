@@ -45,7 +45,7 @@ declare module '@saehrimnir/druidjs' {
   export class UMAP {
     constructor(data: number[][], parameters?: {
       d?: number;           // Output dimensions (default: 2)
-      neighbors?: number;   // Number of neighbors (default: 15)
+      n_neighbors?: number; // Number of neighbors (default: 15)
       min_dist?: number;    // Minimum distance (default: 0.1)
       local_connectivity?: number;  // Local connectivity (default: 1)
     });
