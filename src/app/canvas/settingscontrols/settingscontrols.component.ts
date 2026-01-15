@@ -19,9 +19,16 @@ export type SettingMode = 'position' | 'color' | 'glyph' | null;
   styleUrls: ['./settingscontrols.component.scss'],
 })
 export class SettingsControlPanelComponent {
+  @Input() visible = false; // controls fade in/out
+
   colorScales: ColorScale[] = COLOR_SCALES;
 
-  panelVisible = false;          // toggled by parent click
+  groupedColorScales: {
+    group: string;
+    scales: any[];
+  }[] = [];
+
+  panelActive = false;
   activeSetting: SettingMode = null;
   animationSpeed = 10;
   paused = true;
@@ -74,6 +81,8 @@ export class SettingsControlPanelComponent {
   }
 
   ngOnInit(): void {
+    this.groupedColorScales = this.groupColorScales(this.colorScales);
+
     this.config.loadedDataSubject$.subscribe(async data => {
       if (data == "") return;
 
@@ -97,12 +106,12 @@ export class SettingsControlPanelComponent {
     this.activeSetting = null;
   }
 
-  showPanel() {
-    this.panelVisible = true;
+  activatePanel() {
+    this.panelActive = true;
   }
 
-  hidePanel() {
-    this.panelVisible = false;
+  deactivatePanel() {
+    this.panelActive = false;
     this.activeSetting = null;
   }
 
@@ -116,6 +125,11 @@ export class SettingsControlPanelComponent {
 
   triggerDelete() {
     this.config.removeCanvas(this.parentId);
+  }
+
+  clearSelection() {
+    this.dataProvider.clearFilters();
+    this.config.clearSelection();
   }
 
   emitSettingsChange() {
@@ -159,6 +173,23 @@ export class SettingsControlPanelComponent {
       case GlyphType.Thumb: return "Thumbnail";
       default: return "Unknown";
     }
+  }
+
+  private groupColorScales(scales: any[]) {
+    const map = new Map<string, any[]>();
+
+    for (const scale of scales) {
+      const group = scale.group ?? 'Other';
+      if (!map.has(group)) {
+        map.set(group, []);
+      }
+      map.get(group)!.push(scale);
+    }
+
+    return Array.from(map.entries()).map(([group, scales]) => ({
+      group,
+      scales
+    }));
   }
 
   getContinuousGradient(scale: any, steps = 10): string {
@@ -205,6 +236,14 @@ export class SettingsControlPanelComponent {
 
   selectColor(): void {
     this.config.colorFeature = this.selectedColorAttribute;
+
+    const featureType = this.schema?.types[this.selectedColorAttribute];
+    const colorScaleType = this.getSelectedScale().type;
+    
+    if ( featureType != colorScaleType ) {
+      const matchingScale = this.colorScales.find(s => s.type == featureType)?.id;
+      if (matchingScale != undefined) this.selectColorScale(matchingScale);
+    }
     this.config.updateConfiguration();
   }
 
