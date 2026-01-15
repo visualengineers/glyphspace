@@ -21,6 +21,25 @@ export const DEFAULT_DATASETCOLLECTION: DatasetCollection = [
         ]
     },
     {
+        "dataset": "studydataset_creditdata_local",
+        "source": "local",
+        "items": [
+            {
+                "algorithms": {
+                    "feature": "studydataset_creditdata_local.15012026.feature.json",
+                    "schema": "studydataset_creditdata_local.15012026.schema.json",
+                    "position": {
+                        "tsne": "studydataset_creditdata_local.15012026.position.tsne.json",
+                        "pca": "studydataset_creditdata_local.15012026.position.pca.json",
+                        "umap": "studydataset_creditdata_local.15012026.position.umap.json"
+                    },
+                    "meta": "studydataset_creditdata_local.15012026.meta.json"
+                },
+                "time": "15012026"
+            }
+        ]
+    },
+    {
         "dataset": "nutrients",
         "source": "local",
         "items": [

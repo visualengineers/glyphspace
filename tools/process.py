@@ -139,7 +139,7 @@ def generate_schema(df, output_path_base):
 
     print(f"Schema file written: {filename}")
 
-def generate_features(df, output_path_base, cardinality_threshold = 10):
+def generate_features(df, output_path_base, cardinality_threshold = 1):
     # First, keep a copy of original values as strings for "values"
     df_values = df.astype(str).fillna("0")  # NaN replaced by string "0"
 
@@ -249,13 +249,16 @@ def generate_meta(df, features_df, output_path_base):
 
         # --- Categories ---
         if enumerate_col:
-            categories = (
-                df[col]
-                .dropna()
-                .astype(str)
-                .unique()
-                .tolist()
-            )
+            unique_vals = df[col].dropna().unique()
+            
+            # Try numeric sort first
+            try:
+                categories = sorted(unique_vals, key=lambda x: float(x))
+                # Convert to strings for JSON
+                categories = [str(v) for v in categories]
+            except ValueError:
+                # fallback: lexicographic sort
+                categories = sorted([str(v) for v in unique_vals])
         else:
             categories = []
 

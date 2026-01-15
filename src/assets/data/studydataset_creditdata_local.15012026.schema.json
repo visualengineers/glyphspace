@@ -1,0 +1,49 @@
+{
+    "color": "1",
+    "glyph": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+    ],
+    "label": {
+        "1": "Age",
+        "2": "Sex",
+        "3": "Job",
+        "4": "Housing",
+        "5": "Saving accounts",
+        "6": "Checking account",
+        "7": "Credit amount",
+        "8": "Duration",
+        "9": "Purpose"
+    },
+    "types": {
+        "1": "numeric",
+        "2": "categorical",
+        "3": "categorical",
+        "4": "categorical",
+        "5": "categorical",
+        "6": "categorical",
+        "7": "numeric",
+        "8": "numeric",
+        "9": "categorical"
+    },
+    "tooltip": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9"
+    ],
+    "variantcontext": {
+        "1": {
+            "description": "standard context",
+            "id": "1"
+        }
+    }
+}
