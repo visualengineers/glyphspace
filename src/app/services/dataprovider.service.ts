@@ -214,6 +214,13 @@ export class DataProviderService {
             // Convert boolean to color scale ID: true -> 0 (continuous), false -> 3 (categorical)
             this.config.colorRange = schema.colorRange ? 0 : 3;
         }
+        // CRITICAL: Store feature types from schema (needed for categorical color normalization)
+        if (schema.types) {
+            this.config.featureTypes = schema.types;
+        }
+        // CRITICAL: Extract max values from metadata (needed for categorical color scaling)
+        this.extractFeatureMaxValuesFromMeta(datasetName, timestamp);
+
         this.config.loadData(datasetName);
 
         // Update filtered items
@@ -434,6 +441,12 @@ export class DataProviderService {
                 // Convert boolean to color scale ID: true -> 0 (continuous), false -> 3 (categorical)
                 this.config.colorRange = schemaResult.colorRange ? 0 : 3;
             }
+            // Store feature types from schema
+            if (schemaResult.types) {
+                this.config.featureTypes = schemaResult.types;
+            }
+            // Calculate max values for categorical features
+            this.calculateFeatureMaxValues(name);
         }
 
         return schemaResult;
@@ -472,6 +485,58 @@ export class DataProviderService {
         // TODO: Get from schema ...
 
         return result;
+    }
+
+    /**
+     * Calculate max values for categorical features by scanning all glyphs
+     * This is needed to normalize categorical values to [0,1] range for color scales
+     */
+    private calculateFeatureMaxValues(name: string): void {
+        const glyphMap = this.glyphCache.get(name);
+        if (!glyphMap) return;
+
+        const featureTypes = this.config.featureTypes;
+        const maxValues: Record<string, number> = {};
+
+        // Find max value for each categorical feature by scanning all glyphs
+        glyphMap.forEach((glyph: GlyphObject) => {
+            const features = glyph.features["1"];
+            if (features) {
+                Object.keys(featureTypes).forEach(featureId => {
+                    if (featureTypes[featureId] === 'categorical') {
+                        const value = features[featureId];
+                        if (value !== undefined) {
+                            maxValues[featureId] = Math.max(maxValues[featureId] || 0, value);
+                        }
+                    }
+                });
+            }
+        });
+
+        this.config.featureMaxValues = maxValues;
+    }
+
+    /**
+     * Extract max values from metadata for all features
+     * This is more efficient than scanning all glyphs when metadata is available
+     */
+    private extractFeatureMaxValuesFromMeta(datasetName: string, timestamp: string): void {
+        const metaMap = this.metaCache.get(datasetName);
+        if (!metaMap) return;
+
+        const meta = metaMap.get(timestamp);
+        if (!meta || !meta.features) return;
+
+        const maxValues: Record<string, number> = {};
+
+        // Extract max values from metadata for all features
+        Object.entries(meta.features).forEach(([featureId, stats]) => {
+            if (stats.max !== undefined) {
+                maxValues[featureId] = stats.max;
+            }
+        });
+
+        this.config.featureMaxValues = maxValues;
     }
 
     private escapeCSV(value: any): string {
