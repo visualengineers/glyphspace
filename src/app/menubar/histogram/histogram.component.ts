@@ -7,6 +7,7 @@ import { Subscription } from 'rxjs';
 import { COLOR_SCALES, ColorScale } from '../../shared/interfaces/color-scale';
 import { DataProviderService } from '../../services/dataprovider.service';
 import { GlyphMeta } from '../../shared/interfaces/glyph-meta';
+import { CategoryFilter } from '../../shared/filter/category-filter';
 
 export type Histogram = {
     [binIndex: string]: number; // binIndex: "0" to "49"
@@ -41,6 +42,7 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
     private configSub = new Subscription();
 
     private filter!: ItemFilter;
+    private categoryFilter!: CategoryFilter;
 
     active = false;
 
@@ -65,6 +67,8 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
 
     ngOnInit(): void {
         this.filter = new FeatureFilter(this.property);
+        this.categoryFilter = new CategoryFilter(this.property);
+        this.categoryFilter.filterMode = FilterMode.And;
         this.filter.filterMode = FilterMode.And;
         this.createHistogram();
     }
@@ -436,9 +440,17 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
     }
 
     private filteringFromBins(selectedBins: number[]): void {
-        this.clearFeatureFilters();
+        const filters = this.dataProvider.getFilters();
+        if (!filters.includes(this.filter)) {
+            this.dataProvider.getFilters().push(this.filter);
+        }
+        if (!filters.includes(this.categoryFilter)) {
+            this.dataProvider.getFilters().push(this.categoryFilter);
+        }
 
         if (!selectedBins || selectedBins.length === 0) {
+            this.categoryFilter.clear();
+            this.filter.clear();
             this.dataProvider.refreshFilters();
             this.configuration.redraw();
             return;
@@ -450,7 +462,7 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
         if (effectiveType === 'categorical') {
             // For categorical: Filter by discrete bin indices mapped to actual integer values
             // Histograms are in normalized space (0-1), but actual feature values are unnormalized integers
-
+            this.categoryFilter.clear();
             // Get the max value for this feature to denormalize the filter range
             const featureMaxValues = this.configuration?.featureMaxValues || {};
             const maxValue = featureMaxValues[this.property];
@@ -461,8 +473,6 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
             }
 
             selectedBins.forEach(bin => {
-                const filter = new FeatureFilter(this.property);
-
                 // Calculate normalized bin range (histogram is in 0-1 space)
                 const binWidth = 1.0 / totalBins;
                 const binCenter = (bin + 0.5) * binWidth;
@@ -477,43 +487,26 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
 
                 // WORKAROUND: Set filter range to match unnormalized values directly,
                 // bypassing the 0-1 constraint by using the private properties
-                (filter as any)._minValue = actualMin - 0.5; // Add tolerance for integer matching
-                (filter as any)._maxValue = actualMax + 0.5;
-                filter.filterMode = FilterMode.Or;
+                const actualMinValue = actualMin - 0.5; // Add tolerance for integer matching
+                const actualMaxValue = actualMax + 0.5;
 
-                this.dataProvider.getFilters().push(filter);
+                this.categoryFilter.addRange(actualMinValue, actualMaxValue);
             });
         } else {
             // For numeric: Filter by continuous range
             // Bins represent ranges of continuous values
+            this.filter.clear();
+
             const steps = 1 / totalBins;
 
             selectedBins.forEach(bin => {
-                const filter = new FeatureFilter(this.property);
-
-                filter.minValue = bin * steps;
-                filter.maxValue = Math.min((bin + 1) * steps, 1.0);
-                filter.filterMode = FilterMode.Or;
-
-                this.dataProvider.getFilters().push(filter);
+                (this.filter as FeatureFilter).minValue = bin * steps;
+                (this.filter as FeatureFilter).maxValue = Math.min((bin + 1) * steps, 1.0);
             });
         }
 
         this.dataProvider.refreshFilters();
         this.configuration.redraw();
-    }
-
-
-    private clearFeatureFilters(): void {
-        const filters = this.dataProvider.getFilters();
-
-        for (let i = filters.length - 1; i >= 0; i--) {
-            const f = filters[i];
-
-            if (f instanceof FeatureFilter && f.featureName === this.property) {
-                filters.splice(i, 1);
-            }
-        }
     }
 
     private filtering(selection: any): void {
