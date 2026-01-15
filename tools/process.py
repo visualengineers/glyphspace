@@ -7,6 +7,8 @@ import random
 from sklearn.manifold import TSNE
 import json
 import pandas as pd
+from pandas.api.types import is_numeric_dtype
+from pandas.api.types import is_string_dtype
 import numpy as np
 from pathlib import Path
 from datetime import datetime
@@ -17,6 +19,19 @@ from sklearn.preprocessing import StandardScaler
 
 datafolder = "./src/assets/data/"
 datasetcollection = "./src/default-dataset.ts"
+
+ENUMERATE_THRESHOLD = 20
+
+def is_enumerate(col):
+    if pd.api.types.is_string_dtype(col):
+        return True
+
+    # Mixed object column with strings
+    if col.dtype == "object":
+        if col.dropna().apply(lambda v: isinstance(v, str)).any():
+            return True
+
+    return col.nunique(dropna=True) <= ENUMERATE_THRESHOLD
 
 def current_timestamp():
     return datetime.now().strftime("%d%m%Y")
@@ -97,11 +112,18 @@ def generate_schema(df, output_path_base):
     # Drop ID column (assumed to be the first)
     feature_columns = df.columns[1:]
     column_indices = list(range(1, len(feature_columns) + 1))  # Start at 1
+    types = {}
+    for idx, col in zip(column_indices, feature_columns):
+        if is_enumerate(df[col]):
+            types[str(idx)] = "categorical"
+        else:
+            types[str(idx)] = "numeric"
 
     schema = {
         "color": str(column_indices[0]) if column_indices else None,
         "glyph": [str(i) for i in column_indices[:5]],
         "label": {str(i): name for i, name in zip(column_indices, feature_columns)},
+        "types": types,
         "tooltip": [str(i) for i in column_indices],
         "variantcontext": {
             "1": {
@@ -217,18 +239,31 @@ def generate_features(df, output_path_base, cardinality_threshold = 10):
 
     return features_df
 
-def generate_meta(df, output_path_base):
-    feature_cols = df.columns[1:]  # Skip ID column
+def generate_meta(df, features_df, output_path_base):
+    feature_cols = features_df.columns[1:]  # Skip ID column
     meta_features = {}
 
     for i, col in enumerate(feature_cols):
-        col_data = df[col]
+        col_data = features_df[col]
+        enumerate_col = is_enumerate(df[col])
 
-        # Convert non-numeric to numeric if possible; replace NaNs with 0
-        if not pd.api.types.is_numeric_dtype(col_data):
-            col_numeric = pd.to_numeric(col_data, errors='coerce').fillna(0)
+        # --- Categories ---
+        if enumerate_col:
+            categories = (
+                df[col]
+                .dropna()
+                .astype(str)
+                .unique()
+                .tolist()
+            )
         else:
+            categories = []
+
+        # --- Numeric conversion for stats ---
+        if is_numeric_dtype(df[col]):
             col_numeric = col_data.fillna(0)
+        else:
+            col_numeric = pd.to_numeric(col_data, errors="coerce").fillna(0)
 
         # Compute statistics
         col_min = float(col_numeric.min())
@@ -237,13 +272,14 @@ def generate_meta(df, output_path_base):
         col_variance = float(col_numeric.var(ddof=0))  # population variance
         col_std = float(col_numeric.std(ddof=0))        # population std dev
 
-        # Histogram (50 bins, density=True)
-        counts, bin_edges = np.histogram(col_numeric, bins=50, density=True)
+        # Histogram (20 bins, density=True)
+        counts, bin_edges = np.histogram(col_numeric, bins=20, density=True)
         histogram = {str(j): float(count) for j, count in enumerate(counts)}
 
         # Add to meta
         meta_features[str(i + 1)] = {
             "histogram": histogram,
+            "categories": categories,
             "max": col_max,
             "min": col_min,
             "median": col_median,
@@ -503,8 +539,8 @@ def process_csv_file(input_csv_path):
     # Generate files
     generate_schema(df, output_path_base)
     features_df = generate_features(df, output_path_base)
-    feature_data = extract_projection_features(df, features_df)
-    generate_meta(features_df, output_path_base)
+    feature_data = extract_projection_features(df, features_df)    
+    generate_meta(df, features_df, output_path_base)
     generate_pca_positions(feature_data, output_path_base)
     generate_umap_positions(feature_data, output_path_base)
     generate_tsne_positions(feature_data, output_path_base)
