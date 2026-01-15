@@ -7,6 +7,7 @@ import { Subscription } from 'rxjs';
 import { COLOR_SCALES, ColorScale } from '../../shared/interfaces/color-scale';
 import { DataProviderService } from '../../services/dataprovider.service';
 import { GlyphMeta } from '../../shared/interfaces/glyph-meta';
+import { CategoryFilter } from '../../shared/filter/category-filter';
 
 export type Histogram = {
     [binIndex: string]: number; // binIndex: "0" to "49"
@@ -41,6 +42,7 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
     private configSub = new Subscription();
 
     private filter!: ItemFilter;
+    private categoryFilter!: CategoryFilter;
 
     active = false;
 
@@ -65,6 +67,8 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
 
     ngOnInit(): void {
         this.filter = new FeatureFilter(this.property);
+        this.categoryFilter = new CategoryFilter(this.property);
+        this.categoryFilter.filterMode = FilterMode.And;
         this.filter.filterMode = FilterMode.And;
         this.createHistogram();
     }
@@ -439,9 +443,19 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
         this.clearFeatureFilters();
 
         if (!selectedBins || selectedBins.length === 0) {
+            this.filter.clear();
+            this.categoryFilter.clear();
             this.dataProvider.refreshFilters();
             this.configuration.redraw();
             return;
+        }
+
+        const filters = this.dataProvider.getFilters();
+        if (!filters.includes(this.filter)) {
+            this.dataProvider.getFilters().push(this.filter);
+        }
+        if (!filters.includes(this.categoryFilter)) {
+            this.dataProvider.getFilters().push(this.categoryFilter);
         }
 
         const effectiveType = this.getEffectiveType();
@@ -450,16 +464,15 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
         if (effectiveType === 'categorical') {
             // For categorical: Filter by discrete bin indices
             // Each bin represents a distinct category, not a continuous range
+            this.categoryFilter.clear();
             selectedBins.forEach(bin => {
-                const filter = new FeatureFilter(this.property);
 
                 // Calculate the exact normalized range for this specific bin
                 const binWidth = 1 / totalBins;
-                filter.minValue = bin * binWidth;
-                filter.maxValue = (bin + 1) * binWidth;
-                filter.filterMode = FilterMode.Or;
-
-                this.dataProvider.getFilters().push(filter);
+                const minValue = bin * binWidth;
+                const maxValue = (bin + 1) * binWidth;
+                
+                this.categoryFilter.addRange(minValue, maxValue);
             });
         } else {
             // For numeric: Filter by continuous range
@@ -467,13 +480,8 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
             const steps = 1 / totalBins;
 
             selectedBins.forEach(bin => {
-                const filter = new FeatureFilter(this.property);
-
-                filter.minValue = bin * steps;
-                filter.maxValue = Math.min((bin + 1) * steps, 1.0);
-                filter.filterMode = FilterMode.And;
-
-                this.dataProvider.getFilters().push(filter);
+                (this.filter as FeatureFilter).minValue = bin * steps;
+                (this.filter as FeatureFilter).maxValue = Math.min((bin + 1) * steps, 1.0);
             });
         }
 
