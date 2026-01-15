@@ -173,7 +173,7 @@ export const HELP_TEXT = {
     backgroundProcessing: {
       title: 'How Background Processing Works',
       description: `
-        <strong>Immediate Start:</strong> After data cleaning, IsoMap runs immediately and loads into the dashboard.
+        <strong>Immediate Start:</strong> After data cleaning, IsoMap runs immediately and loads into Glyphspace.
         You can start exploring your data right away.<br/><br/>
 
         <strong>Background Computation:</strong> While you explore the IsoMap view, other selected projections
@@ -183,7 +183,7 @@ export const HELP_TEXT = {
         option to switch to that view. The projection is automatically added to the dropdown.<br/><br/>
 
         <strong>Progress Tracking:</strong> Check the projection status indicator in the top-right corner
-        of the dashboard to see which projections are ready, computing, or pending.
+        of Glyphspace to see which projections are ready, computing, or pending.
       `
     }
   },
