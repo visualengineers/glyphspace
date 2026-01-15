@@ -54,16 +54,16 @@ export class PreprocessingService {
     return this.stateSubject.getValue();
   }
 
-  // Step navigation
+  // Step navigation (4 steps: 0-3)
   public goToStep(step: number): void {
-    if (step >= 0 && step <= 5) {
+    if (step >= 0 && step <= 3) {
       this.updateState({ currentStep: step });
     }
   }
 
   public nextStep(): void {
     const current = this.currentState.currentStep;
-    if (current < 5) {
+    if (current < 3) {
       this.goToStep(current + 1);
     }
   }

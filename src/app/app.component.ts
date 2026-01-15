@@ -13,7 +13,7 @@ interface GlyphCanvasItem { id: number, row: number, col: number }
 @Component({
   standalone: true,
   selector: 'app-root',
-  imports: [CommonModule, GlyphCanvasComponent, MenuBarComponent, ToastComponent],
+  imports: [CommonModule, GlyphCanvasComponent, MenuBarComponent, ToastComponent, DashboardComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss'
 })
@@ -85,7 +85,7 @@ export class AppComponent implements OnChanges {
   }
 
   addCanvas() {
-    if (this, this.totalCells < 4) {
+    if (this.totalCells < 4) {
       this.totalCells++;
 
       const newId = this.getNextFreeId(this.grid);
