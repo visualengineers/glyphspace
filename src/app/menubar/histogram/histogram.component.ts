@@ -8,6 +8,7 @@ import { COLOR_SCALES, ColorScale } from '../../shared/interfaces/color-scale';
 import { DataProviderService } from '../../services/dataprovider.service';
 import { GlyphMeta } from '../../shared/interfaces/glyph-meta';
 import { CategoryFilter } from '../../shared/filter/category-filter';
+import { InteractionCommand } from '../../shared/enum/interaction-command';
 
 export type Histogram = {
     [binIndex: string]: number; // binIndex: "0" to "49"
@@ -86,6 +87,15 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
             this.configuration.loadedDataSubject$.subscribe(() => {
                 this.brushSelection = null;
                 this.selectedBins.clear();
+            })
+        );
+        this.configSub.add(
+            this.configuration.commandSubject$.subscribe((command: InteractionCommand) => {
+                if (command == InteractionCommand.clearselection) {
+                    this.brushSelection = null;
+                    this.selectedBins.clear();
+                    this.updateChart();
+                }
             })
         );
     }
@@ -478,8 +488,8 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
             // Raw integers: min=0, max=numCategories-1 (e.g., 0,1,2,3,4 for 5 categories)
             // Normalized: any other pattern (data was scaled to [0,1])
             const isRawIntegers = this.featureMin === 0 &&
-                                  this.featureMax === numCategories - 1 &&
-                                  numCategories > 1;
+                this.featureMax === numCategories - 1 &&
+                numCategories > 1;
 
             selectedBins.forEach(bin => {
                 // Find which category index this bin corresponds to
