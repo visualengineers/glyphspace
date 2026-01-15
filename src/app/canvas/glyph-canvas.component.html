@@ -1,12 +1,10 @@
 <div class="scene-container"
   #sceneContainer
   [class.active]="canvasActivated"
-  (click)="onCanvasClick()"
 >
   <div
     #canvasContainer class="canvas-container"
     id="canvas-container"
-    (click)="settingsPanel.showPanel()"
     (mouseenter)="onMouseEnter()"
     (mouseleave)="onMouseLeave()"
   >
@@ -16,6 +14,7 @@
     ></app-magiclens>
   <app-settingscontrols #settingsPanel
       [parentId]="id"
+      [visible]="mouseInside"
       [totalCells]="totalCells"
 
       [collisionAvoidance]="collisionAvoidance"

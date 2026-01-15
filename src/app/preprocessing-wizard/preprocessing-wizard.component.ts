@@ -106,9 +106,7 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
   }
 
   closeWizard(): void {
-    if (confirm('Are you sure you want to close the wizard? Any unsaved progress will be lost.')) {
-      this.close.emit();
-    }
+    this.close.emit();
   }
 
   onWizardComplete(): void {

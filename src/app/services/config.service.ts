@@ -20,6 +20,8 @@ export class ConfigService {
   private _colorFeature: string = "";
   private _scaleLinear: boolean = false;
   private _featureLabels: Record<string, string> = {};
+  private _featureTypes: Record<string, string> = {};
+  private _featureMaxValues: Record<string, number> = {};
   private _dataSource: string = "";
   private _selectedColorScale: number = 0;
 
@@ -104,7 +106,18 @@ export class ConfigService {
   getRgbaColor(features: Features): string {
     let currentColor = hexToRgb("#00cc88");
     if (features != null) {
-      currentColor = this.color(features["1"][this._colorFeature]);
+      let featureValue = features["1"][this._colorFeature];
+
+      // Normalize categorical values to [0,1] range for proper color mapping
+      const featureType = this._featureTypes[this._colorFeature];
+      if (featureType === 'categorical') {
+        const maxValue = this._featureMaxValues[this._colorFeature];
+        if (maxValue !== undefined && maxValue > 0) {
+          featureValue = featureValue / maxValue;
+        }
+      }
+
+      currentColor = this.color(featureValue);
       if (!this.colorRange) currentColor = hexToRgb(currentColor);
     }
 
@@ -162,5 +175,21 @@ export class ConfigService {
 
   get colorFeature() {
     return this._colorFeature;
+  }
+
+  set featureTypes(types: Record<string, string>) {
+    this._featureTypes = { ...types };
+  }
+
+  get featureTypes(): Record<string, string> {
+    return this._featureTypes;
+  }
+
+  set featureMaxValues(maxValues: Record<string, number>) {
+    this._featureMaxValues = { ...maxValues };
+  }
+
+  get featureMaxValues(): Record<string, number> {
+    return this._featureMaxValues;
   }
 }

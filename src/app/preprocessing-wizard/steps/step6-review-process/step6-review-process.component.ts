@@ -159,7 +159,6 @@ export class Step6ReviewProcessComponent implements OnInit, OnDestroy {
     // Subscribe to progress updates from worker BEFORE starting processing
     this.progressSubscription = this.preprocessingService.processingProgress.subscribe({
       next: (progress) => {
-        console.log('Progress update:', progress);
         this.processingStep = progress.message || progress.step;
         this.processingProgress = Math.min(progress.progress, 70); // Cap at 70% for Python phase
         this.cdr.detectChanges();
@@ -241,7 +240,6 @@ export class Step6ReviewProcessComponent implements OnInit, OnDestroy {
       this.ngZone.run(() => {
         this.backgroundProjections.clear();
         statusMap.forEach((status, method) => {
-          console.log(`[Step6] Background status update - ${method}:`, status);
           this.backgroundProjections.set(method, {
             status: status.status,
             progress: status.progress,
@@ -286,7 +284,6 @@ export class Step6ReviewProcessComponent implements OnInit, OnDestroy {
     computeFn: () => Promise<ProjectionResult>
   ): Promise<void> {
     try {
-      console.log(`Starting background projection: ${name}`);
       const result = await computeFn();
 
       // Add projection to dataset
@@ -321,8 +318,6 @@ export class Step6ReviewProcessComponent implements OnInit, OnDestroy {
           }
         }
       }
-
-      console.log(`${name} projection complete in ${(result.computeTime / 1000).toFixed(1)}s`);
 
       // Show success toast notification
       this.ngZone.run(() => {

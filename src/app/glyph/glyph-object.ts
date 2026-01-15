@@ -80,7 +80,18 @@ export class GlyphObject {
 
         let currentColor = 0x00cc88;
         if (this.features != null) {
-            currentColor = this.config.color(this.features["1"][this.config.colorFeature]);
+            let featureValue = this.features["1"][this.config.colorFeature];
+
+            // Normalize categorical values to [0,1] range for proper color mapping
+            const featureType = this.config.featureTypes[this.config.colorFeature];
+            if (featureType === 'categorical') {
+                const maxValue = this.config.featureMaxValues[this.config.colorFeature];
+                if (maxValue !== undefined && maxValue > 0) {
+                    featureValue = featureValue / maxValue;
+                }
+            }
+
+            currentColor = this.config.color(featureValue);
         }
 
         return currentColor;
@@ -133,7 +144,7 @@ export class GlyphObject {
         const y = cachedMesh ? cachedMesh.position.y : cacheObject.y ?? 0;
         mesh.position.set(x, y, 0);
         mesh.userData = { item: new WeakRef(this) };
-        mesh.renderOrder = this.passive ? 1 : 99;        
+        mesh.renderOrder = this.passive ? 1 : 99;
 
         return mesh;
     }
@@ -454,7 +465,11 @@ export class GlyphObject {
 
         const geom = new THREE.CircleGeometry(sizeInfo.radius, 64);
         const mat = new THREE.MeshBasicMaterial({ color: 0xf0f0f0 });
-        if (this.highlighted) mat.color.setHex(this.highlightColor);
+        if (this.highlighted) {
+            const color = new THREE.Color(this.highlightColor);
+            color.lerp(new THREE.Color(0xffffff), 0.6); // mix toward white
+            mat.color.copy(color);
+        }
         group.add(new THREE.Mesh(geom, mat));
 
         // Optional contour/stroke

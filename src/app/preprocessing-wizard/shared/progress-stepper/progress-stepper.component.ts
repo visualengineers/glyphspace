@@ -17,6 +17,7 @@ export interface Step {
 export class ProgressStepperComponent {
   @Input() steps: Step[] = [];
   @Input() currentStep: number = 0;
+  @Input() vertical: boolean = false;
   @Output() stepClick = new EventEmitter<number>();
 
   onStepClick(index: number): void {

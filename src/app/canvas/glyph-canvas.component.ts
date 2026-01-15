@@ -59,9 +59,14 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
   private animationFrameId: number | undefined;
   private needsRender = new Set<RenderTask>();
   private resizeObserver!: ResizeObserver;
-  private standardBackgroundColor = new THREE.Color(0xfafafa);
+  private standardBackgroundColor = new THREE.Color(0xffffff);
   private disabledBackgroundColor = new THREE.Color(0xf0f0f0);
   private viewRect = { left: 0, right: 0, top: 0, bottom: 0 };
+
+  // Safety mechanism to prevent infinite render loops
+  private renderGlyphsCallCount = 0;
+  private renderGlyphsResetTimer: any = null;
+  private readonly MAX_RENDER_CALLS_PER_SECOND = 20;
 
   // D3 force simulation and aggregation
   private simulation: Simulation<GlyphCacheObject, undefined> | undefined;
@@ -85,6 +90,8 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
   // Helpers for navigation
   private isPanning = false;
   mouseInside = false;
+  private mouseIdleTimer: any;
+  private readonly MOUSE_IDLE_MS = 2000;
   lastMousePosition = new THREE.Vector2();
   lastTouchPosition: { x: number, y: number } | null = { x: 0, y: 0 };
   private mouseDownTime: number = 0;
@@ -226,33 +233,13 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
           this.algorithms = this.dataProvider.getPositions(loadedData);
           this.contexts = this.dataProvider.getContexts(loadedData);
 
-          console.log(`[Canvas ${this.id}] Dataset loaded: ${loadedData}`);
-          console.log(`[Canvas ${this.id}] Timestamps:`, this.timestamps);
-          console.log(`[Canvas ${this.id}] Algorithms:`, this.algorithms);
-
           this.selectedTimestamp = this.timestamps[0];
           this.selectedAlgorithm = this.algorithms[0];
           this.selectedContext = this.contexts[0];
 
-          console.log(`[Canvas ${this.id}] Selected: timestamp=${this.selectedTimestamp}, algorithm=${this.selectedAlgorithm}`);
-          console.log(`[Canvas ${this.id}] Data received:`, data ? `${data.length} glyphs` : 'null');
-
           this.glyphGroup.clear();
 
           if (data) {
-            // Debug: Check sample glyph positions
-            if (data.length > 0) {
-              console.log(`[Canvas ${this.id}] Sample glyph ID:`, data[0].id);
-              console.log(`[Canvas ${this.id}] Sample glyph positions:`, data[0].positions);
-
-              // Check if position exists for selected timestamp/algorithm
-              const hasPosition = data[0].positions?.[this.selectedTimestamp]?.[this.selectedAlgorithm];
-              console.log(`[Canvas ${this.id}] Position exists for ${this.selectedTimestamp}/${this.selectedAlgorithm}:`, hasPosition ? 'YES' : 'NO');
-
-              if (hasPosition) {
-                console.log(`[Canvas ${this.id}] First glyph position:`, hasPosition);
-              }
-            }
 
             this.positionBounds = undefined;
             this.updatePositionBounds();
@@ -415,8 +402,9 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
   toggleFixMagicLens(doToggle = true): void {
     this.magicLensComponent.toggleFix(doToggle);
     if (this.magicLensComponent.isFixed()) {
-      this.scene.background = this.disabledBackgroundColor
-      this.canvasContainer.nativeElement.classList.remove('lensing');;
+      this.scene.background = this.disabledBackgroundColor;
+      this.canvasContainer.nativeElement.classList.remove('lensing');
+      this.requestRender(RenderTask.SceneRender);
     } else {
       if (this.magicLensComponent.isActive()) {
         this.canvasContainer.nativeElement.classList.add('lensing');
@@ -522,18 +510,29 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
     this.magicLensComponent.clearLensGlyphs();
   }
 
-  onCanvasClick() {
-    if (!this.canvasActivated) {
-      this.canvasActivated = true;
+  private resetMouseIdleTimer(): void {
+    this.clearMouseIdleTimer();
+
+    this.mouseIdleTimer = setTimeout(() => {
+      this.mouseInside = false;
+    }, this.MOUSE_IDLE_MS);
+  }
+
+  private clearMouseIdleTimer(): void {
+    if (this.mouseIdleTimer) {
+      clearTimeout(this.mouseIdleTimer);
+      this.mouseIdleTimer = null;
     }
   }
 
   onMouseEnter() {
     this.mouseInside = true;
     this.isShiftDown = false;
+    this.resetMouseIdleTimer();
   }
 
   onMouseLeave() {
+    this.clearMouseIdleTimer();
     this.mouseInside = false;
     this.isShiftDown = false;
     if (this.magicLensComponent.isActive() && !this.magicLensComponent.isFixed()) {
@@ -791,6 +790,21 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
   private renderGlyphs(force = false): void {
     if (this.scene === undefined) return;
 
+    // Safety mechanism to prevent infinite render loops
+    this.renderGlyphsCallCount++;
+    if (this.renderGlyphsResetTimer) {
+      clearTimeout(this.renderGlyphsResetTimer);
+    }
+    this.renderGlyphsResetTimer = setTimeout(() => {
+      this.renderGlyphsCallCount = 0;
+    }, 1000);
+
+    if (this.renderGlyphsCallCount > this.MAX_RENDER_CALLS_PER_SECOND) {
+      console.error(`Infinite render loop detected (${this.renderGlyphsCallCount} calls/sec). Breaking loop.`);
+      this.renderGlyphsCallCount = 0;
+      return;
+    }
+
     this.glyphData.forEach((glyph: GlyphObject) => {
       const cacheObject = glyph.getCacheObject(this.id, this.selectedTimestamp, this.selectedAlgorithm);
       const oldMesh = cacheObject.mesh;
@@ -982,8 +996,11 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
     const clickedInside = this.sceneContainer?.nativeElement.contains(event.target as Node);
     if (!clickedInside) {
       this.canvasActivated = false; // revert border
-      this.settingsPanel.hidePanel();
+      this.settingsPanel.deactivatePanel();
     } else {
+      this.canvasActivated = true;
+      this.resetMouseIdleTimer();
+      this.settingsPanel.activatePanel();
       if ((event.target as HTMLElement).localName === "canvas") {
         this.settingsPanel.hideMenus();
       }
@@ -1107,6 +1124,9 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
 
   @HostListener('mousemove', ['$event'])
   onMouseMove(event: MouseEvent): void {
+    this.mouseInside = true;
+    this.resetMouseIdleTimer();
+
     if (this.isMouseOverOverlay(event) || this.tooltipComponent.isFixed()) {
       this.isSelecting = false;
       this.tooltipComponent.cancelHoverPopup();
