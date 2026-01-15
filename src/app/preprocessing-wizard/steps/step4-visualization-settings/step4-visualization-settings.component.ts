@@ -14,7 +14,7 @@ import { HELP_TEXT } from '../../shared/constants/help-text';
 import { STEP_INFO } from '../../shared/constants/step-info';
 
 interface ProjectionMethod {
-  key: keyof Pick<ProjectionConfig, 'enablePCA' | 'enableFastMap' | 'enableTSNE' | 'enableUMAP'>;
+  key: keyof Pick<ProjectionConfig, 'enablePCA' | 'enableTSNE' | 'enableUMAP'>;
   name: string;
   description: string;
   icon: string;
@@ -50,10 +50,9 @@ export class Step4VisualizationSettingsComponent implements OnInit, OnDestroy {
   draggedFromList: 'selected' | 'available' = 'available';
   draggedIndex: number = -1;
 
-  // Projection configuration
+  // Projection configuration (IsoMap is always primary, these are background options)
   projectionConfig: ProjectionConfig = {
     enablePCA: true,
-    enableFastMap: false,
     enableTSNE: false,
     enableUMAP: false,
     tsnePerplexity: 30,
@@ -64,21 +63,15 @@ export class Step4VisualizationSettingsComponent implements OnInit, OnDestroy {
 
   readonly TSNE_WARNING_THRESHOLD = 5000;
 
+  // IsoMap is always the primary projection (runs immediately, not toggleable)
+  // These are optional background projections the user can enable
   projectionMethods: ProjectionMethod[] = [
     {
       key: 'enablePCA',
       name: 'PCA',
       description: 'Principal Component Analysis - Fast linear projection',
       icon: 'analytics',
-      badge: 'Fast',
-      disabled: false
-    },
-    {
-      key: 'enableFastMap',
-      name: 'FastMap',
-      description: 'Fast distance-preserving projection',
-      icon: 'map',
-      badge: 'Medium'
+      badge: 'Fast'
     },
     {
       key: 'enableTSNE',
@@ -112,6 +105,10 @@ export class Step4VisualizationSettingsComponent implements OnInit, OnDestroy {
 
   // Background projection status
   backgroundProjections = new Map<string, { status: string; progress: number; message: string }>();
+
+  // Capture dataset info for background projections (survives wizard reset)
+  private backgroundDatasetName: string = '';
+  private backgroundTimestamp: string = '';
 
   // Expose enums
   DataType = DataType;
@@ -382,16 +379,14 @@ export class Step4VisualizationSettingsComponent implements OnInit, OnDestroy {
   }
 
   hasEnabledMethod(): boolean {
-    return this.projectionConfig.enablePCA ||
-           this.projectionConfig.enableFastMap ||
-           this.projectionConfig.enableTSNE ||
-           this.projectionConfig.enableUMAP;
+    // IsoMap is always enabled as the primary projection
+    return true;
   }
 
   getEnabledMethodsCount(): number {
-    let count = 0;
+    // Start with 1 for IsoMap (always enabled)
+    let count = 1;
     if (this.projectionConfig.enablePCA) count++;
-    if (this.projectionConfig.enableFastMap) count++;
     if (this.projectionConfig.enableTSNE) count++;
     if (this.projectionConfig.enableUMAP) count++;
     return count;
@@ -426,9 +421,9 @@ export class Step4VisualizationSettingsComponent implements OnInit, OnDestroy {
     this.enabledColumns = this.columnConfigs.filter(c => c.enabled).length;
     this.projectionColumns = this.columnConfigs.filter(c => c.enabled && c.includeInProjection).length;
 
-    this.enabledMethods = [];
+    // IsoMap is always the primary projection
+    this.enabledMethods = ['IsoMap (Primary)'];
     if (this.projectionConfig.enablePCA) this.enabledMethods.push('PCA');
-    if (this.projectionConfig.enableFastMap) this.enabledMethods.push('FastMap');
     if (this.projectionConfig.enableTSNE) this.enabledMethods.push('t-SNE');
     if (this.projectionConfig.enableUMAP) this.enabledMethods.push('UMAP');
   }
@@ -500,24 +495,25 @@ export class Step4VisualizationSettingsComponent implements OnInit, OnDestroy {
       const { features, ids } = this.projectionService.parseCSVFeatures(csvText);
 
       this.ngZone.run(() => {
-        this.processingStep = 'Computing PCA projection...';
+        this.processingStep = 'Computing IsoMap projection...';
         this.processingProgress = 75;
         this.cdr.detectChanges();
       });
 
-      const pcaResult = await this.projectionService.runPCA(features, ids);
+      // Use IsoMap as the primary projection (non-linear manifold learning)
+      const isomapResult = await this.projectionService.runIsoMapSync(features, ids);
 
       this.ngZone.run(() => {
-        this.processingStep = 'Loading dataset with PCA...';
+        this.processingStep = 'Loading dataset with IsoMap...';
         this.processingProgress = 90;
         this.cdr.detectChanges();
       });
 
-      await this.preprocessingService.addProjectionPositions('pca', pcaResult.positions);
+      await this.preprocessingService.addProjectionPositions('isomap', isomapResult.positions);
 
       this.ngZone.run(() => {
         this.processingProgress = 100;
-        this.processingStep = `Dataset loaded with PCA (${pcaResult.computeTime}ms)`;
+        this.processingStep = `Dataset loaded with IsoMap (${isomapResult.computeTime}ms)`;
         this.processingComplete = true;
         this.isProcessing = false;
         this.cdr.detectChanges();
@@ -543,6 +539,11 @@ export class Step4VisualizationSettingsComponent implements OnInit, OnDestroy {
   private async startBackgroundProjections(features: number[][], ids: (string|number)[]): Promise<void> {
     const config = this.projectionConfig;
 
+    // Capture dataset info so background projections can add positions even after wizard reset
+    const state = this.preprocessingService.currentState;
+    this.backgroundDatasetName = state.datasetName;
+    this.backgroundTimestamp = state.timestamp;
+
     this.backgroundStatusSubscription = this.projectionService.backgroundStatusObservable.subscribe(statusMap => {
       this.ngZone.run(() => {
         this.backgroundProjections.clear();
@@ -557,8 +558,9 @@ export class Step4VisualizationSettingsComponent implements OnInit, OnDestroy {
       });
     });
 
-    if (config.enableFastMap) {
-      this.runBackgroundProjection('FastMap', () => this.projectionService.runFastMap(features, ids));
+    // Run PCA in background (IsoMap is now primary)
+    if (config.enablePCA) {
+      this.runBackgroundProjection('PCA', () => this.projectionService.runPCABackground(features, ids));
     }
 
     if (config.enableTSNE) {
@@ -583,10 +585,19 @@ export class Step4VisualizationSettingsComponent implements OnInit, OnDestroy {
   private async runBackgroundProjection(name: string, computeFn: () => Promise<ProjectionResult>): Promise<void> {
     try {
       const result = await computeFn();
+
+      // Convert positions to the format expected by DataProvider
+      const positionsForProvider = result.positions.map(p => ({
+        id: p.id,
+        position: { x: p.x, y: p.y }
+      }));
+
+      // Try to add to wizard state first (if still active)
       await this.preprocessingService.addProjectionPositions(result.method, result.positions);
 
       const state = this.preprocessingService.currentState;
       if (state.processedDataset) {
+        // Wizard still active - update via normal flow
         const collection = state.processedDataset as any;
         const datasetKey = collection.selectedDataset || (collection.datasets ? Object.keys(collection.datasets)[0] : null);
 
@@ -597,6 +608,15 @@ export class Step4VisualizationSettingsComponent implements OnInit, OnDestroy {
             this.dataProvider.loadProcessedDataset(dataset, state.datasetName, state.timestamp);
           }
         }
+      } else if (this.backgroundDatasetName && this.backgroundTimestamp) {
+        // Wizard was reset but dataset is already loaded in dashboard
+        // Add positions directly to the loaded dataset
+        this.dataProvider.addPositionsToLoadedDataset(
+          this.backgroundDatasetName,
+          this.backgroundTimestamp,
+          result.method,
+          positionsForProvider
+        );
       }
 
       this.ngZone.run(() => {

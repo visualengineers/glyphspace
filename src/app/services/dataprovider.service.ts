@@ -276,6 +276,60 @@ export class DataProviderService {
         this.setDatasetCollection([newEntry]);
     }
 
+    /**
+     * Add projection positions to an already-loaded dataset
+     * Used when background projections complete after wizard is closed
+     */
+    public addPositionsToLoadedDataset(
+        datasetName: string,
+        timestamp: string,
+        algorithm: string,
+        positions: Array<{id: string | number; position: {x: number; y: number}}>
+    ): boolean {
+        const glyphMap = this.glyphCache.get(datasetName);
+        if (!glyphMap) {
+            console.warn(`[DataProvider] Cannot add positions - dataset ${datasetName} not in cache`);
+            return false;
+        }
+
+        console.log(`[DataProvider] Adding ${positions.length} positions for algorithm: ${algorithm} to loaded dataset`);
+        let matchCount = 0;
+
+        for (const posEntry of positions) {
+            const idStr = String(posEntry.id);
+            const glyph = glyphMap.get(idStr);
+            if (!glyph) continue;
+
+            // Ensure timestamp bucket exists
+            if (!glyph.positions[timestamp]) {
+                glyph.positions[timestamp] = {};
+            }
+
+            glyph.positions[timestamp][algorithm] = { ...posEntry.position };
+            matchCount++;
+        }
+
+        console.log(`[DataProvider] Matched ${matchCount}/${positions.length} positions for ${algorithm}`);
+
+        // Update the collection to include this algorithm in the position list
+        // This ensures getPositions() returns the new algorithm
+        const collections = this.dataSetCollectionSubject.getValue();
+        const collection = collections.find(c => c.dataset === datasetName);
+        if (collection) {
+            const item = collection.items.find(it => it.time === timestamp);
+            if (item && !item.algorithms.position[algorithm]) {
+                item.algorithms.position[algorithm] = `memory://${datasetName}/${timestamp}/${algorithm}`;
+                // Notify subscribers about the updated collection
+                this.dataSetCollectionSubject.next([...collections]);
+            }
+        }
+
+        // Notify config that positions changed so UI can update
+        this.config.updateConfiguration();
+
+        return matchCount > 0;
+    }
+
     private buildDataSet(
         name: string,
         timestamp: string,

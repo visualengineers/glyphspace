@@ -37,10 +37,11 @@ export interface CleaningConfig {
 }
 
 export interface ProjectionConfig {
-  enablePCA: boolean;         // Always enabled, runs first (foreground)
-  enableFastMap: boolean;     // NEW: FastMap projection (background)
-  enableTSNE: boolean;        // Now runs in JavaScript (background)
-  enableUMAP: boolean;        // Now runs in JavaScript (background)
+  // IsoMap is always enabled as primary projection (runs immediately)
+  // These are optional background projections:
+  enablePCA: boolean;         // PCA runs in background
+  enableTSNE: boolean;        // t-SNE runs in background (slow)
+  enableUMAP: boolean;        // UMAP runs in background (slow)
 
   // t-SNE parameters (DruidJS)
   tsnePerplexity: number;
@@ -49,11 +50,6 @@ export interface ProjectionConfig {
   // UMAP parameters (DruidJS)
   umapNeighbors: number;
   umapMinDist: number;
-
-  // Deprecated/removed parameters:
-  // - tsneLearningRate: Not used by DruidJS t-SNE
-  // - umapMetric: DruidJS may not support custom metrics
-  // - enableEPSG: Not implementing geographic projection
 }
 
 export interface CleaningResult {

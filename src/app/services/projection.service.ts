@@ -3,7 +3,7 @@ import { BehaviorSubject, Observable } from 'rxjs';
 import * as druid from '@saehrimnir/druidjs';
 
 export interface ProjectionResult {
-  method: 'pca' | 'fastmap' | 'tsne' | 'umap';
+  method: 'pca' | 'isomap' | 'tsne' | 'umap';
   positions: Array<{id: string | number; x: number; y: number}>;
   computeTime: number;  // milliseconds
 }
@@ -19,7 +19,7 @@ export interface BackgroundStatus {
 // Worker message types
 interface ProjectionWorkerRequest {
   type: 'compute';
-  method: 'fastmap' | 'tsne' | 'umap';
+  method: 'pca' | 'isomap' | 'tsne' | 'umap';
   features: number[][];
   ids: (string | number)[];
   config?: {
@@ -51,8 +51,7 @@ export class ProjectionService {
   constructor(private ngZone: NgZone) {}
 
   /**
-   * Run PCA (fast, blocking) - IMMEDIATE results for dashboard
-   * This is the only projection that blocks UI - must be fast!
+   * Run PCA (fast, blocking) - runs synchronously on main thread
    */
   async runPCA(features: number[][], ids: (string|number)[]): Promise<ProjectionResult> {
     const startTime = Date.now();
@@ -79,11 +78,45 @@ export class ProjectionService {
   }
 
   /**
-   * Run FastMap (medium speed, background) - runs in Web Worker
-   * Distance-preserving projection
+   * Run IsoMap (blocking) - PRIMARY projection for dashboard
+   * Non-linear manifold learning that preserves geodesic distances
    */
-  async runFastMap(features: number[][], ids: (string|number)[]): Promise<ProjectionResult> {
-    return this.runProjectionInWorker('fastmap', features, ids);
+  async runIsoMapSync(features: number[][], ids: (string|number)[]): Promise<ProjectionResult> {
+    const startTime = Date.now();
+
+    try {
+      const isomap = new (druid as any).ISOMAP(features, 2);
+      const embedding = isomap.transform();
+
+      const positions = embedding.map((coords: number[], i: number) => ({
+        id: ids[i],
+        x: coords[0],
+        y: coords[1]
+      }));
+
+      return {
+        method: 'isomap',
+        positions,
+        computeTime: Date.now() - startTime
+      };
+    } catch (error: any) {
+      throw new Error(`IsoMap failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Run IsoMap (background) - runs in Web Worker
+   * Non-linear manifold learning projection
+   */
+  async runIsoMap(features: number[][], ids: (string|number)[]): Promise<ProjectionResult> {
+    return this.runProjectionInWorker('isomap', features, ids);
+  }
+
+  /**
+   * Run PCA in background (Web Worker) - for when IsoMap is primary
+   */
+  async runPCABackground(features: number[][], ids: (string|number)[]): Promise<ProjectionResult> {
+    return this.runProjectionInWorker('pca', features, ids);
   }
 
   /**
@@ -114,7 +147,7 @@ export class ProjectionService {
    * Run a projection in a Web Worker (non-blocking)
    */
   private async runProjectionInWorker(
-    method: 'fastmap' | 'tsne' | 'umap',
+    method: 'pca' | 'isomap' | 'tsne' | 'umap',
     features: number[][],
     ids: (string | number)[],
     config?: any

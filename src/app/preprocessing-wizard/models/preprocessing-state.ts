@@ -46,10 +46,11 @@ export const DEFAULT_CLEANING_CONFIG: CleaningConfig = {
 };
 
 export const DEFAULT_PROJECTION_CONFIG: ProjectionConfig = {
-  enablePCA: true,        // Always enabled - runs first for immediate visualization
-  enableFastMap: false,   // NEW: FastMap projection (background)
-  enableTSNE: false,
-  enableUMAP: false,      // Now available via DruidJS (JavaScript)
+  // IsoMap is always enabled as primary (runs immediately)
+  // These are optional background projections:
+  enablePCA: true,        // PCA runs in background
+  enableTSNE: false,      // t-SNE runs in background (slow)
+  enableUMAP: false,      // UMAP runs in background (slow)
 
   tsnePerplexity: 30,
   tsneIterations: 1000,

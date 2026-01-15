@@ -2,14 +2,14 @@
 
 /**
  * Web Worker for CPU-intensive projection computations
- * Runs DruidJS projections (FastMap, t-SNE, UMAP) in a separate thread
+ * Runs DruidJS projections (IsoMap, t-SNE, UMAP) in a separate thread
  * to prevent blocking the main UI thread.
  */
 
 // Worker message types
 interface ProjectionRequest {
   type: 'compute';
-  method: 'fastmap' | 'tsne' | 'umap';
+  method: 'pca' | 'isomap' | 'tsne' | 'umap';
   features: number[][];
   ids: (string | number)[];
   config?: {
@@ -41,17 +41,41 @@ async function loadDruidJS() {
 }
 
 /**
- * Run FastMap projection
+ * Run PCA projection
  */
-async function runFastMap(
+async function runPCA(
   features: number[][],
   ids: (string | number)[]
 ): Promise<{ positions: Array<{ id: string | number; x: number; y: number }>; computeTime: number }> {
   const startTime = performance.now();
   const druidModule = await loadDruidJS();
 
-  const fastmap = new druidModule.FASTMAP(features, 2);
-  const embedding = fastmap.transform();
+  const pca = new druidModule.PCA(features, 2);
+  const embedding = pca.transform();
+
+  const positions = embedding.map((point: number[], idx: number) => ({
+    id: ids[idx],
+    x: point[0],
+    y: point[1]
+  }));
+
+  const computeTime = performance.now() - startTime;
+  return { positions, computeTime };
+}
+
+/**
+ * Run IsoMap projection
+ * Non-linear manifold learning that preserves geodesic distances
+ */
+async function runIsoMap(
+  features: number[][],
+  ids: (string | number)[]
+): Promise<{ positions: Array<{ id: string | number; x: number; y: number }>; computeTime: number }> {
+  const startTime = performance.now();
+  const druidModule = await loadDruidJS();
+
+  const isomap = new druidModule.ISOMAP(features, 2);
+  const embedding = isomap.transform();
 
   const positions = embedding.map((point: number[], idx: number) => ({
     id: ids[idx],
@@ -148,8 +172,12 @@ addEventListener('message', async ({ data }: MessageEvent<ProjectionRequest>) =>
       let result: { positions: Array<{ id: string | number; x: number; y: number }>; computeTime: number };
 
       switch (data.method) {
-        case 'fastmap':
-          result = await runFastMap(data.features, data.ids);
+        case 'pca':
+          result = await runPCA(data.features, data.ids);
+          break;
+
+        case 'isomap':
+          result = await runIsoMap(data.features, data.ids);
           break;
 
         case 'tsne':

@@ -108,19 +108,19 @@ export const HELP_TEXT = {
       technical: 'Computes eigenvalues of covariance matrix. Always runs first to provide immediate visualization.'
     },
 
-    fastmap: {
-      name: 'FastMap',
-      when: 'Computes in background, notifies when ready',
-      description: 'Distance-preserving projection that maintains pairwise distances between datapoints.',
+    isomap: {
+      name: 'IsoMap',
+      when: 'Runs first and loads immediately',
+      description: 'Non-linear manifold learning that preserves geodesic distances between datapoints.',
       bestFor: [
-        'Preserving relative distances',
-        'Understanding data clusters',
-        'Faster alternative to MDS',
+        'Non-linear data structures',
+        'Preserving geodesic distances',
+        'Revealing manifold structure',
         'Medium-sized datasets'
       ],
-      characteristics: 'Tries to keep distances proportional. Faster than t-SNE but less detail.',
-      speed: 'Medium (few seconds for &lt;10k rows)',
-      technical: 'Uses pivot-based distance preservation. Good balance between speed and quality.'
+      characteristics: 'Captures non-linear relationships. Better than PCA for curved manifolds.',
+      speed: 'Fast (few seconds for most datasets)',
+      technical: 'Builds neighborhood graph and computes shortest paths to preserve geodesic distances.'
     },
 
     tsne: {
@@ -173,11 +173,11 @@ export const HELP_TEXT = {
     backgroundProcessing: {
       title: 'How Background Processing Works',
       description: `
-        <strong>Immediate Start:</strong> After data cleaning, PCA runs immediately and loads into the dashboard.
+        <strong>Immediate Start:</strong> After data cleaning, IsoMap runs immediately and loads into the dashboard.
         You can start exploring your data right away.<br/><br/>
 
-        <strong>Background Computation:</strong> While you explore the PCA view, other selected projections
-        (FastMap, t-SNE, UMAP) compute in the background without blocking your workflow.<br/><br/>
+        <strong>Background Computation:</strong> While you explore the IsoMap view, other selected projections
+        (PCA, t-SNE, UMAP) compute in the background without blocking your workflow.<br/><br/>
 
         <strong>Notifications:</strong> When each projection finishes, you'll see a notification with an
         option to switch to that view. The projection is automatically added to the dropdown.<br/><br/>

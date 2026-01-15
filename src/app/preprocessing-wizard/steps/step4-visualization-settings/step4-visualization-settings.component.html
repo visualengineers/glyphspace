@@ -172,9 +172,28 @@
           <app-help-tooltip [helpText]="HELP_TEXT.general.projection"></app-help-tooltip>
         </h3>
         <p class="panel-description">
-          Enable one or more dimensionality reduction methods. PCA runs first and loads immediately.
-          Other methods (FastMap, t-SNE, UMAP) compute in the background.
+          IsoMap runs as the primary projection and loads immediately.
+          Enable additional methods below to compute in the background.
         </p>
+
+        <!-- Primary Projection (always enabled) -->
+        <div class="primary-projection-card">
+          <div class="card-icon">
+            <span class="material-icons">map</span>
+          </div>
+          <div class="card-content">
+            <div class="card-header-row">
+              <div class="header-with-badge">
+                <h4>IsoMap</h4>
+                <span class="speed-badge badge-primary">Primary</span>
+              </div>
+              <span class="material-icons check-icon">check_circle</span>
+            </div>
+            <p class="card-description">Non-linear manifold learning - Always runs first and loads immediately</p>
+          </div>
+        </div>
+
+        <h4 class="subsection-title">Additional Projections (Background)</h4>
 
         <div class="methods-grid">
           @for (method of projectionMethods; track method.key) {
@@ -274,7 +293,7 @@
                       <span class="material-icons">warning</span>
                       <div>
                         <p><strong>{{ getTSNETimeEstimate() }}</strong></p>
-                        <p>t-SNE computation will run in the background. You can explore your data with PCA while waiting.</p>
+                        <p>t-SNE computation will run in the background. You can explore your data with IsoMap while waiting.</p>
                       </div>
                     </div>
                   }
@@ -476,7 +495,7 @@
         <span class="material-icons">warning</span>
         <div>
           <strong>Important:</strong> Processing may take several minutes depending on dataset size and enabled methods.
-          PCA will complete first, allowing you to explore your data immediately. Other projections will compute in the background.
+          IsoMap will complete first, allowing you to explore your data immediately. Other projections will compute in the background.
         </div>
       </div>
 
@@ -539,7 +558,7 @@
             </div>
             <div class="stat-item">
               <span class="material-icons">check</span>
-              <span>PCA projection ready</span>
+              <span>IsoMap projection ready</span>
             </div>
             <div class="stat-item">
               <span class="material-icons">check</span>

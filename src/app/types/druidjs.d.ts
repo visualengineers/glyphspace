@@ -17,6 +17,7 @@ declare module '@saehrimnir/druidjs' {
   /**
    * FastMap - Distance-preserving projection
    * Maintains pairwise distances between datapoints
+   * (Not currently used - IsoMap is primary)
    */
   export class FASTMAP {
     constructor(data: number[][], dimensions?: number);
@@ -53,15 +54,19 @@ declare module '@saehrimnir/druidjs' {
 
   /**
    * Additional DR methods available in DruidJS
-   * (Not currently used in this implementation)
    */
   export class MDS {
     constructor(data: number[][], dimensions?: number);
     transform(): number[][];
   }
 
+  /**
+   * ISOMAP - Isometric Feature Mapping
+   * Non-linear manifold learning preserving geodesic distances
+   * (Primary projection method)
+   */
   export class ISOMAP {
-    constructor(data: number[][], parameters?: any);
+    constructor(data: number[][], dimensions?: number);
     transform(): number[][];
   }
 

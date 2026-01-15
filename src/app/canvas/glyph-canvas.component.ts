@@ -251,6 +251,21 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
         });
       })
     );
+    // Subscribe to collection updates to catch new algorithms added by background projections
+    this.configSub.add(
+      this.dataProvider.dataSetCollectionSubject$.subscribe(() => {
+        const loadedData = this.config.loadedData;
+        if (loadedData) {
+          const newAlgorithms = this.dataProvider.getPositions(loadedData);
+          // Only update if we have new algorithms
+          if (newAlgorithms.length > this.algorithms.length) {
+            this.ngZone.run(() => {
+              this.algorithms = newAlgorithms;
+            });
+          }
+        }
+      })
+    );
     this.configSub.add(
       this.config.drawMagicLensGlyphsSubject$.subscribe(glyphs => {
         if (glyphs != null) {

@@ -355,6 +355,84 @@
     }
   }
 
+  // Primary Projection Card (always enabled)
+  .primary-projection-card {
+    display: flex;
+    gap: 12px;
+    padding: 14px;
+    border: 2px solid v.$active-color;
+    border-radius: 4px;
+    background: rgba(0, 188, 212, 0.08);
+    margin-bottom: 16px;
+
+    .card-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      background: rgba(0, 188, 212, 0.15);
+      border-radius: 50%;
+
+      .material-icons {
+        font-size: 24px;
+        color: v.$active-color;
+      }
+    }
+
+    .card-content {
+      flex: 1;
+
+      .card-header-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 4px;
+
+        .header-with-badge {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+
+          h4 {
+            font-size: 14px;
+            font-weight: 600;
+            color: v.$gray-800;
+            margin: 0;
+          }
+
+          .speed-badge.badge-primary {
+            background: rgba(0, 188, 212, 0.15);
+            color: darken(v.$active-color, 10%);
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-weight: 600;
+          }
+        }
+
+        .check-icon {
+          font-size: 22px;
+          color: v.$active-color;
+        }
+      }
+
+      .card-description {
+        font-size: 12px;
+        color: v.$gray-600;
+        margin: 0;
+        line-height: 1.4;
+      }
+    }
+  }
+
+  .subsection-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: v.$gray-700;
+    margin: 0 0 12px 0;
+  }
+
   // Projection Methods
   .methods-grid {
     display: grid;

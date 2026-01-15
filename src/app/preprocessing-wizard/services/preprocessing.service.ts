@@ -395,6 +395,7 @@ export class PreprocessingService {
 
   /**
    * Add projection positions to the processed dataset
+   * Silently returns if wizard was reset (user moved on)
    */
   public async addProjectionPositions(
     method: string,
@@ -402,8 +403,11 @@ export class PreprocessingService {
   ): Promise<void> {
     const state = this.currentState;
 
+    // If wizard was reset while background projection was running, silently skip
+    // (user has already moved on to dashboard)
     if (!state.processedDataset) {
-      throw new Error('No processed dataset available');
+      console.log(`[Preprocessing] Skipping ${method} projection - wizard was reset`);
+      return;
     }
 
     // The dataset structure from worker
