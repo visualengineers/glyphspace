@@ -2,9 +2,8 @@ import { Component, OnInit, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PreprocessingService } from '../../services/preprocessing.service';
-import { SparklineChartComponent } from '../../shared/sparkline-chart/sparkline-chart.component';
-import { BoxPlotComponent } from '../../shared/box-plot/box-plot.component';
-import { ColumnStatistics } from '../../models/column-statistics';
+import { WizardHistogramComponent } from '../../shared/wizard-histogram/wizard-histogram.component';
+import { ColumnStatistics, HistogramData } from '../../models/column-statistics';
 import { ColumnConfig } from '../../models/column-config';
 import { DataType } from '../../models/data-type.enum';
 import { HelpTooltipComponent } from '../../shared/help-tooltip/help-tooltip.component';
@@ -14,7 +13,7 @@ import { STEP_INFO } from '../../shared/constants/step-info';
 @Component({
   selector: 'app-step2-column-selection',
   standalone: true,
-  imports: [CommonModule, FormsModule, SparklineChartComponent, BoxPlotComponent, HelpTooltipComponent],
+  imports: [CommonModule, FormsModule, WizardHistogramComponent, HelpTooltipComponent],
   templateUrl: './step2-column-selection.component.html',
   styleUrl: './step2-column-selection.component.scss'
 })
@@ -24,6 +23,7 @@ export class Step2ColumnSelectionComponent implements OnInit {
   columns: ColumnStatistics[] = [];
   columnConfigs: Map<string, ColumnConfig> = new Map();
   searchTerm: string = '';
+  columnHistogramCache: Map<string, HistogramData> = new Map();
 
   // Expose help text and step info to template
   readonly HELP_TEXT = HELP_TEXT;
@@ -35,6 +35,12 @@ export class Step2ColumnSelectionComponent implements OnInit {
     const state = this.preprocessingService.currentState;
     if (state.dataProfile) {
       this.columns = state.dataProfile.columns;
+      // Cache histogram data for columns that don't have it
+      this.columns.forEach(column => {
+        if (!column.histogram && column.topValues && column.topValues.length > 0) {
+          this.columnHistogramCache.set(column.name, this.getHistogramFromTopValues(column));
+        }
+      });
     }
     this.columnConfigs = state.columnConfigs;
   }
@@ -192,5 +198,56 @@ export class Step2ColumnSelectionComponent implements OnInit {
     } catch {
       return dateStr;
     }
+  }
+
+  /**
+   * Get color for data type (bright vibrant colors matching _variables.scss)
+   */
+  getDataTypeColor(dataType: DataType): string {
+    switch (dataType) {
+      case DataType.Numeric: return '#198FBD';      // Blue
+      case DataType.Categorical: return '#F7295B';  // Red/Pink
+      case DataType.Text: return '#8BC34A';         // Green
+      case DataType.Date: return '#F7D529';         // Yellow
+      case DataType.Boolean: return '#00bcd4';      // Cyan
+      case DataType.ID: return '#888888';           // Gray
+      default: return '#888888';
+    }
+  }
+
+  /**
+   * Get histogram data for a column (either from column.histogram or cached)
+   */
+  getColumnHistogramData(column: ColumnStatistics): HistogramData | null {
+    if (column.histogram) {
+      return column.histogram;
+    }
+    return this.columnHistogramCache.get(column.name) || null;
+  }
+
+  /**
+   * Convert topValues to histogram format for categorical data
+   */
+  getHistogramFromTopValues(column: ColumnStatistics): HistogramData {
+    if (!column.topValues || column.topValues.length === 0) {
+      return {
+        bins: [],
+        counts: [],
+        binEdges: [],
+        labels: []
+      };
+    }
+
+    const counts = column.topValues.map(item => item.count);
+    const labels = column.topValues.map(item => item.value);
+    const bins = counts.map((_, index) => index);
+    const binEdges = bins.map(b => b);
+
+    return {
+      bins,
+      counts,
+      binEdges,
+      labels
+    };
   }
 }

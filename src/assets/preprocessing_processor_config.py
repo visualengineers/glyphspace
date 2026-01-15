@@ -390,8 +390,8 @@ def build_dataset_collection(df_original, df_processed, feature_names, projectio
     user_glyph_features = config.get('glyphFeatures', [])
     glyph_feature_ids = []
 
-    if user_glyph_features and len(user_glyph_features) == 5:
-        # Map user-selected feature names to feature IDs
+    if user_glyph_features and 3 <= len(user_glyph_features) <= 12:
+        # Map user-selected feature names to feature IDs (supports 3-12 features)
         for feature_name in user_glyph_features:
             try:
                 # Find index in feature_names array (0-indexed)
@@ -401,14 +401,14 @@ def build_dataset_collection(df_original, df_processed, feature_names, projectio
             except ValueError:
                 print(f'[WARNING] Glyph feature not found: {feature_name}')
 
-        # Pad to exactly 5 if mapping failed for some features
-        while len(glyph_feature_ids) < 5:
+        # Only pad if we have fewer than minimum (3)
+        while len(glyph_feature_ids) < 3:
             glyph_feature_ids.append('1')  # Use first feature as fallback
 
-        # Ensure we have exactly 5
-        glyph_feature_ids = glyph_feature_ids[:5]
+        # Ensure we don't exceed maximum (12)
+        glyph_feature_ids = glyph_feature_ids[:12]
     else:
-        # Fallback: use first 5 features (existing behavior)
+        # Fallback: use first 5 features as default
         glyph_feature_ids = [str(i + 1) for i in range(min(5, len(feature_names)))]
 
     # Build tooltip array

@@ -34,3 +34,17 @@ $histogram-unselected-bars: #1a1a1a;
 $color-scale-low: #198FBD;
 $color-scale-high: #F7295B;
 $color-scale-middle: #F7D529;
+
+// Data Type Colors (bright vibrant colors from color scale)
+$data-type-numeric: #198FBD;  // Blue (from color-scale-low)
+$data-type-numeric-bg: rgba(25, 143, 189, 0.1);
+$data-type-categorical: #F7295B;  // Red/Pink (from color-scale-high)
+$data-type-categorical-bg: rgba(247, 41, 91, 0.1);
+$data-type-text: #8BC34A;  // Green (bright)
+$data-type-text-bg: rgba(139, 195, 74, 0.1);
+$data-type-date: #F7D529;  // Yellow (from color-scale-middle)
+$data-type-date-bg: rgba(247, 213, 41, 0.1);
+$data-type-boolean: #00bcd4;  // Cyan (active-color)
+$data-type-boolean-bg: rgba(0, 188, 212, 0.1);
+$data-type-id: #888888;  // Gray
+$data-type-id-bg: rgba(136, 136, 136, 0.1);

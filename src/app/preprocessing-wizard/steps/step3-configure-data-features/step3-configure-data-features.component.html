@@ -1,0 +1,388 @@
+<div class="step3-configure-data-features">
+  <div class="step-header">
+    <h2>{{ stepInfo.title }}</h2>
+    <p class="step-purpose">{{ stepInfo.purpose }}</p>
+  </div>
+
+  @if (error) {
+    <div class="error-message">
+      <span class="material-icons">error</span>
+      {{ error }}
+    </div>
+  } @else {
+    <!-- Info Box -->
+    <div class="info-box">
+      <span class="material-icons">info</span>
+      <div>
+        <strong>Smart defaults applied</strong> - All columns have been configured with recommended settings based on their data types.
+        Review and modify the settings below as needed.
+        <app-help-tooltip [helpText]="HELP_TEXT.general.smartDefaults"></app-help-tooltip>
+      </div>
+    </div>
+
+    <!-- Filter Bar -->
+    <div class="filter-bar">
+      <div class="filter-group">
+        <span class="material-icons">search</span>
+        <input
+          type="text"
+          [(ngModel)]="filterText"
+          (ngModelChange)="onFilterChange()"
+          placeholder="Search columns..."
+          class="filter-input">
+      </div>
+
+      <div class="filter-group">
+        <label>Type:</label>
+        <select [(ngModel)]="filterType" (ngModelChange)="onFilterChange()" class="filter-select">
+          <option value="all">All Types</option>
+          <option [value]="DataType.Numeric">Numeric</option>
+          <option [value]="DataType.Categorical">Categorical</option>
+          <option [value]="DataType.Text">Text</option>
+          <option [value]="DataType.Date">Date</option>
+          <option [value]="DataType.Boolean">Boolean</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label class="checkbox-label">
+          <input type="checkbox" [(ngModel)]="showIssuesOnly" (ngModelChange)="onFilterChange()">
+          <span>Issues only</span>
+        </label>
+      </div>
+
+      @if (filterText || filterType !== 'all' || showIssuesOnly) {
+        <button class="btn-clear-filters" (click)="clearFilters()">
+          <span class="material-icons">close</span>
+          Clear
+        </button>
+      }
+
+      <div class="filter-results">
+        Showing {{ filteredColumns.length }} of {{ columns.length }} columns
+      </div>
+    </div>
+
+    <!-- Configuration Table -->
+    <div class="config-table-container">
+      <table class="config-table">
+        <thead>
+          <tr>
+            <th class="col-expand"></th>
+            <th class="col-name">Column</th>
+            <th class="col-type">Type</th>
+            <th class="col-encoding">Encoding</th>
+            <th class="col-scaling">Scaling</th>
+            <th class="col-missing">Missing Values</th>
+            <th class="col-outliers">Outliers</th>
+            <th class="col-projection">In Projection</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (colState of filteredColumns; track colState.column.name) {
+            <tr [class.has-issues]="hasIssues(colState)" [class.expanded]="isRowExpanded(colState.column.name)">
+              <!-- Expand Button -->
+              <td class="col-expand">
+                <button class="btn-expand" (click)="toggleRowExpansion(colState.column.name)" type="button">
+                  <span class="material-icons">
+                    {{ isRowExpanded(colState.column.name) ? 'expand_more' : 'chevron_right' }}
+                  </span>
+                </button>
+              </td>
+
+              <!-- Column Name -->
+              <td class="col-name">
+                <div class="column-name-cell">
+                  <span class="column-name">{{ colState.column.name }}</span>
+                  @if (hasIssues(colState)) {
+                    <div class="issue-indicator">
+                      <span class="material-icons" title="{{ getIssueDescription(colState) }}">warning</span>
+                      <span class="issue-text">{{ getIssueDescription(colState) }}</span>
+                    </div>
+                  }
+                </div>
+              </td>
+
+              <!-- Data Type -->
+              <td class="col-type">
+                <span class="data-type-badge" [ngClass]="getDataTypeBadgeClass(colState.column.dataType)">
+                  {{ colState.column.dataType }}
+                </span>
+              </td>
+
+              <!-- Encoding -->
+              <td class="col-encoding">
+                <select
+                  class="config-select"
+                  [value]="colState.config.encodingMethod"
+                  (change)="onEncodingChange(colState.column.name, $any($event.target).value)">
+                  @for (method of getAvailableEncodingMethods(colState); track method.value) {
+                    <option [value]="method.value" [title]="method.description">
+                      {{ method.label }}
+                    </option>
+                  }
+                </select>
+              </td>
+
+              <!-- Scaling -->
+              <td class="col-scaling">
+                @if (shouldShowScaling(colState)) {
+                  <select
+                    class="config-select"
+                    [value]="colState.config.scalingMethod"
+                    (change)="onScalingChange(colState.column.name, $any($event.target).value)">
+                    @for (method of scalingMethods; track method.value) {
+                      <option [value]="method.value" [title]="method.description">
+                        {{ method.label }}
+                      </option>
+                    }
+                  </select>
+                } @else {
+                  <span class="na-text">N/A</span>
+                }
+              </td>
+
+              <!-- Missing Values -->
+              <td class="col-missing">
+                @if (hasMissingValues(colState)) {
+                  <div class="missing-config">
+                    <select
+                      class="config-select"
+                      [value]="colState.config.missingValueStrategy"
+                      (change)="onMissingStrategyChange(colState.column.name, $any($event.target).value)">
+                      @for (strategy of getAvailableMissingStrategies(colState); track strategy.value) {
+                        <option [value]="strategy.value" [title]="strategy.description">
+                          {{ strategy.label }}
+                        </option>
+                      }
+                    </select>
+                    @if (colState.config.missingValueStrategy === MissingValueStrategy.FillValue) {
+                      <input
+                        type="text"
+                        class="fill-value-input"
+                        [(ngModel)]="colState.config.missingValueFillValue"
+                        (ngModelChange)="onMissingValueFillChange(colState.column.name, $event || '')"
+                        placeholder="Value">
+                    }
+                  </div>
+                } @else {
+                  <span class="na-text">None</span>
+                }
+              </td>
+
+              <!-- Outliers -->
+              <td class="col-outliers">
+                @if (shouldShowOutliers(colState)) {
+                  <div class="outlier-config">
+                    <select
+                      class="config-select"
+                      [value]="colState.config.outlierMethod"
+                      (change)="onOutlierMethodChange(colState.column.name, $any($event.target).value)"
+                      [disabled]="colState.isLoadingOutliers">
+                      @for (method of outlierMethods; track method.value) {
+                        <option [value]="method.value" [title]="method.description">
+                          {{ method.label }}
+                        </option>
+                      }
+                    </select>
+                    <select
+                      class="config-select"
+                      [value]="colState.config.outlierStrategy"
+                      (change)="onOutlierStrategyChange(colState.column.name, $any($event.target).value)"
+                      [disabled]="colState.isLoadingOutliers">
+                      @for (strategy of outlierStrategies; track strategy.value) {
+                        <option [value]="strategy.value" [title]="strategy.description">
+                          {{ strategy.label }}
+                        </option>
+                      }
+                    </select>
+                    @if (colState.isLoadingOutliers) {
+                      <span class="loading-indicator">
+                        <span class="material-icons spinning">sync</span>
+                      </span>
+                    }
+                  </div>
+                } @else {
+                  <span class="na-text">N/A</span>
+                }
+              </td>
+
+              <!-- In Projection -->
+              <td class="col-projection">
+                <label class="checkbox-label">
+                  <input
+                    type="checkbox"
+                    [checked]="colState.config.includeInProjection"
+                    (change)="toggleProjection(colState.column.name)">
+                </label>
+              </td>
+            </tr>
+
+            <!-- Expanded Row Details -->
+            @if (isRowExpanded(colState.column.name)) {
+              <tr class="expanded-details">
+                <td colspan="8">
+                  <div class="details-panel">
+                    <div class="stats-grid">
+                      <div class="stat-item">
+                        <span class="stat-label">Unique Values:</span>
+                        <span class="stat-value">{{ colState.column.uniqueCount | number }}</span>
+                      </div>
+                      <div class="stat-item">
+                        <span class="stat-label">Completeness:</span>
+                        <span class="stat-value">{{ (100 - colState.column.missingPercentage).toFixed(1) }}%</span>
+                      </div>
+                      @if (colState.column.dataType === DataType.Numeric) {
+                        <div class="stat-item">
+                          <span class="stat-label">Min:</span>
+                          <span class="stat-value">{{ colState.column.min?.toFixed(2) }}</span>
+                        </div>
+                        <div class="stat-item">
+                          <span class="stat-label">Q1:</span>
+                          <span class="stat-value">{{ colState.column.q1?.toFixed(2) }}</span>
+                        </div>
+                        <div class="stat-item">
+                          <span class="stat-label">Median:</span>
+                          <span class="stat-value">{{ colState.column.median?.toFixed(2) }}</span>
+                        </div>
+                        <div class="stat-item">
+                          <span class="stat-label">Q3:</span>
+                          <span class="stat-value">{{ colState.column.q3?.toFixed(2) }}</span>
+                        </div>
+                        <div class="stat-item">
+                          <span class="stat-label">Max:</span>
+                          <span class="stat-value">{{ colState.column.max?.toFixed(2) }}</span>
+                        </div>
+                        <div class="stat-item">
+                          <span class="stat-label">Mean:</span>
+                          <span class="stat-value">{{ colState.column.mean?.toFixed(2) }}</span>
+                        </div>
+                        @if (colState.outlierCount !== undefined) {
+                          <div class="stat-item">
+                            <span class="stat-label">Outliers Detected:</span>
+                            <span class="stat-value" [class.warning]="colState.outlierCount > 0">
+                              {{ colState.outlierCount }} ({{ ((colState.outlierCount / totalRows) * 100).toFixed(1) }}%)
+                            </span>
+                          </div>
+                        }
+                      }
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+
+      @if (filteredColumns.length === 0) {
+        <div class="no-columns">
+          <span class="material-icons">filter_alt_off</span>
+          <p>No columns match the current filters</p>
+          <button class="btn-text" (click)="clearFilters()">Clear Filters</button>
+        </div>
+      }
+    </div>
+
+    <!-- Duplicate Rows Section -->
+    <div class="duplicates-section">
+      <h3>
+        <span class="material-icons">content_copy</span>
+        Duplicate Rows
+      </h3>
+
+      @if (duplicateCount === 0) {
+        <div class="no-duplicates">
+          <span class="material-icons">check_circle</span>
+          <span>No duplicate rows found - all rows are unique!</span>
+        </div>
+      } @else {
+        <div class="duplicate-info">
+          <div class="duplicate-summary">
+            <div class="summary-stat">
+              <span class="stat-large">{{ duplicateCount }}</span>
+              <span class="stat-label">duplicate rows ({{ duplicatePercentage.toFixed(1) }}%)</span>
+            </div>
+          </div>
+
+          <div class="duplicate-action">
+            <label class="checkbox-label">
+              <input
+                type="checkbox"
+                [(ngModel)]="cleaningConfig.removeDuplicates"
+                (change)="toggleRemoveDuplicates()">
+              <span>Remove duplicate rows (keep first occurrence)</span>
+            </label>
+
+            @if (cleaningConfig.removeDuplicates) {
+              <div class="impact-warning">
+                <span class="material-icons">warning</span>
+                <span>Will remove {{ duplicateCount }} rows ({{ duplicatePercentage.toFixed(1) }}% of data)</span>
+              </div>
+            }
+          </div>
+
+          @if (sampleDuplicates.length > 0) {
+            <button class="btn-text" (click)="showDuplicateSamples = !showDuplicateSamples">
+              <span class="material-icons">
+                {{ showDuplicateSamples ? 'expand_less' : 'expand_more' }}
+              </span>
+              {{ showDuplicateSamples ? 'Hide' : 'Show' }} Sample Duplicates
+            </button>
+
+            @if (showDuplicateSamples) {
+              <div class="duplicate-samples">
+                <table class="sample-table">
+                  <thead>
+                    <tr>
+                      @for (colName of columnNames; track colName) {
+                        <th>{{ colName }}</th>
+                      }
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (row of sampleDuplicates; track $index) {
+                      <tr>
+                        @for (colName of columnNames; track colName) {
+                          <td>{{ row[colName] || '' }}</td>
+                        }
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            }
+          }
+        </div>
+      }
+    </div>
+
+    <!-- Summary Info -->
+    <div class="summary-info">
+      <span class="material-icons">info</span>
+      <div>
+        <p><strong>Configuration Summary:</strong></p>
+        <p>{{ getProjectionCount() }} of {{ columns.length }} columns will be included in projection calculations.</p>
+        <p>Data cleaning actions will be applied during final processing (Step 4).</p>
+      </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="action-buttons">
+      @if (!canContinue()) {
+        <div class="warning-message">
+          <span class="material-icons">warning</span>
+          <span>Please include at least one column in projection to continue.</span>
+        </div>
+      }
+
+      <button
+        class="btn-primary"
+        (click)="onContinue()"
+        [disabled]="!canContinue()">
+        <span>Continue to Visualization Settings</span>
+        <span class="material-icons">arrow_forward</span>
+      </button>
+    </div>
+  }
+</div>

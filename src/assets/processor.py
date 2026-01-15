@@ -42,7 +42,7 @@ def generate_schema(df, output_path_base):
 
     schema = {
         "color": str(column_indices[0]) if column_indices else None,
-        "glyph": [str(i) for i in column_indices[:5]],
+        "glyph": [str(i) for i in column_indices[:min(12, len(column_indices))]],  # Support up to 12 glyph features
         "label": {str(i): name for i, name in zip(column_indices, feature_columns)},
         "tooltip": [str(i) for i in column_indices],
         "variantcontext": {
