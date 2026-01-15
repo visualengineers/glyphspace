@@ -53,6 +53,8 @@
             [dataProvider]="dataProvider"
             [histogramData]="features[featureId].histogram"
             [categories]="features[featureId].categories"
+            [featureMin]="features[featureId].min"
+            [featureMax]="features[featureId].max"
             [label]="getFeatureName(featureId)"
             [type]="getFeatureType(featureId)"
             [property]="featureId">

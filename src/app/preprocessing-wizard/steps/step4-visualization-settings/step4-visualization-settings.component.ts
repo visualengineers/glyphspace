@@ -146,7 +146,15 @@ export class Step4VisualizationSettingsComponent implements OnInit, OnDestroy {
 
     // Load color feature
     const colorCol = Array.from(state.columnConfigs.values()).find(c => c.isColorFeature);
-    this.colorFeature = colorCol ? colorCol.name : (this.columns.length > 0 ? this.columns[0].name : null);
+    if (colorCol) {
+      this.colorFeature = colorCol.name;
+    } else if (this.columns.length > 0) {
+      // Default to first column and persist to service
+      this.colorFeature = this.columns[0].name;
+      this.preprocessingService.setColorFeature(this.columns[0].name);
+    } else {
+      this.colorFeature = null;
+    }
 
     // Load glyph features
     this.updateAvailableFeatures();
@@ -625,6 +633,9 @@ export class Step4VisualizationSettingsComponent implements OnInit, OnDestroy {
         return;
       }
     }
+
+    // Reset wizard state so it's ready for a new upload
+    this.preprocessingService.resetState();
 
     this.finish.emit();
   }

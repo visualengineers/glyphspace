@@ -380,6 +380,9 @@ export class Step6ReviewProcessComponent implements OnInit, OnDestroy {
       }
     }
 
+    // Reset wizard state so it's ready for a new upload
+    this.preprocessingService.resetState();
+
     // Emit finish event to close the wizard
     this.finish.emit();
   }

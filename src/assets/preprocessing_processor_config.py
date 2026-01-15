@@ -58,7 +58,7 @@ def process_with_config(file_name, config_json, output_file=None):
 
         # Step 2: Feature Engineering
         report_progress('Encoding features', 30, 'Converting categorical variables')
-        df_processed, feature_names = apply_feature_engineering(df_cleaned, config)
+        df_processed, feature_names, feature_categories = apply_feature_engineering(df_cleaned, config)
         report_progress('Features encoded', 50, f'{len(feature_names)} features created')
 
         # Step 3: Compute Projections
@@ -68,7 +68,7 @@ def process_with_config(file_name, config_json, output_file=None):
 
         # Step 4: Build DatasetCollection
         report_progress('Building dataset', 85, 'Creating visualization format')
-        dataset = build_dataset_collection(df, df_processed, feature_names, projections, config)
+        dataset = build_dataset_collection(df, df_processed, feature_names, feature_categories, projections, config)
         report_progress('Dataset built', 95, 'Finalizing...')
 
         if output_file:
@@ -128,7 +128,14 @@ def apply_cleaning(df, config):
 
 
 def apply_feature_engineering(df, config):
-    """Apply encoding and scaling based on configuration"""
+    """Apply encoding and scaling based on configuration
+
+    Returns:
+        tuple: (scaled_df, feature_names, feature_categories)
+            - scaled_df: DataFrame with encoded and scaled features
+            - feature_names: List of feature column names
+            - feature_categories: Dict mapping feature name -> list of category labels (for label-encoded features)
+    """
     column_configs = {col['name']: col for col in config.get('columns', [])}
 
     # Separate ID and feature columns
@@ -139,6 +146,7 @@ def apply_feature_engineering(df, config):
     # PHASE 1: Encoding - collect all encoded columns in a list
     encoded_dfs = []
     feature_names = []
+    feature_categories = {}  # Track categories for label-encoded features
 
     for col in enabled_cols:
         col_config = column_configs.get(col, {})
@@ -160,6 +168,8 @@ def apply_feature_engineering(df, config):
             encoded_series = pd.Series(le.fit_transform(col_data_filled).astype(float), name=col)
             encoded_dfs.append(encoded_series.to_frame())
             feature_names.append(col)
+            # Store the category labels (sorted alphabetically by LabelEncoder)
+            feature_categories[col] = le.classes_.tolist()
 
         else:
             # Numeric (no encoding or already numeric)
@@ -218,7 +228,7 @@ def apply_feature_engineering(df, config):
     # Add ID back
     scaled_df.insert(0, 'ID', id_col.values)
 
-    return scaled_df, feature_names
+    return scaled_df, feature_names, feature_categories
 
 
 def compute_projections(df, config):
@@ -302,8 +312,17 @@ def compute_projections(df, config):
     return []
 
 
-def build_dataset_collection(df_original, df_processed, feature_names, projections, config):
-    """Build DatasetCollection format from processed data with optimized performance"""
+def build_dataset_collection(df_original, df_processed, feature_names, feature_categories, projections, config):
+    """Build DatasetCollection format from processed data with optimized performance
+
+    Args:
+        df_original: Original DataFrame before encoding
+        df_processed: Processed DataFrame with encoded/scaled features
+        feature_names: List of feature column names
+        feature_categories: Dict mapping feature name -> list of category labels (for label-encoded features)
+        projections: List of projection dicts
+        config: Configuration dict
+    """
 
     # Extract all needed data as numpy arrays (vectorized)
     id_values = df_processed['ID'].values
@@ -375,13 +394,22 @@ def build_dataset_collection(df_original, df_processed, feature_names, projectio
     column_configs = {col['name']: col for col in config.get('columns', [])}
 
     # Find color feature from user configuration
-    color_feature_idx = None
-    for i, col in enumerate(feature_names):
-        base_col = col.split('_')[0]
-        col_config = column_configs.get(base_col, {})
+    # First, find which column is marked as color feature
+    color_feature_name = None
+    for col_name, col_config in column_configs.items():
         if col_config.get('isColorFeature', False):
-            color_feature_idx = i + 1
+            color_feature_name = col_name
             break
+
+    # Then find its index in feature_names
+    color_feature_idx = None
+    if color_feature_name:
+        for i, col in enumerate(feature_names):
+            # Handle both exact match and one-hot encoded columns (col_value format)
+            base_col = col.split('_')[0] if '_' in col else col
+            if base_col == color_feature_name:
+                color_feature_idx = i + 1
+                break
 
     # Build labels - simple mapping since label encoding is default (no one-hot explosion)
     improved_labels = {str(i + 1): col for i, col in enumerate(feature_names)}
@@ -482,17 +510,34 @@ def build_dataset_collection(df_original, df_processed, feature_names, projectio
         col_variance = float(np.var(col_values))
         col_std = float(np.std(col_values))
 
-        # Histogram - reduced to 20 bins for faster computation and smaller JSON
-        counts, _ = np.histogram(col_values, bins=20, density=True)
-        histogram = {str(j): float(count) for j, count in enumerate(counts)}
+        # Determine feature type and categories
+        base_col = col.split('_')[0] if '_' in col else col
+        feature_type = feature_types.get(str(i + 1), 'numeric')
+        categories = feature_categories.get(col, [])
+
+        # Build histogram - different approach for categorical vs numeric
+        if feature_type == 'categorical' and len(categories) > 0:
+            # For categorical: one bin per category, count occurrences
+            num_categories = len(categories)
+            # Values are integers 0 to num_categories-1
+            counts = np.bincount(col_values.astype(int), minlength=num_categories)
+            # Normalize to density (proportions)
+            total = counts.sum()
+            histogram = {str(j): float(counts[j] / total) if total > 0 else 0.0 for j in range(num_categories)}
+        else:
+            # For numeric: use 20 bins
+            counts, _ = np.histogram(col_values, bins=20, density=True)
+            histogram = {str(j): float(count) for j, count in enumerate(counts)}
 
         meta_features[str(i + 1)] = {
+            'type': feature_type,
+            'histogram': histogram,
+            'categories': categories,  # Empty list for numeric features
             'min': col_min,
             'max': col_max,
             'median': col_median,
             'variance': col_variance,
-            'deviation': col_std,
-            'histogram': histogram
+            'deviation': col_std
         }
 
     meta = {'features': meta_features}

@@ -81,6 +81,8 @@ export class DataProviderService {
                             // Convert boolean to color scale ID: true -> 0 (continuous), false -> 3 (categorical)
                             this.config.colorRange = schema.colorRange ? 0 : 3;
                         }
+                        // Notify subscribers (like histogram) that config has changed
+                        this.config.updateConfiguration();
                         this.config.loadData(datasetId);
                     }
 
@@ -91,7 +93,7 @@ export class DataProviderService {
     }
 
     clearFilters() {
-        this.filters.splice(0, this.filters.splice.length);
+        this.filters.splice(0, this.filters.length);
         this.refreshFilters();
     }
 
@@ -180,6 +182,9 @@ export class DataProviderService {
      * Load a processed dataset from the preprocessing wizard
      */
     public loadProcessedDataset(dataset: any, datasetName: string, timestamp: string): void {
+        // Clear any existing filters from previous dataset
+        this.clearFilters();
+
         // Extract schema, meta, and features from the processed dataset
         const schema: GlyphSchema = dataset.schema;
         const meta: GlyphMeta = dataset.meta;
@@ -220,6 +225,9 @@ export class DataProviderService {
         }
         // CRITICAL: Extract max values from metadata (needed for categorical color scaling)
         this.extractFeatureMaxValuesFromMeta(datasetName, timestamp);
+
+        // Notify subscribers (like histogram) that config has changed
+        this.config.updateConfiguration();
 
         this.config.loadData(datasetName);
 
@@ -347,6 +355,9 @@ export class DataProviderService {
 
     async loadDataSet(name: string, timestamp: string) {
         console.log("load data set " + name + " " + timestamp);
+        // Clear any existing filters from previous dataset
+        this.clearFilters();
+
         const dataset = this.dataSetCollectionSubject.getValue().find(data => data.dataset == name);
         const item = dataset?.items.find(item => item.time == timestamp);
         if (item && dataset?.source == "wasm") {
@@ -367,6 +378,8 @@ export class DataProviderService {
                 // Convert boolean to color scale ID: true -> 0 (continuous), false -> 3 (categorical)
                 this.config.colorRange = schema.colorRange ? 0 : 3;
             }
+            // Notify subscribers (like histogram) that config has changed
+            this.config.updateConfiguration();
 
             this.totalItems = this.buildDataSet(name, timestamp, schema, meta, features, positions);
             this.filteredItems = this.totalItems;

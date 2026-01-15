@@ -246,6 +246,11 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit {
     this.preprocessingService.updateColumnConfig(columnName, {
       missingValueStrategy: strategy
     });
+    // Update local state to trigger template re-render
+    const colState = this.columns.find(c => c.column.name === columnName);
+    if (colState) {
+      colState.config.missingValueStrategy = strategy;
+    }
   }
 
   onMissingValueFillChange(columnName: string, fillValue: string): void {

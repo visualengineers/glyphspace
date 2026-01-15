@@ -31,6 +31,8 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
     @Input() label!: string;
     @Input() type!: string;
     @Input() property!: string;
+    @Input() featureMin: number = 0;
+    @Input() featureMax: number = 1;
 
     @Input() configuration: any;
     @Input() dataProvider: any;
@@ -460,37 +462,51 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
         const totalBins = Object.keys(this.histogramData).length;
 
         if (effectiveType === 'categorical') {
-            // For categorical: Filter by discrete bin indices mapped to actual integer values
-            // Histograms are in normalized space (0-1), but actual feature values are unnormalized integers
+            // For categorical: Filter by actual feature values
+            // Values can be either normalized [0,1] or raw integers depending on scaling config
             this.categoryFilter.clear();
-            // Get the max value for this feature to denormalize the filter range
-            const featureMaxValues = this.configuration?.featureMaxValues || {};
-            const maxValue = featureMaxValues[this.property];
 
-            if (maxValue === undefined) {
-                console.warn(`[Histogram ${this.property}] No max value found in featureMaxValues, cannot create filter`);
-                return;
-            }
+            // Get the number of actual categories from the non-zero bins
+            const nonZeroBins = Object.entries(this.histogramData)
+                .filter(([, v]) => v !== 0)
+                .map(([k]) => +k)
+                .sort((a, b) => a - b);
+
+            const numCategories = nonZeroBins.length;
+
+            // Determine if data is raw label-encoded integers (not normalized)
+            // Raw integers: min=0, max=numCategories-1 (e.g., 0,1,2,3,4 for 5 categories)
+            // Normalized: any other pattern (data was scaled to [0,1])
+            const isRawIntegers = this.featureMin === 0 &&
+                                  this.featureMax === numCategories - 1 &&
+                                  numCategories > 1;
 
             selectedBins.forEach(bin => {
-                // Calculate normalized bin range (histogram is in 0-1 space)
-                const binWidth = 1.0 / totalBins;
-                const binCenter = (bin + 0.5) * binWidth;
-                const tolerance = 1.5 * binWidth;
+                // Find which category index this bin corresponds to
+                const categoryIndex = nonZeroBins.indexOf(bin);
 
-                const normalizedMin = Math.max(0, binCenter - tolerance);
-                const normalizedMax = Math.min(1, binCenter + tolerance);
+                if (categoryIndex === -1) {
+                    return;
+                }
 
-                // Denormalize to actual data range [0, maxValue]
-                const actualMin = Math.floor(normalizedMin * maxValue);
-                const actualMax = Math.ceil(normalizedMax * maxValue);
+                let filterMin: number;
+                let filterMax: number;
 
-                // WORKAROUND: Set filter range to match unnormalized values directly,
-                // bypassing the 0-1 constraint by using the private properties
-                const actualMinValue = actualMin - 0.5; // Add tolerance for integer matching
-                const actualMaxValue = actualMax + 0.5;
+                if (isRawIntegers) {
+                    // Data is raw integers: category index IS the value
+                    // With tolerance for float comparison
+                    filterMin = categoryIndex - 0.5;
+                    filterMax = categoryIndex + 0.5;
+                } else {
+                    // Data is normalized [0,1]: use category index to compute normalized value
+                    // category i → i / (N-1) for N categories
+                    const normalizedValue = numCategories === 1 ? 0 : categoryIndex / (numCategories - 1);
+                    const tolerance = 0.01;
+                    filterMin = Math.max(0, normalizedValue - tolerance);
+                    filterMax = Math.min(1, normalizedValue + tolerance);
+                }
 
-                this.categoryFilter.addRange(actualMinValue, actualMaxValue);
+                this.categoryFilter.addRange(filterMin, filterMax);
             });
         } else {
             // For numeric: Filter by continuous range

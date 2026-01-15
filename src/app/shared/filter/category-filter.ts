@@ -44,11 +44,15 @@ export class CategoryFilter extends ItemFilter {
   public override inFilter(item: GlyphObject): boolean {
     if (this.empty()) return false;
 
-    const value = item.features[item.currentContext][this._featureName];
+    const contextKey = String(item.currentContext);
+    const featureContext = item.features[contextKey];
+    const value = featureContext?.[this._featureName];
 
-    return this._ranges.some(r =>
-      value >= r.min && value <= r.max
-    );
+    if (value === undefined) {
+      return false;
+    }
+
+    return this._ranges.some(r => value >= r.min && value <= r.max);
   }
 
   /* -----------------------------
@@ -95,10 +99,8 @@ export class CategoryFilter extends ItemFilter {
       throw new RangeError("range values must be defined");
     }
 
-    if (min < 0.0 || max > 1.0) {
-      throw new RangeError("range values must be in interval [0,1]");
-    }
-
+    // CategoryFilter can work with both normalized [0,1] and raw integer values
+    // so we only check that min <= max
     if (min > max) {
       throw new RangeError("min must be <= max");
     }
