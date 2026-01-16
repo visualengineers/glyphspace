@@ -14,7 +14,7 @@ import { HELP_TEXT } from '../../shared/constants/help-text';
 import { STEP_INFO } from '../../shared/constants/step-info';
 
 interface ProjectionMethod {
-  key: keyof Pick<ProjectionConfig, 'enablePCA' | 'enableTSNE' | 'enableUMAP'>;
+  key: keyof Pick<ProjectionConfig, 'enablePCA' | 'enableIsoMap' | 'enableTSNE' | 'enableUMAP'>;
   name: string;
   description: string;
   icon: string;
@@ -50,9 +50,10 @@ export class Step4VisualizationSettingsComponent implements OnInit, OnDestroy {
   draggedFromList: 'selected' | 'available' = 'available';
   draggedIndex: number = -1;
 
-  // Projection configuration (IsoMap is always primary, these are background options)
+  // Projection configuration (FastMap is always primary, these are background options)
   projectionConfig: ProjectionConfig = {
     enablePCA: true,
+    enableIsoMap: false,
     enableTSNE: false,
     enableUMAP: false,
     tsnePerplexity: 30,
@@ -63,7 +64,7 @@ export class Step4VisualizationSettingsComponent implements OnInit, OnDestroy {
 
   readonly TSNE_WARNING_THRESHOLD = 5000;
 
-  // IsoMap is always the primary projection (runs immediately, not toggleable)
+  // FastMap is always the primary projection (runs immediately, not toggleable)
   // These are optional background projections the user can enable
   projectionMethods: ProjectionMethod[] = [
     {
@@ -72,6 +73,13 @@ export class Step4VisualizationSettingsComponent implements OnInit, OnDestroy {
       description: 'Principal Component Analysis - Fast linear projection',
       icon: 'analytics',
       badge: 'Fast'
+    },
+    {
+      key: 'enableIsoMap',
+      name: 'IsoMap',
+      description: 'Non-linear manifold learning - Preserves geodesic distances',
+      icon: 'map',
+      badge: 'Medium'
     },
     {
       key: 'enableTSNE',
@@ -379,12 +387,12 @@ export class Step4VisualizationSettingsComponent implements OnInit, OnDestroy {
   }
 
   hasEnabledMethod(): boolean {
-    // IsoMap is always enabled as the primary projection
+    // FastMap is always enabled as the primary projection
     return true;
   }
 
   getEnabledMethodsCount(): number {
-    // Start with 1 for IsoMap (always enabled)
+    // Start with 1 for FastMap (always enabled)
     let count = 1;
     if (this.projectionConfig.enablePCA) count++;
     if (this.projectionConfig.enableTSNE) count++;
@@ -421,9 +429,10 @@ export class Step4VisualizationSettingsComponent implements OnInit, OnDestroy {
     this.enabledColumns = this.columnConfigs.filter(c => c.enabled).length;
     this.projectionColumns = this.columnConfigs.filter(c => c.enabled && c.includeInProjection).length;
 
-    // IsoMap is always the primary projection
-    this.enabledMethods = ['IsoMap (Primary)'];
+    // FastMap is always the primary projection
+    this.enabledMethods = ['FastMap (Primary)'];
     if (this.projectionConfig.enablePCA) this.enabledMethods.push('PCA');
+    if (this.projectionConfig.enableIsoMap) this.enabledMethods.push('IsoMap');
     if (this.projectionConfig.enableTSNE) this.enabledMethods.push('t-SNE');
     if (this.projectionConfig.enableUMAP) this.enabledMethods.push('UMAP');
   }
@@ -495,25 +504,25 @@ export class Step4VisualizationSettingsComponent implements OnInit, OnDestroy {
       const { features, ids } = this.projectionService.parseCSVFeatures(csvText);
 
       this.ngZone.run(() => {
-        this.processingStep = 'Computing IsoMap projection...';
+        this.processingStep = 'Computing FastMap projection...';
         this.processingProgress = 75;
         this.cdr.detectChanges();
       });
 
-      // Use IsoMap as the primary projection (non-linear manifold learning)
-      const isomapResult = await this.projectionService.runIsoMapSync(features, ids);
+      // Use FastMap as the primary projection (fast, O(n) complexity, ideal for large datasets)
+      const fastmapResult = await this.projectionService.runFastMapSync(features, ids);
 
       this.ngZone.run(() => {
-        this.processingStep = 'Loading dataset with IsoMap...';
+        this.processingStep = 'Loading dataset with FastMap...';
         this.processingProgress = 90;
         this.cdr.detectChanges();
       });
 
-      await this.preprocessingService.addProjectionPositions('isomap', isomapResult.positions);
+      await this.preprocessingService.addProjectionPositions('fastmap', fastmapResult.positions);
 
       this.ngZone.run(() => {
         this.processingProgress = 100;
-        this.processingStep = `Dataset loaded with IsoMap (${isomapResult.computeTime}ms)`;
+        this.processingStep = `Dataset loaded with FastMap (${fastmapResult.computeTime}ms)`;
         this.processingComplete = true;
         this.isProcessing = false;
         this.cdr.detectChanges();
@@ -558,9 +567,14 @@ export class Step4VisualizationSettingsComponent implements OnInit, OnDestroy {
       });
     });
 
-    // Run PCA in background (IsoMap is now primary)
+    // Run PCA in background (FastMap is now primary)
     if (config.enablePCA) {
       this.runBackgroundProjection('PCA', () => this.projectionService.runPCABackground(features, ids));
+    }
+
+    // Run IsoMap in background (non-linear manifold learning)
+    if (config.enableIsoMap) {
+      this.runBackgroundProjection('IsoMap', () => this.projectionService.runIsoMap(features, ids));
     }
 
     if (config.enableTSNE) {

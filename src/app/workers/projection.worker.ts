@@ -9,7 +9,7 @@
 // Worker message types
 interface ProjectionRequest {
   type: 'compute';
-  method: 'pca' | 'isomap' | 'tsne' | 'umap';
+  method: 'pca' | 'fastmap' | 'isomap' | 'tsne' | 'umap';
   features: number[][];
   ids: (string | number)[];
   config?: {
@@ -52,6 +52,30 @@ async function runPCA(
 
   const pca = new druidModule.PCA(features, 2);
   const embedding = pca.transform();
+
+  const positions = embedding.map((point: number[], idx: number) => ({
+    id: ids[idx],
+    x: point[0],
+    y: point[1]
+  }));
+
+  const computeTime = performance.now() - startTime;
+  return { positions, computeTime };
+}
+
+/**
+ * Run FastMap projection
+ * Fast distance-preserving projection - O(n) complexity, ideal for large datasets
+ */
+async function runFastMap(
+  features: number[][],
+  ids: (string | number)[]
+): Promise<{ positions: Array<{ id: string | number; x: number; y: number }>; computeTime: number }> {
+  const startTime = performance.now();
+  const druidModule = await loadDruidJS();
+
+  const fastmap = new druidModule.FASTMAP(features, 2);
+  const embedding = fastmap.transform();
 
   const positions = embedding.map((point: number[], idx: number) => ({
     id: ids[idx],
@@ -174,6 +198,10 @@ addEventListener('message', async ({ data }: MessageEvent<ProjectionRequest>) =>
       switch (data.method) {
         case 'pca':
           result = await runPCA(data.features, data.ids);
+          break;
+
+        case 'fastmap':
+          result = await runFastMap(data.features, data.ids);
           break;
 
         case 'isomap':

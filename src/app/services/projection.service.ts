@@ -3,7 +3,7 @@ import { BehaviorSubject, Observable } from 'rxjs';
 import * as druid from '@saehrimnir/druidjs';
 
 export interface ProjectionResult {
-  method: 'pca' | 'isomap' | 'tsne' | 'umap';
+  method: 'pca' | 'fastmap' | 'isomap' | 'tsne' | 'umap';
   positions: Array<{id: string | number; x: number; y: number}>;
   computeTime: number;  // milliseconds
 }
@@ -19,7 +19,7 @@ export interface BackgroundStatus {
 // Worker message types
 interface ProjectionWorkerRequest {
   type: 'compute';
-  method: 'pca' | 'isomap' | 'tsne' | 'umap';
+  method: 'pca' | 'fastmap' | 'isomap' | 'tsne' | 'umap';
   features: number[][];
   ids: (string | number)[];
   config?: {
@@ -78,8 +78,36 @@ export class ProjectionService {
   }
 
   /**
-   * Run IsoMap (blocking) - PRIMARY projection for dashboard
-   * Non-linear manifold learning that preserves geodesic distances
+   * Run FastMap (blocking) - PRIMARY projection for dashboard
+   * Fast distance-preserving projection with O(n) complexity
+   * Ideal for large datasets (40K+ items)
+   */
+  async runFastMapSync(features: number[][], ids: (string|number)[]): Promise<ProjectionResult> {
+    const startTime = Date.now();
+
+    try {
+      const fastmap = new (druid as any).FASTMAP(features, 2);
+      const embedding = fastmap.transform();
+
+      const positions = embedding.map((coords: number[], i: number) => ({
+        id: ids[i],
+        x: coords[0],
+        y: coords[1]
+      }));
+
+      return {
+        method: 'fastmap',
+        positions,
+        computeTime: Date.now() - startTime
+      };
+    } catch (error: any) {
+      throw new Error(`FastMap failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Run IsoMap (blocking) - Non-linear manifold learning
+   * Preserves geodesic distances - slower than FastMap but better structure preservation
    */
   async runIsoMapSync(features: number[][], ids: (string|number)[]): Promise<ProjectionResult> {
     const startTime = Date.now();
@@ -102,6 +130,13 @@ export class ProjectionService {
     } catch (error: any) {
       throw new Error(`IsoMap failed: ${error.message}`);
     }
+  }
+
+  /**
+   * Run FastMap (background) - runs in Web Worker
+   */
+  async runFastMap(features: number[][], ids: (string|number)[]): Promise<ProjectionResult> {
+    return this.runProjectionInWorker('fastmap', features, ids);
   }
 
   /**
@@ -147,7 +182,7 @@ export class ProjectionService {
    * Run a projection in a Web Worker (non-blocking)
    */
   private async runProjectionInWorker(
-    method: 'pca' | 'isomap' | 'tsne' | 'umap',
+    method: 'pca' | 'fastmap' | 'isomap' | 'tsne' | 'umap',
     features: number[][],
     ids: (string | number)[],
     config?: any

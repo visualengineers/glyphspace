@@ -37,9 +37,10 @@ export interface CleaningConfig {
 }
 
 export interface ProjectionConfig {
-  // IsoMap is always enabled as primary projection (runs immediately)
+  // FastMap is always enabled as primary projection (runs immediately)
   // These are optional background projections:
   enablePCA: boolean;         // PCA runs in background
+  enableIsoMap: boolean;      // IsoMap runs in background (non-linear manifold)
   enableTSNE: boolean;        // t-SNE runs in background (slow)
   enableUMAP: boolean;        // UMAP runs in background (slow)
 

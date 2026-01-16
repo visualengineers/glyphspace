@@ -10,7 +10,7 @@ import { forceCollide, forceSimulation, Simulation } from 'd3-force';
 import { clusterGlyphs, getGlyphFromObject } from '../shared/helpers/glyph-helper';
 import { InteractionCommand } from '../shared/enum/interaction-command';
 import { GlyphCacheObject } from '../glyph/glyph-cache-object';
-import { convertToScreenSpace, exportThreeSceneAsPNG, hitTest, jitterFromVector, nearlyEqual, panCamera, scalePosition } from '../shared/helpers/three-helper';
+import { convertToScreenSpace, exportThreeSceneAsPNG, hitTest, hitTestCandidates, jitterFromVector, nearlyEqual, panCamera, scalePosition, screenToWorld } from '../shared/helpers/three-helper';
 import { TooltipComponent } from "./tooltip/tooltip.component";
 import { MagiclensComponent } from "./magiclens/magiclens.component";
 import { CommonModule } from '@angular/common';
@@ -24,6 +24,7 @@ import { LoggerService } from '../services/logger-service';
 import { RenderTask } from '../shared/enum/render-task';
 import { CanvasNavigationControlsComponent } from './navigationcontrols/navigationcontrols.component';
 import { SettingsControlPanelComponent } from "./settingscontrols/settingscontrols.component";
+import { SpatialGrid } from '../shared/helpers/spatial-grid';
 
 @Component({
   selector: 'glyph-canvas',
@@ -62,6 +63,10 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
   private standardBackgroundColor = new THREE.Color(0xffffff);
   private disabledBackgroundColor = new THREE.Color(0xf0f0f0);
   private viewRect = { left: 0, right: 0, top: 0, bottom: 0 };
+  private lastViewRect = { left: 0, right: 0, top: 0, bottom: 0 };
+  private clippingFrameCounter = 0;
+  private spatialGrid = new SpatialGrid<GlyphObject>(100); // Cell size optimized for typical glyph density
+  private spatialGridDirty = true;
 
   // Safety mechanism to prevent infinite render loops
   private renderGlyphsCallCount = 0;
@@ -240,9 +245,10 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
           this.glyphGroup.clear();
 
           if (data) {
-
             this.positionBounds = undefined;
             this.updatePositionBounds();
+            this.spatialGridDirty = true;
+            this.rebuildSpatialGrid();
             this.fitToView();
             this.initSimulation();
           } else {
@@ -766,23 +772,70 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private updateClipping() {
+    // Throttle to 30fps (every 2nd frame)
+    this.clippingFrameCounter++;
+    if (this.clippingFrameCounter % 2 !== 0) return;
+
     this.updateViewRect();
     const { left, right, bottom, top } = this.viewRect;
+
+    // Skip if viewport hasn't changed significantly
+    const threshold = this.sizeInfo.radius * 0.5;
+    if (
+      Math.abs(left - this.lastViewRect.left) < threshold &&
+      Math.abs(right - this.lastViewRect.right) < threshold &&
+      Math.abs(top - this.lastViewRect.top) < threshold &&
+      Math.abs(bottom - this.lastViewRect.bottom) < threshold
+    ) {
+      return;
+    }
+
+    // Update cached viewport
+    this.lastViewRect.left = left;
+    this.lastViewRect.right = right;
+    this.lastViewRect.top = top;
+    this.lastViewRect.bottom = bottom;
+
     const r = this.sizeInfo.radius;
 
-    this.glyphData.forEach(glyph => {
-      const cachedObject = glyph.getCacheObject(this.id, this.selectedTimestamp, this.selectedAlgorithm);
-      const cachedMesh = cachedObject.mesh;
-      if (cachedMesh) {
-        const isVisible =
-          cachedMesh.position.x + r > left &&                // right edge > left pane
-          cachedMesh.position.x - r < right &&                // left  edge < right pane
-          cachedMesh.position.y + r > bottom &&                // top    edge > bottom pane
-          cachedMesh.position.y - r < top;                     // bottom edge < top pane
-        if (!cachedObject.visible && isVisible) this.renderGlyph(glyph);
-        cachedObject.visible = isVisible;
+    // Use spatial grid for efficient viewport culling if available
+    if (this.spatialGrid.size > 0 && this.glyphData.length > 500) {
+      // For large datasets, use spatial grid O(k) instead of full scan O(n)
+      // First mark all as not visible
+      const visibleGlyphs = this.spatialGrid.queryRect(left - r, right + r, bottom - r, top + r);
+
+      // Mark glyphs outside viewport as not visible
+      for (const glyph of this.glyphData) {
+        const cachedObject = glyph.getCacheObject(this.id, this.selectedTimestamp, this.selectedAlgorithm);
+        if (!visibleGlyphs.has(glyph)) {
+          cachedObject.visible = false;
+        }
       }
-    });
+
+      // Mark glyphs inside viewport as visible and render if needed
+      for (const glyph of visibleGlyphs) {
+        const cachedObject = glyph.getCacheObject(this.id, this.selectedTimestamp, this.selectedAlgorithm);
+        if (!cachedObject.visible) {
+          this.renderGlyph(glyph);
+        }
+        cachedObject.visible = true;
+      }
+    } else {
+      // For small datasets, use simple iteration (more efficient due to less overhead)
+      this.glyphData.forEach(glyph => {
+        const cachedObject = glyph.getCacheObject(this.id, this.selectedTimestamp, this.selectedAlgorithm);
+        const cachedMesh = cachedObject.mesh;
+        if (cachedMesh) {
+          const isVisible =
+            cachedMesh.position.x + r > left &&
+            cachedMesh.position.x - r < right &&
+            cachedMesh.position.y + r > bottom &&
+            cachedMesh.position.y - r < top;
+          if (!cachedObject.visible && isVisible) this.renderGlyph(glyph);
+          cachedObject.visible = isVisible;
+        }
+      });
+    }
   }
 
   private startAnimateGlyph(glyph: GlyphObject | null) {
@@ -836,15 +889,86 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private updatePositionBounds() {
     if (this.positionBounds == undefined && this.glyphData.length > 0) {
-      const xs = this.glyphData.map(g => g.getPosition(this.selectedTimestamp, this.selectedAlgorithm).x ?? 0);
-      const ys = this.glyphData.map(g => g.getPosition(this.selectedTimestamp, this.selectedAlgorithm).y ?? 0);
-      this.positionBounds = {
-        minX: Math.min(...xs),
-        maxX: Math.max(...xs),
-        minY: Math.min(...ys),
-        maxY: Math.max(...ys),
-      };
+      // Single-pass calculation to avoid creating large temporary arrays
+      let minX = Infinity, maxX = -Infinity;
+      let minY = Infinity, maxY = -Infinity;
+
+      for (const glyph of this.glyphData) {
+        const pos = glyph.getPosition(this.selectedTimestamp, this.selectedAlgorithm);
+        const x = pos.x ?? 0;
+        const y = pos.y ?? 0;
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+
+      this.positionBounds = { minX, maxX, minY, maxY };
     }
+  }
+
+  /**
+   * Rebuild the spatial grid with current glyph positions.
+   * Called when data is loaded or positions change significantly.
+   */
+  private rebuildSpatialGrid(): void {
+    this.spatialGrid.clear();
+
+    // Adjust cell size based on data density and typical viewport
+    const count = this.glyphData.length;
+    if (count > 0 && this.positionBounds) {
+      const width = this.positionBounds.maxX - this.positionBounds.minX;
+      const height = this.positionBounds.maxY - this.positionBounds.minY;
+      const area = width * height;
+      // Target ~100 items per cell for optimal query performance
+      const targetCellArea = area / (count / 100);
+      const cellSize = Math.max(50, Math.sqrt(targetCellArea));
+      this.spatialGrid.setCellSize(cellSize);
+    }
+
+    const radius = this.sizeInfo.radius;
+    for (const glyph of this.glyphData) {
+      const cacheObject = glyph.getCacheObject(this.id, this.selectedTimestamp, this.selectedAlgorithm);
+      const x = cacheObject.position.x ?? 0;
+      const y = cacheObject.position.y ?? 0;
+      this.spatialGrid.insert(glyph, x, y, radius);
+    }
+
+    this.spatialGridDirty = false;
+  }
+
+  /**
+   * Optimized hit test using spatial grid for large datasets.
+   * Falls back to full scene scan for small datasets or when grid is unavailable.
+   */
+  private optimizedHitTest(event: MouseEvent): THREE.Object3D | null {
+    // For small datasets, use standard hit test (less overhead)
+    if (this.glyphData.length <= 500 || this.spatialGrid.size === 0) {
+      return hitTest(event, this.renderer, this.glyphGroup, this.camera, this.sizeInfo);
+    }
+
+    // Convert screen to world coordinates
+    const worldPos = screenToWorld(event, this.renderer, this.camera);
+
+    // Query spatial grid for nearby glyphs (use generous radius for hit tolerance)
+    const searchRadius = this.sizeInfo.radius * 3;
+    const nearbyGlyphs = this.spatialGrid.queryPoint(worldPos.x, worldPos.y, searchRadius);
+
+    if (nearbyGlyphs.size === 0) {
+      return null;
+    }
+
+    // Get meshes for nearby glyphs
+    const candidates: THREE.Object3D[] = [];
+    for (const glyph of nearbyGlyphs) {
+      const mesh = glyph.getMesh(this.selectedTimestamp, this.selectedAlgorithm, this.id);
+      if (mesh) {
+        candidates.push(mesh);
+      }
+    }
+
+    // Run hit test only on candidates
+    return hitTestCandidates(event, this.renderer, candidates, this.camera, this.sizeInfo);
   }
 
   private resetUnhighlightedGlyphs(highlighted: Set<string>) {
@@ -1118,7 +1242,7 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
 
       // Single selection is a simple click
       if (this.selectionStart.distanceTo(this.selectionEnd) < 0.1) {
-        let closestObject: THREE.Object3D | null = hitTest(event, this.renderer, this.glyphGroup, this.camera, this.sizeInfo);
+        let closestObject: THREE.Object3D | null = this.optimizedHitTest(event);
         this.updateMousePositions(event);
 
         if (closestObject != null) {
@@ -1187,7 +1311,7 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
       if (now - this.lastHitTestTime < this.throttleDelay) return;
       this.lastHitTestTime = now;
 
-      let closestObject: THREE.Object3D | null = hitTest(event, this.renderer, this.glyphGroup, this.camera, this.sizeInfo);
+      let closestObject: THREE.Object3D | null = this.optimizedHitTest(event);
 
       if (closestObject != null) {
         const hoveredGlyph = getGlyphFromObject(closestObject);

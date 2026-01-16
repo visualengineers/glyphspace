@@ -3,7 +3,6 @@ import { ConfigService } from './services/config.service';
 import { GlyphCanvasComponent } from './canvas/glyph-canvas.component';
 import { CommonModule } from '@angular/common';
 import { DataProviderService } from './services/dataprovider.service';
-import { DashboardComponent } from './dashboard/dashboard.component';
 import { checkTextInput } from './shared/helpers/angular-helper';
 import { MenuBarComponent } from "./menubar/menubar.component";
 import { ToastComponent } from './shared/components/toast/toast.component';
@@ -13,14 +12,13 @@ interface GlyphCanvasItem { id: number, row: number, col: number }
 @Component({
   standalone: true,
   selector: 'app-root',
-  imports: [CommonModule, GlyphCanvasComponent, MenuBarComponent, ToastComponent, DashboardComponent],
+  imports: [CommonModule, GlyphCanvasComponent, MenuBarComponent, ToastComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss'
 })
 export class AppComponent implements OnChanges {
   title = 'Glyphboard Royale';
   @ViewChild('canvasGrid', { static: true }) canvasContainer!: ElementRef;
-  @ViewChild(DashboardComponent) dashboardComponent!: DashboardComponent;
 
   grid: GlyphCanvasItem[] = [];
   totalCells = 1;
@@ -124,8 +122,6 @@ export class AppComponent implements OnChanges {
       this.addCanvas();
     } else if (event.key === '-') {
       this.removeCanvas();
-    } else if (event.key.toLocaleLowerCase() === 'm') {
-      this.dashboardComponent.toggle();
     }
   }
 }
