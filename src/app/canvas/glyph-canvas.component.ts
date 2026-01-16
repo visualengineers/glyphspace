@@ -248,7 +248,7 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
             this.positionBounds = undefined;
             this.updatePositionBounds();
             this.spatialGridDirty = true;
-            this.rebuildSpatialGrid();
+            // Note: spatial grid is rebuilt inside fitToView() after positions are scaled
             this.fitToView();
             this.initSimulation();
           } else {
@@ -319,7 +319,9 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
     this.configSub.add(
       this.config.glyphConfigSubject$.subscribe(() => {
         if (this.magicLenseStatus) this.magicLensComponent.renderMagicLensGlyphs(this.selectedTimestamp, this.selectedAlgorithm, true);
-        this.renderGlyphs();
+        // Force render all glyphs when config changes - glyph geometry needs to be
+        // recreated with new features, regardless of current visibility state
+        this.renderGlyphs(true);
       })
     );
   }
@@ -449,6 +451,8 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.collisionAvoidance) this.toggleCollisionAvoidance();
 
     this.scaleGroupToFit();
+    // Rebuild spatial grid after positions are scaled
+    this.rebuildSpatialGrid();
     this.sizeInfo.currentZoomLevel = ZoomLevel.low;
     this.renderGlyphs(true);
 
@@ -586,7 +590,9 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
     if (oldZoomLevel != newZoomLevel) {
       this.sizeInfo.currentZoomLevel = newZoomLevel;
       this.sizeInfo.update(this.canvasWidth, this.canvasHeight);
-      this.renderGlyphs();
+      // Force render all glyphs when zoom level changes - glyph geometry
+      // needs to be recreated and visibility state may be stale
+      this.renderGlyphs(true);
     }
     return oldZoomLevel != newZoomLevel;
   }

@@ -243,7 +243,7 @@ export class GlyphObject {
         const ctx = this.getFeatureContext(contextId);
         if (!ctx) return group;
 
-        const { featureMap, keys, values, maxValue, segments } = ctx;
+        const { featureMap, keys, values, featureMaxValues, segments } = ctx;
 
         const color = this.getCurrentColor(sizeInfo.currentZoomLevel == ZoomLevel.high);
 
@@ -255,7 +255,9 @@ export class GlyphObject {
         keys.forEach((key, i) => {
             const angle = (i / segments) * Math.PI * 2;
             const value = +featureMap[key] || 0;
-            const norm = linearScale ? value : value / maxValue;
+            // Use per-feature global max for proper normalization (especially for categorical data)
+            const maxVal = featureMaxValues[i] || 1;
+            const norm = linearScale ? value : value / maxVal;
             const x = Math.cos(angle) * sizeInfo.radius * norm;
             const y = Math.sin(angle) * sizeInfo.radius * norm;
             points.push(new THREE.Vector2(x, y));
@@ -316,7 +318,7 @@ export class GlyphObject {
         const ctx = this.getFeatureContext(contextId);
         if (!ctx) return group;
 
-        const { featureMap, keys, values, maxValue, segments } = ctx;
+        const { featureMap, keys, values, featureMaxValues, segments } = ctx;
         this.addCoordinateAxes(group, segments, sizeInfo);
         if (this.addPlaceHolder(group, values, sizeInfo)) return group;
 
@@ -326,7 +328,9 @@ export class GlyphObject {
             const value = +featureMap[key] || 0;
             if (value <= 0) return;
 
-            const norm = linearScale ? value : value / maxValue;
+            // Use per-feature global max for proper normalization
+            const maxVal = featureMaxValues[i] || 1;
+            const norm = linearScale ? value : value / maxVal;
             const petalLength = sizeInfo.radius * norm;
             const baseWidth = petalLength * 0.4;
 
@@ -416,7 +420,7 @@ export class GlyphObject {
         const ctx = this.getFeatureContext(contextId);
         if (!ctx) return group;
 
-        const { featureMap, keys, values, maxValue, segments } = ctx;
+        const { featureMap, keys, values, featureMaxValues, segments } = ctx;
         this.addCoordinateAxes(group, segments, sizeInfo);
         if (this.addPlaceHolder(group, values, sizeInfo)) return group;
 
@@ -426,7 +430,9 @@ export class GlyphObject {
             const value = +featureMap[key] || 0;
             if (value <= 0) return;
 
-            const norm = linearScale ? value : value / maxValue;
+            // Use per-feature global max for proper normalization
+            const maxVal = featureMaxValues[i] || 1;
+            const norm = linearScale ? value : value / maxVal;
             const whiskerLength = sizeInfo.radius * norm;
 
             const barWidth = 0.8;
@@ -465,10 +471,17 @@ export class GlyphObject {
         );
         const keys = Object.keys(featureMap);
         const values = keys.map(k => +featureMap[k]);
-        const maxValue = Math.max(...values) || 1;
+
+        // Use global max values from config for consistent scaling across all glyphs
+        // This is especially important for categorical features which are label-encoded
+        const globalMaxValues = this.config.featureMaxValues;
+        const featureMaxValues = keys.map(k => globalMaxValues[k] ?? 1);
+
+        // For backward compatibility, also compute local max (used when global not available)
+        const localMaxValue = Math.max(...values) || 1;
         const segments = keys.length;
 
-        return { featureMap, keys, values, maxValue, segments };
+        return { featureMap, keys, values, featureMaxValues, localMaxValue, segments };
     }
 
     private addPlaceHolder(group: THREE.Group, values: number[], sizeInfo: GlyphSizeInfo): boolean {
