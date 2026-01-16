@@ -212,4 +212,9 @@ export class LegendDropdownComponent {
   getFeatureType(id: string) {
     return this.schema?.types ? this.schema?.types[id] || "" : "";
   }
+
+  clearFilters() {
+    this.dataProvider.clearFilters();
+    this.config.clearSelection();
+  }
 }
