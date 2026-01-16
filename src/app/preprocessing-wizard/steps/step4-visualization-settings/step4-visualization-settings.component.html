@@ -217,7 +217,8 @@
                     type="checkbox"
                     [checked]="projectionConfig[method.key]"
                     [disabled]="isMethodDisabled(method)"
-                    (click)="$event.stopPropagation()">
+                    (click)="$event.stopPropagation()"
+                    (change)="toggleProjectionMethod(method)">
                 </div>
                 <p class="card-description">{{ method.description }}</p>
               </div>
