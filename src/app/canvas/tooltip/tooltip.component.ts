@@ -1,8 +1,9 @@
 import * as THREE from 'three';
-import { Component, ElementRef, Input, ViewChild } from '@angular/core';
+import { Component, ElementRef, Input, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { getGlyphFromObject } from '../../shared/helpers/glyph-helper';
 import { ConfigService } from '../../services/config.service';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
+import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-tooltip',
@@ -10,11 +11,12 @@ import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
   templateUrl: './tooltip.component.html',
   styleUrl: './tooltip.component.scss'
 })
-export class TooltipComponent {
+export class TooltipComponent implements OnInit, OnDestroy {
   @Input() container!: HTMLElement;
   @ViewChild('tooltip') tooltipRef!: ElementRef<HTMLDivElement>;
 
   private hoverTimeout: any = null;
+  private subscription = new Subscription();
   tooltipVisible = false;
   tooltipFixed = false;
   tooltipText: SafeHtml = '';
@@ -23,7 +25,26 @@ export class TooltipComponent {
 
   constructor(private config: ConfigService, private sanitizer: DomSanitizer) { }
 
+  ngOnInit(): void {
+    // Subscribe to modal state changes to hide fixed tooltips when modal opens
+    this.subscription.add(
+      this.config.modalOpenSubject$.subscribe(isOpen => {
+        if (isOpen && (this.tooltipVisible || this.tooltipFixed)) {
+          this.forceHideTooltip();
+        }
+      })
+    );
+  }
+
+  ngOnDestroy(): void {
+    this.subscription.unsubscribe();
+  }
+
   showTooltip(x: number, y: number, text: string): void {
+    // Don't show tooltip if a modal (like preprocessing wizard) is open
+    if (this.config.modalOpen) {
+      return;
+    }
     this.tooltipText = this.sanitizer.bypassSecurityTrustHtml(text);
     this.tooltipX = x + 10; // slight offset from cursor
     this.tooltipY = y + 10;
@@ -71,7 +92,24 @@ export class TooltipComponent {
     this.tooltipVisible = false;
   }
 
+  /**
+   * Force hide the tooltip, including clearing fixed state.
+   * Used when a modal opens to ensure tooltip doesn't appear above it.
+   */
+  forceHideTooltip(): void {
+    clearTimeout(this.hoverTimeout);
+    this.tooltipVisible = false;
+    this.tooltipFixed = false;
+    if (this.tooltipRef?.nativeElement) {
+      this.tooltipRef.nativeElement.classList.remove('fixed');
+    }
+  }
+
   scheduleHoverPopup(x: number, y: number, object: THREE.Object3D): void {
+    // Don't schedule tooltip if a modal is open
+    if (this.config.modalOpen) {
+      return;
+    }
     this.hoverTimeout = setTimeout(() => {
       const info = this.getObjectInfo(object)
       this.showTooltip(x, y, info);

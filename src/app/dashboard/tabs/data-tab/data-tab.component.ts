@@ -52,9 +52,11 @@ export class DataTabComponent implements OnInit, OnDestroy {
 
   openPreprocessingWizard() {
     this.showWizard = true;
+    this.configService.modalOpen = true;
   }
 
   closePreprocessingWizard() {
     this.showWizard = false;
+    this.configService.modalOpen = false;
   }
 }

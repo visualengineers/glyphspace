@@ -71,8 +71,8 @@ export class GlyphSizeInfo {
 
   // === Zoom level management ===
   set currentZoomLevel(level: ZoomLevel) {
-    this.updateInfo();
     this._currentZoomLevel = level;
+    this.updateInfo();  // Update AFTER setting the new level
   }
 
   get currentZoomLevel(): ZoomLevel {

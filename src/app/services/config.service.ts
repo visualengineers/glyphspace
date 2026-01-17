@@ -15,7 +15,7 @@ import { COLOR_SCALES, ColorScale } from '../shared/interfaces/color-scale';
 })
 export class ConfigService {
   colorScales: ColorScale[] = COLOR_SCALES;
-  
+
   private _activeFeatures: string[] = [];
   private _colorFeature: string = "";
   private _scaleLinear: boolean = false;
@@ -24,6 +24,19 @@ export class ConfigService {
   private _featureMaxValues: Record<string, number> = {};
   private _dataSource: string = "";
   private _selectedColorScale: number = 0;
+
+  // Flag to indicate if a modal (like preprocessing wizard) is open
+  // Used to hide tooltips when modals are displayed
+  private modalOpenSubject = new BehaviorSubject<boolean>(false);
+  modalOpenSubject$ = this.modalOpenSubject.asObservable();
+
+  get modalOpen(): boolean {
+    return this.modalOpenSubject.getValue();
+  }
+
+  set modalOpen(value: boolean) {
+    this.modalOpenSubject.next(value);
+  }
 
   private config = new GlyphConfiguration();
 

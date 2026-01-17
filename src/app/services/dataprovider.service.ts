@@ -137,6 +137,14 @@ export class DataProviderService {
         this.filteredItems = count;
     }
 
+    /**
+     * Get all dataset names currently in the collection
+     */
+    getDataSetNames(): string[] {
+        const collection = this.dataSetCollectionSubject.getValue() ?? [];
+        return collection.map(entry => entry.dataset);
+    }
+
     setDatasetCollection(newCollection: DatasetCollection) {
         const currentCollection = this.dataSetCollectionSubject.getValue() ?? [];
 

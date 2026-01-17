@@ -13,6 +13,34 @@ import { GlyphSizeInfo } from "./glyph-size-info";
 import { DataProcessorService } from "../services/data-processor";
 import { createGrayPlaceholderTexture } from "../shared/helpers/three-helper";
 
+// Shared geometry cache for performance (reuse common geometries)
+const geometryCache = {
+    circles: new Map<string, THREE.CircleGeometry>(),
+    rings: new Map<string, THREE.RingGeometry>(),
+};
+
+// Get or create a cached circle geometry
+function getCachedCircleGeometry(radius: number, segments: number = 32): THREE.CircleGeometry {
+    const key = `${radius.toFixed(2)}_${segments}`;
+    let geom = geometryCache.circles.get(key);
+    if (!geom) {
+        geom = new THREE.CircleGeometry(radius, segments);
+        geometryCache.circles.set(key, geom);
+    }
+    return geom;
+}
+
+// Get or create a cached ring geometry
+function getCachedRingGeometry(innerRadius: number, outerRadius: number, segments: number = 32): THREE.RingGeometry {
+    const key = `${innerRadius.toFixed(2)}_${outerRadius.toFixed(2)}_${segments}`;
+    let geom = geometryCache.rings.get(key);
+    if (!geom) {
+        geom = new THREE.RingGeometry(innerRadius, outerRadius, segments);
+        geometryCache.rings.set(key, geom);
+    }
+    return geom;
+}
+
 export class GlyphObject {
     id: string;
     private config!: ConfigService;
@@ -118,13 +146,13 @@ export class GlyphObject {
             const currentColor = this.getCurrentColor();
 
             if (cacheObject.isClusterRepresentative && clustered) {
-                // Render as an outlined circle (no fill)
-                const ringGeom = new THREE.RingGeometry(sizeInfo.radius - 1, sizeInfo.radius, 32);
+                // Render as an outlined circle (no fill) - use cached geometry
+                const ringGeom = getCachedRingGeometry(sizeInfo.radius - 1, sizeInfo.radius, 24);
                 const ringMat = new THREE.MeshBasicMaterial({ color: currentColor, side: THREE.DoubleSide });
                 mesh = new THREE.Mesh(ringGeom, ringMat);
             } else {
-                // Render as filled circle
-                const geom = new THREE.CircleGeometry(sizeInfo.radius);
+                // Render as filled circle - use cached geometry
+                const geom = getCachedCircleGeometry(sizeInfo.radius, 24);
                 const mat = new THREE.MeshBasicMaterial({ color: currentColor });
                 mesh = new THREE.Mesh(geom, mat);
             }
@@ -215,7 +243,7 @@ export class GlyphObject {
         const ctx = this.getFeatureContext(contextId);
         if (!ctx) return group;
 
-        const { featureMap, keys, values, maxValue, segments } = ctx;
+        const { featureMap, keys, values, featureMaxValues, segments } = ctx;
 
         const color = this.getCurrentColor(sizeInfo.currentZoomLevel == ZoomLevel.high);
 
@@ -227,7 +255,9 @@ export class GlyphObject {
         keys.forEach((key, i) => {
             const angle = (i / segments) * Math.PI * 2;
             const value = +featureMap[key] || 0;
-            const norm = linearScale ? value : value / maxValue;
+            // Use per-feature global max for proper normalization (especially for categorical data)
+            const maxVal = featureMaxValues[i] || 1;
+            const norm = linearScale ? value : value / maxVal;
             const x = Math.cos(angle) * sizeInfo.radius * norm;
             const y = Math.sin(angle) * sizeInfo.radius * norm;
             points.push(new THREE.Vector2(x, y));
@@ -288,7 +318,7 @@ export class GlyphObject {
         const ctx = this.getFeatureContext(contextId);
         if (!ctx) return group;
 
-        const { featureMap, keys, values, maxValue, segments } = ctx;
+        const { featureMap, keys, values, featureMaxValues, segments } = ctx;
         this.addCoordinateAxes(group, segments, sizeInfo);
         if (this.addPlaceHolder(group, values, sizeInfo)) return group;
 
@@ -298,7 +328,9 @@ export class GlyphObject {
             const value = +featureMap[key] || 0;
             if (value <= 0) return;
 
-            const norm = linearScale ? value : value / maxValue;
+            // Use per-feature global max for proper normalization
+            const maxVal = featureMaxValues[i] || 1;
+            const norm = linearScale ? value : value / maxVal;
             const petalLength = sizeInfo.radius * norm;
             const baseWidth = petalLength * 0.4;
 
@@ -388,7 +420,7 @@ export class GlyphObject {
         const ctx = this.getFeatureContext(contextId);
         if (!ctx) return group;
 
-        const { featureMap, keys, values, maxValue, segments } = ctx;
+        const { featureMap, keys, values, featureMaxValues, segments } = ctx;
         this.addCoordinateAxes(group, segments, sizeInfo);
         if (this.addPlaceHolder(group, values, sizeInfo)) return group;
 
@@ -398,7 +430,9 @@ export class GlyphObject {
             const value = +featureMap[key] || 0;
             if (value <= 0) return;
 
-            const norm = linearScale ? value : value / maxValue;
+            // Use per-feature global max for proper normalization
+            const maxVal = featureMaxValues[i] || 1;
+            const norm = linearScale ? value : value / maxVal;
             const whiskerLength = sizeInfo.radius * norm;
 
             const barWidth = 0.8;
@@ -437,15 +471,22 @@ export class GlyphObject {
         );
         const keys = Object.keys(featureMap);
         const values = keys.map(k => +featureMap[k]);
-        const maxValue = Math.max(...values) || 1;
+
+        // Use global max values from config for consistent scaling across all glyphs
+        // This is especially important for categorical features which are label-encoded
+        const globalMaxValues = this.config.featureMaxValues;
+        const featureMaxValues = keys.map(k => globalMaxValues[k] ?? 1);
+
+        // For backward compatibility, also compute local max (used when global not available)
+        const localMaxValue = Math.max(...values) || 1;
         const segments = keys.length;
 
-        return { featureMap, keys, values, maxValue, segments };
+        return { featureMap, keys, values, featureMaxValues, localMaxValue, segments };
     }
 
     private addPlaceHolder(group: THREE.Group, values: number[], sizeInfo: GlyphSizeInfo): boolean {
         if (values.every(v => v <= 0.001)) {
-            const geom = new THREE.CircleGeometry(sizeInfo.getRadius(ZoomLevel.low) / 4);
+            const geom = getCachedCircleGeometry(sizeInfo.getRadius(ZoomLevel.low) / 4, 16);
             const mat = new THREE.MeshBasicMaterial({
                 color: this.getCurrentColor(true),
                 side: THREE.DoubleSide,
@@ -463,7 +504,8 @@ export class GlyphObject {
         const background = (sizeInfo.currentZoomLevel == ZoomLevel.high) && this.config.getConfiguration().useBackground;
         if (!background) return;
 
-        const geom = new THREE.CircleGeometry(sizeInfo.radius, 64);
+        // Use cached geometry with reduced segment count for performance
+        const geom = getCachedCircleGeometry(sizeInfo.radius, 32);
         const mat = new THREE.MeshBasicMaterial({ color: 0xf0f0f0 });
         if (this.highlighted) {
             const color = new THREE.Color(this.highlightColor);
@@ -475,7 +517,7 @@ export class GlyphObject {
         // Optional contour/stroke
         if (this.config.getConfiguration().useContour) {
             const ringWidth = sizeInfo.radius * 0.01;
-            const contourGeom = new THREE.RingGeometry(sizeInfo.radius - ringWidth, sizeInfo.radius, 64);
+            const contourGeom = getCachedRingGeometry(sizeInfo.radius - ringWidth, sizeInfo.radius, 32);
             const contourMat = new THREE.MeshBasicMaterial({
                 color: 0xcccccc,
                 side: THREE.DoubleSide,

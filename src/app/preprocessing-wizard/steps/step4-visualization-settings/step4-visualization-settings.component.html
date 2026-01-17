@@ -189,7 +189,7 @@
               </div>
               <span class="material-icons check-icon">check_circle</span>
             </div>
-            <p class="card-description">Non-linear manifold learning - Always runs first and loads immediately</p>
+            <p class="card-description">Non-linear manifold learning - Preserves geodesic distances for better structure</p>
           </div>
         </div>
 
@@ -312,7 +312,10 @@
                 <div class="parameter-body">
                   <div class="parameter-row">
                     <div class="parameter-field">
-                      <label>Number of Neighbors</label>
+                      <label>
+                        Number of Neighbors
+                        <app-help-tooltip [helpText]="HELP_TEXT.parameters.umapNeighbors"></app-help-tooltip>
+                      </label>
                       <div class="input-group">
                         <input
                           type="range"
@@ -332,7 +335,10 @@
                     </div>
 
                     <div class="parameter-field">
-                      <label>Minimum Distance</label>
+                      <label>
+                        Minimum Distance
+                        <app-help-tooltip [helpText]="HELP_TEXT.parameters.umapMinDist"></app-help-tooltip>
+                      </label>
                       <div class="input-group">
                         <input
                           type="range"
@@ -491,12 +497,12 @@
         </div>
       </div>
 
-      <!-- Warning Box -->
-      <div class="warning-box">
-        <span class="material-icons">warning</span>
+      <!-- Info Box -->
+      <div class="info-box">
+        <span class="material-icons">info</span>
         <div>
-          <strong>Important:</strong> Processing may take several minutes depending on dataset size and enabled methods.
-          IsoMap will complete first, allowing you to explore your data immediately. Other projections will compute in the background.
+          <strong>Processing Info:</strong> Processing time depends on your dataset size and enabled projection methods.
+          IsoMap loads immediately, allowing you to explore your data right away. Additional projections compute in the background.
         </div>
       </div>
 
@@ -612,18 +618,21 @@
               </div>
             </div>
           }
+        </div>
+      </div>
 
-          <div class="success-actions">
-            <button class="btn-secondary" (click)="startOver()">
-              <span class="material-icons">refresh</span>
-              <span>Process Another Dataset</span>
-            </button>
+      <!-- Sticky Action Buttons -->
+      <div class="action-buttons">
+        <button class="btn-secondary" (click)="startOver()">
+          <span class="material-icons">refresh</span>
+          <span>Process Another Dataset</span>
+        </button>
 
-            <button class="btn-primary" (click)="goToDashboard()">
-              <span class="material-icons">dashboard</span>
-              <span>Open in Glyphspace</span>
-            </button>
-          </div>
+        <div class="buttons-right">
+          <button class="btn-primary" (click)="goToDashboard()">
+            <span class="material-icons">dashboard</span>
+            <span>Open in Glyphspace</span>
+          </button>
         </div>
       </div>
     }

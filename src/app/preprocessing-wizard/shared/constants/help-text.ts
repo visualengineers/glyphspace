@@ -108,6 +108,21 @@ export const HELP_TEXT = {
       technical: 'Computes eigenvalues of covariance matrix. Always runs first to provide immediate visualization.'
     },
 
+    fastmap: {
+      name: 'FastMap',
+      when: 'Available as background projection',
+      description: 'Fast distance-preserving projection with O(n) complexity. Ideal for large datasets.',
+      bestFor: [
+        'Large datasets (40K+ items)',
+        'Quick initial exploration',
+        'Preserving pairwise distances',
+        'When speed is critical'
+      ],
+      characteristics: 'Very fast projection that preserves distances. Great for initial exploration of large data.',
+      speed: 'Very fast (sub-second even for 40K+ items)',
+      technical: 'Projects data to lower dimensions by selecting pivot points and computing distances. O(n) complexity.'
+    },
+
     isomap: {
       name: 'IsoMap',
       when: 'Runs first and loads immediately',
@@ -116,7 +131,7 @@ export const HELP_TEXT = {
         'Non-linear data structures',
         'Preserving geodesic distances',
         'Revealing manifold structure',
-        'Medium-sized datasets'
+        'General-purpose visualization'
       ],
       characteristics: 'Captures non-linear relationships. Better than PCA for curved manifolds.',
       speed: 'Fast (few seconds for most datasets)',
@@ -177,7 +192,7 @@ export const HELP_TEXT = {
         You can start exploring your data right away.<br/><br/>
 
         <strong>Background Computation:</strong> While you explore the IsoMap view, other selected projections
-        (PCA, t-SNE, UMAP) compute in the background without blocking your workflow.<br/><br/>
+        (PCA, FastMap, t-SNE, UMAP) compute in the background without blocking your workflow.<br/><br/>
 
         <strong>Notifications:</strong> When each projection finishes, you'll see a notification with an
         option to switch to that view. The projection is automatically added to the dropdown.<br/><br/>

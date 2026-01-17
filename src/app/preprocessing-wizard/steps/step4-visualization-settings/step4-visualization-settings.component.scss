@@ -505,6 +505,11 @@
               font-size: 10px;
               padding: 2px 6px;
 
+              &.badge-very-fast {
+                background: rgba(0, 150, 136, 0.1);
+                color: #00796B;
+              }
+
               &.badge-fast {
                 background: rgba(76, 175, 80, 0.1);
                 color: #388E3C;
@@ -776,6 +781,10 @@
 
     .warning-box {
       @include w.warning-box;
+    }
+
+    .info-box {
+      @include w.info-box;
     }
   }
 

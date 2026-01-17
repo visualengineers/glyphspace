@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ChangeDetectorRef, NgZone, Output, EventEmitter } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, NgZone, Output, EventEmitter, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subscription } from 'rxjs';
@@ -14,7 +14,7 @@ import { HELP_TEXT } from '../../shared/constants/help-text';
 import { STEP_INFO } from '../../shared/constants/step-info';
 
 interface ProjectionMethod {
-  key: keyof Pick<ProjectionConfig, 'enablePCA' | 'enableTSNE' | 'enableUMAP'>;
+  key: keyof Pick<ProjectionConfig, 'enablePCA' | 'enableIsoMap' | 'enableTSNE' | 'enableUMAP'>;
   name: string;
   description: string;
   icon: string;
@@ -53,6 +53,7 @@ export class Step4VisualizationSettingsComponent implements OnInit, OnDestroy {
   // Projection configuration (IsoMap is always primary, these are background options)
   projectionConfig: ProjectionConfig = {
     enablePCA: true,
+    enableIsoMap: false,
     enableTSNE: false,
     enableUMAP: false,
     tsnePerplexity: 30,
@@ -65,27 +66,28 @@ export class Step4VisualizationSettingsComponent implements OnInit, OnDestroy {
 
   // IsoMap is always the primary projection (runs immediately, not toggleable)
   // These are optional background projections the user can enable
+  // Speed labels: Very Fast > Fast > Medium (relative to IsoMap which is primary)
   projectionMethods: ProjectionMethod[] = [
     {
       key: 'enablePCA',
       name: 'PCA',
       description: 'Principal Component Analysis - Fast linear projection',
       icon: 'analytics',
-      badge: 'Fast'
+      badge: 'Very Fast'
     },
     {
       key: 'enableTSNE',
       name: 't-SNE',
       description: 'Preserves local structure - Good for clusters',
       icon: 'bubble_chart',
-      badge: 'Slow'
+      badge: 'Medium'
     },
     {
       key: 'enableUMAP',
       name: 'UMAP',
       description: 'Balances local and global structure',
       icon: 'scatter_plot',
-      badge: 'Slow'
+      badge: 'Medium'
     }
   ];
 
@@ -127,7 +129,8 @@ export class Step4VisualizationSettingsComponent implements OnInit, OnDestroy {
     private projectionService: ProjectionService,
     private toastService: ToastService,
     private cdr: ChangeDetectorRef,
-    private ngZone: NgZone
+    private ngZone: NgZone,
+    private elementRef: ElementRef
   ) {}
 
   ngOnInit(): void {
@@ -192,6 +195,21 @@ export class Step4VisualizationSettingsComponent implements OnInit, OnDestroy {
     if (section === 'review') {
       this.prepareReviewData();
     }
+    // Scroll to top when changing sections
+    this.scrollToTop();
+  }
+
+  private scrollToTop(): void {
+    // Use setTimeout to ensure scroll happens after Angular renders the new content
+    setTimeout(() => {
+      // Scroll the parent wizard content container
+      const wizardContent = document.querySelector('.wizard-content');
+      if (wizardContent) {
+        wizardContent.scrollTop = 0;
+      }
+      // Also scroll the component itself if it has overflow
+      this.elementRef.nativeElement.scrollTop = 0;
+    }, 0);
   }
 
   canProceedToReview(): boolean {
@@ -500,7 +518,7 @@ export class Step4VisualizationSettingsComponent implements OnInit, OnDestroy {
         this.cdr.detectChanges();
       });
 
-      // Use IsoMap as the primary projection (non-linear manifold learning)
+      // Use IsoMap as the primary projection (non-linear manifold learning, preserves geodesic distances)
       const isomapResult = await this.projectionService.runIsoMapSync(features, ids);
 
       this.ngZone.run(() => {
@@ -666,6 +684,19 @@ export class Step4VisualizationSettingsComponent implements OnInit, OnDestroy {
 
   startOver(): void {
     if (confirm('Are you sure you want to start over? All current configuration will be lost.')) {
+      // Terminate any running background projection workers
+      this.projectionService.terminateAllWorkers();
+      this.projectionService.clearBackgroundStatuses();
+
+      // Clear local state
+      this.backgroundProjections.clear();
+      this.processingComplete = false;
+      this.isProcessing = false;
+      this.processingProgress = 0;
+      this.processingStep = '';
+      this.error = null;
+
+      // Reset wizard state
       this.preprocessingService.resetState();
       this.preprocessingService.goToStep(0);
     }

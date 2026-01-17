@@ -44,6 +44,72 @@ export function hitTest(event: MouseEvent, renderer: THREE.WebGLRenderer, scene:
     return closestObject;
 }
 
+/**
+ * Optimized hit test that works with a pre-filtered set of candidate objects.
+ * Use this with spatial grid queries for O(k) instead of O(n) complexity.
+ */
+export function hitTestCandidates(
+    event: MouseEvent,
+    renderer: THREE.WebGLRenderer,
+    candidates: THREE.Object3D[],
+    camera: THREE.Camera,
+    sizeInfo: GlyphSizeInfo
+): THREE.Object3D | null {
+    if (candidates.length === 0) return null;
+
+    const rect = renderer.domElement.getBoundingClientRect();
+
+    const mouseNDC = {
+        x: ((event.clientX - rect.left) / rect.width) * 2 - 1,
+        y: -((event.clientY - rect.top) / rect.height) * 2 + 1,
+    };
+
+    let closestObject: THREE.Object3D | null = null;
+    let closestDist = Infinity;
+    const tolerancePx = sizeInfo.hitTolerance;
+
+    // Reuse vector to avoid allocations
+    const worldPos = new THREE.Vector3();
+
+    for (const object of candidates) {
+        object.getWorldPosition(worldPos);
+        const screenPos = worldPos.project(camera);
+
+        const dx = (mouseNDC.x - screenPos.x) * rect.width / 2;
+        const dy = (mouseNDC.y - screenPos.y) * rect.height / 2;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist < tolerancePx && dist < closestDist) {
+            closestObject = object;
+            closestDist = dist;
+        }
+    }
+    return closestObject;
+}
+
+/**
+ * Convert screen coordinates to world coordinates for spatial grid queries.
+ */
+export function screenToWorld(
+    event: MouseEvent,
+    renderer: THREE.WebGLRenderer,
+    camera: THREE.OrthographicCamera
+): { x: number; y: number } {
+    const rect = renderer.domElement.getBoundingClientRect();
+
+    // Convert to NDC
+    const mouseNDC = {
+        x: ((event.clientX - rect.left) / rect.width) * 2 - 1,
+        y: -((event.clientY - rect.top) / rect.height) * 2 + 1,
+    };
+
+    // Convert NDC to world coordinates for orthographic camera
+    const worldX = camera.position.x + (mouseNDC.x * (camera.right - camera.left) / 2) / camera.zoom;
+    const worldY = camera.position.y + (mouseNDC.y * (camera.top - camera.bottom) / 2) / camera.zoom;
+
+    return { x: worldX, y: worldY };
+}
+
 export function panCamera(camera: THREE.OrthographicCamera, from: THREE.Vector2, to: MouseEvent, target: THREE.Vector3) {
     const dx = to.clientX - from.x;
     const dy = to.clientY - from.y;
