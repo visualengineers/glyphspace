@@ -110,7 +110,7 @@ export const HELP_TEXT = {
 
     fastmap: {
       name: 'FastMap',
-      when: 'Runs first and loads immediately',
+      when: 'Available as background projection',
       description: 'Fast distance-preserving projection with O(n) complexity. Ideal for large datasets.',
       bestFor: [
         'Large datasets (40K+ items)',
@@ -125,16 +125,16 @@ export const HELP_TEXT = {
 
     isomap: {
       name: 'IsoMap',
-      when: 'Available as background projection',
+      when: 'Runs first and loads immediately',
       description: 'Non-linear manifold learning that preserves geodesic distances between datapoints.',
       bestFor: [
         'Non-linear data structures',
         'Preserving geodesic distances',
         'Revealing manifold structure',
-        'Medium-sized datasets'
+        'General-purpose visualization'
       ],
       characteristics: 'Captures non-linear relationships. Better than PCA for curved manifolds.',
-      speed: 'Moderate (few seconds for most datasets, slower for large data)',
+      speed: 'Fast (few seconds for most datasets)',
       technical: 'Builds neighborhood graph and computes shortest paths to preserve geodesic distances.'
     },
 
@@ -188,11 +188,11 @@ export const HELP_TEXT = {
     backgroundProcessing: {
       title: 'How Background Processing Works',
       description: `
-        <strong>Immediate Start:</strong> After data cleaning, FastMap runs immediately and loads into Glyphspace.
+        <strong>Immediate Start:</strong> After data cleaning, IsoMap runs immediately and loads into Glyphspace.
         You can start exploring your data right away.<br/><br/>
 
-        <strong>Background Computation:</strong> While you explore the FastMap view, other selected projections
-        (PCA, t-SNE, UMAP) compute in the background without blocking your workflow.<br/><br/>
+        <strong>Background Computation:</strong> While you explore the IsoMap view, other selected projections
+        (PCA, FastMap, t-SNE, UMAP) compute in the background without blocking your workflow.<br/><br/>
 
         <strong>Notifications:</strong> When each projection finishes, you'll see a notification with an
         option to switch to that view. The projection is automatically added to the dropdown.<br/><br/>

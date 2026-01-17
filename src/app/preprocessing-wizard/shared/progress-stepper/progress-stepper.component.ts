@@ -21,7 +21,8 @@ export class ProgressStepperComponent {
   @Output() stepClick = new EventEmitter<number>();
 
   onStepClick(index: number): void {
-    if (index <= this.currentStep) {
+    // Allow navigation to previous steps or completed steps
+    if (this.isStepClickable(index)) {
       this.stepClick.emit(index);
     }
   }
@@ -35,6 +36,9 @@ export class ProgressStepperComponent {
   }
 
   isStepClickable(index: number): boolean {
-    return index <= this.currentStep;
+    // Allow clicking on:
+    // 1. Any previous step (go back)
+    // 2. Any completed step (including forward navigation to re-visit completed steps)
+    return index <= this.currentStep || this.steps[index]?.completed;
   }
 }

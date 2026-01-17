@@ -530,6 +530,9 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
       }
     });
 
+    // Rebuild spatial grid with new positions for correct hit testing
+    this.rebuildSpatialGrid();
+
     // this.animationSpeed = 0.01;
     this.requestRender(RenderTask.OriginalSimulation);
     this.magicLensComponent.clearLensGlyphs();
@@ -590,6 +593,8 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
     if (oldZoomLevel != newZoomLevel) {
       this.sizeInfo.currentZoomLevel = newZoomLevel;
       this.sizeInfo.update(this.canvasWidth, this.canvasHeight);
+      // Rebuild spatial grid with new radius for correct hit testing
+      this.rebuildSpatialGrid();
       // Force render all glyphs when zoom level changes - glyph geometry
       // needs to be recreated and visibility state may be stale
       this.renderGlyphs(true);

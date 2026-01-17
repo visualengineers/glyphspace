@@ -1,6 +1,6 @@
-import { Component, OnInit, OnDestroy, Output, EventEmitter } from '@angular/core';
+import { Component, OnInit, OnDestroy, Output, EventEmitter, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Subscription } from 'rxjs';
+import { Subscription, distinctUntilChanged, map } from 'rxjs';
 import { PreprocessingService } from './services/preprocessing.service';
 import { ProgressStepperComponent, Step } from './shared/progress-stepper/progress-stepper.component';
 import { Step1UploadComponent } from './steps/step1-upload/step1-upload.component';
@@ -25,10 +25,12 @@ import { DataProfile } from './models/column-statistics';
 })
 export class PreprocessingWizardComponent implements OnInit, OnDestroy {
   @Output() close = new EventEmitter<void>();
+  @ViewChild('wizardContent') wizardContent!: ElementRef<HTMLElement>;
 
   private subscription = new Subscription();
 
   currentStep = 0;
+  highestStepVisited = 0;  // Track highest step to enable forward navigation
   isProcessing = false;
   error: string | null = null;
 
@@ -49,10 +51,37 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
         this.isProcessing = state.isProcessing;
         this.error = state.error;
 
+        // Track highest step visited for navigation
+        if (state.currentStep > this.highestStepVisited) {
+          this.highestStepVisited = state.currentStep;
+        }
+
         // Update step completion based on state
         this.updateStepCompletion(state);
       })
     );
+
+    // Scroll to top when step changes
+    this.subscription.add(
+      this.preprocessingService.state$.pipe(
+        map(state => state.currentStep),
+        distinctUntilChanged()
+      ).subscribe(() => {
+        this.scrollToTop();
+      })
+    );
+  }
+
+  private scrollToTop(): void {
+    // Use setTimeout to ensure scroll happens after Angular renders the new step content
+    setTimeout(() => {
+      // Scroll the wizard content container to top
+      if (this.wizardContent?.nativeElement) {
+        this.wizardContent.nativeElement.scrollTop = 0;
+      }
+      // Also scroll the window/document in case wizard is in a scrollable container
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    }, 0);
   }
 
   ngOnDestroy(): void {
@@ -60,10 +89,14 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
   }
 
   private updateStepCompletion(state: any): void {
+    // Mark steps as completed based on:
+    // 1. Whether the step's required data exists
+    // 2. Whether the user has visited beyond this step (highestStepVisited)
     this.steps[0].completed = state.dataProfile !== null;
-    this.steps[1].completed = state.columnConfigs.size > 0 && state.currentStep > 1;
-    this.steps[2].completed = state.currentStep > 2;
-    this.steps[3].completed = state.processedDataset !== null;
+    this.steps[1].completed = state.columnConfigs.size > 0 && this.highestStepVisited > 1;
+    this.steps[2].completed = this.highestStepVisited > 2;
+    // Step 3 (index 3) is completed either after processing OR if user has visited it
+    this.steps[3].completed = state.processedDataset !== null || this.highestStepVisited >= 3;
   }
 
   onStepClick(step: number): void {
@@ -101,6 +134,7 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
 
   reset(): void {
     if (confirm('Are you sure you want to start over? All progress will be lost.')) {
+      this.highestStepVisited = 0;  // Reset navigation tracking
       this.preprocessingService.resetState();
     }
   }

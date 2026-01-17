@@ -5,6 +5,7 @@ import { DataProfile, ColumnStatistics } from '../models/column-statistics';
 import { ColumnConfig, CleaningConfig, ProjectionConfig } from '../models/column-config';
 import { DataType, EncodingMethod, ScalingMethod, MissingValueStrategy, OutlierStrategy, OutlierMethod } from '../models/data-type.enum';
 import { DataProcessorService } from '../../services/data-processor';
+import { DataProviderService } from '../../services/dataprovider.service';
 
 @Injectable({
   providedIn: 'root'
@@ -16,9 +17,31 @@ export class PreprocessingService {
   private progressSubject = new Subject<ProcessingProgress>();
   public progress$ = this.progressSubject.asObservable();
 
-  constructor(private dataProcessor: DataProcessorService) {
+  constructor(
+    private dataProcessor: DataProcessorService,
+    private dataProvider: DataProviderService
+  ) {
     // Load saved state from localStorage if available
     this.loadStateFromStorage();
+  }
+
+  /**
+   * Generate a unique dataset name by appending (1), (2), etc. if name already exists
+   */
+  private getUniqueDatasetName(baseName: string): string {
+    const existingNames = this.dataProvider.getDataSetNames();
+    if (!existingNames.includes(baseName)) {
+      return baseName;
+    }
+
+    // Find the next available number
+    let counter = 1;
+    let uniqueName = `${baseName} (${counter})`;
+    while (existingNames.includes(uniqueName)) {
+      counter++;
+      uniqueName = `${baseName} (${counter})`;
+    }
+    return uniqueName;
   }
 
   /**
@@ -93,8 +116,9 @@ export class PreprocessingService {
         columnConfigs.set(col.name, this.createDefaultColumnConfig(col));
       });
 
-      // Generate dataset name and timestamp
-      const datasetName = file.name.replace(/\.csv$/i, '');
+      // Generate unique dataset name and timestamp
+      const baseName = file.name.replace(/\.csv$/i, '');
+      const datasetName = this.getUniqueDatasetName(baseName);
       const timestamp = new Date().toISOString().split('T')[0].replace(/-/g, '');
 
       this.updateState({

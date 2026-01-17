@@ -46,10 +46,10 @@ export const DEFAULT_CLEANING_CONFIG: CleaningConfig = {
 };
 
 export const DEFAULT_PROJECTION_CONFIG: ProjectionConfig = {
-  // FastMap is always enabled as primary (runs immediately)
+  // IsoMap is always enabled as primary (runs immediately)
   // These are optional background projections:
   enablePCA: true,        // PCA runs in background
-  enableIsoMap: false,    // IsoMap runs in background (non-linear manifold)
+  enableIsoMap: false,    // IsoMap is primary, so this toggles FastMap as background alternative
   enableTSNE: false,      // t-SNE runs in background (slow)
   enableUMAP: false,      // UMAP runs in background (slow)
 
