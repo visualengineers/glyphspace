@@ -279,9 +279,13 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit {
   toggleProjection(columnName: string): void {
     const colState = this.columns.find(c => c.column.name === columnName);
     if (colState) {
+      const newValue = !colState.config.includeInProjection;
+      // Update service
       this.preprocessingService.updateColumnConfig(columnName, {
-        includeInProjection: !colState.config.includeInProjection
+        includeInProjection: newValue
       });
+      // Update local state to trigger template re-render
+      colState.config.includeInProjection = newValue;
     }
   }
 
