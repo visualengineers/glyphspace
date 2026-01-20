@@ -429,6 +429,157 @@
     }
 }
 
+/* Background projection status */
+.projection-status-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 150px;
+    overflow-y: scroll;  // Always show scrollbar area
+    overflow-x: hidden;
+    overscroll-behavior: contain;  // Prevent scroll chaining to parent
+    -webkit-overflow-scrolling: touch;  // Smooth scrolling on iOS
+    touch-action: pan-y;  // Allow vertical touch/wheel scrolling
+    pointer-events: auto;  // Ensure this element captures pointer events
+
+    // Scrollbar styling
+    &::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    &::-webkit-scrollbar-track {
+        background: #f0f0f0;
+        border-radius: 3px;
+    }
+
+    &::-webkit-scrollbar-thumb {
+        background: #ccc;
+        border-radius: 3px;
+
+        &:hover {
+            background: #aaa;
+        }
+    }
+}
+
+.projection-status-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    background: #f5f7fa;
+    border: 1px solid #e0e0e0;
+    opacity: 1;
+    transition: opacity 0.5s ease-out;
+
+    &.fading {
+        opacity: 0;
+    }
+
+    &.status-running {
+        background: #fff8e6;
+        border-color: #ffd666;
+    }
+
+    &.status-complete {
+        background: #e6f7e6;
+        border-color: #95de95;
+    }
+
+    &.status-error {
+        background: #fee;
+        border-color: #faa;
+    }
+
+    &.status-pending {
+        background: #f5f5f5;
+        border-color: #ddd;
+    }
+}
+
+.status-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.method-name {
+    font-size: 12px;
+    font-weight: 500;
+    color: v.$gray-700;
+}
+
+.status-indicator {
+    display: flex;
+    align-items: center;
+
+    .material-icons {
+        font-size: 16px;
+    }
+
+    &.running .material-icons {
+        color: #f5a623;
+    }
+
+    &.complete .material-icons {
+        color: #52c41a;
+    }
+
+    &.error .material-icons {
+        color: #ff4d4f;
+    }
+
+    &.pending .material-icons {
+        color: #999;
+    }
+}
+
+.spinning {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.progress-bar-mini {
+    height: 3px;
+    background: #e0e0e0;
+    border-radius: 2px;
+    overflow: hidden;
+
+    // Indeterminate progress animation
+    &.indeterminate .progress-fill-mini {
+        width: 30% !important;
+        animation: indeterminate-progress 1.5s ease-in-out infinite;
+    }
+}
+
+@keyframes indeterminate-progress {
+    0% {
+        transform: translateX(-100%);
+    }
+    50% {
+        transform: translateX(200%);
+    }
+    100% {
+        transform: translateX(-100%);
+    }
+}
+
+.progress-fill-mini {
+    height: 100%;
+    background: #f5a623;
+    border-radius: 2px;
+    transition: width 0.3s ease;
+}
+
 .control-cell {
     display: flex;
     flex-wrap: wrap;

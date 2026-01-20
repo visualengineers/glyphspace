@@ -14,12 +14,13 @@ import { HELP_TEXT } from '../../shared/constants/help-text';
 import { STEP_INFO } from '../../shared/constants/step-info';
 
 interface ProjectionMethod {
-  key: keyof Pick<ProjectionConfig, 'enablePCA' | 'enableIsoMap' | 'enableTSNE' | 'enableUMAP'>;
+  key: keyof Pick<ProjectionConfig, 'enablePCA' | 'enableIsoMap' | 'enableMDS' | 'enableLLE' | 'enableLTSA' | 'enableTSNE' | 'enableUMAP' | 'enableTriMap' | 'enableTopoMap' | 'enableSammon'>;
   name: string;
   description: string;
   icon: string;
   badge?: string;
   disabled?: boolean;
+  largeDatasetWarning?: boolean;  // Show warning for datasets > 10k items (O(n²) memory/time)
 }
 
 @Component({
@@ -50,23 +51,35 @@ export class Step4VisualizationSettingsComponent implements OnInit, OnDestroy {
   draggedFromList: 'selected' | 'available' = 'available';
   draggedIndex: number = -1;
 
-  // Projection configuration (IsoMap is always primary, these are background options)
+  // Projection configuration (FastMap is always primary, these are background options)
   projectionConfig: ProjectionConfig = {
     enablePCA: true,
-    enableIsoMap: false,
+    enableIsoMap: true,
+    enableMDS: false,
+    enableLLE: false,
+    enableLTSA: false,
     enableTSNE: false,
     enableUMAP: false,
+    enableTriMap: false,
+    enableTopoMap: false,
+    enableSammon: false,
+    isomapNeighbors: 0,
+    lleNeighbors: 0,
+    ltsaNeighbors: 0,
     tsnePerplexity: 30,
     tsneIterations: 1000,
     umapNeighbors: 15,
-    umapMinDist: 0.1
+    umapMinDist: 0.1,
+    trimapWeightAdj: 500
   };
 
   readonly TSNE_WARNING_THRESHOLD = 5000;
+  readonly LARGE_DATASET_THRESHOLD = 10000;  // Show warnings for O(n²) methods above this
 
-  // IsoMap is always the primary projection (runs immediately, not toggleable)
+  // FastMap is always the primary projection (runs immediately, not toggleable)
   // These are optional background projections the user can enable
-  // Speed labels: Very Fast > Fast > Medium (relative to IsoMap which is primary)
+  // Speed labels: Very Fast > Fast > Medium > Slow (relative to FastMap which is primary)
+  // largeDatasetWarning: methods with O(n²) memory/time that may fail or be very slow with >10k items
   projectionMethods: ProjectionMethod[] = [
     {
       key: 'enablePCA',
@@ -76,18 +89,76 @@ export class Step4VisualizationSettingsComponent implements OnInit, OnDestroy {
       badge: 'Very Fast'
     },
     {
+      key: 'enableIsoMap',
+      name: 'IsoMap',
+      description: 'Non-linear manifold learning - Preserves geodesic distances',
+      icon: 'auto_graph',
+      badge: 'Fast',
+      largeDatasetWarning: true  // O(n²) distance matrix
+    },
+    {
+      key: 'enableMDS',
+      name: 'MDS',
+      description: 'Classical Multidimensional Scaling - Distance preserving',
+      icon: 'grid_on',
+      badge: 'Fast',
+      largeDatasetWarning: true  // O(n²) distance matrix
+    },
+    {
+      key: 'enableLLE',
+      name: 'LLE',
+      description: 'Locally Linear Embedding - Preserves local geometry',
+      icon: 'blur_on',
+      badge: 'Medium',
+      largeDatasetWarning: true  // O(n²) neighborhood graph
+    },
+    {
+      key: 'enableLTSA',
+      name: 'LTSA',
+      description: 'Local Tangent Space Alignment - Good for curved manifolds',
+      icon: 'waves',
+      badge: 'Medium',
+      largeDatasetWarning: true  // O(n²) neighborhood graph
+    },
+    {
       key: 'enableTSNE',
       name: 't-SNE',
       description: 'Preserves local structure - Good for clusters',
       icon: 'bubble_chart',
-      badge: 'Medium'
+      badge: 'Slow',
+      largeDatasetWarning: true  // O(n²) pairwise similarities
     },
     {
       key: 'enableUMAP',
       name: 'UMAP',
       description: 'Balances local and global structure',
       icon: 'scatter_plot',
+      badge: 'Slow',
+      largeDatasetWarning: true  // O(n²) neighborhood search
+    },
+    {
+      key: 'enableTriMap',
+      name: 'TriMap',
+      description: 'Global structure preservation - Good for large datasets',
+      icon: 'timeline',
       badge: 'Medium'
+      // TriMap is designed for large datasets, no warning needed
+    },
+    {
+      key: 'enableTopoMap',
+      name: 'TopoMap',
+      description: 'Topology preserving projection',
+      icon: 'terrain',
+      badge: 'Medium',
+      largeDatasetWarning: true  // O(n²) distance computations
+    },
+    {
+      key: 'enableSammon',
+      name: 'Sammon',
+      description: 'Sammon mapping - Preserves small distances',
+      icon: 'hub',
+      badge: 'Medium',
+      largeDatasetWarning: true  // O(n²) distance matrix
     }
   ];
 
@@ -365,6 +436,10 @@ export class Step4VisualizationSettingsComponent implements OnInit, OnDestroy {
     return method.disabled || false;
   }
 
+  shouldShowLargeDatasetWarning(method: ProjectionMethod): boolean {
+    return method.largeDatasetWarning === true && this.getDatasetRowCount() > this.LARGE_DATASET_THRESHOLD;
+  }
+
   toggleProjectionMethod(method: ProjectionMethod): void {
     if (this.isMethodDisabled(method)) return;
     this.projectionConfig[method.key] = !this.projectionConfig[method.key];
@@ -391,22 +466,49 @@ export class Step4VisualizationSettingsComponent implements OnInit, OnDestroy {
     this.updateProjectionConfig();
   }
 
+  onIsoMapNeighborsChange(value: number): void {
+    this.projectionConfig.isomapNeighbors = Math.max(0, Math.min(200, value));
+    this.updateProjectionConfig();
+  }
+
+  onLLENeighborsChange(value: number): void {
+    this.projectionConfig.lleNeighbors = Math.max(0, Math.min(200, value));
+    this.updateProjectionConfig();
+  }
+
+  onLTSANeighborsChange(value: number): void {
+    this.projectionConfig.ltsaNeighbors = Math.max(0, Math.min(200, value));
+    this.updateProjectionConfig();
+  }
+
+  onTriMapWeightAdjChange(value: number): void {
+    this.projectionConfig.trimapWeightAdj = Math.max(100, Math.min(2000, value));
+    this.updateProjectionConfig();
+  }
+
   private updateProjectionConfig(): void {
     const state = this.preprocessingService.currentState;
     state.projectionConfig = { ...this.projectionConfig };
   }
 
   hasEnabledMethod(): boolean {
-    // IsoMap is always enabled as the primary projection
+    // FastMap is always enabled as the primary projection
     return true;
   }
 
   getEnabledMethodsCount(): number {
-    // Start with 1 for IsoMap (always enabled)
+    // Start with 1 for FastMap (always enabled as primary)
     let count = 1;
     if (this.projectionConfig.enablePCA) count++;
+    if (this.projectionConfig.enableIsoMap) count++;
+    if (this.projectionConfig.enableMDS) count++;
+    if (this.projectionConfig.enableLLE) count++;
+    if (this.projectionConfig.enableLTSA) count++;
     if (this.projectionConfig.enableTSNE) count++;
     if (this.projectionConfig.enableUMAP) count++;
+    if (this.projectionConfig.enableTriMap) count++;
+    if (this.projectionConfig.enableTopoMap) count++;
+    if (this.projectionConfig.enableSammon) count++;
     return count;
   }
 
@@ -439,11 +541,18 @@ export class Step4VisualizationSettingsComponent implements OnInit, OnDestroy {
     this.enabledColumns = this.columnConfigs.filter(c => c.enabled).length;
     this.projectionColumns = this.columnConfigs.filter(c => c.enabled && c.includeInProjection).length;
 
-    // IsoMap is always the primary projection
-    this.enabledMethods = ['IsoMap (Primary)'];
+    // FastMap is always the primary projection
+    this.enabledMethods = ['FastMap (Primary)'];
     if (this.projectionConfig.enablePCA) this.enabledMethods.push('PCA');
+    if (this.projectionConfig.enableIsoMap) this.enabledMethods.push('IsoMap');
+    if (this.projectionConfig.enableMDS) this.enabledMethods.push('MDS');
+    if (this.projectionConfig.enableLLE) this.enabledMethods.push('LLE');
+    if (this.projectionConfig.enableLTSA) this.enabledMethods.push('LTSA');
     if (this.projectionConfig.enableTSNE) this.enabledMethods.push('t-SNE');
     if (this.projectionConfig.enableUMAP) this.enabledMethods.push('UMAP');
+    if (this.projectionConfig.enableTriMap) this.enabledMethods.push('TriMap');
+    if (this.projectionConfig.enableTopoMap) this.enabledMethods.push('TopoMap');
+    if (this.projectionConfig.enableSammon) this.enabledMethods.push('Sammon');
   }
 
   getEncodingLabel(method: EncodingMethod): string {
@@ -513,25 +622,25 @@ export class Step4VisualizationSettingsComponent implements OnInit, OnDestroy {
       const { features, ids } = this.projectionService.parseCSVFeatures(csvText);
 
       this.ngZone.run(() => {
-        this.processingStep = 'Computing IsoMap projection...';
+        this.processingStep = 'Computing FastMap projection...';
         this.processingProgress = 75;
         this.cdr.detectChanges();
       });
 
-      // Use IsoMap as the primary projection (non-linear manifold learning, preserves geodesic distances)
-      const isomapResult = await this.projectionService.runIsoMapSync(features, ids);
+      // Use FastMap as the primary projection (fast distance-preserving, O(n) complexity, ideal for large datasets)
+      const fastmapResult = await this.projectionService.runFastMapSync(features, ids);
 
       this.ngZone.run(() => {
-        this.processingStep = 'Loading dataset with IsoMap...';
+        this.processingStep = 'Loading dataset with FastMap...';
         this.processingProgress = 90;
         this.cdr.detectChanges();
       });
 
-      await this.preprocessingService.addProjectionPositions('isomap', isomapResult.positions);
+      await this.preprocessingService.addProjectionPositions('fastmap', fastmapResult.positions);
 
       this.ngZone.run(() => {
         this.processingProgress = 100;
-        this.processingStep = `Dataset loaded with IsoMap (${isomapResult.computeTime}ms)`;
+        this.processingStep = `Dataset loaded with FastMap (${fastmapResult.computeTime}ms)`;
         this.processingComplete = true;
         this.isProcessing = false;
         this.cdr.detectChanges();
@@ -576,9 +685,31 @@ export class Step4VisualizationSettingsComponent implements OnInit, OnDestroy {
       });
     });
 
-    // Run PCA in background (IsoMap is now primary)
+    // Run background projections (FastMap is primary)
     if (config.enablePCA) {
       this.runBackgroundProjection('PCA', () => this.projectionService.runPCABackground(features, ids));
+    }
+
+    if (config.enableIsoMap) {
+      this.runBackgroundProjection('IsoMap', () => this.projectionService.runIsoMap(features, ids, {
+        neighbors: config.isomapNeighbors
+      }));
+    }
+
+    if (config.enableMDS) {
+      this.runBackgroundProjection('MDS', () => this.projectionService.runMDS(features, ids));
+    }
+
+    if (config.enableLLE) {
+      this.runBackgroundProjection('LLE', () => this.projectionService.runLLE(features, ids, {
+        neighbors: config.lleNeighbors
+      }));
+    }
+
+    if (config.enableLTSA) {
+      this.runBackgroundProjection('LTSA', () => this.projectionService.runLTSA(features, ids, {
+        neighbors: config.ltsaNeighbors
+      }));
     }
 
     if (config.enableTSNE) {
@@ -597,6 +728,20 @@ export class Step4VisualizationSettingsComponent implements OnInit, OnDestroy {
           minDist: config.umapMinDist
         })
       );
+    }
+
+    if (config.enableTriMap) {
+      this.runBackgroundProjection('TriMap', () => this.projectionService.runTriMap(features, ids, {
+        weightAdj: config.trimapWeightAdj
+      }));
+    }
+
+    if (config.enableTopoMap) {
+      this.runBackgroundProjection('TopoMap', () => this.projectionService.runTopoMap(features, ids));
+    }
+
+    if (config.enableSammon) {
+      this.runBackgroundProjection('Sammon', () => this.projectionService.runSammon(features, ids));
     }
   }
 

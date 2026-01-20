@@ -2,8 +2,10 @@ import { Injectable, NgZone } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
 import * as druid from '@saehrimnir/druidjs';
 
+export type ProjectionMethod = 'pca' | 'fastmap' | 'isomap' | 'mds' | 'lle' | 'ltsa' | 'tsne' | 'umap' | 'trimap' | 'topomap' | 'sammon';
+
 export interface ProjectionResult {
-  method: 'pca' | 'fastmap' | 'isomap' | 'tsne' | 'umap';
+  method: ProjectionMethod;
   positions: Array<{id: string | number; x: number; y: number}>;
   computeTime: number;  // milliseconds
 }
@@ -19,14 +21,22 @@ export interface BackgroundStatus {
 // Worker message types
 interface ProjectionWorkerRequest {
   type: 'compute';
-  method: 'pca' | 'fastmap' | 'isomap' | 'tsne' | 'umap';
+  method: ProjectionMethod;
   features: number[][];
   ids: (string | number)[];
   config?: {
+    // t-SNE parameters
     perplexity?: number;
     iterations?: number;
+    // UMAP parameters
     neighbors?: number;
     minDist?: number;
+    // IsoMap, LLE, LTSA parameters
+    isomapNeighbors?: number;
+    lleNeighbors?: number;
+    ltsaNeighbors?: number;
+    // TriMap parameters
+    trimapWeightAdj?: number;
   };
 }
 
@@ -143,8 +153,8 @@ export class ProjectionService {
    * Run IsoMap (background) - runs in Web Worker
    * Non-linear manifold learning projection
    */
-  async runIsoMap(features: number[][], ids: (string|number)[]): Promise<ProjectionResult> {
-    return this.runProjectionInWorker('isomap', features, ids);
+  async runIsoMap(features: number[][], ids: (string|number)[], config?: { neighbors?: number }): Promise<ProjectionResult> {
+    return this.runProjectionInWorker('isomap', features, ids, config ? { isomapNeighbors: config.neighbors } : undefined);
   }
 
   /**
@@ -179,10 +189,52 @@ export class ProjectionService {
   }
 
   /**
+   * Run MDS (background) - Classical Multidimensional Scaling
+   */
+  async runMDS(features: number[][], ids: (string|number)[]): Promise<ProjectionResult> {
+    return this.runProjectionInWorker('mds', features, ids);
+  }
+
+  /**
+   * Run LLE (background) - Locally Linear Embedding
+   */
+  async runLLE(features: number[][], ids: (string|number)[], config?: { neighbors?: number }): Promise<ProjectionResult> {
+    return this.runProjectionInWorker('lle', features, ids, config ? { lleNeighbors: config.neighbors } : undefined);
+  }
+
+  /**
+   * Run LTSA (background) - Local Tangent Space Alignment
+   */
+  async runLTSA(features: number[][], ids: (string|number)[], config?: { neighbors?: number }): Promise<ProjectionResult> {
+    return this.runProjectionInWorker('ltsa', features, ids, config ? { ltsaNeighbors: config.neighbors } : undefined);
+  }
+
+  /**
+   * Run TriMap (background) - Good for large datasets
+   */
+  async runTriMap(features: number[][], ids: (string|number)[], config?: { weightAdj?: number }): Promise<ProjectionResult> {
+    return this.runProjectionInWorker('trimap', features, ids, config ? { trimapWeightAdj: config.weightAdj } : undefined);
+  }
+
+  /**
+   * Run TopoMap (background) - Topology preserving
+   */
+  async runTopoMap(features: number[][], ids: (string|number)[]): Promise<ProjectionResult> {
+    return this.runProjectionInWorker('topomap', features, ids);
+  }
+
+  /**
+   * Run Sammon (background) - Sammon mapping
+   */
+  async runSammon(features: number[][], ids: (string|number)[]): Promise<ProjectionResult> {
+    return this.runProjectionInWorker('sammon', features, ids);
+  }
+
+  /**
    * Run a projection in a Web Worker (non-blocking)
    */
   private async runProjectionInWorker(
-    method: 'pca' | 'fastmap' | 'isomap' | 'tsne' | 'umap',
+    method: ProjectionMethod,
     features: number[][],
     ids: (string | number)[],
     config?: any
