@@ -30,7 +30,7 @@ export class GlyphCacheObject implements SimulationNodeDatum {
         return this._cachedMesh;
     }
 
-    set mesh(mesh: Object3D) {
+    set mesh(mesh: Object3D | undefined) {
         this._cachedMesh = mesh;
     }
 }

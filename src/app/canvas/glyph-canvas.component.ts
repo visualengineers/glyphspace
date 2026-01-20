@@ -25,6 +25,7 @@ import { RenderTask } from '../shared/enum/render-task';
 import { CanvasNavigationControlsComponent } from './navigationcontrols/navigationcontrols.component';
 import { SettingsControlPanelComponent } from "./settingscontrols/settingscontrols.component";
 import { SpatialGrid } from '../shared/helpers/spatial-grid';
+import { HybridGlyphRenderer } from '../glyph/instanced-glyph-renderer';
 
 @Component({
   selector: 'glyph-canvas',
@@ -67,6 +68,11 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
   private clippingFrameCounter = 0;
   private spatialGrid = new SpatialGrid<GlyphObject>(100); // Cell size optimized for typical glyph density
   private spatialGridDirty = true;
+
+  // Instanced rendering for large datasets (40K+ glyphs)
+  private hybridRenderer = new HybridGlyphRenderer(100000);
+  private instancedMesh: THREE.InstancedMesh | null = null;
+  private useInstancedRendering = false;
 
   // Safety mechanism to prevent infinite render loops
   private renderGlyphsCallCount = 0;
@@ -156,6 +162,14 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
     });
 
     this.configSub.unsubscribe();
+
+    // Cleanup instanced renderer
+    this.hybridRenderer.dispose();
+    if (this.instancedMesh) {
+      this.instancedMesh.geometry.dispose();
+      (this.instancedMesh.material as THREE.Material).dispose();
+      this.instancedMesh = null;
+    }
 
     // Cleanup THREE.js
     if (this.animationFrameId) cancelAnimationFrame(this.animationFrameId);
@@ -808,44 +822,71 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
     this.lastViewRect.bottom = bottom;
 
     const r = this.sizeInfo.radius;
+    let visibilityChanged = false;
 
     // Use spatial grid for efficient viewport culling if available
     if (this.spatialGrid.size > 0 && this.glyphData.length > 500) {
       // For large datasets, use spatial grid O(k) instead of full scan O(n)
-      // First mark all as not visible
       const visibleGlyphs = this.spatialGrid.queryRect(left - r, right + r, bottom - r, top + r);
 
       // Mark glyphs outside viewport as not visible
       for (const glyph of this.glyphData) {
         const cachedObject = glyph.getCacheObject(this.id, this.selectedTimestamp, this.selectedAlgorithm);
-        if (!visibleGlyphs.has(glyph)) {
-          cachedObject.visible = false;
-        }
-      }
+        const wasVisible = cachedObject.visible;
+        const isNowVisible = visibleGlyphs.has(glyph);
 
-      // Mark glyphs inside viewport as visible and render if needed
-      for (const glyph of visibleGlyphs) {
-        const cachedObject = glyph.getCacheObject(this.id, this.selectedTimestamp, this.selectedAlgorithm);
-        if (!cachedObject.visible) {
+        if (wasVisible !== isNowVisible) {
+          visibilityChanged = true;
+          cachedObject.visible = isNowVisible;
+        }
+
+        // For individual rendering, render newly visible glyphs
+        if (!this.useInstancedRendering && !wasVisible && isNowVisible) {
           this.renderGlyph(glyph);
         }
-        cachedObject.visible = true;
       }
     } else {
       // For small datasets, use simple iteration (more efficient due to less overhead)
       this.glyphData.forEach(glyph => {
         const cachedObject = glyph.getCacheObject(this.id, this.selectedTimestamp, this.selectedAlgorithm);
-        const cachedMesh = cachedObject.mesh;
-        if (cachedMesh) {
-          const isVisible =
-            cachedMesh.position.x + r > left &&
-            cachedMesh.position.x - r < right &&
-            cachedMesh.position.y + r > bottom &&
-            cachedMesh.position.y - r < top;
-          if (!cachedObject.visible && isVisible) this.renderGlyph(glyph);
-          cachedObject.visible = isVisible;
+        const x = cachedObject.x ?? 0;
+        const y = cachedObject.y ?? 0;
+        const wasVisible = cachedObject.visible;
+        const isNowVisible =
+          x + r > left &&
+          x - r < right &&
+          y + r > bottom &&
+          y - r < top;
+
+        if (wasVisible !== isNowVisible) {
+          visibilityChanged = true;
+          cachedObject.visible = isNowVisible;
+        }
+
+        // For individual rendering, render newly visible glyphs
+        if (!this.useInstancedRendering && !wasVisible && isNowVisible) {
+          this.renderGlyph(glyph);
         }
       });
+    }
+
+    // For instanced rendering, rebuild instances when visibility changes
+    if (this.useInstancedRendering && visibilityChanged && this.instancedMesh) {
+      const renderer = this.hybridRenderer.getInstancedRenderer();
+      renderer.updateInstances(
+        this.instancedMesh,
+        this.glyphData,
+        this.sizeInfo,
+        this.config.color.bind(this.config),
+        this.config.colorFeature,
+        this.config.activeFeatures,
+        this.config.featureMaxValues,
+        this.config.featureTypes,
+        this.selectedTimestamp,
+        this.selectedAlgorithm,
+        this.id
+      );
+      renderer.applyToMesh(this.instancedMesh);
     }
   }
 
@@ -884,6 +925,95 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
 
+    // Check if we should use instanced rendering for performance
+    const shouldUseInstancing = this.hybridRenderer.shouldUseInstancing(
+      this.glyphData.length,
+      this.sizeInfo.currentZoomLevel
+    );
+
+    // If switching rendering mode, clean up the old mode
+    if (shouldUseInstancing !== this.useInstancedRendering) {
+      if (this.useInstancedRendering && this.instancedMesh) {
+        // Switching from instanced to individual - remove instanced mesh
+        this.glyphGroup.remove(this.instancedMesh);
+      } else if (!this.useInstancedRendering) {
+        // Switching from individual to instanced - remove all individual meshes
+        this.glyphData.forEach((glyph: GlyphObject) => {
+          const cacheObject = glyph.getCacheObject(this.id, this.selectedTimestamp, this.selectedAlgorithm);
+          if (cacheObject.mesh) {
+            this.glyphGroup.remove(cacheObject.mesh);
+            cacheObject.mesh = undefined;
+          }
+        });
+      }
+      this.useInstancedRendering = shouldUseInstancing;
+    }
+
+    if (this.useInstancedRendering) {
+      // Use instanced rendering for large datasets at low zoom
+      this.renderGlyphsInstanced(force);
+    } else {
+      // Use individual mesh rendering for smaller datasets or higher zoom levels
+      this.renderGlyphsIndividual(force);
+    }
+
+    this.updatePositionBounds();
+    this.requestRender(RenderTask.SceneRender);
+  }
+
+  /**
+   * Render glyphs using instanced mesh for high performance with large datasets.
+   * Uses a single draw call for all visible circles at low zoom level.
+   */
+  private renderGlyphsInstanced(force = false): void {
+    const renderer = this.hybridRenderer.getInstancedRenderer();
+
+    // Create instanced mesh if not exists
+    if (!this.instancedMesh) {
+      this.instancedMesh = renderer.createInstancedMesh(this.sizeInfo.currentZoomLevel);
+      this.glyphGroup.add(this.instancedMesh);
+    }
+
+    // Mark all glyphs as visible if force rendering
+    if (force) {
+      this.glyphData.forEach((glyph: GlyphObject) => {
+        const cacheObject = glyph.getCacheObject(this.id, this.selectedTimestamp, this.selectedAlgorithm);
+        cacheObject.visible = true;
+      });
+    }
+
+    // Update instance data from glyphs
+    renderer.updateInstances(
+      this.instancedMesh,
+      this.glyphData,
+      this.sizeInfo,
+      this.config.color.bind(this.config),
+      this.config.colorFeature,
+      this.config.activeFeatures,
+      this.config.featureMaxValues,
+      this.config.featureTypes,
+      this.selectedTimestamp,
+      this.selectedAlgorithm,
+      this.id
+    );
+
+    // Apply the updates to the mesh
+    renderer.applyToMesh(this.instancedMesh);
+  }
+
+  /**
+   * Render glyphs using individual meshes.
+   * Used for smaller datasets or when detailed glyph shapes are needed.
+   */
+  private renderGlyphsIndividual(force = false): void {
+    // Remove instanced mesh if it exists
+    if (this.instancedMesh) {
+      this.glyphGroup.remove(this.instancedMesh);
+      this.instancedMesh.geometry.dispose();
+      (this.instancedMesh.material as THREE.Material).dispose();
+      this.instancedMesh = null;
+    }
+
     this.glyphData.forEach((glyph: GlyphObject) => {
       const cacheObject = glyph.getCacheObject(this.id, this.selectedTimestamp, this.selectedAlgorithm);
       const oldMesh = cacheObject.mesh;
@@ -893,9 +1023,6 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
         if (mesh != null) this.glyphGroup.add(mesh);
       }
     });
-
-    this.updatePositionBounds();
-    this.requestRender(RenderTask.SceneRender);
   }
 
   private updatePositionBounds() {
