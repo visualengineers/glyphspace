@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { GlyphObject } from '../../glyph/glyph-object';
 import { ZoomLevel } from '../../shared/enum/zoom-level';
 import { getGlyphFromObject } from '../../shared/helpers/glyph-helper';
-import { convertToScreenSpace, hitTest } from '../../shared/helpers/three-helper';
+import { hitTest } from '../../shared/helpers/three-helper';
 import { ConfigService } from '../../services/config.service';
 import { GlyphSizeInfo } from '../../glyph/glyph-size-info';
 
@@ -106,9 +106,33 @@ export class MagiclensComponent {
     this.updatePositions(lastMousePosition);
     const newLensGlyphs: GlyphObject[] = [];
 
+    // Convert screen position to world coordinates for efficient distance check
+    const rect = renderer.domElement.getBoundingClientRect();
+
+    // Convert to NDC (normalized device coordinates)
+    const mouseNDC = {
+      x: ((lastMousePosition.x - rect.left) / rect.width) * 2 - 1,
+      y: -((lastMousePosition.y - rect.top) / rect.height) * 2 + 1,
+    };
+
+    // Convert NDC to world coordinates using camera
+    const mouseWorld = {
+      x: (mouseNDC.x * (camera.right - camera.left)) / (2 * camera.zoom) + camera.position.x,
+      y: (mouseNDC.y * (camera.top - camera.bottom)) / (2 * camera.zoom) + camera.position.y,
+    };
+
+    // Calculate world-space radius based on screen pixel radius (30px) and camera zoom
+    // This avoids converting every glyph to screen space
+    const screenRadius = 30; // pixels - slightly larger tolerance for better UX
+    const worldRadius = screenRadius / camera.zoom;
+
+    // Check glyphs within world-space radius (O(n) but with cheaper distance calc)
     this.glyphGroup.children.forEach((obj) => {
-      const screen = convertToScreenSpace(obj, camera, renderer.domElement);
-      if (lastMousePosition.distanceTo(screen) < 20) {
+      const dx = obj.position.x - mouseWorld.x;
+      const dy = obj.position.y - mouseWorld.y;
+      const distSq = dx * dx + dy * dy;
+
+      if (distSq < worldRadius * worldRadius) {
         const glyph = getGlyphFromObject(obj);
         if (glyph != null) {
           newLensGlyphs.push(glyph);
@@ -166,10 +190,12 @@ export class MagiclensComponent {
     });
 
     const simulation = forceSimulation(nodes)
-      .force('collide', forceCollide().radius(this.sizeInfo.radius )) 
+      .force('collide', forceCollide().radius(this.sizeInfo.radius))
       .stop();
 
-    simulation.tick(80);
+    // Reduced ticks for better performance (was 80, now 30)
+    // Most layouts converge quickly, 30 ticks is sufficient for collision resolution
+    simulation.tick(30);
 
     nodes.forEach(node => {
       node.threeObj.position.x = node.x;
