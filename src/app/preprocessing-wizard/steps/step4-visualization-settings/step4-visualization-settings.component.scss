@@ -727,7 +727,10 @@
         flex-direction: column;
         border: 1px solid v.$gray-300;
         border-radius: 4px;
-        overflow: hidden;
+        max-height: 40vh;  // Limit table height to enable scrolling with sticky header
+        overflow-y: auto;
+        overflow-x: hidden;
+        scrollbar-gutter: stable;  // Reserve space for scrollbar to prevent content overlap
 
         .table-header,
         .table-row {
@@ -744,6 +747,9 @@
           border-bottom: 2px solid v.$gray-300;
           font-weight: 600;
           color: v.$gray-700;
+          position: sticky;
+          top: 0;
+          z-index: 10;
         }
 
         .table-row {
