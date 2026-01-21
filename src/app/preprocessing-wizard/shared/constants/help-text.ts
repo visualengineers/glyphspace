@@ -185,14 +185,108 @@ export const HELP_TEXT = {
       ]
     },
 
+    mds: {
+      name: 'MDS (Multidimensional Scaling)',
+      when: 'Computes in background',
+      description: 'Classical metric scaling that preserves pairwise distances between all points.',
+      bestFor: [
+        'Preserving overall distance structure',
+        'Creating interpretable layouts',
+        'When global relationships matter more than clusters',
+        'Comparing similarity between items'
+      ],
+      characteristics: 'Focuses on preserving distances. Similar items stay close together.',
+      speed: 'Fast (few seconds)',
+      technical: 'Minimizes stress function to preserve pairwise distances in lower dimensions.'
+    },
+
+    lle: {
+      name: 'LLE (Locally Linear Embedding)',
+      when: 'Computes in background',
+      description: 'Non-linear technique that preserves local neighborhood geometry.',
+      bestFor: [
+        'Data lying on curved manifolds',
+        'Preserving local neighborhood structure',
+        'When data has intrinsic low-dimensional structure',
+        'Discovering underlying geometry'
+      ],
+      characteristics: 'Assumes data lies on a smooth manifold. Good at unfolding curved structures.',
+      speed: 'Medium (few seconds to a minute)',
+      technical: 'Reconstructs each point from its neighbors, then finds low-dimensional embedding.',
+      warnings: [
+        'Sensitive to neighborhood size selection',
+        'May struggle with holes or disconnected regions'
+      ]
+    },
+
+    ltsa: {
+      name: 'LTSA (Local Tangent Space Alignment)',
+      when: 'Computes in background',
+      description: 'Manifold learning method that uses local tangent spaces to understand curvature.',
+      bestFor: [
+        'Curved manifolds with smooth transitions',
+        'When local geometry is complex',
+        'Understanding intrinsic data structure',
+        'Datasets with well-defined neighborhoods'
+      ],
+      characteristics: 'Better at handling curved manifolds than LLE. Uses local tangent approximations.',
+      speed: 'Medium (few seconds to a minute)',
+      technical: 'Computes local tangent spaces and aligns them to find global coordinates.'
+    },
+
+    trimap: {
+      name: 'TriMap',
+      when: 'Computes in background',
+      description: 'Modern dimensionality reduction that preserves global structure using triplet constraints.',
+      bestFor: [
+        'Large datasets where t-SNE is too slow',
+        'Preserving both local and global structure',
+        'When cluster separation matters',
+        'General-purpose visualization'
+      ],
+      characteristics: 'Good balance of speed and quality. Better global structure than t-SNE.',
+      speed: 'Medium (faster than t-SNE)',
+      technical: 'Uses triplet constraints to preserve relative distances.'
+    },
+
+    topomap: {
+      name: 'TopoMap',
+      when: 'Computes in background',
+      description: 'Topology-preserving projection that maintains connectivity relationships.',
+      bestFor: [
+        'Preserving topological features',
+        'When connectivity patterns matter',
+        'Network-like data structures',
+        'Understanding data shape'
+      ],
+      characteristics: 'Focuses on preserving the topological structure of the data.',
+      speed: 'Medium',
+      technical: 'Preserves topological features like connected components and holes.'
+    },
+
+    sammon: {
+      name: 'Sammon Mapping',
+      when: 'Computes in background',
+      description: 'Non-linear projection that emphasizes preserving small distances.',
+      bestFor: [
+        'When small distances are more important than large ones',
+        'Preserving local similarity',
+        'Compact visualizations',
+        'Data with meaningful local structure'
+      ],
+      characteristics: 'Puts more weight on preserving small distances. Good for local structure.',
+      speed: 'Medium',
+      technical: 'Minimizes Sammon stress with inverse weighting on original distances.'
+    },
+
     backgroundProcessing: {
       title: 'How Background Processing Works',
       description: `
-        <strong>Immediate Start:</strong> After data cleaning, IsoMap runs immediately and loads into Glyphspace.
-        You can start exploring your data right away.<br/><br/>
+        <strong>Immediate Start:</strong> After data cleaning, FastMap runs immediately and loads into Glyphspace.
+        FastMap is ideal for large datasets (40K+) due to its O(n) complexity.<br/><br/>
 
-        <strong>Background Computation:</strong> While you explore the IsoMap view, other selected projections
-        (PCA, FastMap, t-SNE, UMAP) compute in the background without blocking your workflow.<br/><br/>
+        <strong>Background Computation:</strong> While you explore with FastMap, other selected projections
+        (PCA, IsoMap, MDS, LLE, t-SNE, UMAP, TriMap, etc.) compute in the background without blocking your workflow.<br/><br/>
 
         <strong>Notifications:</strong> When each projection finishes, you'll see a notification with an
         option to switch to that view. The projection is automatically added to the dropdown.<br/><br/>
@@ -234,7 +328,34 @@ export const HELP_TEXT = {
       • <strong>Low (0.0-0.1):</strong> Tight, dense clusters<br/>
       • <strong>Medium (0.1-0.3):</strong> Balanced<br/>
       • <strong>High (0.4-0.99):</strong> Loose, spread out points<br/><br/>
-      <em>Lower values emphasize cluster structure</em>`
+      <em>Lower values emphasize cluster structure</em>`,
+
+    isomapNeighbors: `<strong>Neighbors</strong> controls the size of local neighborhoods<br/><br/>
+      • <strong>Auto (0):</strong> Automatically set based on dataset size<br/>
+      • <strong>Low (5-15):</strong> Captures fine local structure<br/>
+      • <strong>Medium (15-50):</strong> Balanced approach<br/>
+      • <strong>High (50+):</strong> Smoother, more global structure<br/><br/>
+      <em>Smaller values reveal local manifold structure, larger values create smoother projections</em>`,
+
+    lleNeighbors: `<strong>Neighbors</strong> for local linear reconstruction<br/><br/>
+      • <strong>Auto (0):</strong> Automatically set (typically N/10)<br/>
+      • <strong>Low (5-10):</strong> Very local reconstruction<br/>
+      • <strong>Medium (10-30):</strong> Balanced<br/>
+      • <strong>High (30+):</strong> Broader neighborhoods<br/><br/>
+      <em>Should be larger than the intrinsic dimensionality of the data</em>`,
+
+    ltsaNeighbors: `<strong>Neighbors</strong> for tangent space estimation<br/><br/>
+      • <strong>Auto (0):</strong> Automatically set based on dataset<br/>
+      • <strong>Low (5-15):</strong> Captures detailed curvature<br/>
+      • <strong>Medium (15-40):</strong> Balanced approach<br/>
+      • <strong>High (40+):</strong> Smoother tangent spaces<br/><br/>
+      <em>Larger values produce smoother embeddings but may miss fine structure</em>`,
+
+    trimapWeightAdj: `<strong>Weight Adjustment</strong> controls triplet constraint strength<br/><br/>
+      • <strong>Low (100-300):</strong> More flexible embedding<br/>
+      • <strong>Default (500):</strong> Balanced<br/>
+      • <strong>High (700-2000):</strong> Stricter triplet preservation<br/><br/>
+      <em>Higher values produce tighter clusters but may over-constrain the layout</em>`
   },
 
   // Table Column Headers

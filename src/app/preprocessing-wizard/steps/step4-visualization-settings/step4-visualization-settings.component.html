@@ -172,24 +172,24 @@
           <app-help-tooltip [helpText]="HELP_TEXT.general.projection"></app-help-tooltip>
         </h3>
         <p class="panel-description">
-          IsoMap runs as the primary projection and loads immediately.
+          FastMap runs as the primary projection and loads immediately.
           Enable additional methods below to compute in the background.
         </p>
 
         <!-- Primary Projection (always enabled) -->
         <div class="primary-projection-card">
           <div class="card-icon">
-            <span class="material-icons">map</span>
+            <span class="material-icons">bolt</span>
           </div>
           <div class="card-content">
             <div class="card-header-row">
               <div class="header-with-badge">
-                <h4>IsoMap</h4>
+                <h4>FastMap</h4>
                 <span class="speed-badge badge-primary">Primary</span>
               </div>
               <span class="material-icons check-icon">check_circle</span>
             </div>
-            <p class="card-description">Non-linear manifold learning - Preserves geodesic distances for better structure</p>
+            <p class="card-description">Fast distance-preserving projection - O(n) complexity, ideal for large datasets (40K+)</p>
           </div>
         </div>
 
@@ -201,6 +201,7 @@
               class="method-card"
               [class.enabled]="projectionConfig[method.key]"
               [class.disabled]="isMethodDisabled(method)"
+              [class.has-warning]="shouldShowLargeDatasetWarning(method)"
               (click)="toggleProjectionMethod(method)">
               <div class="card-icon">
                 <span class="material-icons">{{ method.icon }}</span>
@@ -212,6 +213,11 @@
                     @if (method.badge) {
                       <span class="speed-badge" [class]="'badge-' + method.badge.toLowerCase()">{{ method.badge }}</span>
                     }
+                    @if (shouldShowLargeDatasetWarning(method)) {
+                      <span class="warning-badge" title="May be slow or fail with large datasets (>10K items)">
+                        <span class="material-icons">warning</span>
+                      </span>
+                    }
                   </div>
                   <input
                     type="checkbox"
@@ -221,15 +227,164 @@
                     (change)="toggleProjectionMethod(method)">
                 </div>
                 <p class="card-description">{{ method.description }}</p>
+                @if (shouldShowLargeDatasetWarning(method) && projectionConfig[method.key]) {
+                  <p class="warning-text">May be slow or cause memory issues with {{ getDatasetRowCount() | number }} items</p>
+                }
               </div>
             </div>
           }
         </div>
 
         <!-- Method Parameters -->
-        @if (projectionConfig.enableTSNE || projectionConfig.enableUMAP) {
+        @if (projectionConfig.enableTSNE || projectionConfig.enableUMAP || projectionConfig.enableIsoMap || projectionConfig.enableLLE || projectionConfig.enableLTSA || projectionConfig.enableTriMap) {
           <div class="parameters-section">
             <h4>Method Parameters</h4>
+
+            <!-- IsoMap Parameters -->
+            @if (projectionConfig.enableIsoMap) {
+              <div class="parameter-card">
+                <div class="parameter-header">
+                  <span class="material-icons">auto_graph</span>
+                  <h5>IsoMap Parameters</h5>
+                </div>
+                <div class="parameter-body">
+                  <div class="parameter-row">
+                    <div class="parameter-field">
+                      <label>
+                        Neighbors (0 = auto)
+                        <app-help-tooltip [helpText]="HELP_TEXT.parameters.isomapNeighbors"></app-help-tooltip>
+                      </label>
+                      <div class="input-group">
+                        <input
+                          type="range"
+                          min="0"
+                          max="200"
+                          [value]="projectionConfig.isomapNeighbors"
+                          (input)="onIsoMapNeighborsChange(+$any($event.target).value)"
+                          class="range-input">
+                        <input
+                          type="number"
+                          min="0"
+                          max="200"
+                          [value]="projectionConfig.isomapNeighbors"
+                          (input)="onIsoMapNeighborsChange(+$any($event.target).value)"
+                          class="number-input">
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            }
+
+            <!-- LLE Parameters -->
+            @if (projectionConfig.enableLLE) {
+              <div class="parameter-card">
+                <div class="parameter-header">
+                  <span class="material-icons">blur_on</span>
+                  <h5>LLE Parameters</h5>
+                </div>
+                <div class="parameter-body">
+                  <div class="parameter-row">
+                    <div class="parameter-field">
+                      <label>
+                        Neighbors (0 = auto)
+                        <app-help-tooltip [helpText]="HELP_TEXT.parameters.lleNeighbors"></app-help-tooltip>
+                      </label>
+                      <div class="input-group">
+                        <input
+                          type="range"
+                          min="0"
+                          max="200"
+                          [value]="projectionConfig.lleNeighbors"
+                          (input)="onLLENeighborsChange(+$any($event.target).value)"
+                          class="range-input">
+                        <input
+                          type="number"
+                          min="0"
+                          max="200"
+                          [value]="projectionConfig.lleNeighbors"
+                          (input)="onLLENeighborsChange(+$any($event.target).value)"
+                          class="number-input">
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            }
+
+            <!-- LTSA Parameters -->
+            @if (projectionConfig.enableLTSA) {
+              <div class="parameter-card">
+                <div class="parameter-header">
+                  <span class="material-icons">waves</span>
+                  <h5>LTSA Parameters</h5>
+                </div>
+                <div class="parameter-body">
+                  <div class="parameter-row">
+                    <div class="parameter-field">
+                      <label>
+                        Neighbors (0 = auto)
+                        <app-help-tooltip [helpText]="HELP_TEXT.parameters.ltsaNeighbors"></app-help-tooltip>
+                      </label>
+                      <div class="input-group">
+                        <input
+                          type="range"
+                          min="0"
+                          max="200"
+                          [value]="projectionConfig.ltsaNeighbors"
+                          (input)="onLTSANeighborsChange(+$any($event.target).value)"
+                          class="range-input">
+                        <input
+                          type="number"
+                          min="0"
+                          max="200"
+                          [value]="projectionConfig.ltsaNeighbors"
+                          (input)="onLTSANeighborsChange(+$any($event.target).value)"
+                          class="number-input">
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            }
+
+            <!-- TriMap Parameters -->
+            @if (projectionConfig.enableTriMap) {
+              <div class="parameter-card">
+                <div class="parameter-header">
+                  <span class="material-icons">timeline</span>
+                  <h5>TriMap Parameters</h5>
+                </div>
+                <div class="parameter-body">
+                  <div class="parameter-row">
+                    <div class="parameter-field">
+                      <label>
+                        Weight Adjustment
+                        <app-help-tooltip [helpText]="HELP_TEXT.parameters.trimapWeightAdj"></app-help-tooltip>
+                      </label>
+                      <div class="input-group">
+                        <input
+                          type="range"
+                          min="100"
+                          max="2000"
+                          step="50"
+                          [value]="projectionConfig.trimapWeightAdj"
+                          (input)="onTriMapWeightAdjChange(+$any($event.target).value)"
+                          class="range-input">
+                        <input
+                          type="number"
+                          min="100"
+                          max="2000"
+                          step="50"
+                          [value]="projectionConfig.trimapWeightAdj"
+                          (input)="onTriMapWeightAdjChange(+$any($event.target).value)"
+                          class="number-input">
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            }
 
             <!-- t-SNE Parameters -->
             @if (projectionConfig.enableTSNE) {
@@ -294,7 +449,7 @@
                       <span class="material-icons">warning</span>
                       <div>
                         <p><strong>{{ getTSNETimeEstimate() }}</strong></p>
-                        <p>t-SNE computation will run in the background. You can explore your data with IsoMap while waiting.</p>
+                        <p>t-SNE computation will run in the background. You can explore your data with FastMap while waiting.</p>
                       </div>
                     </div>
                   }
@@ -502,7 +657,7 @@
         <span class="material-icons">info</span>
         <div>
           <strong>Processing Info:</strong> Processing time depends on your dataset size and enabled projection methods.
-          IsoMap loads immediately, allowing you to explore your data right away. Additional projections compute in the background.
+          FastMap loads immediately, allowing you to explore your data right away. Additional projections compute in the background.
         </div>
       </div>
 
@@ -565,7 +720,7 @@
             </div>
             <div class="stat-item">
               <span class="material-icons">check</span>
-              <span>IsoMap projection ready</span>
+              <span>FastMap projection ready</span>
             </div>
             <div class="stat-item">
               <span class="material-icons">check</span>

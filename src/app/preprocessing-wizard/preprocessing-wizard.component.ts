@@ -104,6 +104,7 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
   }
 
   onDataLoaded(profile: DataProfile): void {
+    // User clicked "Continue to Column Selection" button - proceed to next step
     this.preprocessingService.nextStep();
   }
 

@@ -1,4 +1,5 @@
 @use '../../../styles/variables' as v;
+@use '../../../styles/mixins' as m;
 
 .legend-dropdown {
   position: absolute;
@@ -128,29 +129,7 @@
         color: v.$gray-800;
       }
 
-      &::after {
-        content: attr(data-tooltip);
-        position: absolute;
-        top: 100%;
-        left: 50%;
-        transform: translateX(-70%);
-        margin-top: 4px;
-        max-width: 150px;
-        background: v.$tooltip-bg;
-        color: v.$tooltip-text;
-        padding: 3px 6px;
-        font-size: 12px;
-        white-space: nowrap;
-        opacity: 0;
-        pointer-events: none;
-        transition: opacity 0.15s ease-in-out;
-        z-index: 1000;
-        border-radius: 2px;
-      }
-
-      &:hover::after {
-        opacity: 1;
-      }
+      @include m.tooltip-below(4px);
 
       &:disabled {
         pointer-events: none;

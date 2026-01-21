@@ -46,16 +46,36 @@ export const DEFAULT_CLEANING_CONFIG: CleaningConfig = {
 };
 
 export const DEFAULT_PROJECTION_CONFIG: ProjectionConfig = {
-  // IsoMap is always enabled as primary (runs immediately)
+  // FastMap is always enabled as primary (runs immediately, O(n) complexity)
   // These are optional background projections:
-  enablePCA: true,        // PCA runs in background
-  enableIsoMap: false,    // IsoMap is primary, so this toggles FastMap as background alternative
+  enablePCA: true,        // PCA runs in background - very fast
+  enableIsoMap: true,     // IsoMap runs in background - fast, preserves geodesic distances
+  enableMDS: false,       // MDS runs in background - fast
+  enableLLE: false,       // LLE runs in background - medium
+  enableLTSA: false,      // LTSA runs in background - medium
   enableTSNE: false,      // t-SNE runs in background (slow)
   enableUMAP: false,      // UMAP runs in background (slow)
+  enableTriMap: false,    // TriMap runs in background - medium
+  enableTopoMap: false,   // TopoMap runs in background - medium
+  enableSammon: false,    // Sammon runs in background - medium
 
+  // IsoMap parameters (0 = auto based on dataset size)
+  isomapNeighbors: 0,
+
+  // LLE parameters (0 = auto)
+  lleNeighbors: 0,
+
+  // LTSA parameters (0 = auto)
+  ltsaNeighbors: 0,
+
+  // t-SNE parameters
   tsnePerplexity: 30,
   tsneIterations: 1000,
 
+  // UMAP parameters
   umapNeighbors: 15,
-  umapMinDist: 0.1
+  umapMinDist: 0.1,
+
+  // TriMap parameters
+  trimapWeightAdj: 500
 };

@@ -1,12 +1,22 @@
 import { Injectable, NgZone } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
 import * as druid from '@saehrimnir/druidjs';
+import {
+  ProjectionMethod,
+  ProjectionResult,
+  ProjectionComputeConfig,
+  ProjectionWorkerRequest,
+  ProjectionWorkerResponse
+} from '../shared/types/projection.types';
 
-export interface ProjectionResult {
-  method: 'pca' | 'fastmap' | 'isomap' | 'tsne' | 'umap';
-  positions: Array<{id: string | number; x: number; y: number}>;
-  computeTime: number;  // milliseconds
-}
+// Re-export types for backward compatibility
+export type {
+  ProjectionMethod,
+  ProjectionResult,
+  ProjectionComputeConfig,
+  ProjectionWorkerRequest,
+  ProjectionWorkerResponse
+} from '../shared/types/projection.types';
 
 export interface BackgroundStatus {
   method: string;
@@ -14,30 +24,6 @@ export interface BackgroundStatus {
   progress: number;
   message: string;
   error?: string;
-}
-
-// Worker message types
-interface ProjectionWorkerRequest {
-  type: 'compute';
-  method: 'pca' | 'fastmap' | 'isomap' | 'tsne' | 'umap';
-  features: number[][];
-  ids: (string | number)[];
-  config?: {
-    perplexity?: number;
-    iterations?: number;
-    neighbors?: number;
-    minDist?: number;
-  };
-}
-
-interface ProjectionWorkerResponse {
-  type: 'result' | 'error' | 'progress';
-  method?: string;
-  positions?: Array<{ id: string | number; x: number; y: number }>;
-  computeTime?: number;
-  error?: string;
-  progress?: number;
-  message?: string;
 }
 
 @Injectable({
@@ -143,8 +129,8 @@ export class ProjectionService {
    * Run IsoMap (background) - runs in Web Worker
    * Non-linear manifold learning projection
    */
-  async runIsoMap(features: number[][], ids: (string|number)[]): Promise<ProjectionResult> {
-    return this.runProjectionInWorker('isomap', features, ids);
+  async runIsoMap(features: number[][], ids: (string|number)[], config?: { neighbors?: number }): Promise<ProjectionResult> {
+    return this.runProjectionInWorker('isomap', features, ids, config ? { isomapNeighbors: config.neighbors } : undefined);
   }
 
   /**
@@ -179,10 +165,52 @@ export class ProjectionService {
   }
 
   /**
+   * Run MDS (background) - Classical Multidimensional Scaling
+   */
+  async runMDS(features: number[][], ids: (string|number)[]): Promise<ProjectionResult> {
+    return this.runProjectionInWorker('mds', features, ids);
+  }
+
+  /**
+   * Run LLE (background) - Locally Linear Embedding
+   */
+  async runLLE(features: number[][], ids: (string|number)[], config?: { neighbors?: number }): Promise<ProjectionResult> {
+    return this.runProjectionInWorker('lle', features, ids, config ? { lleNeighbors: config.neighbors } : undefined);
+  }
+
+  /**
+   * Run LTSA (background) - Local Tangent Space Alignment
+   */
+  async runLTSA(features: number[][], ids: (string|number)[], config?: { neighbors?: number }): Promise<ProjectionResult> {
+    return this.runProjectionInWorker('ltsa', features, ids, config ? { ltsaNeighbors: config.neighbors } : undefined);
+  }
+
+  /**
+   * Run TriMap (background) - Good for large datasets
+   */
+  async runTriMap(features: number[][], ids: (string|number)[], config?: { weightAdj?: number }): Promise<ProjectionResult> {
+    return this.runProjectionInWorker('trimap', features, ids, config ? { trimapWeightAdj: config.weightAdj } : undefined);
+  }
+
+  /**
+   * Run TopoMap (background) - Topology preserving
+   */
+  async runTopoMap(features: number[][], ids: (string|number)[]): Promise<ProjectionResult> {
+    return this.runProjectionInWorker('topomap', features, ids);
+  }
+
+  /**
+   * Run Sammon (background) - Sammon mapping
+   */
+  async runSammon(features: number[][], ids: (string|number)[]): Promise<ProjectionResult> {
+    return this.runProjectionInWorker('sammon', features, ids);
+  }
+
+  /**
    * Run a projection in a Web Worker (non-blocking)
    */
   private async runProjectionInWorker(
-    method: 'pca' | 'fastmap' | 'isomap' | 'tsne' | 'umap',
+    method: ProjectionMethod,
     features: number[][],
     ids: (string | number)[],
     config?: any

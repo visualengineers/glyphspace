@@ -54,6 +54,29 @@
           </select>
         </div>
 
+        <!-- BACKGROUND PROJECTION STATUS -->
+        <div class="form-group" *ngIf="backgroundProjections.length > 0">
+          <label class="menu-label">BACKGROUND PROJECTIONS</label>
+          <div class="projection-status-list" (wheel)="$event.stopPropagation()">
+            <div *ngFor="let proj of backgroundProjections" class="projection-status-item" [ngClass]="'status-' + proj.status" [class.fading]="proj.fading">
+              <div class="status-row">
+                <span class="method-name">{{ proj.method }}</span>
+                <span class="status-indicator" [ngClass]="proj.status">
+                  <ng-container [ngSwitch]="proj.status">
+                    <span *ngSwitchCase="'running'" class="material-icons spinning">sync</span>
+                    <span *ngSwitchCase="'complete'" class="material-icons">check_circle</span>
+                    <span *ngSwitchCase="'error'" class="material-icons">error</span>
+                    <span *ngSwitchCase="'pending'" class="material-icons">schedule</span>
+                  </ng-container>
+                </span>
+              </div>
+              <div *ngIf="proj.status === 'running'" class="progress-bar-mini" [class.indeterminate]="proj.progress === 0">
+                <div class="progress-fill-mini" [style.width.%]="proj.progress > 0 ? proj.progress : 100"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div class="animation-control-group">
           <label class="menu-label">TRANSITION SPEED AND PLAYBACK</label>
           <div class="animation-controls">
