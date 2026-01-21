@@ -101,6 +101,13 @@ export class SettingsControlPanelComponent {
 
     this.config.glyphConfigSubject$.subscribe(cfg => {
       this.glyphConfig = cfg;
+      // Sync color scale and color feature selection when config changes (e.g., from another canvas)
+      if (this.selectedColorScaleId !== this.config.colorRange) {
+        this.selectedColorScaleId = this.config.colorRange;
+      }
+      if (this.selectedColorAttribute !== this.config.colorFeature) {
+        this.selectedColorAttribute = this.config.colorFeature;
+      }
     });
   }
 
