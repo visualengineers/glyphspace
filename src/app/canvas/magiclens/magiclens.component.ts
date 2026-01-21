@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { GlyphObject } from '../../glyph/glyph-object';
 import { ZoomLevel } from '../../shared/enum/zoom-level';
 import { getGlyphFromObject } from '../../shared/helpers/glyph-helper';
-import { hitTest } from '../../shared/helpers/three-helper';
+import { hitTest, screenToWorld } from '../../shared/helpers/three-helper';
 import { ConfigService } from '../../services/config.service';
 import { GlyphSizeInfo } from '../../glyph/glyph-size-info';
 
@@ -106,20 +106,9 @@ export class MagiclensComponent {
     this.updatePositions(lastMousePosition);
     const newLensGlyphs: GlyphObject[] = [];
 
-    // Convert screen position to world coordinates for efficient distance check
-    const rect = renderer.domElement.getBoundingClientRect();
-
-    // Convert to NDC (normalized device coordinates)
-    const mouseNDC = {
-      x: ((lastMousePosition.x - rect.left) / rect.width) * 2 - 1,
-      y: -((lastMousePosition.y - rect.top) / rect.height) * 2 + 1,
-    };
-
-    // Convert NDC to world coordinates using camera
-    const mouseWorld = {
-      x: (mouseNDC.x * (camera.right - camera.left)) / (2 * camera.zoom) + camera.position.x,
-      y: (mouseNDC.y * (camera.top - camera.bottom)) / (2 * camera.zoom) + camera.position.y,
-    };
+    // Convert screen position to world coordinates using shared helper
+    const mouseEvent = { clientX: lastMousePosition.x, clientY: lastMousePosition.y } as MouseEvent;
+    const mouseWorld = screenToWorld(mouseEvent, renderer, camera);
 
     // Calculate world-space radius based on screen pixel radius (30px) and camera zoom
     // This avoids converting every glyph to screen space
