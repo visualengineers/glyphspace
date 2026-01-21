@@ -37,7 +37,28 @@ async function runPCA(
   const startTime = performance.now();
   const druidModule = await loadDruidJS();
 
-  const pca = new druidModule.PCA(features, 2);
+  // Center the data first (subtract column means)
+  // DruidJS PCA computes eigenvectors from centered data but projects uncentered data
+  const nRows = features.length;
+  const nCols = features[0].length;
+
+  // Compute column means
+  const means = new Array(nCols).fill(0);
+  for (let i = 0; i < nRows; i++) {
+    for (let j = 0; j < nCols; j++) {
+      means[j] += features[i][j];
+    }
+  }
+  for (let j = 0; j < nCols; j++) {
+    means[j] /= nRows;
+  }
+
+  // Center the data
+  const centeredFeatures = features.map(row =>
+    row.map((val, j) => val - means[j])
+  );
+
+  const pca = new druidModule.PCA(centeredFeatures, { d: 2 });
   const embedding = pca.transform();
 
   const positions = embedding.map((point: number[], idx: number) => ({
@@ -61,7 +82,7 @@ async function runFastMap(
   const startTime = performance.now();
   const druidModule = await loadDruidJS();
 
-  const fastmap = new druidModule.FASTMAP(features, 2);
+  const fastmap = new druidModule.FASTMAP(features, { d: 2 });
   const embedding = fastmap.transform();
 
   const positions = embedding.map((point: number[], idx: number) => ({
@@ -190,7 +211,7 @@ async function runMDS(
   const startTime = performance.now();
   const druidModule = await loadDruidJS();
 
-  const mds = new druidModule.MDS(features, 2);
+  const mds = new druidModule.MDS(features, { d: 2 });
   const embedding = mds.transform();
 
   const positions = embedding.map((point: number[], idx: number) => ({
@@ -299,7 +320,7 @@ async function runTopoMap(
   const startTime = performance.now();
   const druidModule = await loadDruidJS();
 
-  const topomap = new druidModule.TopoMap(features, 2);
+  const topomap = new druidModule.TopoMap(features, { d: 2 });
   const embedding = topomap.transform();
 
   const positions = embedding.map((point: number[], idx: number) => ({
@@ -322,7 +343,7 @@ async function runSammon(
   const startTime = performance.now();
   const druidModule = await loadDruidJS();
 
-  const sammon = new druidModule.SAMMON(features, 2);
+  const sammon = new druidModule.SAMMON(features, { d: 2 });
   const embedding = sammon.transform();
 
   const positions = embedding.map((point: number[], idx: number) => ({

@@ -43,8 +43,29 @@ export class ProjectionService {
     const startTime = Date.now();
 
     try {
-      // DruidJS PCA: new druid.PCA(data, components).transform()
-      const pca = new (druid as any).PCA(features, 2);  // 2 components for 2D visualization
+      // Center the data first (subtract column means)
+      // DruidJS PCA computes eigenvectors from centered data but projects uncentered data
+      const nRows = features.length;
+      const nCols = features[0].length;
+
+      // Compute column means
+      const means = new Array(nCols).fill(0);
+      for (let i = 0; i < nRows; i++) {
+        for (let j = 0; j < nCols; j++) {
+          means[j] += features[i][j];
+        }
+      }
+      for (let j = 0; j < nCols; j++) {
+        means[j] /= nRows;
+      }
+
+      // Center the data
+      const centeredFeatures = features.map(row =>
+        row.map((val, j) => val - means[j])
+      );
+
+      // DruidJS PCA: new druid.PCA(data, { d: dimensions })
+      const pca = new (druid as any).PCA(centeredFeatures, { d: 2 });
       const embedding = pca.transform();
 
       const positions = embedding.map((coords: number[], i: number) => ({
@@ -72,7 +93,7 @@ export class ProjectionService {
     const startTime = Date.now();
 
     try {
-      const fastmap = new (druid as any).FASTMAP(features, 2);
+      const fastmap = new (druid as any).FASTMAP(features, { d: 2 });
       const embedding = fastmap.transform();
 
       const positions = embedding.map((coords: number[], i: number) => ({
@@ -99,7 +120,7 @@ export class ProjectionService {
     const startTime = Date.now();
 
     try {
-      const isomap = new (druid as any).ISOMAP(features, 2);
+      const isomap = new (druid as any).ISOMAP(features, { d: 2 });
       const embedding = isomap.transform();
 
       const positions = embedding.map((coords: number[], i: number) => ({

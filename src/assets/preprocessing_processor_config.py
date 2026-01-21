@@ -346,46 +346,133 @@ def build_dataset_collection(df_original, df_processed, feature_names, feature_c
         else:
             use_cache.append(False)
 
-    # Build features list with optimized vectorized lookups and progress reporting
-    features_list = []
+    # Build features list with aggressive memory optimization for large datasets
     n_rows = len(df_processed)
     last_progress = 85
     n_features = len(feature_names)
+    total_cells = n_rows * n_features
 
-    # Process in chunks for better progress reporting and responsiveness
-    for idx in range(n_rows):
-        # Always convert ID to string for consistency across the system
-        row_id = str(id_values[idx])
+    # Determine which features to actually include in the output
+    # For very large datasets, only include features needed for visualization
+    MEMORY_CELL_LIMIT = 20_000_000  # 20M cells max to avoid memory issues
+    use_sparse_features = total_cells > MEMORY_CELL_LIMIT
 
-        # Feature values (normalized) - single vectorized dict comprehension
-        feature_dict = {str(i + 1): float(feature_values[idx, i]) for i in range(n_features)}
+    # Get user-selected features for visualization
+    user_glyph_features = config.get('glyphFeatures', [])
+    user_tooltip_features = config.get('tooltipFeatures', [])
 
-        # Build value_dict - optimized with pre-built arrays
-        value_dict = {}
-        for i in range(n_features):
-            if use_cache[i]:
-                # Fast O(1) numpy array access - direct column from original data
-                orig_val = original_values_cache[base_col_list[i]][idx]
-                value_dict[str(i + 1)] = str(orig_val) if pd.notna(orig_val) else '0'
+    # Find color feature
+    column_configs_temp = {col['name']: col for col in config.get('columns', [])}
+    color_feature_name = None
+    for col_name, col_config in column_configs_temp.items():
+        if col_config.get('isColorFeature', False):
+            color_feature_name = col_name
+            break
+
+    if use_sparse_features:
+        # Build set of feature indices to include (only visualization-relevant features)
+        include_indices = set()
+
+        # Add glyph features
+        for feat_name in user_glyph_features:
+            try:
+                idx = feature_names.index(feat_name)
+                include_indices.add(idx)
+            except ValueError:
+                pass
+
+        # Add color feature
+        if color_feature_name:
+            for i, col in enumerate(feature_names):
+                base_col = col.split('_')[0] if '_' in col else col
+                if base_col == color_feature_name:
+                    include_indices.add(i)
+                    break
+
+        # Add tooltip features (limited)
+        for feat_name in (user_tooltip_features or [])[:20]:  # Max 20 tooltip features
+            try:
+                idx = feature_names.index(feat_name)
+                include_indices.add(idx)
+            except ValueError:
+                pass
+
+        # If no user selection, use first 12 features
+        if not include_indices:
+            include_indices = set(range(min(12, n_features)))
+
+        # Convert to sorted list for consistent ordering
+        include_indices = sorted(include_indices)
+        sparse_n_features = len(include_indices)
+
+        report_progress('Building dataset', 85,
+            f'Large dataset ({n_rows:,} × {n_features}) - using {sparse_n_features} key features to save memory')
+
+        # Build mapping from new index to old index
+        idx_mapping = {new_idx: old_idx for new_idx, old_idx in enumerate(include_indices)}
+        # Reverse mapping for schema
+        old_to_new = {old_idx: new_idx for new_idx, old_idx in enumerate(include_indices)}
+    else:
+        include_indices = list(range(n_features))
+        sparse_n_features = n_features
+        idx_mapping = {i: i for i in range(n_features)}
+        old_to_new = idx_mapping
+
+    # Build feature list with only included features
+    features_list = []
+    CHUNK_SIZE = 10000
+
+    for chunk_start in range(0, n_rows, CHUNK_SIZE):
+        chunk_end = min(chunk_start + CHUNK_SIZE, n_rows)
+
+        for idx in range(chunk_start, chunk_end):
+            row_id = str(id_values[idx])
+
+            # Feature values - only include selected features for large datasets
+            feature_dict = {}
+            for new_idx, old_idx in idx_mapping.items():
+                feature_dict[str(new_idx + 1)] = float(feature_values[idx, old_idx])
+
+            # For large datasets, skip separate values dict
+            if use_sparse_features:
+                item = {
+                    'id': row_id,
+                    'defaultcontext': '1',
+                    'features': {'1': feature_dict},
+                    'values': feature_dict
+                }
             else:
-                # Fallback for derived columns
-                value_dict[str(i + 1)] = str(feature_values[idx, i])
+                # For smaller datasets: include original values for tooltips
+                value_dict = {}
+                for new_idx, old_idx in idx_mapping.items():
+                    if use_cache[old_idx]:
+                        orig_val = original_values_cache[base_col_list[old_idx]][idx]
+                        value_dict[str(new_idx + 1)] = str(orig_val) if pd.notna(orig_val) else '0'
+                    else:
+                        value_dict[str(new_idx + 1)] = str(feature_values[idx, old_idx])
 
-        features_list.append({
-            'id': row_id,
-            'defaultcontext': '1',
-            'features': {'1': feature_dict},
-            'values': value_dict
-        })
+                item = {
+                    'id': row_id,
+                    'defaultcontext': '1',
+                    'features': {'1': feature_dict},
+                    'values': value_dict
+                }
 
-        # Progress reporting every FEATURE_BUILD_CHUNK_SIZE rows for better UX
-        if (idx + 1) % FEATURE_BUILD_CHUNK_SIZE == 0:
-            # Progress scales from 85% to 93% (8% total for feature building)
-            progress = 85 + int(((idx + 1) / n_rows) * 8)
-            if progress > last_progress:
-                report_progress('Building dataset', progress,
-                    f'Processing features: {idx + 1:,} / {n_rows:,} rows')
-                last_progress = progress
+            features_list.append(item)
+
+        # Progress reporting per chunk
+        progress = 85 + int((chunk_end / n_rows) * 8)
+        if progress > last_progress:
+            report_progress('Building dataset', progress,
+                f'Processing features: {chunk_end:,} / {n_rows:,} rows')
+            last_progress = progress
+
+    # Update feature_names to only include sparse features if applicable
+    if use_sparse_features:
+        sparse_feature_names = [feature_names[i] for i in include_indices]
+        # Update mappings for schema/meta building below
+        feature_names = sparse_feature_names
+        n_features = sparse_n_features
 
     # Final progress update before metadata
     report_progress('Building dataset', 93, 'Computing metadata statistics')
