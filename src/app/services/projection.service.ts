@@ -1,14 +1,10 @@
 import { Injectable, NgZone } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
 import * as druid from '@saehrimnir/druidjs';
+import { ProjectionMethod, ProjectionResult, ProjectionComputeConfig } from '../shared/types/projection.types';
 
-export type ProjectionMethod = 'pca' | 'fastmap' | 'isomap' | 'mds' | 'lle' | 'ltsa' | 'tsne' | 'umap' | 'trimap' | 'topomap' | 'sammon';
-
-export interface ProjectionResult {
-  method: ProjectionMethod;
-  positions: Array<{id: string | number; x: number; y: number}>;
-  computeTime: number;  // milliseconds
-}
+// Re-export types for backward compatibility
+export type { ProjectionMethod, ProjectionResult, ProjectionComputeConfig } from '../shared/types/projection.types';
 
 export interface BackgroundStatus {
   method: string;
@@ -24,20 +20,7 @@ interface ProjectionWorkerRequest {
   method: ProjectionMethod;
   features: number[][];
   ids: (string | number)[];
-  config?: {
-    // t-SNE parameters
-    perplexity?: number;
-    iterations?: number;
-    // UMAP parameters
-    neighbors?: number;
-    minDist?: number;
-    // IsoMap, LLE, LTSA parameters
-    isomapNeighbors?: number;
-    lleNeighbors?: number;
-    ltsaNeighbors?: number;
-    // TriMap parameters
-    trimapWeightAdj?: number;
-  };
+  config?: ProjectionComputeConfig;
 }
 
 interface ProjectionWorkerResponse {

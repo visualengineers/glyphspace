@@ -6,7 +6,7 @@
  * to prevent blocking the main UI thread.
  */
 
-type ProjectionMethod = 'pca' | 'fastmap' | 'isomap' | 'mds' | 'lle' | 'ltsa' | 'tsne' | 'umap' | 'trimap' | 'topomap' | 'sammon';
+import { ProjectionMethod, ProjectionComputeConfig } from '../shared/types/projection.types';
 
 // Worker message types
 interface ProjectionRequest {
@@ -14,20 +14,7 @@ interface ProjectionRequest {
   method: ProjectionMethod;
   features: number[][];
   ids: (string | number)[];
-  config?: {
-    // t-SNE parameters
-    perplexity?: number;
-    iterations?: number;
-    // UMAP parameters
-    neighbors?: number;
-    minDist?: number;
-    // IsoMap, LLE, LTSA parameters
-    isomapNeighbors?: number;
-    lleNeighbors?: number;
-    ltsaNeighbors?: number;
-    // TriMap parameters
-    trimapWeightAdj?: number;
-  };
+  config?: ProjectionComputeConfig;
 }
 
 interface ProjectionResponse {

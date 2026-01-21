@@ -13,7 +13,12 @@ import { HelpTooltipComponent } from '../../shared/help-tooltip/help-tooltip.com
 import { HELP_TEXT } from '../../shared/constants/help-text';
 import { STEP_INFO } from '../../shared/constants/step-info';
 
-interface ProjectionMethod {
+/**
+ * UI configuration for a projection method.
+ * Not to be confused with ProjectionMethod type from shared/types/projection.types.ts
+ * which is the string union type for method identifiers.
+ */
+interface ProjectionMethodUI {
   key: keyof Pick<ProjectionConfig, 'enablePCA' | 'enableIsoMap' | 'enableMDS' | 'enableLLE' | 'enableLTSA' | 'enableTSNE' | 'enableUMAP' | 'enableTriMap' | 'enableTopoMap' | 'enableSammon'>;
   name: string;
   description: string;
@@ -80,7 +85,7 @@ export class Step4VisualizationSettingsComponent implements OnInit, OnDestroy {
   // These are optional background projections the user can enable
   // Speed labels: Very Fast > Fast > Medium > Slow (relative to FastMap which is primary)
   // largeDatasetWarning: methods with O(n²) memory/time that may fail or be very slow with >10k items
-  projectionMethods: ProjectionMethod[] = [
+  projectionMethods: ProjectionMethodUI[] = [
     {
       key: 'enablePCA',
       name: 'PCA',
@@ -432,15 +437,15 @@ export class Step4VisualizationSettingsComponent implements OnInit, OnDestroy {
   // Projection Configuration
   // ============================================================================
 
-  isMethodDisabled(method: ProjectionMethod): boolean {
+  isMethodDisabled(method: ProjectionMethodUI): boolean {
     return method.disabled || false;
   }
 
-  shouldShowLargeDatasetWarning(method: ProjectionMethod): boolean {
+  shouldShowLargeDatasetWarning(method: ProjectionMethodUI): boolean {
     return method.largeDatasetWarning === true && this.getDatasetRowCount() > this.LARGE_DATASET_THRESHOLD;
   }
 
-  toggleProjectionMethod(method: ProjectionMethod): void {
+  toggleProjectionMethod(method: ProjectionMethodUI): void {
     if (this.isMethodDisabled(method)) return;
     this.projectionConfig[method.key] = !this.projectionConfig[method.key];
     this.updateProjectionConfig();
