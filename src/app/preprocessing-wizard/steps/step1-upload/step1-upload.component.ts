@@ -81,10 +81,10 @@ export class Step1UploadComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // Validate file size (50MB limit)
-    const maxSize = 50 * 1024 * 1024;
+    // Validate file size (75MB limit)
+    const maxSize = 75 * 1024 * 1024;
     if (file.size > maxSize) {
-      this.error = 'File size exceeds 50MB limit';
+      this.error = 'File size exceeds 75MB limit';
       return;
     }
 

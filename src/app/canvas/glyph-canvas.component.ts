@@ -25,7 +25,7 @@ import { RenderTask } from '../shared/enum/render-task';
 import { CanvasNavigationControlsComponent } from './navigationcontrols/navigationcontrols.component';
 import { SettingsControlPanelComponent } from "./settingscontrols/settingscontrols.component";
 import { SpatialGrid } from '../shared/helpers/spatial-grid';
-import { HybridGlyphRenderer } from '../glyph/instanced-glyph-renderer';
+import { HybridGlyphRenderer, GlyphShaderType } from '../glyph/instanced-glyph-renderer';
 
 @Component({
   selector: 'glyph-canvas',
@@ -43,7 +43,7 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
 
   @Input() id = 0;
   @Input() totalCells: number = 0;
-  private glyphData: GlyphObject[] = [];
+  glyphData: GlyphObject[] = []; // Public for template binding
 
   // Infrastructure fields
   private configSub = new Subscription();
@@ -70,14 +70,19 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
   private spatialGridDirty = true;
 
   // Instanced rendering for large datasets (40K+ glyphs)
-  private hybridRenderer = new HybridGlyphRenderer(100000);
+  // Increased to 500K to support very large datasets
+  private hybridRenderer = new HybridGlyphRenderer(500000);
   private instancedMesh: THREE.InstancedMesh | null = null;
-  private useInstancedRendering = false;
+  useInstancedRendering = false; // Public for template binding
+  private instancedMeshZoomLevel: ZoomLevel | null = null; // Track which zoom level the mesh was created for
+  private instancedMeshGlyphType: GlyphShaderType | null = null; // Track which glyph type the mesh was created for
 
   // Safety mechanism to prevent infinite render loops
   private renderGlyphsCallCount = 0;
   private renderGlyphsResetTimer: any = null;
   private readonly MAX_RENDER_CALLS_PER_SECOND = 20;
+  private isRenderingGlyphs = false; // Guard against re-entrant calls
+  private isLoadingData = false; // Guard against config updates during data load
 
   // D3 force simulation and aggregation
   private simulation: Simulation<GlyphCacheObject, undefined> | undefined;
@@ -244,30 +249,83 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
       this.config.loadedDataSubject$.subscribe(async loadedData => {
         if (loadedData == "") return;
 
-        let data = await this.dataProvider.getGlyphData(this.config.loadedData, this.selectedTimestamp);
+        console.log(`[Canvas ${this.id}] loadedDataSubject$ fired for: ${loadedData}`);
+
+        // Set loading flag to prevent config change subscriptions from triggering extra renders
+        this.isLoadingData = true;
+
+        // Get available timestamps/algorithms for the NEW dataset FIRST
+        // This ensures we use valid values when fetching glyph data
+        const newTimestamps = this.dataProvider.getTimestamps(loadedData);
+        const newAlgorithms = this.dataProvider.getPositions(loadedData);
+        const newContexts = this.dataProvider.getContexts(loadedData);
+
+        console.log(`[Canvas ${this.id}] New timestamps: [${newTimestamps.join(', ')}]`);
+        console.log(`[Canvas ${this.id}] New algorithms: [${newAlgorithms.join(', ')}]`);
+
+        // Use the first timestamp from the new dataset (not the old selectedTimestamp)
+        const timestamp = newTimestamps[0];
+        console.log(`[Canvas ${this.id}] Using timestamp: ${timestamp}, algorithm: ${newAlgorithms[0]}`);
+
+        let data = await this.dataProvider.getGlyphData(loadedData, timestamp);
+        console.log(`[Canvas ${this.id}] Got ${data?.length ?? 0} glyphs`);
+
         if (data) this.glyphData = data;
 
         this.ngZone.run(() => {
-          this.timestamps = this.dataProvider.getTimestamps(loadedData);
-          this.algorithms = this.dataProvider.getPositions(loadedData);
-          this.contexts = this.dataProvider.getContexts(loadedData);
+          this.timestamps = newTimestamps;
+          this.algorithms = newAlgorithms;
+          this.contexts = newContexts;
 
-          this.selectedTimestamp = this.timestamps[0];
+          this.selectedTimestamp = timestamp;
           this.selectedAlgorithm = this.algorithms[0];
           this.selectedContext = this.contexts[0];
 
+          console.log(`[Canvas ${this.id}] Set selectedTimestamp=${this.selectedTimestamp}, selectedAlgorithm=${this.selectedAlgorithm}`);
+
           this.glyphGroup.clear();
 
+          // Force instanced mesh to be recreated for the new dataset
+          // The old mesh might have stale instance data from the previous dataset
+          if (this.instancedMesh) {
+            this.instancedMesh.geometry.dispose();
+            (this.instancedMesh.material as THREE.Material).dispose();
+            this.instancedMesh = null;
+            this.instancedMeshZoomLevel = null;
+            this.instancedMeshGlyphType = null;
+            console.log(`[Canvas ${this.id}] Disposed old instanced mesh for new dataset`);
+          }
+
           if (data) {
+            // Check if first glyph has positions for this timestamp/algorithm
+            const firstGlyph = data[0];
+            if (firstGlyph) {
+              const hasTimestamp = !!firstGlyph.positions[this.selectedTimestamp];
+              const hasAlgorithm = hasTimestamp && !!firstGlyph.positions[this.selectedTimestamp][this.selectedAlgorithm];
+              console.log(`[Canvas ${this.id}] First glyph positions check: hasTimestamp=${hasTimestamp}, hasAlgorithm=${hasAlgorithm}`);
+              if (hasTimestamp) {
+                console.log(`[Canvas ${this.id}] Available algorithms for timestamp: [${Object.keys(firstGlyph.positions[this.selectedTimestamp]).join(', ')}]`);
+              }
+              console.log(`[Canvas ${this.id}] Available timestamps in glyph: [${Object.keys(firstGlyph.positions).join(', ')}]`);
+            }
+
             this.positionBounds = undefined;
             this.updatePositionBounds();
+            console.log(`[Canvas ${this.id}] Position bounds: ${JSON.stringify(this.positionBounds)}`);
+
             this.spatialGridDirty = true;
+            // Reset viewport tracking to force updateClipping to recalculate visibility
+            this.lastViewRect = { left: Infinity, right: -Infinity, top: -Infinity, bottom: Infinity };
+
             // Note: spatial grid is rebuilt inside fitToView() after positions are scaled
             this.fitToView();
             this.initSimulation();
           } else {
             console.warn(`[Canvas ${this.id}] No data received!`);
           }
+
+          // Clear loading flag after data is loaded and rendered
+          this.isLoadingData = false;
         });
       })
     );
@@ -332,38 +390,75 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
     );
     this.configSub.add(
       this.config.glyphConfigSubject$.subscribe(() => {
-        if (this.magicLenseStatus) this.magicLensComponent.renderMagicLensGlyphs(this.selectedTimestamp, this.selectedAlgorithm, true);
-        // Force render all glyphs when config changes - glyph geometry needs to be
-        // recreated with new features, regardless of current visibility state
-        this.renderGlyphs(true);
+        // Skip if we're currently loading data - fitToView() will handle rendering
+        if (this.isLoadingData) return;
+
+        // Debounce config changes to prevent rapid-fire renders during background projections
+        if (this.configDebounceTimer) {
+          clearTimeout(this.configDebounceTimer);
+        }
+        this.configDebounceTimer = setTimeout(() => {
+          if (this.magicLenseStatus) this.magicLensComponent.renderMagicLensGlyphs(this.selectedTimestamp, this.selectedAlgorithm, true);
+          // Force render all glyphs when config changes - glyph geometry needs to be
+          // recreated with new features, regardless of current visibility state
+          this.renderGlyphs(true);
+        }, 100);
       })
     );
   }
+
+  private configDebounceTimer: any = null;
+
+  private resizeDebounceTimer: any = null;
 
   private observeResize() {
     const container = this.canvasContainer.nativeElement;
 
     this.resizeObserver = new ResizeObserver(entries => {
+      // Skip resize handling during data loading to prevent render loops
+      if (this.isLoadingData) return;
+
       for (let entry of entries) {
         const width = Math.floor(entry.contentRect.width);
         const height = Math.floor(entry.contentRect.height);
-        this.canvasWidth = width;
-        this.canvasHeight = height;
-        this.sizeInfo.update(this.canvasWidth, this.canvasHeight);
 
-        // this.renderer.setSize(width, height, false); // corrupts scene
-        this.camera.left = width / -2;
-        this.camera.right = width / 2;
-        this.camera.top = height / 2;
-        this.camera.bottom = height / -2;
-        this.camera.updateProjectionMatrix();
-        this.simulation?.force('collide', forceCollide(this.sizeInfo.getRadius(ZoomLevel.high)));
-        this.resetAnimatedGlyph();
-        this.renderGlyphs();
+        // Skip if dimensions haven't actually changed
+        if (width === this.canvasWidth && height === this.canvasHeight) return;
+        // Skip zero-dimension sizes (element being removed/hidden)
+        if (width === 0 || height === 0) return;
+
+        // Debounce resize handling to prevent rapid-fire calls
+        if (this.resizeDebounceTimer) {
+          clearTimeout(this.resizeDebounceTimer);
+        }
+
+        this.resizeDebounceTimer = setTimeout(() => {
+          this.handleResize(width, height);
+        }, 100);
       }
     });
 
     this.resizeObserver.observe(container);
+  }
+
+  private handleResize(width: number, height: number): void {
+    // Double-check in case something changed during debounce
+    if (this.isLoadingData) return;
+    if (width === this.canvasWidth && height === this.canvasHeight) return;
+
+    this.canvasWidth = width;
+    this.canvasHeight = height;
+    this.sizeInfo.update(this.canvasWidth, this.canvasHeight);
+
+    // this.renderer.setSize(width, height, false); // corrupts scene
+    this.camera.left = width / -2;
+    this.camera.right = width / 2;
+    this.camera.top = height / 2;
+    this.camera.bottom = height / -2;
+    this.camera.updateProjectionMatrix();
+    this.simulation?.force('collide', forceCollide(this.sizeInfo.getRadius(ZoomLevel.high)));
+    this.resetAnimatedGlyph();
+    this.renderGlyphs();
   }
 
   private initSimulation() {
@@ -470,9 +565,23 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
     this.sizeInfo.currentZoomLevel = ZoomLevel.low;
     this.renderGlyphs(true);
 
-    const box = new THREE.Box3().setFromObject(this.glyphGroup);
-    const size = box.getSize(new THREE.Vector3());
-    const center = box.getCenter(new THREE.Vector3());
+    // Calculate bounding box from glyph cache positions
+    // (instanced meshes don't update their bounding box from instance positions)
+    let minX = Infinity, maxX = -Infinity;
+    let minY = Infinity, maxY = -Infinity;
+
+    for (const glyph of this.glyphData) {
+      const cache = glyph.getCacheObject(this.id, this.selectedTimestamp, this.selectedAlgorithm);
+      const x = cache.x ?? 0;
+      const y = cache.y ?? 0;
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+    }
+
+    const size = new THREE.Vector3(maxX - minX, maxY - minY, 0);
+    const center = new THREE.Vector3((minX + maxX) / 2, (minY + maxY) / 2, 0);
 
     const margin = 1.1; // 10% padding
     const widthWithMargin = size.x * margin;
@@ -489,6 +598,8 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
     const direction = new THREE.Vector3().subVectors(this.camera.position, this.target);
     const newTarget = center.clone();
     const newPosition = center.clone().add(direction);
+
+    console.log(`[Canvas ${this.id}] fitToView: bounds=(${minX.toFixed(1)}, ${minY.toFixed(1)}) to (${maxX.toFixed(1)}, ${maxY.toFixed(1)}), center=(${center.x.toFixed(1)}, ${center.y.toFixed(1)}), zoom=${requiredZoom.toFixed(3)}, camPos=(${newPosition.x.toFixed(1)}, ${newPosition.y.toFixed(1)})`);
 
     // Save animation state
     this.fitStartPosition = this.camera.position.clone();
@@ -519,6 +630,9 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   onSettingsChange(payload: { timestamp: string; algorithm: string; context: string }): void {
+    console.log(`[Canvas ${this.id}] onSettingsChange: timestamp=${payload.timestamp}, algorithm=${payload.algorithm}, context=${payload.context}`);
+    console.log(`[Canvas ${this.id}] Previous: timestamp=${this.selectedTimestamp}, algorithm=${this.selectedAlgorithm}`);
+
     this.selectedTimestamp = payload.timestamp;
     this.selectedAlgorithm = payload.algorithm;
     this.selectedContext = payload.context;
@@ -547,7 +661,17 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
     // Rebuild spatial grid with new positions for correct hit testing
     this.rebuildSpatialGrid();
 
-    // this.animationSpeed = 0.01;
+    // Log first glyph positions for debugging
+    if (this.glyphData.length > 0) {
+      const firstGlyph = this.glyphData[0];
+      const firstCache = firstGlyph.getCacheObject(this.id, this.selectedTimestamp, this.selectedAlgorithm);
+      console.log(`[Canvas ${this.id}] After onSettingsChange: first glyph target=(${firstCache.position.x.toFixed(1)}, ${firstCache.position.y.toFixed(1)}), mesh pos=(${firstCache.mesh?.position.x.toFixed(1) ?? 'no mesh'}, ${firstCache.mesh?.position.y.toFixed(1) ?? 'no mesh'})`);
+    }
+
+    // Animate glyphs to their new positions
+    // For instanced rendering, the animation loop will update instance matrices
+    // For individual rendering, the animation loop will lerp mesh positions
+    console.log(`[Canvas ${this.id}] Requesting OriginalSimulation render task, useInstancedRendering=${this.useInstancedRendering}`);
     this.requestRender(RenderTask.OriginalSimulation);
     this.magicLensComponent.clearLensGlyphs();
   }
@@ -607,6 +731,12 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
     if (oldZoomLevel != newZoomLevel) {
       this.sizeInfo.currentZoomLevel = newZoomLevel;
       this.sizeInfo.update(this.canvasWidth, this.canvasHeight);
+
+      // Reset the tracked zoom level so renderGlyphsInstanced knows to recreate the mesh
+      // The mesh will be recreated with the appropriate shader in renderGlyphs()
+      this.instancedMeshZoomLevel = null;
+      this.instancedMeshGlyphType = null;
+
       // Rebuild spatial grid with new radius for correct hit testing
       this.rebuildSpatialGrid();
       // Force render all glyphs when zoom level changes - glyph geometry
@@ -676,10 +806,35 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
       this.simulation?.tick();
 
       // Update node positions
-      this.glyphData.forEach(glyph => {
-        const cached = glyph.getCacheObject(this.id, this.selectedTimestamp, this.selectedAlgorithm);
-        cached.mesh?.position.set(cached.x ?? 0, cached.y ?? 0, 0);
-      });
+      if (this.useInstancedRendering && this.instancedMesh) {
+        // For instanced rendering, update currentX/currentY and refresh the instance buffer
+        this.glyphData.forEach(glyph => {
+          const cached = glyph.getCacheObject(this.id, this.selectedTimestamp, this.selectedAlgorithm);
+          cached.currentX = cached.x ?? 0;
+          cached.currentY = cached.y ?? 0;
+        });
+        const renderer = this.hybridRenderer.getInstancedRenderer();
+        renderer.updateInstances(
+          this.instancedMesh,
+          this.glyphData,
+          this.sizeInfo,
+          this.config.color.bind(this.config),
+          this.config.colorFeature,
+          this.config.activeFeatures,
+          this.config.featureMaxValues,
+          this.config.featureTypes,
+          this.selectedTimestamp,
+          this.selectedAlgorithm,
+          this.id
+        );
+        renderer.applyToMesh(this.instancedMesh);
+      } else {
+        // For individual rendering, update mesh positions directly
+        this.glyphData.forEach(glyph => {
+          const cached = glyph.getCacheObject(this.id, this.selectedTimestamp, this.selectedAlgorithm);
+          cached.mesh?.position.set(cached.x ?? 0, cached.y ?? 0, 0);
+        });
+      }
 
       if (this.currentTicks > this.maxTicks) {
         this.currentTicks = 0;
@@ -705,6 +860,14 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
   };
 
   private animateBackToOriginal() {
+    if (this.useInstancedRendering) {
+      this.animateBackToOriginalInstanced();
+    } else {
+      this.animateBackToOriginalIndividual();
+    }
+  }
+
+  private animateBackToOriginalIndividual() {
     let finished = true;
     this.glyphData.forEach(glyph => {
       const cachedObject = glyph.getCacheObject(this.id, this.selectedTimestamp, this.selectedAlgorithm);
@@ -720,6 +883,56 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
         );
       }
     });
+    if (finished) {
+      this.needsRender.delete(RenderTask.OriginalSimulation);
+    }
+  }
+
+  private animateBackToOriginalInstanced() {
+    // If instanced mesh doesn't exist yet, create it first
+    if (!this.instancedMesh) {
+      const renderer = this.hybridRenderer.getInstancedRenderer();
+      // Get the current glyph type for shader selection
+      const glyphTypeEnum = this.config.getConfiguration().glyphType;
+      const currentGlyphType = HybridGlyphRenderer.getShaderType(
+        glyphTypeEnum === 1 ? 'star' : (glyphTypeEnum === 2 ? 'flower' : (glyphTypeEnum === 3 ? 'whisker' : 'star'))
+      );
+      this.instancedMesh = renderer.createInstancedMesh(this.sizeInfo.currentZoomLevel, currentGlyphType);
+      this.instancedMeshZoomLevel = this.sizeInfo.currentZoomLevel;
+      this.instancedMeshGlyphType = currentGlyphType;
+      this.glyphGroup.add(this.instancedMesh);
+    }
+
+    let finished = true;
+
+    // Lerp all glyph positions toward their targets
+    for (const glyph of this.glyphData) {
+      const cachedObject = glyph.getCacheObject(this.id, this.selectedTimestamp, this.selectedAlgorithm);
+      if (!cachedObject.visible) continue;
+
+      const done = cachedObject.lerpToTarget(this.animationSpeed);
+      if (!done) {
+        finished = false;
+      }
+    }
+
+    // Update instanced mesh with new positions
+    const renderer = this.hybridRenderer.getInstancedRenderer();
+    renderer.updateInstances(
+      this.instancedMesh,
+      this.glyphData,
+      this.sizeInfo,
+      this.config.color.bind(this.config),
+      this.config.colorFeature,
+      this.config.activeFeatures,
+      this.config.featureMaxValues,
+      this.config.featureTypes,
+      this.selectedTimestamp,
+      this.selectedAlgorithm,
+      this.id
+    );
+    renderer.applyToMesh(this.instancedMesh);
+
     if (finished) {
       this.needsRender.delete(RenderTask.OriginalSimulation);
     }
@@ -741,10 +954,13 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
         this.canvasHeight
       );
 
-      cacheObject.position.x = scaledX; // save for later reference to restore collision detection etc. 
+      cacheObject.position.x = scaledX; // save for later reference to restore collision detection etc.
       cacheObject.position.y = scaledY;
       cacheObject.x = scaledX;
       cacheObject.y = scaledY;
+      // Also set current position for instanced animation (no animation on initial load)
+      cacheObject.currentX = scaledX;
+      cacheObject.currentY = scaledY;
       cacheObject.mesh?.position.set(scaledX, scaledY, 0);
     });
   }
@@ -910,6 +1126,17 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
   private renderGlyphs(force = false): void {
     if (this.scene === undefined) return;
 
+    // Guard against re-entrant calls (can happen when config updates trigger renders)
+    if (this.isRenderingGlyphs) return;
+    this.isRenderingGlyphs = true;
+
+    // Debug: log call stack when calls are getting frequent
+    if (this.renderGlyphsCallCount > 5) {
+      console.log(`[Canvas ${this.id}] renderGlyphs call #${this.renderGlyphsCallCount + 1} stack:`, new Error().stack?.split('\n').slice(1, 5).join('\n'));
+    }
+
+    console.log(`[Canvas ${this.id}] renderGlyphs called: force=${force}, glyphCount=${this.glyphData.length}, timestamp=${this.selectedTimestamp}, algorithm=${this.selectedAlgorithm}`);
+
     // Safety mechanism to prevent infinite render loops
     this.renderGlyphsCallCount++;
     if (this.renderGlyphsResetTimer) {
@@ -922,20 +1149,33 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.renderGlyphsCallCount > this.MAX_RENDER_CALLS_PER_SECOND) {
       console.error(`Infinite render loop detected (${this.renderGlyphsCallCount} calls/sec). Breaking loop.`);
       this.renderGlyphsCallCount = 0;
+      this.isRenderingGlyphs = false;
       return;
     }
+
+    // Get the current glyph type for instancing decision
+    // GlyphType enum: None=0, Star=1, Flower=2, Whisker=3, Dot=4, Thumb=5
+    const glyphType = this.config.getConfiguration().glyphType;
+    const glyphTypeStr = glyphType === 1 ? 'star' : (glyphType === 2 ? 'flower' : (glyphType === 3 ? 'whisker' : 'other'));
 
     // Check if we should use instanced rendering for performance
     const shouldUseInstancing = this.hybridRenderer.shouldUseInstancing(
       this.glyphData.length,
-      this.sizeInfo.currentZoomLevel
+      this.sizeInfo.currentZoomLevel,
+      glyphTypeStr
     );
+    console.log(`[Canvas ${this.id}] Rendering mode: instanced=${shouldUseInstancing}, zoomLevel=${this.sizeInfo.currentZoomLevel}, glyphType=${glyphTypeStr}`);
 
     // If switching rendering mode, clean up the old mode
     if (shouldUseInstancing !== this.useInstancedRendering) {
       if (this.useInstancedRendering && this.instancedMesh) {
-        // Switching from instanced to individual - remove instanced mesh
+        // Switching from instanced to individual - remove and dispose instanced mesh
         this.glyphGroup.remove(this.instancedMesh);
+        this.instancedMesh.geometry.dispose();
+        (this.instancedMesh.material as THREE.Material).dispose();
+        this.instancedMesh = null;
+        this.instancedMeshZoomLevel = null;
+        this.instancedMeshGlyphType = null;
       } else if (!this.useInstancedRendering) {
         // Switching from individual to instanced - remove all individual meshes
         this.glyphData.forEach((glyph: GlyphObject) => {
@@ -959,19 +1199,68 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
 
     this.updatePositionBounds();
     this.requestRender(RenderTask.SceneRender);
+
+    // Release the re-entrancy guard
+    this.isRenderingGlyphs = false;
   }
 
   /**
    * Render glyphs using instanced mesh for high performance with large datasets.
-   * Uses a single draw call for all visible circles at low zoom level.
+   * - Low zoom: Single draw call for circles
+   * - Medium zoom: Shader-based star/radar glyphs
    */
   private renderGlyphsInstanced(force = false): void {
     const renderer = this.hybridRenderer.getInstancedRenderer();
+    const isGlyphMode = this.sizeInfo.currentZoomLevel !== ZoomLevel.low;
 
-    // Create instanced mesh if not exists
-    if (!this.instancedMesh) {
-      this.instancedMesh = renderer.createInstancedMesh(this.sizeInfo.currentZoomLevel);
+    // Get the current glyph type for shader selection
+    const glyphTypeEnum = this.config.getConfiguration().glyphType;
+    const currentGlyphType = HybridGlyphRenderer.getShaderType(
+      glyphTypeEnum === 1 ? 'star' : (glyphTypeEnum === 2 ? 'flower' : (glyphTypeEnum === 3 ? 'whisker' : 'star'))
+    );
+
+    console.log(`[Canvas ${this.id}] renderGlyphsInstanced: force=${force}, isGlyphMode=${isGlyphMode}, glyphType=${currentGlyphType}`);
+
+    // Check if we need to recreate the mesh (zoom level or glyph type changed means different shader)
+    const needsNewMesh = !this.instancedMesh ||
+      this.instancedMeshZoomLevel !== this.sizeInfo.currentZoomLevel ||
+      (isGlyphMode && this.instancedMeshGlyphType !== currentGlyphType);
+
+    console.log(`[Canvas ${this.id}] needsNewMesh=${needsNewMesh}, hasMesh=${!!this.instancedMesh}, meshZoomLevel=${this.instancedMeshZoomLevel}, meshGlyphType=${this.instancedMeshGlyphType}, currentZoomLevel=${this.sizeInfo.currentZoomLevel}, currentGlyphType=${currentGlyphType}`);
+
+    if (needsNewMesh) {
+      // Dispose old mesh if it exists
+      if (this.instancedMesh) {
+        this.glyphGroup.remove(this.instancedMesh);
+        this.instancedMesh.geometry.dispose();
+        (this.instancedMesh.material as THREE.Material).dispose();
+      }
+      // Create new mesh for current zoom level and glyph type
+      this.instancedMesh = renderer.createInstancedMesh(this.sizeInfo.currentZoomLevel, currentGlyphType);
+      this.instancedMeshZoomLevel = this.sizeInfo.currentZoomLevel;
+      this.instancedMeshGlyphType = currentGlyphType;
       this.glyphGroup.add(this.instancedMesh);
+      console.log(`[Canvas ${this.id}] Created new instanced mesh for glyphType=${currentGlyphType}`);
+    }
+
+    // Update shader uniforms when in glyph mode (not circle mode)
+    if (isGlyphMode) {
+      const glyphConfig = this.config.getConfiguration();
+      const numFeatures = this.config.activeFeatures.length;
+      const featureMaxValues = this.config.activeFeatures.map(f => this.config.featureMaxValues[f] || 1);
+
+      // Background and axes are only shown at high zoom level (matching mesh-based rendering)
+      const isHighZoom = this.sizeInfo.currentZoomLevel === ZoomLevel.high;
+      const useBackground = isHighZoom && glyphConfig.useBackground;
+      const useAxes = isHighZoom && glyphConfig.useCoordinateSystem;
+
+      renderer.updateUniforms(
+        numFeatures,
+        featureMaxValues,
+        useBackground,
+        glyphConfig.useContour,
+        useAxes
+      );
     }
 
     // Mark all glyphs as visible if force rendering
@@ -981,6 +1270,9 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
         cacheObject.visible = true;
       });
     }
+
+    // Safety check - should never happen since we create mesh above
+    if (!this.instancedMesh) return;
 
     // Update instance data from glyphs
     renderer.updateInstances(
@@ -1004,25 +1296,41 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
   /**
    * Render glyphs using individual meshes.
    * Used for smaller datasets or when detailed glyph shapes are needed.
+   * Note: Instanced mesh cleanup is handled in renderGlyphs() during mode switching.
    */
   private renderGlyphsIndividual(force = false): void {
-    // Remove instanced mesh if it exists
-    if (this.instancedMesh) {
-      this.glyphGroup.remove(this.instancedMesh);
-      this.instancedMesh.geometry.dispose();
-      (this.instancedMesh.material as THREE.Material).dispose();
-      this.instancedMesh = null;
-    }
+    let renderedCount = 0;
+    let skippedCount = 0;
+    let nullMeshCount = 0;
 
-    this.glyphData.forEach((glyph: GlyphObject) => {
+    this.glyphData.forEach((glyph: GlyphObject, index: number) => {
       const cacheObject = glyph.getCacheObject(this.id, this.selectedTimestamp, this.selectedAlgorithm);
+
+      // Debug first glyph
+      if (index === 0) {
+        console.log(`[Canvas ${this.id}] First glyph cache: x=${cacheObject.x}, y=${cacheObject.y}, visible=${cacheObject.visible}, hasMesh=${!!cacheObject.mesh}`);
+      }
+
       const oldMesh = cacheObject.mesh;
       if (oldMesh) this.glyphGroup.remove(oldMesh);
       if (cacheObject.visible || force) {
         const mesh = glyph.render(this.sizeInfo, this.selectedTimestamp, this.selectedAlgorithm, this.id, this.aggregated);
-        if (mesh != null) this.glyphGroup.add(mesh);
+        if (mesh != null) {
+          this.glyphGroup.add(mesh);
+          renderedCount++;
+          // Debug first rendered glyph position
+          if (renderedCount === 1) {
+            console.log(`[Canvas ${this.id}] First rendered mesh position: x=${mesh.position.x}, y=${mesh.position.y}`);
+          }
+        } else {
+          nullMeshCount++;
+        }
+      } else {
+        skippedCount++;
       }
     });
+
+    console.log(`[Canvas ${this.id}] renderGlyphsIndividual complete: rendered=${renderedCount}, skipped=${skippedCount}, nullMesh=${nullMeshCount}`);
   }
 
   private updatePositionBounds() {
@@ -1089,14 +1397,23 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
     const worldPos = screenToWorld(event, this.renderer, this.camera);
 
     // Query spatial grid for nearby glyphs (use generous radius for hit tolerance)
-    const searchRadius = this.sizeInfo.radius * 3;
+    // For instanced rendering at medium zoom, use a larger search radius
+    const isMediumZoom = this.sizeInfo.currentZoomLevel === ZoomLevel.medium;
+    const radiusMultiplier = isMediumZoom && this.useInstancedRendering ? 2.5 : 1;
+    const searchRadius = this.sizeInfo.radius * 3 * radiusMultiplier;
     const nearbyGlyphs = this.spatialGrid.queryPoint(worldPos.x, worldPos.y, searchRadius);
 
     if (nearbyGlyphs.size === 0) {
       return null;
     }
 
-    // Get meshes for nearby glyphs
+    // For instanced rendering, find the closest glyph by position
+    // since individual glyphs don't have mesh objects
+    if (this.useInstancedRendering) {
+      return this.findClosestGlyphByPosition(worldPos.x, worldPos.y, nearbyGlyphs);
+    }
+
+    // Get meshes for nearby glyphs (individual rendering)
     const candidates: THREE.Object3D[] = [];
     for (const glyph of nearbyGlyphs) {
       const mesh = glyph.getMesh(this.selectedTimestamp, this.selectedAlgorithm, this.id);
@@ -1107,6 +1424,48 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
 
     // Run hit test only on candidates
     return hitTestCandidates(event, this.renderer, candidates, this.camera, this.sizeInfo);
+  }
+
+  /**
+   * Find the closest glyph by position for instanced rendering hit testing.
+   * Returns a temporary Object3D with the glyph reference in userData.
+   */
+  private findClosestGlyphByPosition(worldX: number, worldY: number, nearbyGlyphs: Set<GlyphObject>): THREE.Object3D | null {
+    let closestGlyph: GlyphObject | null = null;
+    let closestDistance = Infinity;
+
+    // Get the effective hit radius (account for medium zoom scaling)
+    const isMediumZoom = this.sizeInfo.currentZoomLevel === ZoomLevel.medium;
+    const effectiveRadius = isMediumZoom ? this.sizeInfo.radius * 2.5 : this.sizeInfo.radius;
+    const hitTolerance = effectiveRadius + this.sizeInfo.hitTolerance;
+
+    for (const glyph of nearbyGlyphs) {
+      const cache = glyph.getCacheObject(this.id, this.selectedTimestamp, this.selectedAlgorithm);
+      if (!cache.visible) continue;
+
+      // Use currentX/currentY for animated positions, fall back to target position
+      const glyphX = cache.currentX ?? cache.position.x;
+      const glyphY = cache.currentY ?? cache.position.y;
+
+      const dx = worldX - glyphX;
+      const dy = worldY - glyphY;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+
+      if (distance < hitTolerance && distance < closestDistance) {
+        closestDistance = distance;
+        closestGlyph = glyph;
+      }
+    }
+
+    if (!closestGlyph) {
+      return null;
+    }
+
+    // Create a temporary Object3D with the glyph reference in userData
+    // This allows getGlyphFromObject() to work with instanced rendering
+    const tempObject = new THREE.Object3D();
+    tempObject.userData['item'] = new WeakRef(closestGlyph);
+    return tempObject;
   }
 
   private resetUnhighlightedGlyphs(highlighted: Set<string>) {
@@ -1179,6 +1538,27 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
 
 
   private renderGlyph(glyph: GlyphObject) {
+    // For instanced rendering, update the instance buffer instead of re-rendering individual mesh
+    if (this.useInstancedRendering && this.instancedMesh) {
+      const renderer = this.hybridRenderer.getInstancedRenderer();
+      renderer.updateInstances(
+        this.instancedMesh,
+        this.glyphData,
+        this.sizeInfo,
+        this.config.color.bind(this.config),
+        this.config.colorFeature,
+        this.config.activeFeatures,
+        this.config.featureMaxValues,
+        this.config.featureTypes,
+        this.selectedTimestamp,
+        this.selectedAlgorithm,
+        this.id
+      );
+      renderer.applyToMesh(this.instancedMesh);
+      this.requestRender(RenderTask.SceneRender);
+      return;
+    }
+
     let mesh = glyph.getMesh(this.selectedTimestamp, this.selectedAlgorithm, this.id);
     if (mesh != undefined) this.glyphGroup.remove(mesh);
 
@@ -1220,7 +1600,26 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
   private clearHoveredGlyph() {
     if (this.currentHoveredObject != null) {
       this.currentHoveredObject.setHighlighted(false);
-      this.config.redrawGlyph(this.currentHoveredObject);
+      // For instanced rendering, update the instance buffer
+      if (this.useInstancedRendering && this.instancedMesh) {
+        const renderer = this.hybridRenderer.getInstancedRenderer();
+        renderer.updateInstances(
+          this.instancedMesh,
+          this.glyphData,
+          this.sizeInfo,
+          this.config.color.bind(this.config),
+          this.config.colorFeature,
+          this.config.activeFeatures,
+          this.config.featureMaxValues,
+          this.config.featureTypes,
+          this.selectedTimestamp,
+          this.selectedAlgorithm,
+          this.id
+        );
+        renderer.applyToMesh(this.instancedMesh);
+      } else {
+        this.config.redrawGlyph(this.currentHoveredObject);
+      }
     }
   }
   //#endregion
@@ -1321,7 +1720,7 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
     if (event.key.toLowerCase() === 'l') {
       this.clearHoveredGlyph();
       this.toggleMagicLens();
-      this.magicLensComponent.updateMagicLens(this.lastMousePosition, this.camera, this.renderer);
+      this.magicLensComponent.updateMagicLens(this.lastMousePosition, this.camera, this.renderer, this.selectedTimestamp, this.selectedAlgorithm);
       this.magicLensComponent.renderMagicLensGlyphs(this.selectedTimestamp, this.selectedAlgorithm);
     }
   }
@@ -1369,9 +1768,7 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
     }
 
     if (isClick && !this.selectionMode) {
-      if (this.currentHoveredObject != null) {
-        this.tooltipComponent.toggleFixation();
-      }
+      // Sticky tooltip on click disabled
       return;
     }
 
@@ -1432,7 +1829,7 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.magicLensComponent.isActive()) {
       this.lastMousePosition.set(event.clientX, event.clientY);
       this.magicLensComponent.renderLens(this.lastMousePosition);
-      const change = this.magicLensComponent.updateMagicLens(this.lastMousePosition, this.camera, this.renderer);
+      const change = this.magicLensComponent.updateMagicLens(this.lastMousePosition, this.camera, this.renderer, this.selectedTimestamp, this.selectedAlgorithm);
       if (change) this.magicLensComponent.renderMagicLensGlyphs(this.selectedTimestamp, this.selectedAlgorithm);
       return;
     }

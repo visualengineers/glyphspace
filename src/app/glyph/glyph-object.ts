@@ -70,7 +70,17 @@ export class GlyphObject {
     }
 
     public getPosition(timestamp: string, algorithm: string): Coordinates {
-        return this.positions[timestamp][algorithm];
+        const timestampPositions = this.positions[timestamp];
+        if (!timestampPositions) {
+            console.warn(`[GlyphObject ${this.id}] No positions for timestamp: ${timestamp}`);
+            return { x: 0, y: 0 };
+        }
+        const position = timestampPositions[algorithm];
+        if (!position) {
+            console.warn(`[GlyphObject ${this.id}] No position for algorithm: ${algorithm} at timestamp: ${timestamp}`);
+            return { x: 0, y: 0 };
+        }
+        return position;
     }
 
     public clearCache(owner: number) {
@@ -80,8 +90,22 @@ export class GlyphObject {
     public getCacheObject(owner = 0, timestamp: string, algorithm: string): GlyphCacheObject {
         let cacheObject = this.renderCache.get(owner);
         if (cacheObject == undefined || cacheObject == null) {
-            cacheObject = new GlyphCacheObject(this.id, { ... this.getPosition(timestamp, algorithm) });
+            // Create new cache object with position for this timestamp/algorithm
+            cacheObject = new GlyphCacheObject(
+                this.id,
+                { ...this.getPosition(timestamp, algorithm) },
+                timestamp,
+                algorithm
+            );
             this.renderCache.set(owner, cacheObject);
+        } else if (cacheObject.needsPositionRefresh(timestamp, algorithm)) {
+            // Cache object exists but was created for a different timestamp/algorithm
+            // Update the position to reflect the new data
+            cacheObject.updatePosition(
+                { ...this.getPosition(timestamp, algorithm) },
+                timestamp,
+                algorithm
+            );
         }
 
         return cacheObject;

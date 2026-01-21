@@ -18,6 +18,8 @@ export class MagiclensComponent {
   @Input() container!: HTMLElement;
   @Input() glyphGroup!: THREE.Group;
   @Input() parentId!: number;
+  @Input() glyphData: GlyphObject[] = [];
+  @Input() useInstancedRendering = false;
   @ViewChild('lensCanvas') lensCanvasRef!: ElementRef<HTMLCanvasElement>;
 
   private lensRenderer!: THREE.WebGLRenderer;
@@ -100,7 +102,7 @@ export class MagiclensComponent {
     this.lensGlyphs = [];
   }
 
-  updateMagicLens(lastMousePosition: THREE.Vector2, camera: THREE.OrthographicCamera, renderer: THREE.WebGLRenderer): boolean {
+  updateMagicLens(lastMousePosition: THREE.Vector2, camera: THREE.OrthographicCamera, renderer: THREE.WebGLRenderer, timestamp?: string, algorithm?: string): boolean {
     if (!this.magicLensActive || !this.lensCamera) return false;
 
     this.updatePositions(lastMousePosition);
@@ -115,19 +117,39 @@ export class MagiclensComponent {
     const screenRadius = 30; // pixels - slightly larger tolerance for better UX
     const worldRadius = screenRadius / camera.zoom;
 
-    // Check glyphs within world-space radius (O(n) but with cheaper distance calc)
-    this.glyphGroup.children.forEach((obj) => {
-      const dx = obj.position.x - mouseWorld.x;
-      const dy = obj.position.y - mouseWorld.y;
-      const distSq = dx * dx + dy * dy;
+    // For instanced rendering, check glyph positions directly
+    if (this.useInstancedRendering && this.glyphData.length > 0 && timestamp && algorithm) {
+      for (const glyph of this.glyphData) {
+        const cache = glyph.getCacheObject(this.parentId, timestamp, algorithm);
+        if (!cache.visible) continue;
 
-      if (distSq < worldRadius * worldRadius) {
-        const glyph = getGlyphFromObject(obj);
-        if (glyph != null) {
+        // Use currentX/currentY for animated positions, fall back to target position
+        const glyphX = cache.currentX ?? cache.position.x;
+        const glyphY = cache.currentY ?? cache.position.y;
+
+        const dx = glyphX - mouseWorld.x;
+        const dy = glyphY - mouseWorld.y;
+        const distSq = dx * dx + dy * dy;
+
+        if (distSq < worldRadius * worldRadius) {
           newLensGlyphs.push(glyph);
         }
       }
-    });
+    } else {
+      // Check glyphs within world-space radius using mesh positions (individual rendering)
+      this.glyphGroup.children.forEach((obj) => {
+        const dx = obj.position.x - mouseWorld.x;
+        const dy = obj.position.y - mouseWorld.y;
+        const distSq = dx * dx + dy * dy;
+
+        if (distSq < worldRadius * worldRadius) {
+          const glyph = getGlyphFromObject(obj);
+          if (glyph != null) {
+            newLensGlyphs.push(glyph);
+          }
+        }
+      });
+    }
 
     // Compare current lens glyphs to new ones
     const same =
