@@ -44,3 +44,27 @@ export interface ProjectionProgress {
   progress: number;  // 0-100
   message?: string;
 }
+
+/**
+ * Request message sent to projection worker.
+ */
+export interface ProjectionWorkerRequest {
+  type: 'compute';
+  method: ProjectionMethod;
+  features: number[][];
+  ids: (string | number)[];
+  config?: ProjectionComputeConfig;
+}
+
+/**
+ * Response message from projection worker.
+ */
+export interface ProjectionWorkerResponse {
+  type: 'result' | 'error' | 'progress';
+  method?: string;
+  positions?: Array<{ id: string | number; x: number; y: number }>;
+  computeTime?: number;
+  error?: string;
+  progress?: number;
+  message?: string;
+}

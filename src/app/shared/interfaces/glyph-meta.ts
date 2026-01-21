@@ -1,6 +1,7 @@
-export type Histogram = {
-  [binIndex: string]: number; // binIndex: "0" to "49"
-};
+import { Histogram } from '../types/histogram.types';
+
+// Re-export Histogram from shared types for backward compatibility
+export type { Histogram } from '../types/histogram.types';
 
 export type FeatureStats = {
   type: string; // "categorical" | "numeric"

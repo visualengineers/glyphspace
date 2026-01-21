@@ -1,10 +1,22 @@
 import { Injectable, NgZone } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
 import * as druid from '@saehrimnir/druidjs';
-import { ProjectionMethod, ProjectionResult, ProjectionComputeConfig } from '../shared/types/projection.types';
+import {
+  ProjectionMethod,
+  ProjectionResult,
+  ProjectionComputeConfig,
+  ProjectionWorkerRequest,
+  ProjectionWorkerResponse
+} from '../shared/types/projection.types';
 
 // Re-export types for backward compatibility
-export type { ProjectionMethod, ProjectionResult, ProjectionComputeConfig } from '../shared/types/projection.types';
+export type {
+  ProjectionMethod,
+  ProjectionResult,
+  ProjectionComputeConfig,
+  ProjectionWorkerRequest,
+  ProjectionWorkerResponse
+} from '../shared/types/projection.types';
 
 export interface BackgroundStatus {
   method: string;
@@ -12,25 +24,6 @@ export interface BackgroundStatus {
   progress: number;
   message: string;
   error?: string;
-}
-
-// Worker message types
-interface ProjectionWorkerRequest {
-  type: 'compute';
-  method: ProjectionMethod;
-  features: number[][];
-  ids: (string | number)[];
-  config?: ProjectionComputeConfig;
-}
-
-interface ProjectionWorkerResponse {
-  type: 'result' | 'error' | 'progress';
-  method?: string;
-  positions?: Array<{ id: string | number; x: number; y: number }>;
-  computeTime?: number;
-  error?: string;
-  progress?: number;
-  message?: string;
 }
 
 @Injectable({

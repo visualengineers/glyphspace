@@ -9,17 +9,14 @@ import { DataProviderService } from '../../services/dataprovider.service';
 import { GlyphMeta } from '../../shared/interfaces/glyph-meta';
 import { CategoryFilter } from '../../shared/filter/category-filter';
 import { InteractionCommand } from '../../shared/enum/interaction-command';
+import { Histogram, StackedBin } from '../../shared/types/histogram.types';
+import {
+    prepareStackedBinsFromObject,
+    getEffectiveHistogramType
+} from '../../shared/utils/histogram.utils';
 
-export type Histogram = {
-    [binIndex: string]: number; // binIndex: "0" to "49"
-};
-
-type StackedBin = {
-    bin: number;
-    value: number;
-    x0: number;
-    x1: number;
-};
+// Re-export for backward compatibility
+export type { Histogram } from '../../shared/types/histogram.types';
 
 @Component({
     selector: 'app-histogram',
@@ -173,61 +170,19 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
         }
 
         const nonZeroBinCount = this.cachedStackedBins.length;
-        const MAX_CATEGORICAL_BINS = 40;
+        const effectiveType = getEffectiveHistogramType(this.type, nonZeroBinCount);
 
-        // If declared as categorical but has too many non-zero bins, treat as numeric
-        if (this.type === 'categorical' && nonZeroBinCount > MAX_CATEGORICAL_BINS) {
+        if (this.type === 'categorical' && effectiveType === 'numeric') {
             console.warn(
-                `Feature "${this.property}" has ${nonZeroBinCount} categories (>${MAX_CATEGORICAL_BINS}), rendering as numeric histogram`
+                `Feature "${this.property}" has ${nonZeroBinCount} categories (>40), rendering as numeric histogram`
             );
-            return 'numeric';
         }
 
-        // If no type specified, infer from non-zero bin count
-        if (!this.type || this.type === 'unknown') {
-            return nonZeroBinCount <= 10 ? 'categorical' : 'numeric';
-        }
-
-        return this.type;
+        return effectiveType;
     }
 
     private prepareStackedBins(): StackedBin[] {
-        const GAP = 1;
-        const MIN_WIDTH = 6;
-
-        // Filter non-zero bins and sort
-        const rawBins = Object.keys(this.histogramData)
-            .map(k => ({ bin: +k, value: this.histogramData[k] }))
-            .filter(d => d.value > 0)
-            .sort((a, b) => a.bin - b.bin);
-
-        const nBars = rawBins.length;
-        const totalValue = rawBins.reduce((sum, d) => sum + d.value, 0);
-        const totalGapWidth = GAP * (nBars - 1);
-        const availableWidth = this.width - totalGapWidth;
-
-        // First pass: proportional widths
-        let widths = rawBins.map(d => Math.max((d.value / totalValue) * availableWidth, MIN_WIDTH));
-
-        // Adjust widths if sum exceeds availableWidth
-        const totalWidth = widths.reduce((sum, w) => sum + w, 0);
-        if (totalWidth > availableWidth) {
-            const scaleDown = availableWidth / totalWidth;
-            widths = widths.map(w => w * scaleDown);
-        }
-
-        // Build x0/x1 cumulatively
-        let cursor = 0;
-        return rawBins.map((d, i) => {
-            const x0 = cursor;
-            const x1 = x0 + widths[i];
-            cursor = x1 + GAP;
-            return {
-                ...d,
-                x0,
-                x1
-            };
-        });
+        return prepareStackedBinsFromObject(this.histogramData, { availableWidth: this.width });
     }
 
     private updateCategoricalSelection(

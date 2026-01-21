@@ -6,26 +6,16 @@
  * to prevent blocking the main UI thread.
  */
 
-import { ProjectionMethod, ProjectionComputeConfig } from '../shared/types/projection.types';
+import {
+  ProjectionMethod,
+  ProjectionComputeConfig,
+  ProjectionWorkerRequest,
+  ProjectionWorkerResponse
+} from '../shared/types/projection.types';
 
-// Worker message types
-interface ProjectionRequest {
-  type: 'compute';
-  method: ProjectionMethod;
-  features: number[][];
-  ids: (string | number)[];
-  config?: ProjectionComputeConfig;
-}
-
-interface ProjectionResponse {
-  type: 'result' | 'error' | 'progress';
-  method?: string;
-  positions?: Array<{ id: string | number; x: number; y: number }>;
-  computeTime?: number;
-  error?: string;
-  progress?: number;
-  message?: string;
-}
+// Local type aliases for cleaner code within this worker
+type ProjectionRequest = ProjectionWorkerRequest;
+type ProjectionResponse = ProjectionWorkerResponse;
 
 // Import DruidJS dynamically
 let druid: any = null;
