@@ -1523,9 +1523,10 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
 
   @HostListener('wheel', ['$event'])
   onWheel(event: WheelEvent): void {
-    if (!this.camera || !this.renderer || this.magicLensComponent.isActive() || this.tooltipComponent.isFixed()) return;
-
+    // Always prevent default to avoid browser zoom, even when Magic Lens is active
     event.preventDefault();
+
+    if (!this.camera || !this.renderer || this.magicLensComponent.isActive() || this.tooltipComponent.isFixed()) return;
     this.tooltipComponent.cancelHoverPopup();
 
     const oldZoom = this.camera.zoom;

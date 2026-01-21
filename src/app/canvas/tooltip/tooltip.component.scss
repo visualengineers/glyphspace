@@ -13,7 +13,28 @@
   max-width: 300px;
   max-height: 600px;
   overflow-wrap: break-word;
-  overflow-y: scroll;
+  overflow-y: auto;
+
+  // Dark scrollbar styling for all browsers
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.4) transparent;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.4);
+    border-radius: 3px;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.6);
+    }
+  }
 
   &.fixed {
     background: rgba(0, 0, 0, 1);
