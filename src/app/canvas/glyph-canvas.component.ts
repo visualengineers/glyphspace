@@ -1043,13 +1043,26 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
     // Use spatial grid for efficient viewport culling if available
     if (this.spatialGrid.size > 0 && this.glyphData.length > 500) {
       // For large datasets, use spatial grid O(k) instead of full scan O(n)
-      const visibleGlyphs = this.spatialGrid.queryRect(left - r, right + r, bottom - r, top + r);
+      // Use a generous margin based on the spatial grid cell size to ensure we don't miss glyphs
+      // when zoomed in (sizeInfo.radius changes with zoom but grid was built with original radius)
+      const gridMargin = Math.max(r, this.spatialGrid.getCellSize());
+      const visibleGlyphs = this.spatialGrid.queryRect(left - gridMargin, right + gridMargin, bottom - gridMargin, top + gridMargin);
 
-      // Mark glyphs outside viewport as not visible
+      // Mark glyphs based on viewport visibility
+      // First, mark all glyphs that are in the spatial query result as potentially visible
+      // Then do a precise bounds check for each
       for (const glyph of this.glyphData) {
         const cachedObject = glyph.getCacheObject(this.id, this.selectedTimestamp, this.selectedAlgorithm);
         const wasVisible = cachedObject.visible;
-        const isNowVisible = visibleGlyphs.has(glyph);
+
+        // If glyph is in the spatial query result, do precise bounds check
+        let isNowVisible = false;
+        if (visibleGlyphs.has(glyph)) {
+          const x = cachedObject.x ?? 0;
+          const y = cachedObject.y ?? 0;
+          // Use precise bounds check with current radius
+          isNowVisible = x + r > left && x - r < right && y + r > bottom && y - r < top;
+        }
 
         if (wasVisible !== isNowVisible) {
           visibilityChanged = true;
