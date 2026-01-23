@@ -29,14 +29,14 @@ export class MagiclensComponent {
   magicLensActive = false;
   isLensFixed = false;
   lensRadius = 250; // in pixels
-  lensZoomFactor = 8; // how much magnification to apply
+  lensZoomFactor = 12; // how much magnification to apply
   lensGlyphs: GlyphObject[] = [];
   private sizeInfo = new GlyphSizeInfo();
 
   // Adaptive performance settings
   private maxLensGlyphs = 30; // Starting value, will adapt
   private readonly MIN_LENS_GLYPHS = 10;
-  private readonly MAX_LENS_GLYPHS = 50;
+  private readonly MAX_LENS_GLYPHS = 30;
   private readonly TARGET_FRAME_TIME = 12; // ms (target ~80fps to leave headroom)
   private lastRenderTime = 0;
 

@@ -14,7 +14,6 @@ import { convertToScreenSpace, exportThreeSceneAsPNG, hitTest, hitTestCandidates
 import { TooltipComponent } from "./tooltip/tooltip.component";
 import { MagiclensComponent } from "./magiclens/magiclens.component";
 import { CommonModule } from '@angular/common';
-import { OverlayControlsComponent } from "./overlaycontrols/overlaycontrols.component";
 import { GlyphSizeInfo } from '../glyph/glyph-size-info';
 import { ItemFilter } from '../shared/filter/item-filter';
 import { IdFilter } from '../shared/filter/id-filter';
@@ -1024,7 +1023,7 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
       });
 
       // Simple iterative collision resolution - push overlapping glyphs apart minimally
-      const enlargedRadius = this.sizeInfo.getRadius(ZoomLevel.high) * 8;
+      const enlargedRadius = this.sizeInfo.getRadius(ZoomLevel.high) * 5;
       const minDist = enlargedRadius * 2; // Minimum distance between glyph centers
 
       // Run a few iterations of pairwise collision resolution
@@ -1059,7 +1058,7 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
     glyphs.forEach(glyph => {
       const lensSize = this.sizeInfo.clone();
       lensSize.currentZoomLevel = ZoomLevel.high;
-      lensSize.radius = lensSize.radius * 8;
+      lensSize.radius = lensSize.radius * 5;
 
       let mesh = glyph.getMesh(this.selectedTimestamp, this.selectedAlgorithm, this.id);
       if (mesh != undefined) {
