@@ -1,4 +1,4 @@
-import { Component, ElementRef, HostListener, OnInit, ViewChild, AfterViewInit, OnDestroy, Input, NgZone } from '@angular/core';
+import { Component, ElementRef, HostListener, OnInit, ViewChild, AfterViewInit, OnDestroy, Input, NgZone, ChangeDetectorRef } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import * as THREE from 'three';
 import { ConfigService } from '../services/config.service';
@@ -14,7 +14,6 @@ import { convertToScreenSpace, exportThreeSceneAsPNG, hitTest, hitTestCandidates
 import { TooltipComponent } from "./tooltip/tooltip.component";
 import { MagiclensComponent } from "./magiclens/magiclens.component";
 import { CommonModule } from '@angular/common';
-import { OverlayControlsComponent } from "./overlaycontrols/overlaycontrols.component";
 import { GlyphSizeInfo } from '../glyph/glyph-size-info';
 import { ItemFilter } from '../shared/filter/item-filter';
 import { IdFilter } from '../shared/filter/id-filter';
@@ -132,7 +131,7 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
   selectedAlgorithm = "";
   selectedContext = "";
 
-  constructor(private ngZone: NgZone, private logger: LoggerService, private config: ConfigService, private dataProvider: DataProviderService) {
+  constructor(private ngZone: NgZone, private cdr: ChangeDetectorRef, private logger: LoggerService, private config: ConfigService, private dataProvider: DataProviderService) {
   }
 
   //#region Life Cycle methods
@@ -254,6 +253,7 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
           } else {
             console.warn(`[Canvas ${this.id}] No data received!`);
           }
+          this.cdr.detectChanges();
         });
       })
     );
@@ -267,6 +267,7 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
           if (newAlgorithms.length > this.algorithms.length) {
             this.ngZone.run(() => {
               this.algorithms = newAlgorithms;
+              this.cdr.detectChanges();
             });
           }
         }
@@ -318,7 +319,7 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
     );
     this.configSub.add(
       this.config.glyphConfigSubject$.subscribe(() => {
-        if (this.magicLenseStatus) this.magicLensComponent.renderMagicLensGlyphs(this.selectedTimestamp, this.selectedAlgorithm, true);
+        if (this.magicLenseStatus) this.magicLensComponent.renderMagicLensGlyphs(this.selectedTimestamp, this.selectedAlgorithm);
         // Force render all glyphs when config changes - glyph geometry needs to be
         // recreated with new features, regardless of current visibility state
         this.renderGlyphs(true);
@@ -337,7 +338,7 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
         this.canvasHeight = height;
         this.sizeInfo.update(this.canvasWidth, this.canvasHeight);
 
-        // this.renderer.setSize(width, height, false); // corrupts scene
+        // Note: renderer.setSize causes infinite loops - aspect ratio fix needs different approach
         this.camera.left = width / -2;
         this.camera.right = width / 2;
         this.camera.top = height / 2;
@@ -1009,33 +1010,55 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
     this.resetUnhighlightedGlyphs(highlightedIds);
 
     if (glyphs.length > 1) {
-      const nodes = glyphs.map(glyph =>
-        glyph.getCacheObject(
-          this.id,
-          this.selectedTimestamp,
-          this.selectedAlgorithm
-        )
-      );
+      // Build nodes at their original positions
+      const nodes: { x: number; y: number; mesh: THREE.Object3D | undefined }[] = [];
 
-      this.lensSimulation = forceSimulation(nodes)
-        .force(
-          'collide',
-          forceCollide(this.sizeInfo.getRadius(ZoomLevel.high) * 4)
-        )
-        .velocityDecay(0.5)
-        .stop();
+      glyphs.forEach(glyph => {
+        const cache = glyph.getCacheObject(this.id, this.selectedTimestamp, this.selectedAlgorithm);
+        nodes.push({
+          x: cache.position.x,
+          y: cache.position.y,
+          mesh: cache.mesh
+        });
+      });
 
-      this.lensSimulation.tick(20);
+      // Simple iterative collision resolution - push overlapping glyphs apart minimally
+      const enlargedRadius = this.sizeInfo.getRadius(ZoomLevel.high) * 5;
+      const minDist = enlargedRadius * 2; // Minimum distance between glyph centers
 
+      // Run a few iterations of pairwise collision resolution
+      for (let iter = 0; iter < 5; iter++) {
+        for (let i = 0; i < nodes.length; i++) {
+          for (let j = i + 1; j < nodes.length; j++) {
+            const dx = nodes[j].x - nodes[i].x;
+            const dy = nodes[j].y - nodes[i].y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist < minDist && dist > 0) {
+              // Push apart by half the overlap each
+              const overlap = (minDist - dist) / 2;
+              const nx = dx / dist;
+              const ny = dy / dist;
+
+              nodes[i].x -= nx * overlap;
+              nodes[i].y -= ny * overlap;
+              nodes[j].x += nx * overlap;
+              nodes[j].y += ny * overlap;
+            }
+          }
+        }
+      }
+
+      // Apply final positions
       nodes.forEach(node => {
-        node.mesh?.position.set(node.x ?? 0, node.y ?? 0, 0);
+        node.mesh?.position.set(node.x, node.y, 0);
       });
     }
 
     glyphs.forEach(glyph => {
       const lensSize = this.sizeInfo.clone();
       lensSize.currentZoomLevel = ZoomLevel.high;
-      lensSize.radius = lensSize.radius * 8;
+      lensSize.radius = lensSize.radius * 5;
 
       let mesh = glyph.getMesh(this.selectedTimestamp, this.selectedAlgorithm, this.id);
       if (mesh != undefined) {
@@ -1396,9 +1419,10 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
 
   @HostListener('wheel', ['$event'])
   onWheel(event: WheelEvent): void {
-    if (!this.camera || !this.renderer || this.magicLensComponent.isActive() || this.tooltipComponent.isFixed()) return;
-
+    // Always prevent default to avoid browser zoom, even when Magic Lens is active
     event.preventDefault();
+
+    if (!this.camera || !this.renderer || this.magicLensComponent.isActive() || this.tooltipComponent.isFixed()) return;
     this.tooltipComponent.cancelHoverPopup();
 
     const oldZoom = this.camera.zoom;
