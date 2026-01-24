@@ -102,13 +102,14 @@
 
   // Configuration Table
   .config-table-container {
+    max-height: 50vh;  // Limit table height to enable scrolling with sticky header
     background: white;
     border: 1px solid v.$gray-300;
     border-radius: 4px;
     overflow-x: auto;
-    margin-bottom: 16px;
-    max-height: 600px;
     overflow-y: auto;
+    margin-bottom: 16px;
+    scrollbar-gutter: stable;  // Reserve space for scrollbar to prevent content overlap
   }
 
   .config-table {
@@ -131,6 +132,7 @@
         border-bottom: 2px solid v.$gray-300;
         white-space: nowrap;
         font-size: 12px;
+        background: v.$wizard-table-header-bg;  // Ensure background stays on scroll
 
         .header-with-tooltip {
           display: inline-flex;
@@ -497,6 +499,8 @@
         border: 1px solid v.$gray-300;
         border-radius: 4px;
         overflow-x: auto;
+        overflow-y: auto;
+        max-height: 250px;  // Limit height for scrolling
 
         .sample-table {
           width: 100%;
@@ -506,12 +510,16 @@
           thead {
             background: v.$gray-100;
             border-bottom: 1px solid v.$gray-300;
+            position: sticky;
+            top: 0;
+            z-index: 10;
 
             th {
               padding: 8px;
               text-align: left;
               font-weight: 600;
               color: v.$gray-700;
+              background: v.$gray-100;  // Ensure background stays on scroll
             }
           }
 

@@ -1,4 +1,5 @@
 @use '../../../styles/variables' as v;
+@use '../../../styles/mixins' as m;
 
 .nav-controls-panel {
   position: absolute;
@@ -69,26 +70,5 @@
     }
   }
 
-  &::after {
-    content: attr(data-tooltip);
-    position: absolute;
-    // top: 25%;
-    // left: 50%;
-    transform: translateX(70%) translateY(25%);
-    max-width: 150px;
-    background: v.$tooltip-bg;
-    color: v.$tooltip-text;
-    padding: 3px 6px;
-    font-size: 12px;
-    white-space: nowrap;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.15s ease-in-out;
-    z-index: 1000;
-    box-sizing: border-box;
-  }
-
-  &:hover::after {
-    opacity: 1;
-  }
+  @include m.tooltip-right(6px);
 }

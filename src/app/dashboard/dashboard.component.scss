@@ -1,4 +1,5 @@
 @use '../../styles/variables' as v;
+@use '../../styles/mixins' as m;
 
 .dashboard-container {
     opacity: 1;
@@ -26,7 +27,7 @@
     }
 
     .hamburger {
-        position: relative; // Make this the reference point for the tooltip
+        position: relative;
         font-size: 20px;
         background: none;
         border: none;
@@ -40,38 +41,14 @@
             vertical-align: middle;
         }
 
-        // 🔽 Remove focus ring for mouse users
         outline: none;
 
-        // Optional: more controlled focus style
         &:focus-visible {
             outline: none;
             box-shadow: none;
         }
 
-        &::after {
-            content: attr(data-tooltip);
-            position: absolute;
-            top: 100%; // place tooltip right below the button
-            left: 50%;
-            transform: translateX(-15%);
-            margin-top: 6px;
-            max-width: 150px;
-            background: v.$tooltip-bg;
-            color: v.$tooltip-text;
-            padding: 3px 6px;
-            font-size: 12px;
-            white-space: nowrap;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.15s ease-in-out;
-            z-index: 1000;
-            box-sizing: border-box;
-        }
-
-        &:hover::after {
-            opacity: 1;
-        }
+        @include m.tooltip-below(6px);
     }
 
     .title {

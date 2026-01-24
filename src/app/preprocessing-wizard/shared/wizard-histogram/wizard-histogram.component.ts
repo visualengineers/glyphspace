@@ -3,14 +3,12 @@ import { CommonModule } from '@angular/common';
 import * as d3 from 'd3';
 import { HistogramData } from '../../models/column-statistics';
 import { DataType } from '../../models/data-type.enum';
-
-type StackedBin = {
-  bin: number;
-  value: number;
-  x0: number;
-  x1: number;
-  label?: string;
-};
+import { StackedBin } from '../../../shared/types/histogram.types';
+import {
+  prepareStackedBinsFromArray,
+  rebinHistogramData,
+  darkenColor
+} from '../../../shared/utils/histogram.utils';
 
 @Component({
   selector: 'app-wizard-histogram',
@@ -41,22 +39,6 @@ export class WizardHistogramComponent implements OnInit, OnChanges, AfterViewIni
   private readonly MAX_CATEGORICAL_BINS = 40;
   private readonly MAX_NUMERIC_BINS = 20;
   private readonly margin = { top: 2, right: 2, bottom: 2, left: 2 };
-
-  private darkenColor(color: string, amount: number = 0.3): string {
-    // Convert hex to RGB
-    const hex = color.replace('#', '');
-    const r = parseInt(hex.substring(0, 2), 16);
-    const g = parseInt(hex.substring(2, 4), 16);
-    const b = parseInt(hex.substring(4, 6), 16);
-
-    // Darken by reducing each component
-    const newR = Math.floor(r * (1 - amount));
-    const newG = Math.floor(g * (1 - amount));
-    const newB = Math.floor(b * (1 - amount));
-
-    // Convert back to hex
-    return `#${newR.toString(16).padStart(2, '0')}${newG.toString(16).padStart(2, '0')}${newB.toString(16).padStart(2, '0')}`;
-  }
 
   ngOnInit(): void {
   }
@@ -137,67 +119,11 @@ export class WizardHistogramComponent implements OnInit, OnChanges, AfterViewIni
   }
 
   private prepareStackedBins(): StackedBin[] {
-    const GAP = 1;
-    const MIN_WIDTH = 3;
-
-    // Filter non-zero bins and sort
-    const rawBins = this.data.counts
-      .map((value, index) => ({
-        bin: index,
-        value,
-        label: this.data.labels && this.data.labels[index] ? this.data.labels[index] : `Bin ${index}`
-      }))
-      .filter(d => d.value > 0)
-      .sort((a, b) => a.bin - b.bin);
-
-    const nBars = rawBins.length;
-    if (nBars === 0) return [];
-
-    const totalValue = rawBins.reduce((sum, d) => sum + d.value, 0);
-    const totalGapWidth = GAP * (nBars - 1);
-    const availableWidth = this.width - this.margin.left - this.margin.right - totalGapWidth;
-
-    // First pass: proportional widths
-    let widths = rawBins.map(d => Math.max((d.value / totalValue) * availableWidth, MIN_WIDTH));
-
-    // Adjust widths if sum exceeds availableWidth
-    const totalWidth = widths.reduce((sum, w) => sum + w, 0);
-    if (totalWidth > availableWidth) {
-      const scaleDown = availableWidth / totalWidth;
-      widths = widths.map(w => w * scaleDown);
-    }
-
-    // Build x0/x1 cumulatively
-    let cursor = 0;
-    return rawBins.map((d, i) => {
-      const x0 = cursor;
-      const x1 = x0 + widths[i];
-      cursor = x1 + GAP;
-      return {
-        ...d,
-        x0,
-        x1
-      };
-    });
-  }
-
-  private rebinData(originalCounts: number[], targetBins: number): number[] {
-    const originalBins = originalCounts.length;
-    if (originalBins <= targetBins) {
-      return originalCounts;
-    }
-
-    const newCounts: number[] = new Array(targetBins).fill(0);
-    const binSize = originalBins / targetBins;
-
-    for (let i = 0; i < originalBins; i++) {
-      const targetBin = Math.floor(i / binSize);
-      if (targetBin < targetBins) {
-        newCounts[targetBin] += originalCounts[i];
-      }
-    }
-
-    return newCounts;
+    return prepareStackedBinsFromArray(
+      this.data.counts,
+      this.data.labels,
+      { availableWidth: this.width - this.margin.left - this.margin.right }
+    );
   }
 
   private drawCategoricalHistogram(width: number, height: number): void {
@@ -207,7 +133,7 @@ export class WizardHistogramComponent implements OnInit, OnChanges, AfterViewIni
     if (bins.length === 0) return;
 
     const displayColor = this.enabled ? this.color : '#ccc';
-    const darkerColor = this.darkenColor(displayColor);
+    const darkerColor = darkenColor(displayColor);
 
     const bars = this.svg.selectAll('rect')
       .data(bins)
@@ -256,10 +182,10 @@ export class WizardHistogramComponent implements OnInit, OnChanges, AfterViewIni
   private drawNumericHistogram(width: number, height: number): void {
     if (!this.data || !this.svg) return;
     // Rebin data if necessary
-    const counts = this.rebinData(this.data.counts, this.MAX_NUMERIC_BINS);
-    const bins = counts.map((value, index) => ({ bin: index, value }));
+    const counts = rebinHistogramData(this.data.counts, this.MAX_NUMERIC_BINS);
+    const bins = counts.map((value: number, index: number) => ({ bin: index, value }));
     const displayColor = this.enabled ? this.color : '#ccc';
-    const darkerColor = this.darkenColor(displayColor);
+    const darkerColor = darkenColor(displayColor);
 
     const xScale = d3.scaleLinear()
       .domain([0, bins.length])

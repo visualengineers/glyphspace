@@ -1,13 +1,15 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, inject, Input, NgZone, Output } from '@angular/core';
+import { Component, EventEmitter, inject, Input, NgZone, OnDestroy, Output } from '@angular/core';
 import { ConfigService } from '../../services/config.service';
 import { FormsModule } from '@angular/forms';
 import { FeaturesData } from '../../shared/interfaces/glyph-meta';
 import { GlyphSchema } from '../../shared/interfaces/glyph-schema';
 import { DataProviderService } from '../../services/dataprovider.service';
+import { ProjectionService } from '../../services/projection.service';
 import { COLOR_SCALES, ColorScale } from '../../shared/interfaces/color-scale';
 import { GlyphConfiguration } from '../../glyph/glyph-configuration';
 import { GlyphType } from '../../shared/enum/glyph-type';
+import { Subscription } from 'rxjs';
 
 export type SettingMode = 'position' | 'color' | 'glyph' | null;
 
@@ -18,7 +20,7 @@ export type SettingMode = 'position' | 'color' | 'glyph' | null;
   templateUrl: './settingscontrols.component.html',
   styleUrls: ['./settingscontrols.component.scss'],
 })
-export class SettingsControlPanelComponent {
+export class SettingsControlPanelComponent implements OnDestroy {
   @Input() visible = false; // controls fade in/out
 
   colorScales: ColorScale[] = COLOR_SCALES;
@@ -44,6 +46,13 @@ export class SettingsControlPanelComponent {
   glyphConfig = new GlyphConfiguration();
   GlyphType = GlyphType;
   applyGlyphSettingsToAll = true;
+
+  // Background projection status
+  backgroundProjections: Array<{ method: string; status: string; progress: number; message: string; fading?: boolean }> = [];
+  private backgroundStatusSubscription?: Subscription;
+  private completedProjectionTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  private fadingTimers = new Map<string, ReturnType<typeof setTimeout>>();  // Timers for fade-out animation
+  private dismissedProjections = new Set<string>();  // Track projections that have been dismissed after completion
 
   private ngZone!: NgZone;
 
@@ -76,12 +85,88 @@ export class SettingsControlPanelComponent {
     context: string;
   }>();
 
-  constructor(private config: ConfigService, private dataProvider: DataProviderService) {
+  constructor(
+    private config: ConfigService,
+    private dataProvider: DataProviderService,
+    private projectionService: ProjectionService
+  ) {
     this.ngZone = inject(NgZone);
   }
 
   ngOnInit(): void {
     this.groupedColorScales = this.groupColorScales(this.colorScales);
+
+    // Subscribe to background projection status updates
+    // Show running/pending projections, and completed ones for 5 seconds before fading out
+    this.backgroundStatusSubscription = this.projectionService.backgroundStatusObservable.subscribe(statusMap => {
+      this.ngZone.run(() => {
+        const newProjections: Array<{ method: string; status: string; progress: number; message: string; fading?: boolean }> = [];
+
+        statusMap.forEach((status, method) => {
+          // Show running, pending, or complete projections
+          if (status.status === 'running' || status.status === 'pending') {
+            // Clear any existing timers for this method (it's running again)
+            if (this.completedProjectionTimers.has(method)) {
+              clearTimeout(this.completedProjectionTimers.get(method));
+              this.completedProjectionTimers.delete(method);
+            }
+            if (this.fadingTimers.has(method)) {
+              clearTimeout(this.fadingTimers.get(method));
+              this.fadingTimers.delete(method);
+            }
+            // Clear dismissed status if projection is running again
+            this.dismissedProjections.delete(method);
+            newProjections.push({
+              method,
+              status: status.status,
+              progress: status.progress,
+              message: status.message
+            });
+          } else if (status.status === 'complete') {
+            // Check if we already have a timer for this completed projection
+            if (!this.completedProjectionTimers.has(method)) {
+              // Start fade-out after 4.5 seconds, then remove after 5 seconds
+              const fadeTimer = setTimeout(() => {
+                this.ngZone.run(() => {
+                  // Set fading flag to trigger CSS transition
+                  const proj = this.backgroundProjections.find(p => p.method === method);
+                  if (proj) {
+                    proj.fading = true;
+                  }
+                });
+              }, 4500);
+
+              const removeTimer = setTimeout(() => {
+                this.ngZone.run(() => {
+                  this.completedProjectionTimers.delete(method);
+                  this.fadingTimers.delete(method);
+                  // Mark this method as dismissed so we don't show it again
+                  this.dismissedProjections.add(method);
+                  // Trigger a re-render by filtering out this method
+                  this.backgroundProjections = this.backgroundProjections.filter(p => p.method !== method);
+                });
+              }, 5000);
+
+              this.completedProjectionTimers.set(method, removeTimer);
+              this.fadingTimers.set(method, fadeTimer);
+            }
+            // Only show completed projection if it hasn't been dismissed
+            if (!this.dismissedProjections.has(method)) {
+              newProjections.push({
+                method,
+                status: status.status,
+                progress: 100,
+                message: status.message,
+                fading: false
+              });
+            }
+          }
+          // Don't show error projections (they disappear immediately)
+        });
+
+        this.backgroundProjections = newProjections;
+      });
+    });
 
     this.config.loadedDataSubject$.subscribe(async data => {
       if (data == "") return;
@@ -109,6 +194,17 @@ export class SettingsControlPanelComponent {
         this.selectedColorAttribute = this.config.colorFeature;
       }
     });
+  }
+
+  ngOnDestroy(): void {
+    if (this.backgroundStatusSubscription) {
+      this.backgroundStatusSubscription.unsubscribe();
+    }
+    // Clear all timers
+    this.completedProjectionTimers.forEach(timer => clearTimeout(timer));
+    this.completedProjectionTimers.clear();
+    this.fadingTimers.forEach(timer => clearTimeout(timer));
+    this.fadingTimers.clear();
   }
 
   hideMenus() {

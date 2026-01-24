@@ -1,0 +1,130 @@
+@use 'variables' as v;
+
+/**
+ * Tooltip mixin using data-tooltip attribute
+ * Displays a tooltip on hover using ::after pseudo-element
+ *
+ * Usage:
+ *   .my-button {
+ *     position: relative;
+ *     @include tooltip-base();
+ *   }
+ *
+ *   Or with custom position:
+ *   .my-button {
+ *     position: relative;
+ *     @include tooltip-below();
+ *   }
+ *
+ * HTML: <button data-tooltip="My tooltip text">Click me</button>
+ */
+
+@mixin tooltip-base($position: 'bottom', $offset: 6px) {
+  &::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    background: v.$tooltip-bg;
+    color: v.$tooltip-text;
+    padding: 3px 6px;
+    font-size: 12px;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease-in-out;
+    z-index: 1000;
+    box-sizing: border-box;
+    max-width: 150px;
+
+    @if $position == 'bottom' {
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      margin-top: $offset;
+    } @else if $position == 'top' {
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      margin-bottom: $offset;
+    } @else if $position == 'left' {
+      right: 100%;
+      top: 50%;
+      transform: translateY(-50%);
+      margin-right: $offset;
+    } @else if $position == 'right' {
+      left: 100%;
+      top: 50%;
+      transform: translateY(-50%);
+      margin-left: $offset;
+    }
+  }
+
+  &:hover::after {
+    opacity: 1;
+  }
+}
+
+// Convenience mixins for common tooltip positions
+@mixin tooltip-below($offset: 6px) {
+  @include tooltip-base('bottom', $offset);
+}
+
+@mixin tooltip-above($offset: 6px) {
+  @include tooltip-base('top', $offset);
+}
+
+@mixin tooltip-left($offset: 6px) {
+  @include tooltip-base('left', $offset);
+}
+
+@mixin tooltip-right($offset: 6px) {
+  @include tooltip-base('right', $offset);
+}
+
+/**
+ * Scrollbar styling mixin
+ * Creates a thin, styled scrollbar that matches the design system
+ *
+ * Usage:
+ *   .scrollable-container {
+ *     overflow-y: auto;
+ *     @include styled-scrollbar();
+ *   }
+ */
+@mixin styled-scrollbar($width: 10px, $track-color: v.$gray-100, $thumb-color: v.$gray-400, $thumb-hover-color: v.$gray-500) {
+  &::-webkit-scrollbar {
+    width: $width;
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: $track-color;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: $thumb-color;
+    border: 3px solid white;
+    border-radius: 5px;
+
+    &:hover {
+      background: $thumb-hover-color;
+    }
+  }
+}
+
+/**
+ * Spin animation for loading indicators
+ */
+@mixin spin-animation {
+  @keyframes spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+}
+
+@mixin spinning {
+  animation: spin 1s linear infinite;
+}

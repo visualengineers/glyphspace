@@ -4,9 +4,9 @@
 .step2-column-selection {
   display: flex;
   flex-direction: column;
-  height: 100%;
   padding: 16px 32px;
   max-width: 1150px;
+  width: 100%;
   margin: 0 auto;
 }
 
@@ -118,12 +118,33 @@
 
 // Table Layout
 .columns-table-container {
-  flex: 1;
-  overflow: auto;
+  max-height: 50vh;  // Limit table height to enable scrolling with sticky header
+  overflow-y: auto;
+  overflow-x: hidden;
   background: white;
   border: 1px solid v.$gray-200;
   border-radius: 4px;
   margin-bottom: 16px;
+
+  // Thin scrollbar that takes minimal space
+  &::-webkit-scrollbar {
+    width: 10px;
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: v.$gray-100;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: v.$gray-400;
+    border: 3px solid white;  // Creates visual inset
+    border-radius: 5px;
+
+    &:hover {
+      background: v.$gray-500;
+    }
+  }
 }
 
 .columns-table {
@@ -151,6 +172,7 @@
       text-transform: uppercase;
       letter-spacing: 0.5px;
       white-space: nowrap;
+      background: v.$wizard-table-header-bg;  // Ensure background stays on scroll
 
       .header-with-tooltip {
         display: inline-flex;
