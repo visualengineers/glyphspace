@@ -7,6 +7,7 @@ import { Step1UploadComponent } from './steps/step1-upload/step1-upload.componen
 import { Step2ColumnSelectionComponent } from './steps/step2-column-selection/step2-column-selection.component';
 import { Step3ConfigureDataFeaturesComponent } from './steps/step3-configure-data-features/step3-configure-data-features.component';
 import { Step4VisualizationSettingsComponent } from './steps/step4-visualization-settings/step4-visualization-settings.component';
+import { Step5ReviewProcessingComponent } from './steps/step5-review-processing/step5-review-processing.component';
 import { DataProfile } from './models/column-statistics';
 
 @Component({
@@ -18,7 +19,8 @@ import { DataProfile } from './models/column-statistics';
     Step1UploadComponent,
     Step2ColumnSelectionComponent,
     Step3ConfigureDataFeaturesComponent,
-    Step4VisualizationSettingsComponent
+    Step4VisualizationSettingsComponent,
+    Step5ReviewProcessingComponent
   ],
   templateUrl: './preprocessing-wizard.component.html',
   styleUrl: './preprocessing-wizard.component.scss'
@@ -38,7 +40,8 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
     { label: 'Upload Data', completed: false },
     { label: 'Select Columns', completed: false },
     { label: 'Configure Data & Features', completed: false },
-    { label: 'Visualization Settings', completed: false }
+    { label: 'Visualization Settings', completed: false },
+    { label: 'Review & Process', completed: false }
   ];
 
   constructor(private preprocessingService: PreprocessingService) { }
@@ -95,8 +98,8 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
     this.steps[0].completed = state.dataProfile !== null;
     this.steps[1].completed = state.columnConfigs.size > 0 && this.highestStepVisited > 1;
     this.steps[2].completed = this.highestStepVisited > 2;
-    // Step 3 (index 3) is completed either after processing OR if user has visited it
-    this.steps[3].completed = state.processedDataset !== null || this.highestStepVisited >= 3;
+    this.steps[3].completed = this.highestStepVisited > 3;
+    this.steps[4].completed = state.processedDataset !== null;
   }
 
   onStepClick(step: number): void {
@@ -127,6 +130,8 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
       case 2: // Configure Data & Features
         return true;
       case 3: // Visualization Settings
+        return true;
+      case 4: // Review & Process
         return false; // Final step - processing happens here
       default:
         return false;

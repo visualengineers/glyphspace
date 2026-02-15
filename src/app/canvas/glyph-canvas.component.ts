@@ -880,8 +880,10 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
     }, 1000);
 
     if (this.renderGlyphsCallCount > this.MAX_RENDER_CALLS_PER_SECOND) {
-      console.error(`Infinite render loop detected (${this.renderGlyphsCallCount} calls/sec). Breaking loop.`);
+      console.warn(`Rapid render calls detected (${this.renderGlyphsCallCount} calls/sec). Deferring render.`);
       this.renderGlyphsCallCount = 0;
+      // Defer a final render so the canvas doesn't stay blank
+      setTimeout(() => this.renderGlyphs(true), 200);
       return;
     }
 

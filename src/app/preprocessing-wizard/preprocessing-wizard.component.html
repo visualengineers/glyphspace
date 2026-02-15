@@ -42,7 +42,10 @@
           <app-step3-configure-data-features></app-step3-configure-data-features>
         }
         @case (3) {
-          <app-step4-visualization-settings (finish)="onWizardComplete()"></app-step4-visualization-settings>
+          <app-step4-visualization-settings></app-step4-visualization-settings>
+        }
+        @case (4) {
+          <app-step5-review-processing (finish)="onWizardComplete()"></app-step5-review-processing>
         }
       }
     </div>

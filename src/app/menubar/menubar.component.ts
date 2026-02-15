@@ -23,6 +23,7 @@ export class MenuBarComponent implements OnInit, OnDestroy {
     showWizard = false;
     hasData = false;
     datasetNames: string[] = [];
+    datasetEntries: { name: string; source: string }[] = [];
     selectedDataset: string | null = null;
 
     private dataSub = new Subscription();
@@ -37,6 +38,10 @@ export class MenuBarComponent implements OnInit, OnDestroy {
             this.dataProvider.dataSetCollectionSubject$.subscribe(collection => {
                 this.hasData = !!collection && collection.length > 0 && collection.at(0)?.dataset != "";
                 this.datasetNames = collection.map(entry => entry.dataset);
+                this.datasetEntries = collection.map(entry => ({
+                    name: entry.dataset,
+                    source: entry.source
+                }));
             }));
         this.dataSub.add(
             this.configService.loadedDataSubject$.subscribe(loaded => {
@@ -77,5 +82,18 @@ export class MenuBarComponent implements OnInit, OnDestroy {
 
     fitAll() {
         this.configService.toggleFitToScreen();
+    }
+
+    isUserDataset(name: string | null): boolean {
+        if (!name) return false;
+        const entry = this.datasetEntries.find(e => e.name === name);
+        return !!entry && entry.source !== 'local';
+    }
+
+    async onDeleteDataset(name: string | null): Promise<void> {
+        if (!name || !this.isUserDataset(name)) return;
+        if (confirm(`Delete dataset "${name}"? This cannot be undone.`)) {
+            await this.dataProvider.deleteDataset(name);
+        }
     }
 }

@@ -23,6 +23,10 @@ export const STEP_INFO: Record<number, StepInfo> = {
   },
   3: {
     title: 'Visualization Settings',
-    purpose: 'Select color and glyph features, choose projection methods, review your configuration, and process your data.'
+    purpose: 'Select color and glyph features, and choose projection methods.'
+  },
+  4: {
+    title: 'Review & Process',
+    purpose: 'Review your configuration summary and process the data for visualization.'
   }
 };

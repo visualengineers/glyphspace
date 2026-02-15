@@ -22,9 +22,20 @@
             <!-- DATA -->
             <div class="data-control">
                 <span class="label">Data</span>
-                <select [(ngModel)]="selectedDataset" (ngModelChange)="onDatasetSelect($event)">
-                    <option *ngFor="let name of datasetNames" [value]="name">{{ name }}</option>
-                </select>
+                <div class="dataset-selector">
+                    <select [(ngModel)]="selectedDataset" (ngModelChange)="onDatasetSelect($event)">
+                        <option *ngFor="let entry of datasetEntries" [value]="entry.name">
+                            {{ entry.name }}{{ entry.source !== 'local' ? ' (uploaded)' : '' }}
+                        </option>
+                    </select>
+                    <button
+                        *ngIf="isUserDataset(selectedDataset)"
+                        class="delete-btn"
+                        (click)="onDeleteDataset(selectedDataset)"
+                        title="Delete this dataset">
+                        <span class="material-icons">delete_outline</span>
+                    </button>
+                </div>
             </div>
 
             <!-- UPLOAD / EXPORT -->

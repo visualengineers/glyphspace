@@ -13,6 +13,7 @@ import { GlyphFeature } from "../shared/interfaces/glyph-feature";
 import { GlyphPosition } from "../shared/interfaces/glyph-position";
 import { HttpClient } from "@angular/common/http";
 import { DEFAULT_DATASETCOLLECTION } from "../../default-dataset";
+import { DatasetStorageService, StoredDataset } from "./dataset-storage.service";
 
 @Injectable({
     providedIn: 'root',
@@ -29,9 +30,10 @@ export class DataProviderService {
     totalItems = 0;
     filteredItems = 0;
 
-    constructor(private http: HttpClient, private config: ConfigService, private dataProcessor: DataProcessorService) {
+    constructor(private http: HttpClient, private config: ConfigService, private dataProcessor: DataProcessorService, private datasetStorage: DatasetStorageService) {
         // TODO: Defer loading like WASM data sets
         this.loadDatasets(DEFAULT_DATASETCOLLECTION);
+        this.loadSavedDatasets();
     }
 
     private loadDatasets(datasets: DatasetCollection) {
@@ -90,6 +92,128 @@ export class DataProviderService {
                 });
             });
         });
+    }
+
+    private async loadSavedDatasets(): Promise<void> {
+        try {
+            const savedDatasets = await this.datasetStorage.getAllDatasets();
+
+            for (const saved of savedDatasets) {
+                const positionsMap = new Map<string, GlyphPosition[]>();
+                for (const [algo, posArr] of Object.entries(saved.positions)) {
+                    positionsMap.set(algo, posArr);
+                }
+
+                this.buildDataSet(saved.name, saved.timestamp, saved.schema, saved.meta, saved.features, positionsMap);
+
+                const positionMapping: { [key: string]: string } = {};
+                for (const algo of Object.keys(saved.positions)) {
+                    positionMapping[algo] = `memory://${saved.name}/${saved.timestamp}/${algo}`;
+                }
+
+                const entry: DatasetCollectionEntry = {
+                    dataset: saved.name,
+                    source: 'indexeddb',
+                    items: [{
+                        time: saved.timestamp,
+                        algorithms: {
+                            schema: `memory://${saved.name}/${saved.timestamp}/schema`,
+                            meta: `memory://${saved.name}/${saved.timestamp}/meta`,
+                            feature: `memory://${saved.name}/${saved.timestamp}/features`,
+                            position: positionMapping
+                        }
+                    }]
+                };
+
+                this.setDatasetCollection([entry]);
+            }
+        } catch (error) {
+            console.warn('[DataProvider] Failed to load saved datasets from IndexedDB:', error);
+        }
+    }
+
+    public async saveDatasetToStorage(datasetName: string, timestamp: string): Promise<void> {
+        try {
+            const schema = this.schemaCache.get(datasetName)?.get(timestamp);
+            const meta = this.metaCache.get(datasetName)?.get(timestamp);
+            if (!schema || !meta) {
+                console.warn('[DataProvider] Cannot save to IndexedDB - missing schema or meta for:', datasetName);
+                return;
+            }
+
+            const glyphMap = this.glyphCache.get(datasetName);
+            if (!glyphMap) return;
+
+            const features: GlyphFeature[] = [];
+            const positions: { [algo: string]: GlyphPosition[] } = {};
+
+            glyphMap.forEach((glyph) => {
+                features.push({
+                    id: glyph.id,
+                    defaultcontext: String(glyph.defaultcontext),
+                    features: glyph.features,
+                    values: glyph.values ?? {}
+                });
+
+                if (glyph.positions[timestamp]) {
+                    for (const [algo, pos] of Object.entries(glyph.positions[timestamp])) {
+                        if (!positions[algo]) positions[algo] = [];
+                        positions[algo].push({
+                            id: glyph.id,
+                            position: pos as { x: number; y: number }
+                        });
+                    }
+                }
+            });
+
+            const stored: StoredDataset = {
+                name: datasetName,
+                timestamp,
+                savedAt: Date.now(),
+                schema,
+                meta,
+                features,
+                positions
+            };
+
+            await this.datasetStorage.saveDataset(stored);
+
+            // Update source to 'indexeddb' in collection
+            const collection = this.dataSetCollectionSubject.getValue();
+            const entry = collection.find(c => c.dataset === datasetName);
+            if (entry) {
+                entry.source = 'indexeddb';
+                this.dataSetCollectionSubject.next([...collection]);
+            }
+
+            console.log(`[DataProvider] Dataset "${datasetName}" saved to IndexedDB`);
+        } catch (error) {
+            console.warn('[DataProvider] Failed to save dataset to IndexedDB:', error);
+        }
+    }
+
+    public async deleteDataset(datasetName: string): Promise<boolean> {
+        const collection = this.dataSetCollectionSubject.getValue();
+        const entry = collection.find(c => c.dataset === datasetName);
+
+        if (!entry || entry.source === 'local') {
+            return false;
+        }
+
+        await this.datasetStorage.deleteDataset(datasetName);
+
+        this.glyphCache.delete(datasetName);
+        this.schemaCache.delete(datasetName);
+        this.metaCache.delete(datasetName);
+
+        const updated = collection.filter(c => c.dataset !== datasetName);
+        this.dataSetCollectionSubject.next(updated);
+
+        if (this.config.loadedData === datasetName && updated.length > 0) {
+            this.config.loadData(updated[0].dataset);
+        }
+
+        return true;
     }
 
     clearFilters() {
@@ -445,6 +569,27 @@ export class DataProviderService {
 
             this.totalItems = this.buildDataSet(name, timestamp, schema, meta, features, positions);
             this.filteredItems = this.totalItems;
+        } else if (item && dataset?.source === 'indexeddb') {
+            const saved = await this.datasetStorage.getDataset(name);
+            if (saved) {
+                const positionsMap = new Map<string, GlyphPosition[]>();
+                for (const [algo, posArr] of Object.entries(saved.positions)) {
+                    positionsMap.set(algo, posArr);
+                }
+                this.config.colorFeature = saved.schema.color;
+                this.config.replaceActiveFeatures(saved.schema.glyph);
+                this.config.featureLabels = saved.schema.label;
+                if (saved.schema.colorRange !== undefined) {
+                    this.config.colorRange = saved.schema.colorRange ? 0 : 4;
+                }
+                if (saved.schema.types) {
+                    this.config.featureTypes = saved.schema.types;
+                }
+                this.config.updateConfiguration();
+                this.totalItems = this.buildDataSet(name, saved.timestamp, saved.schema, saved.meta, saved.features, positionsMap);
+                this.filteredItems = this.totalItems;
+                this.extractFeatureMaxValuesFromMeta(name, saved.timestamp);
+            }
         }
     }
 
