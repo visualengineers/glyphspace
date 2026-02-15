@@ -27,6 +27,7 @@ export interface PreprocessingState {
   glyphFeatures: string[];      // Array of 5 feature names for glyph rays (ordered)
   tooltipFeatures: string[];    // Array of feature names for tooltips
   colorScaleMode: 'continuous' | 'categorical';  // Auto-detected based on color feature data type
+  colorScaleId: number;  // ID of selected color scale from COLOR_SCALES
 
   // UI state
   isProcessing: boolean;

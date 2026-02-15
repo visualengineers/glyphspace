@@ -163,8 +163,8 @@ def profile_data(file_name):
                 print(f"Error profiling column {col}: {str(e)}")
                 continue
 
-        # Preview rows (first 5)
-        preview_rows = df.head(5).fillna('').to_dict('records')
+        # Preview rows (first 10)
+        preview_rows = df.head(10).fillna('').to_dict('records')
 
         profile = {
             'fileName': file_name,

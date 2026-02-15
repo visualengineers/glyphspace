@@ -387,10 +387,4 @@ export class ProjectionService {
     this.workers.clear();
   }
 
-  /**
-   * Clean up on service destroy
-   */
-  ngOnDestroy(): void {
-    this.terminateAllWorkers();
-  }
 }

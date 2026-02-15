@@ -4,10 +4,17 @@
 .step2-column-selection {
   display: flex;
   flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.step-content {
+  flex: 1;
   padding: 16px 32px;
   max-width: 1150px;
   width: 100%;
   margin: 0 auto;
+  box-sizing: border-box;
 }
 
 .step-header {
@@ -35,52 +42,10 @@
 }
 
 .search-box {
+  @include wizard.search-box($padding: 8px 12px, $icon-size: 20px, $border-color: v.$gray-200);
   flex: 1;
   min-width: 250px;
   position: relative;
-  display: flex;
-  align-items: center;
-  background: white;
-  border: 1px solid v.$gray-200;
-  border-radius: 4px;
-  padding: 8px 12px;
-
-  .material-icons {
-    color: v.$gray-500;
-    margin-right: 8px;
-    font-size: 20px;
-  }
-
-  .search-input {
-    flex: 1;
-    border: none;
-    outline: none;
-    font-size: 13px;
-    color: v.$gray-800;
-
-    &::placeholder {
-      color: v.$gray-500;
-    }
-  }
-
-  .clear-search {
-    background: none;
-    border: none;
-    padding: 4px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    color: v.$gray-500;
-
-    &:hover {
-      color: v.$gray-800;
-    }
-
-    .material-icons {
-      font-size: 18px;
-      margin: 0;
-    }
-  }
 }
 
 .selection-controls {
@@ -118,145 +83,88 @@
 
 // Table Layout
 .columns-table-container {
-  max-height: 50vh;  // Limit table height to enable scrolling with sticky header
-  overflow-y: auto;
+  @include wizard.table-container;
   overflow-x: hidden;
-  background: white;
-  border: 1px solid v.$gray-200;
-  border-radius: 4px;
   margin-bottom: 16px;
-
-  // Thin scrollbar that takes minimal space
-  &::-webkit-scrollbar {
-    width: 10px;
-    background: transparent;
-  }
-
-  &::-webkit-scrollbar-track {
-    background: v.$gray-100;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: v.$gray-400;
-    border: 3px solid white;  // Creates visual inset
-    border-radius: 5px;
-
-    &:hover {
-      background: v.$gray-500;
-    }
-  }
 }
 
 .columns-table {
-  width: 100%;
+  @include wizard.table;
   table-layout: fixed;
-  border-collapse: collapse;
-  font-size: 13px;
 
-  thead {
-    position: sticky;
-    top: 0;
-    z-index: 10;
-    background: v.$wizard-table-header-bg;
-
-    tr {
-      border-bottom: 2px solid v.$gray-300;
+  thead th {
+    .header-with-tooltip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
     }
 
-    th {
-      padding: 12px;
-      text-align: left;
-      font-weight: 600;
-      color: v.$gray-700;
-      font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      white-space: nowrap;
-      background: v.$wizard-table-header-bg;  // Ensure background stays on scroll
+    &.col-checkbox {
+      width: 44px;
+      padding-left: 12px;
+    }
 
-      .header-with-tooltip {
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-      }
+    &.col-name {
+      width: 20%;
+    }
 
-      &.col-checkbox {
-        width: 50px;
-        padding-left: 16px;
-      }
+    &.col-type {
+      width: 10%;
+    }
 
-      &.col-name {
-        width: 25%;
-      }
+    &.col-count {
+      width: 8%;
+      text-align: right;
+    }
 
-      &.col-type {
-        width: 12%;
-      }
+    &.col-unique {
+      width: 10%;
+      text-align: right;
+    }
 
-      &.col-count {
-        width: 10%;
-        text-align: right;
-      }
+    &.col-missing {
+      width: 10%;
+      text-align: right;
+    }
 
-      &.col-unique {
-        width: 12%;
-        text-align: right;
-      }
-
-      &.col-missing {
-        width: 12%;
-        text-align: right;
-      }
-
-      &.col-distribution {
-        width: auto;
-        text-align: center;
-      }
+    &.col-distribution {
+      width: auto;
+      text-align: center;
     }
   }
 
-  tbody {
-    tr.column-row {
-      border-bottom: 1px solid v.$gray-200;
-      transition: background-color 0.15s ease;
+  tbody tr.column-row {
+    transition: background-color 0.15s ease;
 
-      &:hover {
-        background: v.$gray-100;
+    &.disabled {
+      opacity: 0.5;
+    }
+
+    &.has-issues {
+      background: rgba(255, 152, 0, 0.05);
+    }
+
+    td {
+      &.col-checkbox {
+        padding-left: 12px;
+
+        input[type="checkbox"] {
+          width: 16px;
+          height: 16px;
+          cursor: pointer;
+        }
       }
 
-      &.disabled {
-        opacity: 0.5;
+      &.col-count,
+      &.col-unique,
+      &.col-missing {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
       }
 
-      &.has-issues {
-        background: rgba(255, 152, 0, 0.05);
-      }
-
-      td {
-        padding: 12px;
-        vertical-align: middle;
-
-        &.col-checkbox {
-          padding-left: 16px;
-
-          input[type="checkbox"] {
-            width: 16px;
-            height: 16px;
-            cursor: pointer;
-          }
-        }
-
-        &.col-count,
-        &.col-unique,
-        &.col-missing {
-          text-align: right;
-          font-variant-numeric: tabular-nums;
-        }
-
-        &.col-distribution {
-          text-align: center;
-          position: relative;
-        }
+      &.col-distribution {
+        text-align: center;
+        position: relative;
       }
     }
   }
@@ -268,8 +176,7 @@
   gap: 8px;
 
   .name-text {
-    font-weight: 500;
-    color: v.$gray-800;
+    @include wizard.column-name-text;
   }
 
   .issue-icon {
@@ -279,42 +186,7 @@
 }
 
 .data-type-badge {
-  display: inline-block;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-
-  &.badge-numeric {
-    background: v.$data-type-numeric-bg;
-    color: v.$data-type-numeric;
-  }
-
-  &.badge-categorical {
-    background: v.$data-type-categorical-bg;
-    color: v.$data-type-categorical;
-  }
-
-  &.badge-text {
-    background: v.$data-type-text-bg;
-    color: v.$data-type-text;
-  }
-
-  &.badge-date {
-    background: v.$data-type-date-bg;
-    color: v.$data-type-date;
-  }
-
-  &.badge-boolean {
-    background: v.$data-type-boolean-bg;
-    color: v.$data-type-boolean;
-  }
-
-  &.badge-id {
-    background: v.$data-type-id-bg;
-    color: v.$data-type-id;
-  }
+  @include wizard.data-type-badge;
 }
 
 .unique-cell,
@@ -349,23 +221,7 @@
 
 // No Results
 .no-results {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 48px 24px;
-  color: v.$gray-600;
-
-  .material-icons {
-    font-size: 48px;
-    color: v.$gray-400;
-    margin-bottom: 16px;
-  }
-
-  p {
-    font-size: 14px;
-    margin: 0;
-  }
+  @include wizard.no-content($padding: 48px 24px, $text-size: 14px);
 }
 
 // Action Buttons

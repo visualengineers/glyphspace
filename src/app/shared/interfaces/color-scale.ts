@@ -132,3 +132,34 @@ export const COLOR_SCALES: ColorScale[] = [
 export function getColorScaleById(id: number): ColorScale | undefined {
     return COLOR_SCALES.find(scale => scale.id === id);
 }
+
+export function getContinuousGradient(scale: ColorScale, steps = 10): string {
+    const domain = scale.scale.domain();
+    const min = domain[0];
+    const max = domain[domain.length - 1];
+    const colors: string[] = [];
+    for (let i = 0; i < steps; i++) {
+        const t = i / (steps - 1);
+        const value = min + t * (max - min);
+        colors.push(scale.scale(value));
+    }
+    return `linear-gradient(to right, ${colors.join(', ')})`;
+}
+
+export function getCategoricalColors(scale: ColorScale): string[] {
+    if (typeof scale.scale.range === 'function') {
+        return scale.scale.range();
+    }
+    return [];
+}
+
+export function buildGroupedColorScales(scales: ColorScale[] = COLOR_SCALES): { group: string; scales: ColorScale[] }[] {
+    const map = new Map<string, ColorScale[]>();
+    for (const s of scales) {
+        if (!map.has(s.group)) {
+            map.set(s.group, []);
+        }
+        map.get(s.group)!.push(s);
+    }
+    return Array.from(map.entries()).map(([group, scales]) => ({ group, scales }));
+}

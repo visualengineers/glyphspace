@@ -6,7 +6,7 @@ import { DataProviderService } from '../../../services/dataprovider.service';
 import { ProjectionService, ProjectionResult } from '../../../services/projection.service';
 import { ToastService } from '../../../services/toast.service';
 import { ColumnConfig, ProjectionConfig } from '../../models/column-config';
-import { DataType, EncodingMethod, ScalingMethod } from '../../models/data-type.enum';
+import { DataType, EncodingMethod, ScalingMethod, getDataTypeBadgeClass as badgeClassFn } from '../../models/data-type.enum';
 import { STEP_INFO } from '../../shared/constants/step-info';
 
 @Component({
@@ -18,6 +18,7 @@ import { STEP_INFO } from '../../shared/constants/step-info';
 })
 export class Step5ReviewProcessingComponent implements OnInit, OnDestroy {
   @Output() finish = new EventEmitter<void>();
+  getDataTypeBadgeClass = badgeClassFn;
 
   // Review/Summary data
   totalColumns = 0;
@@ -149,9 +150,7 @@ export class Step5ReviewProcessingComponent implements OnInit, OnDestroy {
     return labels[type] || 'Unknown';
   }
 
-  getDataTypeBadgeClass(dataType: DataType | undefined): string {
-    return `badge-${dataType}`;
-  }
+
 
   // ============================================================================
   // Processing

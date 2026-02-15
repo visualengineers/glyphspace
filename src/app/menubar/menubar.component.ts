@@ -58,10 +58,6 @@ export class MenuBarComponent implements OnInit, OnDestroy {
         this.configService.loadData(name);        
     }
 
-    onContextSelect(context: string) {
-        // Do something with selected context
-    }
-
     toggleLegend() {
         this.legendOpen = !this.legendOpen;
     }

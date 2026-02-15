@@ -47,3 +47,7 @@ export enum OutlierMethod {
   ZScore_3 = 'zscore_3',
   ZScore_4 = 'zscore_4'
 }
+
+export function getDataTypeBadgeClass(dataType: DataType | undefined): string {
+  return `badge-${dataType}`;
+}

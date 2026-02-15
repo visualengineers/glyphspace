@@ -12,3 +12,13 @@ html, body {
 * {
   font-family: inherit;
 }
+
+/* Global spin animation — used by loading indicators across all components */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.spinning {
+  animation: spin 1s linear infinite;
+}

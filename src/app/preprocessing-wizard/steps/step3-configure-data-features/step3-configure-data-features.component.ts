@@ -10,7 +10,8 @@ import {
   ScalingMethod,
   MissingValueStrategy,
   OutlierStrategy,
-  OutlierMethod
+  OutlierMethod,
+  getDataTypeBadgeClass as badgeClassFn
 } from '../../models/data-type.enum';
 import { HelpTooltipComponent } from '../../shared/help-tooltip/help-tooltip.component';
 import { HELP_TEXT } from '../../shared/constants/help-text';
@@ -34,6 +35,13 @@ interface ColumnConfigState {
 export class Step3ConfigureDataFeaturesComponent implements OnInit {
   columns: ColumnConfigState[] = [];
   filteredColumns: ColumnConfigState[] = [];
+  getDataTypeBadgeClass = badgeClassFn;
+
+  // Selection state for list+detail panel
+  selectedColumnName: string | null = null;
+
+  // UI state
+  showInfoBox: boolean = true;
 
   // Duplicate handling
   duplicateCount: number = 0;
@@ -48,9 +56,6 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit {
   filterText: string = '';
   filterType: DataType | 'all' = 'all';
   showIssuesOnly: boolean = false;
-
-  // Expanded rows for details
-  expandedRows: Set<string> = new Set();
 
   // Enum references for template
   DataType = DataType;
@@ -102,6 +107,10 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit {
 
   error: string | null = null;
 
+  get selectedColumn(): ColumnConfigState | null {
+    return this.columns.find(c => c.column.name === this.selectedColumnName) || null;
+  }
+
   readonly HELP_TEXT = HELP_TEXT;
   readonly stepInfo = STEP_INFO[2]; // Step 3 (index 2)
 
@@ -142,6 +151,11 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit {
 
     // Apply initial filter
     this.applyFilters();
+
+    // Auto-select first column
+    if (this.filteredColumns.length > 0) {
+      this.selectedColumnName = this.filteredColumns[0].column.name;
+    }
   }
 
   private async loadOutlierCounts(): Promise<void> {
@@ -217,6 +231,19 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit {
 
       return true;
     });
+
+    // Sort: columns with issues first, then alphabetical
+    this.filteredColumns.sort((a, b) => {
+      const aIssues = (a.column.missingCount > 0 ? 1 : 0) + ((a.outlierCount || 0) > 0 ? 1 : 0);
+      const bIssues = (b.column.missingCount > 0 ? 1 : 0) + ((b.outlierCount || 0) > 0 ? 1 : 0);
+      if (aIssues !== bIssues) return bIssues - aIssues;
+      return a.column.name.localeCompare(b.column.name);
+    });
+
+    // Re-select if current selection is filtered out
+    if (this.selectedColumnName && !this.filteredColumns.find(c => c.column.name === this.selectedColumnName)) {
+      this.selectedColumnName = this.filteredColumns.length > 0 ? this.filteredColumns[0].column.name : null;
+    }
   }
 
   onFilterChange(): void {
@@ -297,6 +324,27 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit {
   }
 
   // ============================================================================
+  // Selection
+  // ============================================================================
+
+  selectColumn(name: string): void {
+    this.selectedColumnName = name;
+  }
+
+  getConfigSummary(colState: ColumnConfigState): string {
+    const parts: string[] = [];
+    if (colState.config.encodingMethod !== EncodingMethod.None) {
+      const method = this.encodingMethods.find(m => m.value === colState.config.encodingMethod);
+      if (method) parts.push(method.label);
+    }
+    if (colState.config.scalingMethod !== ScalingMethod.None) {
+      const method = this.scalingMethods.find(m => m.value === colState.config.scalingMethod);
+      if (method) parts.push(method.label);
+    }
+    return parts.length > 0 ? parts.join(', ') : 'Default';
+  }
+
+  // ============================================================================
   // Helper Methods
   // ============================================================================
 
@@ -357,8 +405,11 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit {
     return this.hasMissingValues(colState) || this.hasOutliers(colState);
   }
 
-  getDataTypeBadgeClass(dataType: DataType): string {
-    return `badge-${dataType}`;
+
+
+  formatDate(timestamp: number): string {
+    const date = new Date(timestamp);
+    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
   }
 
   getIssueDescription(colState: ColumnConfigState): string {
@@ -370,18 +421,6 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit {
       issues.push(`${colState.outlierCount} outliers`);
     }
     return issues.join(', ');
-  }
-
-  toggleRowExpansion(columnName: string): void {
-    if (this.expandedRows.has(columnName)) {
-      this.expandedRows.delete(columnName);
-    } else {
-      this.expandedRows.add(columnName);
-    }
-  }
-
-  isRowExpanded(columnName: string): boolean {
-    return this.expandedRows.has(columnName);
   }
 
   get columnNames(): string[] {

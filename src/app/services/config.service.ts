@@ -18,7 +18,6 @@ export class ConfigService {
 
   private _activeFeatures: string[] = [];
   private _colorFeature: string = "";
-  private _scaleLinear: boolean = false;
   private _featureLabels: Record<string, string> = {};
   private _featureTypes: Record<string, string> = {};
   private _featureMaxValues: Record<string, number> = {};
@@ -99,11 +98,6 @@ export class ConfigService {
     return this.loadedDataSubject.getValue();
   }
 
-  exportImage() {
-    this.commandSubject.next(InteractionCommand.exportimage);
-    this.commandSubject.next(InteractionCommand.noop);
-  }
-
   redraw() {
     this.commandSubject.next(InteractionCommand.redraw);
   }
@@ -172,14 +166,6 @@ export class ConfigService {
 
   set featureLabels(labels: Record<string, string>) {
     this._featureLabels = { ...labels };
-  }
-
-  set scaleLinear(scale: boolean) {
-    this._scaleLinear = scale;
-  }
-
-  get scaleLinear() {
-    return this._scaleLinear;
   }
 
   set colorFeature(feature: string) {

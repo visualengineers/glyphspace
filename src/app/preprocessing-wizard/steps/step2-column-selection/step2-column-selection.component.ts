@@ -5,7 +5,7 @@ import { PreprocessingService } from '../../services/preprocessing.service';
 import { WizardHistogramComponent } from '../../shared/wizard-histogram/wizard-histogram.component';
 import { ColumnStatistics, HistogramData } from '../../models/column-statistics';
 import { ColumnConfig } from '../../models/column-config';
-import { DataType } from '../../models/data-type.enum';
+import { DataType, getDataTypeBadgeClass as badgeClassFn } from '../../models/data-type.enum';
 import { HelpTooltipComponent } from '../../shared/help-tooltip/help-tooltip.component';
 import { HELP_TEXT } from '../../shared/constants/help-text';
 import { STEP_INFO } from '../../shared/constants/step-info';
@@ -24,6 +24,7 @@ export class Step2ColumnSelectionComponent implements OnInit {
   columnConfigs: Map<string, ColumnConfig> = new Map();
   searchTerm: string = '';
   columnHistogramCache: Map<string, HistogramData> = new Map();
+  getDataTypeBadgeClass = badgeClassFn;
 
   // Expose help text and step info to template
   readonly HELP_TEXT = HELP_TEXT;
@@ -150,21 +151,6 @@ export class Step2ColumnSelectionComponent implements OnInit {
       case DataType.Boolean: return 'Boolean';
       case DataType.ID: return 'ID';
       default: return 'Unknown';
-    }
-  }
-
-  /**
-   * Get data type badge CSS class
-   */
-  getDataTypeBadgeClass(dataType: DataType): string {
-    switch (dataType) {
-      case DataType.Numeric: return 'badge-numeric';
-      case DataType.Categorical: return 'badge-categorical';
-      case DataType.Text: return 'badge-text';
-      case DataType.Date: return 'badge-date';
-      case DataType.Boolean: return 'badge-boolean';
-      case DataType.ID: return 'badge-id';
-      default: return 'badge-unknown';
     }
   }
 

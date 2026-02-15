@@ -66,6 +66,7 @@ export class PreprocessingService {
       glyphFeatures: [],
       tooltipFeatures: [],
       colorScaleMode: 'continuous',
+      colorScaleId: 0,
       isProcessing: false,
       processingProgress: 0,
       processingStep: '',
@@ -223,10 +224,26 @@ export class PreprocessingService {
       }
     }
 
+    // Auto-select matching default scale if current scale type doesn't match
+    const currentScaleId = this.currentState.colorScaleId;
+    let colorScaleId = currentScaleId;
+    const isCategorical = colorScaleMode === 'categorical';
+    // Default numeric scales: 0-3, categorical scales: 4-5
+    const currentIsCategorical = currentScaleId >= 4;
+    if (isCategorical !== currentIsCategorical) {
+      colorScaleId = isCategorical ? 4 : 0;
+    }
+
     this.updateState({
       columnConfigs: new Map(configs),
-      colorScaleMode: colorScaleMode
+      colorScaleMode: colorScaleMode,
+      colorScaleId: colorScaleId
     });
+    this.saveStateToStorage();
+  }
+
+  public setColorScaleId(id: number): void {
+    this.updateState({ colorScaleId: id });
     this.saveStateToStorage();
   }
 
@@ -237,11 +254,6 @@ export class PreprocessingService {
       throw new Error('3-12 glyph features required');
     }
     this.updateState({ glyphFeatures: features });
-    this.saveStateToStorage();
-  }
-
-  public setTooltipFeatures(features: string[]): void {
-    this.updateState({ tooltipFeatures: features });
     this.saveStateToStorage();
   }
 
@@ -315,21 +327,6 @@ export class PreprocessingService {
       projectionConfig: { ...this.currentState.projectionConfig, ...updates }
     });
     this.saveStateToStorage();
-  }
-
-  // Get column statistics
-  public getColumnStatistics(columnName: string): ColumnStatistics | undefined {
-    return this.currentState.dataProfile?.columns.find(col => col.name === columnName);
-  }
-
-  public getEnabledColumns(): ColumnConfig[] {
-    return Array.from(this.currentState.columnConfigs.values())
-      .filter(config => config.enabled);
-  }
-
-  public getColumnsForProjection(): ColumnConfig[] {
-    return this.getEnabledColumns()
-      .filter(config => config.includeInProjection);
   }
 
   // Outlier detection
@@ -490,7 +487,8 @@ export class PreprocessingService {
       // Glyph and tooltip feature mappings
       glyphFeatures: state.glyphFeatures,
       tooltipFeatures: state.tooltipFeatures.length > 0 ? state.tooltipFeatures : null,
-      colorScaleMode: state.colorScaleMode
+      colorScaleMode: state.colorScaleMode,
+      colorScaleId: state.colorScaleId
     };
   }
 

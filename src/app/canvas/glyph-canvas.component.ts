@@ -610,13 +610,6 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
     this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
   }
 
-  logStatus() {
-    this.logger.log("Component " + this.id);
-    this.logger.log("-- isPanning: " + this.isPanning);
-    this.logger.log("-- magicLensActive: " + this.magicLensComponent.isActive());
-    this.logger.log("-- isSelecting: " + this.isSelecting);
-    this.logger.log("-- selectionMode: " + this.selectionMode);
-  }
   //#endregion
 
   //#region Rendering and Glyph Manipulations

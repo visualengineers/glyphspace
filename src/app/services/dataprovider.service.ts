@@ -78,9 +78,10 @@ export class DataProviderService {
                         this.config.colorFeature = schema.color;
                         this.config.replaceActiveFeatures(schema.glyph);
                         this.config.featureLabels = schema.label;
-                        // Apply color scale mode if specified in schema
-                        if (schema.colorRange !== undefined) {
-                            // Convert boolean to color scale ID: true -> 0 (continuous), false -> 4 (categorical)
+                        // Apply color scale: prefer explicit ID, fall back to boolean mode
+                        if (schema.colorScaleId !== undefined) {
+                            this.config.colorRange = schema.colorScaleId;
+                        } else if (schema.colorRange !== undefined) {
                             this.config.colorRange = schema.colorRange ? 0 : 4;
                         }
                         // Notify subscribers (like histogram) that config has changed
@@ -346,9 +347,10 @@ export class DataProviderService {
         this.config.colorFeature = schema.color;
         this.config.replaceActiveFeatures(schema.glyph);
         this.config.featureLabels = schema.label;
-        // Apply color scale mode if specified in schema
-        if (schema.colorRange !== undefined) {
-            // Convert boolean to color scale ID: true -> 0 (continuous), false -> 4 (categorical)
+        // Apply color scale: prefer explicit ID, fall back to boolean mode
+        if (schema.colorScaleId !== undefined) {
+            this.config.colorRange = schema.colorScaleId;
+        } else if (schema.colorRange !== undefined) {
             this.config.colorRange = schema.colorRange ? 0 : 4;
         }
         // CRITICAL: Store feature types from schema (needed for categorical color normalization)
@@ -559,9 +561,10 @@ export class DataProviderService {
             this.config.colorFeature = schema.color;
             this.config.replaceActiveFeatures(schema.glyph);
             this.config.featureLabels = schema.label;
-            // Apply color scale mode if specified in schema
-            if (schema.colorRange !== undefined) {
-                // Convert boolean to color scale ID: true -> 0 (continuous), false -> 4 (categorical)
+            // Apply color scale: prefer explicit ID, fall back to boolean mode
+            if (schema.colorScaleId !== undefined) {
+                this.config.colorRange = schema.colorScaleId;
+            } else if (schema.colorRange !== undefined) {
                 this.config.colorRange = schema.colorRange ? 0 : 4;
             }
             // Notify subscribers (like histogram) that config has changed
@@ -579,7 +582,9 @@ export class DataProviderService {
                 this.config.colorFeature = saved.schema.color;
                 this.config.replaceActiveFeatures(saved.schema.glyph);
                 this.config.featureLabels = saved.schema.label;
-                if (saved.schema.colorRange !== undefined) {
+                if (saved.schema.colorScaleId !== undefined) {
+                    this.config.colorRange = saved.schema.colorScaleId;
+                } else if (saved.schema.colorRange !== undefined) {
                     this.config.colorRange = saved.schema.colorRange ? 0 : 4;
                 }
                 if (saved.schema.types) {
@@ -656,9 +661,10 @@ export class DataProviderService {
             this.config.colorFeature = schemaResult.color;
             this.config.replaceActiveFeatures(schemaResult.glyph);
             this.config.featureLabels = schemaResult.label;
-            // Apply color scale mode if specified in schema
-            if (schemaResult.colorRange !== undefined) {
-                // Convert boolean to color scale ID: true -> 0 (continuous), false -> 4 (categorical)
+            // Apply color scale: prefer explicit ID, fall back to boolean mode
+            if (schemaResult.colorScaleId !== undefined) {
+                this.config.colorRange = schemaResult.colorScaleId;
+            } else if (schemaResult.colorRange !== undefined) {
                 this.config.colorRange = schemaResult.colorRange ? 0 : 4;
             }
             // Store feature types from schema

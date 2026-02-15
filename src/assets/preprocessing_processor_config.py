@@ -459,6 +459,8 @@ def build_dataset_collection(df_original, df_processed, feature_names, feature_c
     color_scale_mode = config.get('colorScaleMode', 'continuous')
     # Convert to boolean for compatibility: true = continuous (rangeColor), false = categorical (categoryColor)
     color_range_boolean = (color_scale_mode == 'continuous')
+    # Get specific color scale ID (user-selected in wizard)
+    color_scale_id = config.get('colorScaleId', None)
 
     # Build types mapping (feature ID -> original data type)
     feature_types = {}
@@ -487,6 +489,7 @@ def build_dataset_collection(df_original, df_processed, feature_names, feature_c
         'label': improved_labels,
         'tooltip': tooltip_features,  # User-defined or default
         'colorRange': color_range_boolean,  # Auto-detected color scale mode
+        'colorScaleId': color_scale_id,  # Specific color scale ID selected by user
         'types': feature_types,  # NEW: Original data types for each feature
         'variantcontext': {
             '1': {

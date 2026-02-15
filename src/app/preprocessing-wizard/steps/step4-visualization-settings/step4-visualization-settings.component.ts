@@ -1,13 +1,18 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PreprocessingService } from '../../services/preprocessing.service';
 import { ProjectionConfig } from '../../models/column-config';
 import { ColumnStatistics } from '../../models/column-statistics';
-import { DataType } from '../../models/data-type.enum';
+import { DataType, getDataTypeBadgeClass as badgeClassFn } from '../../models/data-type.enum';
 import { HelpTooltipComponent } from '../../shared/help-tooltip/help-tooltip.component';
 import { HELP_TEXT } from '../../shared/constants/help-text';
 import { STEP_INFO } from '../../shared/constants/step-info';
+import {
+  COLOR_SCALES, ColorScale, buildGroupedColorScales,
+  getContinuousGradient as continuousGradientFn,
+  getCategoricalColors as categoricalColorsFn
+} from '../../../shared/interfaces/color-scale';
 
 /**
  * UI configuration for a projection method.
@@ -20,6 +25,7 @@ interface ProjectionMethodUI {
   description: string;
   icon: string;
   badge?: string;
+  sizeHint?: string;
   disabled?: boolean;
   largeDatasetWarning?: boolean;
 }
@@ -35,6 +41,12 @@ export class Step4VisualizationSettingsComponent implements OnInit, OnDestroy {
   // Color feature selection
   columns: ColumnStatistics[] = [];
   colorFeature: string | null = null;
+  selectedColorScaleId: number = 0;
+  colorScaleDropdownOpen = false;
+  groupedColorScales: { group: string; scales: ColorScale[] }[] = [];
+  getContinuousGradient = continuousGradientFn;
+  getCategoricalColors = categoricalColorsFn;
+  getDataTypeBadgeClass = badgeClassFn;
 
   // Glyph feature mapping
   availableFeatures: string[] = [];
@@ -46,6 +58,15 @@ export class Step4VisualizationSettingsComponent implements OnInit, OnDestroy {
   draggedFeature: string | null = null;
   draggedFromList: 'selected' | 'available' = 'available';
   draggedIndex: number = -1;
+
+  // Glyph preview
+  selectedGlyphType: 'star' | 'flower' | 'whisker' = 'star';
+  glyphPreviewData: Map<string, number> = new Map();
+  readonly PREVIEW_RADIUS = 90;
+  readonly PREVIEW_CENTER = 120;
+
+  // Projection parameter visibility
+  expandedMethodParams: Set<string> = new Set();
 
   // Projection configuration (FastMap is always primary, these are background options)
   projectionConfig: ProjectionConfig = {
@@ -72,52 +93,67 @@ export class Step4VisualizationSettingsComponent implements OnInit, OnDestroy {
   readonly TSNE_WARNING_THRESHOLD = 5000;
   readonly LARGE_DATASET_THRESHOLD = 10000;
 
+  // Sorted by speed (fastest first)
   projectionMethods: ProjectionMethodUI[] = [
     {
       key: 'enablePCA',
       name: 'PCA',
-      description: 'Principal Component Analysis - Fast linear projection',
+      description: 'Linear projection via eigendecomposition',
       icon: 'analytics',
-      badge: 'Very Fast'
+      badge: 'Very Fast',
+      sizeHint: 'any size'
     },
     {
-      key: 'enableIsoMap',
-      name: 'IsoMap',
-      description: 'Non-linear manifold learning - Preserves geodesic distances',
-      icon: 'auto_graph',
+      key: 'enableTriMap',
+      name: 'TriMap',
+      description: 'Global structure preservation',
+      icon: 'timeline',
       badge: 'Fast',
-      largeDatasetWarning: true
+      sizeHint: 'up to 100K rows'
     },
     {
       key: 'enableMDS',
       name: 'MDS',
-      description: 'Classical Multidimensional Scaling - Distance preserving',
+      description: 'Classical Multidimensional Scaling — distance preserving',
       icon: 'grid_on',
-      badge: 'Fast',
+      badge: 'Medium',
+      sizeHint: 'up to 5K rows',
+      largeDatasetWarning: true
+    },
+    {
+      key: 'enableIsoMap',
+      name: 'IsoMap',
+      description: 'Manifold learning — preserves geodesic distances',
+      icon: 'auto_graph',
+      badge: 'Medium',
+      sizeHint: 'up to 5K rows',
       largeDatasetWarning: true
     },
     {
       key: 'enableLLE',
       name: 'LLE',
-      description: 'Locally Linear Embedding - Preserves local geometry',
+      description: 'Locally Linear Embedding — preserves local geometry',
       icon: 'blur_on',
       badge: 'Medium',
+      sizeHint: 'up to 30K rows',
       largeDatasetWarning: true
     },
     {
       key: 'enableLTSA',
       name: 'LTSA',
-      description: 'Local Tangent Space Alignment - Good for curved manifolds',
+      description: 'Local Tangent Space Alignment — curved manifolds',
       icon: 'waves',
       badge: 'Medium',
+      sizeHint: 'up to 20K rows',
       largeDatasetWarning: true
     },
     {
-      key: 'enableTSNE',
-      name: 't-SNE',
-      description: 'Preserves local structure - Good for clusters',
-      icon: 'bubble_chart',
-      badge: 'Slow',
+      key: 'enableTopoMap',
+      name: 'TopoMap',
+      description: 'Topology preserving via MST',
+      icon: 'terrain',
+      badge: 'Medium',
+      sizeHint: 'up to 8K rows',
       largeDatasetWarning: true
     },
     {
@@ -126,29 +162,25 @@ export class Step4VisualizationSettingsComponent implements OnInit, OnDestroy {
       description: 'Balances local and global structure',
       icon: 'scatter_plot',
       badge: 'Slow',
-      largeDatasetWarning: true
-    },
-    {
-      key: 'enableTriMap',
-      name: 'TriMap',
-      description: 'Global structure preservation - Good for large datasets',
-      icon: 'timeline',
-      badge: 'Medium'
-    },
-    {
-      key: 'enableTopoMap',
-      name: 'TopoMap',
-      description: 'Topology preserving projection',
-      icon: 'terrain',
-      badge: 'Medium',
+      sizeHint: 'up to 100K rows',
       largeDatasetWarning: true
     },
     {
       key: 'enableSammon',
       name: 'Sammon',
-      description: 'Sammon mapping - Preserves small distances',
+      description: 'Sammon mapping — preserves small distances',
       icon: 'hub',
-      badge: 'Medium',
+      badge: 'Slow',
+      sizeHint: 'up to 5K rows',
+      largeDatasetWarning: true
+    },
+    {
+      key: 'enableTSNE',
+      name: 't-SNE',
+      description: 'Preserves local clusters',
+      icon: 'bubble_chart',
+      badge: 'Very Slow',
+      sizeHint: 'up to 15K rows',
       largeDatasetWarning: true
     }
   ];
@@ -171,7 +203,7 @@ export class Step4VisualizationSettingsComponent implements OnInit, OnDestroy {
       });
     }
 
-    // Load color feature
+    // Load color feature and scale
     const colorCol = Array.from(state.columnConfigs.values()).find(c => c.isColorFeature);
     if (colorCol) {
       this.colorFeature = colorCol.name;
@@ -181,6 +213,8 @@ export class Step4VisualizationSettingsComponent implements OnInit, OnDestroy {
     } else {
       this.colorFeature = null;
     }
+    this.selectedColorScaleId = state.colorScaleId;
+    this.groupedColorScales = buildGroupedColorScales();
 
     // Load glyph features
     this.updateAvailableFeatures();
@@ -190,6 +224,8 @@ export class Step4VisualizationSettingsComponent implements OnInit, OnDestroy {
     } else {
       this.applySuggestedFeatures();
     }
+
+    this.regeneratePreviewData();
 
     // Load projection config
     if (state.projectionConfig) {
@@ -206,10 +242,27 @@ export class Step4VisualizationSettingsComponent implements OnInit, OnDestroy {
   setColorFeature(columnName: string): void {
     this.colorFeature = columnName;
     this.preprocessingService.setColorFeature(columnName);
+    // Sync selected scale ID after service auto-switches on type mismatch
+    this.selectedColorScaleId = this.preprocessingService.currentState.colorScaleId;
   }
 
-  getDataTypeBadgeClass(dataType: DataType | undefined): string {
-    return `badge-${dataType}`;
+  getSelectedColorScale(): ColorScale {
+    return COLOR_SCALES.find(s => s.id === this.selectedColorScaleId) ?? COLOR_SCALES[0];
+  }
+
+  selectColorScale(id: number): void {
+    this.selectedColorScaleId = id;
+    this.colorScaleDropdownOpen = false;
+    this.preprocessingService.setColorScaleId(id);
+  }
+
+  toggleColorScaleDropdown(): void {
+    this.colorScaleDropdownOpen = !this.colorScaleDropdownOpen;
+  }
+
+  @HostListener('document:click')
+  onDocumentClick(): void {
+    this.colorScaleDropdownOpen = false;
   }
 
   // ============================================================================
@@ -251,6 +304,13 @@ export class Step4VisualizationSettingsComponent implements OnInit, OnDestroy {
     this.suggestedFeatures = featureScores.slice(0, Math.min(5, featureScores.length)).map(f => f.name);
   }
 
+  suggestionsWouldChange(): boolean {
+    if (this.suggestedFeatures.length === 0) return false;
+    const target = this.suggestedFeatures.slice(0, 5);
+    if (target.length !== this.selectedGlyphFeatures.length) return true;
+    return !target.every((f, i) => f === this.selectedGlyphFeatures[i]);
+  }
+
   applySuggestedFeatures(): void {
     if (this.suggestedFeatures.length === 0) {
       this.calculateSmartSuggestions();
@@ -269,6 +329,7 @@ export class Step4VisualizationSettingsComponent implements OnInit, OnDestroy {
     }
 
     this.saveGlyphFeatures();
+    this.regeneratePreviewData();
   }
 
   addGlyphFeature(feature: string): void {
@@ -276,12 +337,14 @@ export class Step4VisualizationSettingsComponent implements OnInit, OnDestroy {
     if (!this.isFeatureSelected(feature)) {
       this.selectedGlyphFeatures.push(feature);
       this.saveGlyphFeatures();
+      this.regeneratePreviewData();
     }
   }
 
   removeGlyphFeature(index: number): void {
     this.selectedGlyphFeatures.splice(index, 1);
     this.saveGlyphFeatures();
+    this.regeneratePreviewData();
   }
 
   isFeatureSelected(feature: string): boolean {
@@ -290,6 +353,13 @@ export class Step4VisualizationSettingsComponent implements OnInit, OnDestroy {
 
   getFeatureVariance(feature: string): number | null {
     return this.featureVariances.get(feature) ?? null;
+  }
+
+  getFeatureVariancePercent(feature: string): number {
+    const val = this.featureVariances.get(feature);
+    if (val === undefined) return 0;
+    const maxVar = Math.max(...this.featureVariances.values());
+    return maxVar > 0 ? (val / maxVar) * 100 : 0;
   }
 
   saveGlyphFeatures(): void {
@@ -331,6 +401,7 @@ export class Step4VisualizationSettingsComponent implements OnInit, OnDestroy {
       if (this.selectedGlyphFeatures.length < this.MAX_GLYPH_FEATURES && !this.isFeatureSelected(this.draggedFeature)) {
         this.selectedGlyphFeatures.push(this.draggedFeature);
         this.saveGlyphFeatures();
+        this.regeneratePreviewData();
       }
     }
 
@@ -419,6 +490,138 @@ export class Step4VisualizationSettingsComponent implements OnInit, OnDestroy {
     if (rowCount > 5000) return 'Medium-large dataset - t-SNE may take 2-5 minutes';
     if (rowCount > 2000) return 'Medium dataset - t-SNE may take 1-2 minutes';
     return 'Small dataset - t-SNE should complete in under 1 minute';
+  }
+
+  // ============================================================================
+  // Glyph Preview (SVG)
+  // ============================================================================
+
+  private regeneratePreviewData(): void {
+    this.glyphPreviewData.clear();
+    for (const feature of this.selectedGlyphFeatures) {
+      const hash = this.simpleHash(feature);
+      const value = 0.3 + (hash % 70) / 100;
+      this.glyphPreviewData.set(feature, value);
+    }
+  }
+
+  private simpleHash(str: string): number {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      hash = ((hash << 5) - hash) + str.charCodeAt(i);
+      hash |= 0;
+    }
+    return Math.abs(hash);
+  }
+
+  generateStarPath(): string {
+    const segments = this.selectedGlyphFeatures.length;
+    if (segments < 3) return '';
+    const cx = this.PREVIEW_CENTER;
+    const cy = this.PREVIEW_CENTER;
+    const r = this.PREVIEW_RADIUS;
+
+    const points: string[] = [];
+    this.selectedGlyphFeatures.forEach((feature, i) => {
+      const norm = this.glyphPreviewData.get(feature) ?? 0.5;
+      const angle = (i / segments) * Math.PI * 2;
+      const x = cx + Math.cos(angle) * r * norm;
+      const y = cy - Math.sin(angle) * r * norm;
+      points.push(`${x.toFixed(1)},${y.toFixed(1)}`);
+    });
+    return `M${points.join('L')}Z`;
+  }
+
+  generateFlowerPetals(): Array<{ path: string; angleDeg: number }> {
+    const segments = this.selectedGlyphFeatures.length;
+    if (segments < 3) return [];
+    const r = this.PREVIEW_RADIUS;
+
+    return this.selectedGlyphFeatures.map((feature, i) => {
+      const norm = this.glyphPreviewData.get(feature) ?? 0.5;
+      const petalLength = r * norm * 0.95;
+      const petalWidth = petalLength * 0.4;
+      const angleDeg = (i / segments) * 360;
+
+      const d = [
+        `M0,0`,
+        `C${(petalWidth * 0.25).toFixed(1)},${(-petalLength * 0.3).toFixed(1)}`,
+        `${(petalWidth * 0.6).toFixed(1)},${(-petalLength * 0.75).toFixed(1)}`,
+        `0,${(-petalLength).toFixed(1)}`,
+        `C${(-petalWidth * 0.6).toFixed(1)},${(-petalLength * 0.75).toFixed(1)}`,
+        `${(-petalWidth * 0.25).toFixed(1)},${(-petalLength * 0.3).toFixed(1)}`,
+        `0,0`
+      ].join(' ');
+
+      return { path: d, angleDeg };
+    });
+  }
+
+  generateWhiskerBars(): Array<{ length: number; angleDeg: number }> {
+    const segments = this.selectedGlyphFeatures.length;
+    if (segments < 3) return [];
+    const r = this.PREVIEW_RADIUS;
+
+    return this.selectedGlyphFeatures.map((feature, i) => {
+      const norm = this.glyphPreviewData.get(feature) ?? 0.5;
+      const length = r * norm * 0.95;
+      const angleDeg = (i / segments) * 360;
+      return { length, angleDeg };
+    });
+  }
+
+  getPreviewAxes(): Array<{ x: number; y: number }> {
+    const segments = this.selectedGlyphFeatures.length;
+    if (segments < 3) return [];
+    const cx = this.PREVIEW_CENTER;
+    const cy = this.PREVIEW_CENTER;
+    const r = this.PREVIEW_RADIUS;
+
+    return this.selectedGlyphFeatures.map((_, i) => {
+      const angle = (i / segments) * Math.PI * 2;
+      return {
+        x: cx + Math.cos(angle) * r,
+        y: cy - Math.sin(angle) * r
+      };
+    });
+  }
+
+  getPreviewAxisLabels(): Array<{ x: number; y: number; name: string; anchor: string }> {
+    const segments = this.selectedGlyphFeatures.length;
+    if (segments < 3) return [];
+    const cx = this.PREVIEW_CENTER;
+    const cy = this.PREVIEW_CENTER;
+    const labelR = this.PREVIEW_RADIUS + 14;
+
+    return this.selectedGlyphFeatures.map((feature, i) => {
+      const angle = (i / segments) * Math.PI * 2;
+      const x = cx + Math.cos(angle) * labelR;
+      const y = cy - Math.sin(angle) * labelR;
+      const cos = Math.cos(angle);
+      const anchor = cos > 0.1 ? 'start' : cos < -0.1 ? 'end' : 'middle';
+      const name = feature.length > 14 ? feature.substring(0, 13) + '\u2026' : feature;
+      return { x, y, name, anchor };
+    });
+  }
+
+  // ============================================================================
+  // Projection Parameter Toggles
+  // ============================================================================
+
+  toggleMethodParams(methodKey: string): void {
+    if (this.expandedMethodParams.has(methodKey)) {
+      this.expandedMethodParams.delete(methodKey);
+    } else {
+      this.expandedMethodParams.add(methodKey);
+    }
+  }
+
+  isMethodParamsExpanded(methodKey: string): boolean {
+    return this.expandedMethodParams.has(methodKey);
+  }
+
+  methodHasParams(method: ProjectionMethodUI): boolean {
+    return ['enableIsoMap', 'enableLLE', 'enableLTSA', 'enableTSNE', 'enableUMAP', 'enableTriMap'].includes(method.key);
   }
 
   // ============================================================================

@@ -33,11 +33,7 @@
 }
 
 .menu-label {
-  font-size: 12px;
-  font-weight: 300;
-  color: v.$gray-600;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  @include m.menu-label($size: 12px, $weight: 300);
   margin-bottom: 8px;
 }
 

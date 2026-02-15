@@ -19,11 +19,11 @@ export const STEP_INFO: Record<number, StepInfo> = {
   },
   2: {
     title: 'Configure Data & Features',
-    purpose: 'Configure data cleaning, encoding, scaling, and projection settings for each column in a unified table view.'
+    purpose: 'Configure encoding, scaling, and data cleaning settings for each column. Select a column to view and edit its options.'
   },
   3: {
     title: 'Visualization Settings',
-    purpose: 'Select color and glyph features, and choose projection methods.'
+    purpose: 'Configure glyph features with live preview, set color mapping, and select projection methods.'
   },
   4: {
     title: 'Review & Process',

@@ -1,522 +1,475 @@
 <div class="step4-visualization-settings">
-  <div class="step-header">
-    <h2>{{ stepInfo.title }}</h2>
-    <p class="step-purpose">{{ stepInfo.purpose }}</p>
-  </div>
+  <div class="step-content">
+    <div class="step-header">
+      <h2>{{ stepInfo.title }}</h2>
+      <p class="step-purpose">{{ stepInfo.purpose }}</p>
+    </div>
 
-  <!-- ========================================================================== -->
-  <!-- CONFIGURE SECTION -->
-  <!-- ========================================================================== -->
-  <div class="configure-section">
-    <!-- Color Feature Selection -->
-    <div class="config-panel">
-      <h3>
-        <span class="material-icons">palette</span>
-        Color Feature (Optional)
-        <app-help-tooltip [helpText]="HELP_TEXT.general.colorFeature"></app-help-tooltip>
-      </h3>
-      <p class="panel-description">Select which feature will be used to color data points in visualizations</p>
+    <!-- ====== Color Feature (single row) ====== -->
+    <div class="config-panel color-feature-panel">
+      <div class="panel-header-row">
+        <div class="form-group">
+          <label class="menu-label">COLOR ATTRIBUTE</label>
+          <select
+            [ngModel]="colorFeature"
+            (ngModelChange)="setColorFeature($event)">
+            @for (column of columns; track column.name) {
+              <option [value]="column.name">{{ column.name }}</option>
+            }
+          </select>
+        </div>
 
-      <div class="color-feature-grid">
-        @for (column of columns; track column.name) {
-          <div
-            class="color-option"
-            [class.selected]="colorFeature === column.name"
-            (click)="setColorFeature(column.name)">
-            <input
-              type="radio"
-              [name]="'colorFeature'"
-              [checked]="colorFeature === column.name"
-              [id]="'color-' + column.name">
-            <label [for]="'color-' + column.name">
-              <span class="column-name">{{ column.name }}</span>
-              <span class="data-type-badge" [ngClass]="getDataTypeBadgeClass(column.dataType)">
-                {{ column.dataType }}
-              </span>
-            </label>
+        <div class="form-group">
+          <label class="menu-label">COLOR SCALE</label>
+          <div class="color-scale-select" (click)="$event.stopPropagation(); toggleColorScaleDropdown()">
+            <div class="selected-scale">
+              @if (getSelectedColorScale(); as scale) {
+                @if (scale.type === 'numeric') {
+                  <div class="color-gradient" [style.background]="getContinuousGradient(scale)"></div>
+                } @else {
+                  @for (c of getCategoricalColors(scale); track c) {
+                    <div class="color-box" [style.background]="c"></div>
+                  }
+                }
+              }
+            </div>
+
+            @if (colorScaleDropdownOpen) {
+              <div class="color-scale-options">
+                @for (group of groupedColorScales; track group.group; let gi = $index) {
+                  <div class="color-scale-group-label">{{ group.group }}</div>
+                  @for (scale of group.scales; track scale.id) {
+                    <div class="color-scale-option"
+                         [class.active]="scale.id === selectedColorScaleId"
+                         (click)="selectColorScale(scale.id); $event.stopPropagation()">
+                      @if (scale.type === 'numeric') {
+                        <div class="color-gradient" [style.background]="getContinuousGradient(scale)"></div>
+                      } @else {
+                        @for (c of getCategoricalColors(scale); track c) {
+                          <div class="color-box" [style.background]="c"></div>
+                        }
+                      }
+                    </div>
+                  }
+                  @if (gi < groupedColorScales.length - 1) {
+                    <div class="color-scale-group-divider"></div>
+                  }
+                }
+              </div>
+            }
           </div>
-        }
+        </div>
       </div>
     </div>
 
-    <!-- Glyph Features -->
-    <div class="config-panel">
-      <h3>
-        <span class="material-icons">star_outline</span>
-        Glyph Features (3-12 Required)
-        <app-help-tooltip [helpText]="HELP_TEXT.general.glyphFeatures"></app-help-tooltip>
-      </h3>
-      <p class="panel-description">
-        Select 3-12 features to visualize as glyph axes. Drag to reorder.
-      </p>
+    <!-- ====== Two-Column: Glyph Features + Live Preview ====== -->
+    <div class="glyph-section-two-col">
 
-      <!-- Progress Indicator -->
-      <div class="feature-progress">
-        <span class="progress-text">{{ selectedGlyphFeatures.length }} features selected (3-12 required)</span>
-        <div class="progress-bar-container">
-          <div
-            class="progress-fill"
-            [style.width.%]="(selectedGlyphFeatures.length / 12) * 100"
-            [class.complete]="selectedGlyphFeatures.length >= 3 && selectedGlyphFeatures.length <= 12"></div>
+      <!-- LEFT: Feature Selection -->
+      <div class="config-panel glyph-features-panel">
+        <div class="glyph-panel-header">
+          <h3>
+            <span class="material-icons">star_outline</span>
+            Glyph Features ({{ selectedGlyphFeatures.length }}/{{ MAX_GLYPH_FEATURES }})
+            <app-help-tooltip [helpText]="HELP_TEXT.general.glyphFeatures"></app-help-tooltip>
+          </h3>
+          <button class="btn-suggestion-compact" (click)="applySuggestedFeatures()"
+                  [disabled]="suggestedFeatures.length === 0 || !suggestionsWouldChange()">
+            <span class="material-icons">auto_awesome</span>
+            Smart Suggestions
+          </button>
+        </div>
+
+        <!-- Progress bar -->
+        <div class="feature-progress">
+          <div class="progress-bar-container">
+            <div
+              class="progress-fill"
+              [style.width.%]="(selectedGlyphFeatures.length / MAX_GLYPH_FEATURES) * 100"
+              [class.complete]="selectedGlyphFeatures.length >= MIN_GLYPH_FEATURES && selectedGlyphFeatures.length <= MAX_GLYPH_FEATURES">
+            </div>
+          </div>
+        </div>
+
+        <!-- Selected features (drop zone) -->
+        <div class="feature-list-unified"
+             (drop)="onDropInSelected($event)" (dragover)="onDragOver($event)">
+          @if (selectedGlyphFeatures.length === 0) {
+            <div class="empty-hint">
+              <span class="material-icons">info</span>
+              Click features below or use Smart Suggestions
+            </div>
+          }
+          @for (feature of selectedGlyphFeatures; track feature; let i = $index) {
+            <div class="feature-row selected"
+                 draggable="true"
+                 (dragstart)="onDragStart($event, feature, 'selected', i)"
+                 (dragend)="onDragEnd($event)">
+              <span class="feature-order">{{ i + 1 }}</span>
+              <span class="feature-name">{{ feature }}</span>
+              @if (getFeatureVariance(feature) !== null) {
+                <span class="variance-bar" title="Relative variance: {{ getFeatureVariance(feature)?.toFixed(4) }}">
+                  <span class="variance-fill" [style.width.%]="getFeatureVariancePercent(feature)"></span>
+                </span>
+              }
+              <button class="btn-remove" (click)="removeGlyphFeature(i)" type="button"
+                      title="Remove feature">
+                <span class="material-icons">close</span>
+              </button>
+            </div>
+          }
+        </div>
+
+        @if (selectedGlyphFeatures.length > 0 && selectedGlyphFeatures.length < MIN_GLYPH_FEATURES) {
+          <div class="validation-warning">
+            <span class="material-icons">warning</span>
+            <span>{{ MIN_GLYPH_FEATURES - selectedGlyphFeatures.length }} more needed</span>
+          </div>
+        }
+
+        <!-- Separator -->
+        <div class="feature-separator"></div>
+
+        <!-- Available features -->
+        <div class="available-label">
+          <span>Available features</span>
+          <span class="variance-label">Variance</span>
+        </div>
+        <div class="available-features-list">
+          @for (feature of availableFeatures; track feature) {
+            @if (!isFeatureSelected(feature)) {
+              <div class="feature-row available"
+                   (click)="addGlyphFeature(feature)"
+                   draggable="true"
+                   (dragstart)="onDragStart($event, feature, 'available', -1)"
+                   (dragend)="onDragEnd($event)">
+                <span class="material-icons add-icon">add</span>
+                <span class="feature-name">{{ feature }}</span>
+                @if (getFeatureVariance(feature) !== null) {
+                  <span class="variance-bar" title="Relative variance: {{ getFeatureVariance(feature)?.toFixed(4) }}">
+                    <span class="variance-fill" [style.width.%]="getFeatureVariancePercent(feature)"></span>
+                  </span>
+                }
+              </div>
+            }
+          }
         </div>
       </div>
 
-      <!-- Smart Suggestions -->
-      <div class="suggestions-container">
-        <button class="btn-suggestion" (click)="applySuggestedFeatures()" [disabled]="suggestedFeatures.length === 0">
-          <span class="material-icons">auto_awesome</span>
-          Use Smart Suggestions (Top 5 by Variance)
-        </button>
-        <app-help-tooltip
-          helpText="Automatically selects the 5 most varied features (highest variance = most information)"
-          position="right"></app-help-tooltip>
+      <!-- RIGHT: Live SVG Glyph Preview -->
+      <div class="config-panel glyph-preview-panel">
+        <h3>
+          <span class="material-icons">visibility</span>
+          Glyph Preview
+        </h3>
+
+        <div class="preview-svg-container">
+          @if (selectedGlyphFeatures.length >= MIN_GLYPH_FEATURES) {
+            <svg viewBox="0 0 240 240" class="glyph-preview-svg">
+              <!-- Background circle -->
+              <circle [attr.cx]="PREVIEW_CENTER" [attr.cy]="PREVIEW_CENTER"
+                      [attr.r]="PREVIEW_RADIUS"
+                      fill="#f0f0f0" stroke="#ddd" stroke-width="0.5"/>
+
+              <!-- Axes -->
+              @for (axis of getPreviewAxes(); track $index) {
+                <line [attr.x1]="PREVIEW_CENTER" [attr.y1]="PREVIEW_CENTER"
+                      [attr.x2]="axis.x" [attr.y2]="axis.y"
+                      stroke="#ccc" stroke-width="0.5"/>
+              }
+
+              <!-- Star glyph -->
+              @if (selectedGlyphType === 'star') {
+                <path [attr.d]="generateStarPath()"
+                      fill="rgba(0, 188, 212, 0.35)" stroke="#00bcd4" stroke-width="1.5"
+                      stroke-linejoin="round"/>
+              }
+
+              <!-- Flower glyph -->
+              @if (selectedGlyphType === 'flower') {
+                @for (petal of generateFlowerPetals(); track $index) {
+                  <g [attr.transform]="'translate(' + PREVIEW_CENTER + ',' + PREVIEW_CENTER + ') rotate(' + petal.angleDeg + ')'">
+                    <path [attr.d]="petal.path"
+                          fill="rgba(0, 188, 212, 0.45)" stroke="#00bcd4" stroke-width="1"/>
+                  </g>
+                }
+              }
+
+              <!-- Whisker glyph -->
+              @if (selectedGlyphType === 'whisker') {
+                @for (bar of generateWhiskerBars(); track $index) {
+                  <g [attr.transform]="'translate(' + PREVIEW_CENTER + ',' + PREVIEW_CENTER + ') rotate(' + bar.angleDeg + ')'">
+                    <rect x="-3" [attr.y]="-(bar.length)" width="6" [attr.height]="bar.length"
+                          fill="rgba(0, 188, 212, 0.5)" stroke="#00bcd4" stroke-width="0.5" rx="1"/>
+                  </g>
+                }
+              }
+
+              <!-- Axis labels -->
+              @for (label of getPreviewAxisLabels(); track label.name) {
+                <text [attr.x]="label.x" [attr.y]="label.y"
+                      [attr.text-anchor]="label.anchor"
+                      dominant-baseline="middle"
+                      class="axis-label">{{ label.name }}</text>
+              }
+            </svg>
+          } @else {
+            <div class="preview-placeholder">
+              <span class="material-icons">star_outline</span>
+              <p>Select at least {{ MIN_GLYPH_FEATURES }} features to see preview</p>
+            </div>
+          }
+        </div>
+
+        <!-- Glyph type selector -->
+        <div class="glyph-type-tabs">
+          <button [class.active]="selectedGlyphType === 'star'"
+                  (click)="selectedGlyphType = 'star'">
+            <span class="material-icons">star</span> Star
+          </button>
+          <button [class.active]="selectedGlyphType === 'flower'"
+                  (click)="selectedGlyphType = 'flower'">
+            <span class="material-icons">local_florist</span> Flower
+          </button>
+          <button [class.active]="selectedGlyphType === 'whisker'"
+                  (click)="selectedGlyphType = 'whisker'">
+            <span class="material-icons">equalizer</span> Whisker
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== Projection Methods (two-column grid) ====== -->
+    <div class="config-panel projection-panel">
+      <div class="projection-panel-header">
+        <h3>
+          <span class="material-icons">settings</span>
+          Projection Methods
+          <app-help-tooltip [helpText]="HELP_TEXT.general.projection"></app-help-tooltip>
+        </h3>
+        <div class="primary-badge">
+          <span class="material-icons">bolt</span>
+          <span>FastMap</span>
+          <span class="speed-badge badge-primary">Primary</span>
+        </div>
       </div>
 
-      <!-- Selected Glyph Features -->
-      <div class="glyph-features-selected">
-        <h4>Selected Glyph Features ({{ selectedGlyphFeatures.length }})</h4>
-
-        @if (selectedGlyphFeatures.length === 0) {
-          <div class="empty-state">
-            <span class="material-icons">info</span>
-            <p>No features selected. Click "Use Smart Suggestions" or drag features from below.</p>
-          </div>
-        } @else {
-          <div class="feature-list-selected" (drop)="onDropInSelected($event)" (dragover)="onDragOver($event)">
-            @for (feature of selectedGlyphFeatures; track feature; let i = $index) {
-              <div
-                class="feature-chip selected"
-                draggable="true"
-                (dragstart)="onDragStart($event, feature, 'selected', i)"
-                (dragend)="onDragEnd($event)">
-                <span class="feature-order">{{ i + 1 }}</span>
-                <span class="feature-name">{{ feature }}</span>
-                <button class="btn-remove" (click)="removeGlyphFeature(i)" type="button" title="Remove feature">
-                  <span class="material-icons">close</span>
+      <div class="projection-grid">
+        @for (method of projectionMethods; track method.key) {
+          <div class="projection-card"
+               [class.enabled]="projectionConfig[method.key]"
+               [class.has-warning]="shouldShowLargeDatasetWarning(method)"
+               (click)="isMethodDisabled(method) ? null : toggleProjectionMethod(method)">
+            <div class="card-row">
+              <input type="checkbox"
+                     [checked]="projectionConfig[method.key]"
+                     [disabled]="isMethodDisabled(method)"
+                     (click)="$event.stopPropagation()"
+                     (change)="toggleProjectionMethod(method)">
+              <span class="method-name">{{ method.name }}</span>
+              @if (method.badge) {
+                <span class="speed-badge" [ngClass]="'badge-' + method.badge!.toLowerCase().split(' ').join('-')">{{ method.badge }}</span>
+              }
+              @if (method.sizeHint) {
+                <span class="size-hint">{{ method.sizeHint }}</span>
+              }
+              @if (shouldShowLargeDatasetWarning(method)) {
+                <span class="material-icons warning-icon" title="May be slow with large datasets">warning</span>
+              }
+              @if (methodHasParams(method) && projectionConfig[method.key]) {
+                <button class="btn-expand-params"
+                        (click)="toggleMethodParams(method.key); $event.stopPropagation()"
+                        title="Configure parameters">
+                  <span class="material-icons">
+                    {{ isMethodParamsExpanded(method.key) ? 'expand_less' : 'tune' }}
+                  </span>
                 </button>
+              }
+            </div>
+            <div class="card-desc">{{ method.description }}</div>
+          </div>
+        }
+      </div>
+
+      <!-- Inline parameters (full width below grid) -->
+      @for (method of projectionMethods; track method.key) {
+        @if (projectionConfig[method.key] && isMethodParamsExpanded(method.key)) {
+          <div class="inline-params">
+            <span class="params-label">{{ method.name }} Parameters</span>
+            @if (method.key === 'enableIsoMap') {
+              <div class="param-field">
+                <label>
+                  Neighbors (0 = auto)
+                  <app-help-tooltip [helpText]="HELP_TEXT.parameters.isomapNeighbors"></app-help-tooltip>
+                </label>
+                <div class="input-group">
+                  <input type="range" min="0" max="200"
+                         [value]="projectionConfig.isomapNeighbors"
+                         (input)="onIsoMapNeighborsChange(+$any($event.target).value)"
+                         class="range-input">
+                  <input type="number" min="0" max="200"
+                         [value]="projectionConfig.isomapNeighbors"
+                         (input)="onIsoMapNeighborsChange(+$any($event.target).value)"
+                         class="number-input">
+                </div>
+              </div>
+            }
+            @if (method.key === 'enableLLE') {
+              <div class="param-field">
+                <label>
+                  Neighbors (0 = auto)
+                  <app-help-tooltip [helpText]="HELP_TEXT.parameters.lleNeighbors"></app-help-tooltip>
+                </label>
+                <div class="input-group">
+                  <input type="range" min="0" max="200"
+                         [value]="projectionConfig.lleNeighbors"
+                         (input)="onLLENeighborsChange(+$any($event.target).value)"
+                         class="range-input">
+                  <input type="number" min="0" max="200"
+                         [value]="projectionConfig.lleNeighbors"
+                         (input)="onLLENeighborsChange(+$any($event.target).value)"
+                         class="number-input">
+                </div>
+              </div>
+            }
+            @if (method.key === 'enableLTSA') {
+              <div class="param-field">
+                <label>
+                  Neighbors (0 = auto)
+                  <app-help-tooltip [helpText]="HELP_TEXT.parameters.ltsaNeighbors"></app-help-tooltip>
+                </label>
+                <div class="input-group">
+                  <input type="range" min="0" max="200"
+                         [value]="projectionConfig.ltsaNeighbors"
+                         (input)="onLTSANeighborsChange(+$any($event.target).value)"
+                         class="range-input">
+                  <input type="number" min="0" max="200"
+                         [value]="projectionConfig.ltsaNeighbors"
+                         (input)="onLTSANeighborsChange(+$any($event.target).value)"
+                         class="number-input">
+                </div>
+              </div>
+            }
+            @if (method.key === 'enableTriMap') {
+              <div class="param-field">
+                <label>
+                  Weight Adjustment
+                  <app-help-tooltip [helpText]="HELP_TEXT.parameters.trimapWeightAdj"></app-help-tooltip>
+                </label>
+                <div class="input-group">
+                  <input type="range" min="100" max="2000" step="50"
+                         [value]="projectionConfig.trimapWeightAdj"
+                         (input)="onTriMapWeightAdjChange(+$any($event.target).value)"
+                         class="range-input">
+                  <input type="number" min="100" max="2000" step="50"
+                         [value]="projectionConfig.trimapWeightAdj"
+                         (input)="onTriMapWeightAdjChange(+$any($event.target).value)"
+                         class="number-input">
+                </div>
+              </div>
+            }
+            @if (method.key === 'enableTSNE') {
+              <div class="param-field">
+                <label>
+                  Perplexity
+                  <app-help-tooltip [helpText]="HELP_TEXT.parameters.tsnePerplexity"></app-help-tooltip>
+                </label>
+                <div class="input-group">
+                  <input type="range" min="5" max="50"
+                         [value]="projectionConfig.tsnePerplexity"
+                         (input)="onTSNEPerplexityChange(+$any($event.target).value)"
+                         class="range-input">
+                  <input type="number" min="5" max="50"
+                         [value]="projectionConfig.tsnePerplexity"
+                         (input)="onTSNEPerplexityChange(+$any($event.target).value)"
+                         class="number-input">
+                </div>
+              </div>
+              <div class="param-field">
+                <label>
+                  Iterations
+                  <app-help-tooltip [helpText]="HELP_TEXT.parameters.tsneIterations"></app-help-tooltip>
+                </label>
+                <div class="input-group">
+                  <input type="range" min="250" max="5000" step="250"
+                         [value]="projectionConfig.tsneIterations"
+                         (input)="onTSNEIterationsChange(+$any($event.target).value)"
+                         class="range-input">
+                  <input type="number" min="250" max="5000" step="250"
+                         [value]="projectionConfig.tsneIterations"
+                         (input)="onTSNEIterationsChange(+$any($event.target).value)"
+                         class="number-input">
+                </div>
+              </div>
+              @if (shouldShowTSNEWarning()) {
+                <div class="warning-box">
+                  <span class="material-icons">warning</span>
+                  <div>
+                    <p><strong>{{ getTSNETimeEstimate() }}</strong></p>
+                    <p>t-SNE will run in the background. Explore with FastMap while waiting.</p>
+                  </div>
+                </div>
+              }
+            }
+            @if (method.key === 'enableUMAP') {
+              <div class="param-field">
+                <label>
+                  Number of Neighbors
+                  <app-help-tooltip [helpText]="HELP_TEXT.parameters.umapNeighbors"></app-help-tooltip>
+                </label>
+                <div class="input-group">
+                  <input type="range" min="2" max="200"
+                         [value]="projectionConfig.umapNeighbors"
+                         (input)="onUMAPNeighborsChange(+$any($event.target).value)"
+                         class="range-input">
+                  <input type="number" min="2" max="200"
+                         [value]="projectionConfig.umapNeighbors"
+                         (input)="onUMAPNeighborsChange(+$any($event.target).value)"
+                         class="number-input">
+                </div>
+              </div>
+              <div class="param-field">
+                <label>
+                  Minimum Distance
+                  <app-help-tooltip [helpText]="HELP_TEXT.parameters.umapMinDist"></app-help-tooltip>
+                </label>
+                <div class="input-group">
+                  <input type="range" min="0" max="0.99" step="0.01"
+                         [value]="projectionConfig.umapMinDist"
+                         (input)="onUMAPMinDistChange(+$any($event.target).value)"
+                         class="range-input">
+                  <input type="number" min="0" max="0.99" step="0.01"
+                         [value]="projectionConfig.umapMinDist"
+                         (input)="onUMAPMinDistChange(+$any($event.target).value)"
+                         class="number-input">
+                </div>
               </div>
             }
           </div>
         }
-
-        @if (selectedGlyphFeatures.length < 3) {
-          <div class="validation-warning">
-            <span class="material-icons">warning</span>
-            <span>At least {{ 3 - selectedGlyphFeatures.length }} more feature(s) required</span>
-          </div>
-        }
-        @if (selectedGlyphFeatures.length > 12) {
-          <div class="validation-warning">
-            <span class="material-icons">warning</span>
-            <span>Too many features. Remove {{ selectedGlyphFeatures.length - 12 }}</span>
-          </div>
-        }
-      </div>
-
-      <!-- Available Features Pool -->
-      <div class="available-features-pool">
-        <h4>Available Features (After Encoding)</h4>
-        <p class="help-text">Drag features to the selection area above or click to add.</p>
-
-        <div class="feature-grid">
-          @for (feature of availableFeatures; track feature) {
-            <div
-              class="feature-chip available"
-              [class.disabled]="isFeatureSelected(feature)"
-              draggable="true"
-              (dragstart)="onDragStart($event, feature, 'available', -1)"
-              (dragend)="onDragEnd($event)"
-              (click)="addGlyphFeature(feature)">
-              <span class="feature-name">{{ feature }}</span>
-              @if (getFeatureVariance(feature) !== null) {
-                <span class="feature-variance">σ²={{ getFeatureVariance(feature)?.toFixed(3) }}</span>
-              }
-              @if (isFeatureSelected(feature)) {
-                <span class="material-icons selected-icon">check_circle</span>
-              }
-            </div>
-          }
-        </div>
-      </div>
-    </div>
-
-    <!-- Projection Methods -->
-    <div class="config-panel">
-      <h3>
-        <span class="material-icons">settings</span>
-        Projection Methods
-        <app-help-tooltip [helpText]="HELP_TEXT.general.projection"></app-help-tooltip>
-      </h3>
-      <p class="panel-description">
-        FastMap runs as the primary projection and loads immediately.
-        Enable additional methods below to compute in the background.
-      </p>
-
-      <!-- Primary Projection (always enabled) -->
-      <div class="primary-projection-card">
-        <div class="card-icon">
-          <span class="material-icons">bolt</span>
-        </div>
-        <div class="card-content">
-          <div class="card-header-row">
-            <div class="header-with-badge">
-              <h4>FastMap</h4>
-              <span class="speed-badge badge-primary">Primary</span>
-            </div>
-            <span class="material-icons check-icon">check_circle</span>
-          </div>
-          <p class="card-description">Fast distance-preserving projection - O(n) complexity, ideal for large datasets (40K+)</p>
-        </div>
-      </div>
-
-      <h4 class="subsection-title">Additional Projections (Background)</h4>
-
-      <div class="methods-grid">
-        @for (method of projectionMethods; track method.key) {
-          <div
-            class="method-card"
-            [class.enabled]="projectionConfig[method.key]"
-            [class.disabled]="isMethodDisabled(method)"
-            [class.has-warning]="shouldShowLargeDatasetWarning(method)"
-            (click)="toggleProjectionMethod(method)">
-            <div class="card-icon">
-              <span class="material-icons">{{ method.icon }}</span>
-            </div>
-            <div class="card-content">
-              <div class="card-header-row">
-                <div class="header-with-badge">
-                  <h4>{{ method.name }}</h4>
-                  @if (method.badge) {
-                    <span class="speed-badge" [class]="'badge-' + method.badge.toLowerCase()">{{ method.badge }}</span>
-                  }
-                  @if (shouldShowLargeDatasetWarning(method)) {
-                    <span class="warning-badge" title="May be slow or fail with large datasets (>10K items)">
-                      <span class="material-icons">warning</span>
-                    </span>
-                  }
-                </div>
-                <input
-                  type="checkbox"
-                  [checked]="projectionConfig[method.key]"
-                  [disabled]="isMethodDisabled(method)"
-                  (click)="$event.stopPropagation()"
-                  (change)="toggleProjectionMethod(method)">
-              </div>
-              <p class="card-description">{{ method.description }}</p>
-              @if (shouldShowLargeDatasetWarning(method) && projectionConfig[method.key]) {
-                <p class="warning-text">May be slow or cause memory issues with {{ getDatasetRowCount() | number }} items</p>
-              }
-            </div>
-          </div>
-        }
-      </div>
-
-      <!-- Method Parameters -->
-      @if (projectionConfig.enableTSNE || projectionConfig.enableUMAP || projectionConfig.enableIsoMap || projectionConfig.enableLLE || projectionConfig.enableLTSA || projectionConfig.enableTriMap) {
-        <div class="parameters-section">
-          <h4>Method Parameters</h4>
-
-          <!-- IsoMap Parameters -->
-          @if (projectionConfig.enableIsoMap) {
-            <div class="parameter-card">
-              <div class="parameter-header">
-                <span class="material-icons">auto_graph</span>
-                <h5>IsoMap Parameters</h5>
-              </div>
-              <div class="parameter-body">
-                <div class="parameter-row">
-                  <div class="parameter-field">
-                    <label>
-                      Neighbors (0 = auto)
-                      <app-help-tooltip [helpText]="HELP_TEXT.parameters.isomapNeighbors"></app-help-tooltip>
-                    </label>
-                    <div class="input-group">
-                      <input
-                        type="range"
-                        min="0"
-                        max="200"
-                        [value]="projectionConfig.isomapNeighbors"
-                        (input)="onIsoMapNeighborsChange(+$any($event.target).value)"
-                        class="range-input">
-                      <input
-                        type="number"
-                        min="0"
-                        max="200"
-                        [value]="projectionConfig.isomapNeighbors"
-                        (input)="onIsoMapNeighborsChange(+$any($event.target).value)"
-                        class="number-input">
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          }
-
-          <!-- LLE Parameters -->
-          @if (projectionConfig.enableLLE) {
-            <div class="parameter-card">
-              <div class="parameter-header">
-                <span class="material-icons">blur_on</span>
-                <h5>LLE Parameters</h5>
-              </div>
-              <div class="parameter-body">
-                <div class="parameter-row">
-                  <div class="parameter-field">
-                    <label>
-                      Neighbors (0 = auto)
-                      <app-help-tooltip [helpText]="HELP_TEXT.parameters.lleNeighbors"></app-help-tooltip>
-                    </label>
-                    <div class="input-group">
-                      <input
-                        type="range"
-                        min="0"
-                        max="200"
-                        [value]="projectionConfig.lleNeighbors"
-                        (input)="onLLENeighborsChange(+$any($event.target).value)"
-                        class="range-input">
-                      <input
-                        type="number"
-                        min="0"
-                        max="200"
-                        [value]="projectionConfig.lleNeighbors"
-                        (input)="onLLENeighborsChange(+$any($event.target).value)"
-                        class="number-input">
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          }
-
-          <!-- LTSA Parameters -->
-          @if (projectionConfig.enableLTSA) {
-            <div class="parameter-card">
-              <div class="parameter-header">
-                <span class="material-icons">waves</span>
-                <h5>LTSA Parameters</h5>
-              </div>
-              <div class="parameter-body">
-                <div class="parameter-row">
-                  <div class="parameter-field">
-                    <label>
-                      Neighbors (0 = auto)
-                      <app-help-tooltip [helpText]="HELP_TEXT.parameters.ltsaNeighbors"></app-help-tooltip>
-                    </label>
-                    <div class="input-group">
-                      <input
-                        type="range"
-                        min="0"
-                        max="200"
-                        [value]="projectionConfig.ltsaNeighbors"
-                        (input)="onLTSANeighborsChange(+$any($event.target).value)"
-                        class="range-input">
-                      <input
-                        type="number"
-                        min="0"
-                        max="200"
-                        [value]="projectionConfig.ltsaNeighbors"
-                        (input)="onLTSANeighborsChange(+$any($event.target).value)"
-                        class="number-input">
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          }
-
-          <!-- TriMap Parameters -->
-          @if (projectionConfig.enableTriMap) {
-            <div class="parameter-card">
-              <div class="parameter-header">
-                <span class="material-icons">timeline</span>
-                <h5>TriMap Parameters</h5>
-              </div>
-              <div class="parameter-body">
-                <div class="parameter-row">
-                  <div class="parameter-field">
-                    <label>
-                      Weight Adjustment
-                      <app-help-tooltip [helpText]="HELP_TEXT.parameters.trimapWeightAdj"></app-help-tooltip>
-                    </label>
-                    <div class="input-group">
-                      <input
-                        type="range"
-                        min="100"
-                        max="2000"
-                        step="50"
-                        [value]="projectionConfig.trimapWeightAdj"
-                        (input)="onTriMapWeightAdjChange(+$any($event.target).value)"
-                        class="range-input">
-                      <input
-                        type="number"
-                        min="100"
-                        max="2000"
-                        step="50"
-                        [value]="projectionConfig.trimapWeightAdj"
-                        (input)="onTriMapWeightAdjChange(+$any($event.target).value)"
-                        class="number-input">
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          }
-
-          <!-- t-SNE Parameters -->
-          @if (projectionConfig.enableTSNE) {
-            <div class="parameter-card">
-              <div class="parameter-header">
-                <span class="material-icons">bubble_chart</span>
-                <h5>t-SNE Parameters</h5>
-              </div>
-              <div class="parameter-body">
-                <div class="parameter-row">
-                  <div class="parameter-field">
-                    <label>
-                      Perplexity
-                      <app-help-tooltip [helpText]="HELP_TEXT.parameters.tsnePerplexity"></app-help-tooltip>
-                    </label>
-                    <div class="input-group">
-                      <input
-                        type="range"
-                        min="5"
-                        max="50"
-                        [value]="projectionConfig.tsnePerplexity"
-                        (input)="onTSNEPerplexityChange(+$any($event.target).value)"
-                        class="range-input">
-                      <input
-                        type="number"
-                        min="5"
-                        max="50"
-                        [value]="projectionConfig.tsnePerplexity"
-                        (input)="onTSNEPerplexityChange(+$any($event.target).value)"
-                        class="number-input">
-                    </div>
-                  </div>
-
-                  <div class="parameter-field">
-                    <label>
-                      Iterations
-                      <app-help-tooltip [helpText]="HELP_TEXT.parameters.tsneIterations"></app-help-tooltip>
-                    </label>
-                    <div class="input-group">
-                      <input
-                        type="range"
-                        min="250"
-                        max="5000"
-                        step="250"
-                        [value]="projectionConfig.tsneIterations"
-                        (input)="onTSNEIterationsChange(+$any($event.target).value)"
-                        class="range-input">
-                      <input
-                        type="number"
-                        min="250"
-                        max="5000"
-                        step="250"
-                        [value]="projectionConfig.tsneIterations"
-                        (input)="onTSNEIterationsChange(+$any($event.target).value)"
-                        class="number-input">
-                    </div>
-                  </div>
-                </div>
-
-                @if (shouldShowTSNEWarning()) {
-                  <div class="warning-box">
-                    <span class="material-icons">warning</span>
-                    <div>
-                      <p><strong>{{ getTSNETimeEstimate() }}</strong></p>
-                      <p>t-SNE computation will run in the background. You can explore your data with FastMap while waiting.</p>
-                    </div>
-                  </div>
-                }
-              </div>
-            </div>
-          }
-
-          <!-- UMAP Parameters -->
-          @if (projectionConfig.enableUMAP) {
-            <div class="parameter-card">
-              <div class="parameter-header">
-                <span class="material-icons">scatter_plot</span>
-                <h5>UMAP Parameters</h5>
-              </div>
-              <div class="parameter-body">
-                <div class="parameter-row">
-                  <div class="parameter-field">
-                    <label>
-                      Number of Neighbors
-                      <app-help-tooltip [helpText]="HELP_TEXT.parameters.umapNeighbors"></app-help-tooltip>
-                    </label>
-                    <div class="input-group">
-                      <input
-                        type="range"
-                        min="2"
-                        max="200"
-                        [value]="projectionConfig.umapNeighbors"
-                        (input)="onUMAPNeighborsChange(+$any($event.target).value)"
-                        class="range-input">
-                      <input
-                        type="number"
-                        min="2"
-                        max="200"
-                        [value]="projectionConfig.umapNeighbors"
-                        (input)="onUMAPNeighborsChange(+$any($event.target).value)"
-                        class="number-input">
-                    </div>
-                  </div>
-
-                  <div class="parameter-field">
-                    <label>
-                      Minimum Distance
-                      <app-help-tooltip [helpText]="HELP_TEXT.parameters.umapMinDist"></app-help-tooltip>
-                    </label>
-                    <div class="input-group">
-                      <input
-                        type="range"
-                        min="0"
-                        max="0.99"
-                        step="0.01"
-                        [value]="projectionConfig.umapMinDist"
-                        (input)="onUMAPMinDistChange(+$any($event.target).value)"
-                        class="range-input">
-                      <input
-                        type="number"
-                        min="0"
-                        max="0.99"
-                        step="0.01"
-                        [value]="projectionConfig.umapMinDist"
-                        (input)="onUMAPMinDistChange(+$any($event.target).value)"
-                        class="number-input">
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          }
-        </div>
       }
     </div>
+  </div>
 
-    <!-- Action Buttons -->
-    <div class="action-buttons">
-      <button class="btn-secondary" (click)="goBack()">
-        <span class="material-icons">arrow_back</span>
-        <span>Back</span>
+  <!-- Action Buttons -->
+  <div class="action-buttons">
+    <button class="btn-secondary" (click)="goBack()">
+      <span class="material-icons">arrow_back</span>
+      <span>Back</span>
+    </button>
+
+    <div class="buttons-right">
+      @if (!canProceed()) {
+        <div class="warning-message">
+          <span class="material-icons">warning</span>
+          <span>Please select 3-12 glyph features to continue.</span>
+        </div>
+      }
+
+      <button class="btn-primary" (click)="continue()" [disabled]="!canProceed()">
+        <span>Continue to Review</span>
+        <span class="material-icons">arrow_forward</span>
       </button>
-
-      <div class="buttons-right">
-        @if (!canProceed()) {
-          <div class="warning-message">
-            <span class="material-icons">warning</span>
-            <span>Please select 3-12 glyph features and at least one projection method to continue.</span>
-          </div>
-        }
-
-        <button class="btn-primary" (click)="continue()" [disabled]="!canProceed()">
-          <span>Continue to Review</span>
-          <span class="material-icons">arrow_forward</span>
-        </button>
-      </div>
     </div>
   </div>
 </div>

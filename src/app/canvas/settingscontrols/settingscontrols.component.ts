@@ -6,7 +6,11 @@ import { FeaturesData } from '../../shared/interfaces/glyph-meta';
 import { GlyphSchema } from '../../shared/interfaces/glyph-schema';
 import { DataProviderService } from '../../services/dataprovider.service';
 import { ProjectionService } from '../../services/projection.service';
-import { COLOR_SCALES, ColorScale } from '../../shared/interfaces/color-scale';
+import {
+  COLOR_SCALES, ColorScale, buildGroupedColorScales,
+  getContinuousGradient as continuousGradientFn,
+  getCategoricalColors as categoricalColorsFn
+} from '../../shared/interfaces/color-scale';
 import { GlyphConfiguration } from '../../glyph/glyph-configuration';
 import { GlyphType } from '../../shared/enum/glyph-type';
 import { Subscription } from 'rxjs';
@@ -24,6 +28,8 @@ export class SettingsControlPanelComponent implements OnDestroy {
   @Input() visible = false; // controls fade in/out
 
   colorScales: ColorScale[] = COLOR_SCALES;
+  getContinuousGradient = continuousGradientFn;
+  getCategoricalColors = categoricalColorsFn;
 
   groupedColorScales: {
     group: string;
@@ -94,7 +100,7 @@ export class SettingsControlPanelComponent implements OnDestroy {
   }
 
   ngOnInit(): void {
-    this.groupedColorScales = this.groupColorScales(this.colorScales);
+    this.groupedColorScales = buildGroupedColorScales(this.colorScales);
 
     // Subscribe to background projection status updates
     // Show running/pending projections, and completed ones for 5 seconds before fading out
@@ -278,50 +284,6 @@ export class SettingsControlPanelComponent implements OnDestroy {
       case GlyphType.Thumb: return "Thumbnail";
       default: return "Unknown";
     }
-  }
-
-  private groupColorScales(scales: any[]) {
-    const map = new Map<string, any[]>();
-
-    for (const scale of scales) {
-      const group = scale.group ?? 'Other';
-      if (!map.has(group)) {
-        map.set(group, []);
-      }
-      map.get(group)!.push(scale);
-    }
-
-    return Array.from(map.entries()).map(([group, scales]) => ({
-      group,
-      scales
-    }));
-  }
-
-  getContinuousGradient(scale: any, steps = 10): string {
-    const domain = scale.scale.domain();
-    const min = domain[0];
-    const max = domain[domain.length - 1];
-
-    const colors: string[] = [];
-
-    for (let i = 0; i < steps; i++) {
-      const t = i / (steps - 1);
-      const value = min + t * (max - min);
-      colors.push(scale.scale(value));
-    }
-
-    return `linear-gradient(to right, ${colors.join(', ')})`;
-  }
-
-  getCategoricalColors(scaleDef: any): string[] {
-    const scale = scaleDef.scale;
-
-    // Ordinal / Quantize / Quantile scales
-    if (typeof scale.range === 'function') {
-      return scale.range();
-    }
-
-    return [];
   }
 
   selectColorScale(id: number) {

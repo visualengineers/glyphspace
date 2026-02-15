@@ -6,8 +6,7 @@ import { DataType } from '../../models/data-type.enum';
 import { StackedBin } from '../../../shared/types/histogram.types';
 import {
   prepareStackedBinsFromArray,
-  rebinHistogramData,
-  darkenColor
+  rebinHistogramData
 } from '../../../shared/utils/histogram.utils';
 
 @Component({
@@ -133,7 +132,6 @@ export class WizardHistogramComponent implements OnInit, OnChanges, AfterViewIni
     if (bins.length === 0) return;
 
     const displayColor = this.enabled ? this.color : '#ccc';
-    const darkerColor = darkenColor(displayColor);
 
     const bars = this.svg.selectAll('rect')
       .data(bins)
@@ -147,7 +145,7 @@ export class WizardHistogramComponent implements OnInit, OnChanges, AfterViewIni
       .attr('fill', displayColor)
       .attr('rx', 2)
       .attr('ry', 2)
-      .attr('opacity', this.enabled ? 0.8 : 0.5)
+      .attr('opacity', this.enabled ? 0.4 : 0.3)
       .style('cursor', this.enabled ? 'pointer' : 'default')
       .style('pointer-events', 'all');
 
@@ -160,13 +158,13 @@ export class WizardHistogramComponent implements OnInit, OnChanges, AfterViewIni
           if (this.lastHoveredBar) {
             d3.select(this.lastHoveredBar)
               .attr('fill', displayColor)
-              .attr('opacity', 0.8);
+              .attr('opacity', 0.4);
           }
 
-          // Highlight current bar with darker version of original color
+          // Highlight current bar with full color
           d3.select(currentBar)
-            .attr('fill', darkerColor)
-            .attr('opacity', 1);
+            .attr('fill', displayColor)
+            .attr('opacity', 0.9);
 
           this.lastHoveredBar = currentBar;
 
@@ -185,7 +183,6 @@ export class WizardHistogramComponent implements OnInit, OnChanges, AfterViewIni
     const counts = rebinHistogramData(this.data.counts, this.MAX_NUMERIC_BINS);
     const bins = counts.map((value: number, index: number) => ({ bin: index, value }));
     const displayColor = this.enabled ? this.color : '#ccc';
-    const darkerColor = darkenColor(displayColor);
 
     const xScale = d3.scaleLinear()
       .domain([0, bins.length])
@@ -211,7 +208,7 @@ export class WizardHistogramComponent implements OnInit, OnChanges, AfterViewIni
       .attr('fill', displayColor)
       .attr('rx', 2)
       .attr('ry', 2)
-      .attr('opacity', this.enabled ? 0.8 : 0.5)
+      .attr('opacity', this.enabled ? 0.4 : 0.3)
       .style('cursor', this.enabled ? 'pointer' : 'default')
       .style('pointer-events', 'all');
 
@@ -224,13 +221,13 @@ export class WizardHistogramComponent implements OnInit, OnChanges, AfterViewIni
           if (this.lastHoveredBar) {
             d3.select(this.lastHoveredBar)
               .attr('fill', displayColor)
-              .attr('opacity', 0.8);
+              .attr('opacity', 0.4);
           }
 
-          // Highlight current bar with darker version of original color
+          // Highlight current bar with full color
           d3.select(currentBar)
-            .attr('fill', darkerColor)
-            .attr('opacity', 1);
+            .attr('fill', displayColor)
+            .attr('opacity', 0.9);
 
           this.lastHoveredBar = currentBar;
 

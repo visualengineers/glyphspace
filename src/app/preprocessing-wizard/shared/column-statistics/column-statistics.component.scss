@@ -1,4 +1,5 @@
 @use '../../../../styles/variables' as v;
+@use '../../shared/wizard-shared' as w;
 
 .column-statistics {
   background: white;
@@ -32,41 +33,10 @@
 }
 
 .data-type-badge {
+  @include w.data-type-badge;
   padding: 4px 12px;
   border-radius: 12px;
-  font-size: 11px;
-  font-weight: 600;
   white-space: nowrap;
-
-  &.badge-numeric {
-    background: rgba(0, 188, 212, 0.1);
-    color: v.$active-color;
-  }
-
-  &.badge-categorical {
-    background: rgba(156, 39, 176, 0.1);
-    color: #7B1FA2;
-  }
-
-  &.badge-text {
-    background: rgba(255, 152, 0, 0.1);
-    color: #E65100;
-  }
-
-  &.badge-date {
-    background: rgba(76, 175, 80, 0.1);
-    color: #388E3C;
-  }
-
-  &.badge-boolean {
-    background: rgba(233, 30, 99, 0.1);
-    color: #C2185B;
-  }
-
-  &.badge-id {
-    background: v.$gray-200;
-    color: v.$gray-700;
-  }
 
   &.badge-unknown {
     background: v.$gray-100;
@@ -121,16 +91,13 @@
 }
 
 .completeness-bar {
+  @include w.progress-bar;
   flex: 1;
   height: 8px;
-  background: v.$gray-100;
-  border-radius: 4px;
-  overflow: hidden;
 }
 
 .completeness-fill {
-  height: 100%;
-  transition: width 0.3s ease;
+  @include w.progress-fill;
 
   &.good {
     background: #4CAF50;
