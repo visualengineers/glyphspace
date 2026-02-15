@@ -65,19 +65,6 @@
             </div>
         </div>
 
-        <!-- RIGHT -->
-        <div class="menu-right">
-            <div class="legend-anchor">
-                <button class="legend-toggle" (click)="toggleLegend()" [class.open]="legendOpen">
-                    <span>Legend and Filters</span>
-                    <span class="material-icons">
-                        {{ legendOpen ? 'expand_less' : 'expand_more' }}
-                    </span>
-                </button>
-
-                <app-legend-dropdown [open]="legendOpen" [width]="360" />
-            </div>
-        </div>
     </div>
 </header>
 

@@ -8,20 +8,14 @@
     width: 100%;
     display: flex;
     justify-content: space-between;
-    /* left and right aligned */
     align-items: center;
     padding: 12px 14px;
-    /* extra horizontal padding to avoid clipping */
     background-color: v.$gray-100;
     border-top: none;
     border-bottom: 1px solid v.$gray-200;
-    /* dark blue bottom line */
     z-index: 400;
-
     box-sizing: border-box;
-    /* ensures padding is counted inside width */
 
-    /* Initially hidden */
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.2s ease;
@@ -35,7 +29,6 @@
         position: absolute;
         top: 90%;
         left: 14px;
-        /* align with left edge of white button group */
         margin-top: 4px;
         background: white;
         border-radius: 10px;
@@ -52,10 +45,8 @@
 .settings-panel.visible {
     opacity: 1;
     pointer-events: auto;
-    /* enable interaction */
 }
 
-/* White button group on left */
 .settings-buttons {
     display: flex;
     gap: 4px;
@@ -93,16 +84,11 @@
     }
 }
 
-/* Right-aligned action buttons */
 .settings-actions {
     display: flex;
     gap: 2px;
-
-    /* make sure buttons stay inside the panel */
     margin-right: 0;
-    /* remove any negative or large margin */
     flex-shrink: 0;
-    /* prevent shrinking when panel width is constrained */
 
     .action-btn {
         background: transparent;
@@ -124,13 +110,6 @@
     }
 }
 
-.position-menu {
-    display: flex;
-    flex-direction: column;
-    gap: 24px;
-    min-width: 260px;
-}
-
 .form-group {
     @include m.form-group;
     margin-bottom: 12px;
@@ -140,7 +119,6 @@
     @include m.menu-label;
 }
 
-/* Toggle buttons */
 .toggle-group.horizontal {
     display: flex;
     gap: 8px;
@@ -148,9 +126,7 @@
 
     .toggle-btn {
         flex: 1;
-        /* equal width buttons */
         text-align: center;
-        /* better balance side-by-side */
         padding: 10px 8px;
     }
 }
@@ -190,7 +166,6 @@
     gap: 6px;
 }
 
-/* Reusable icon button */
 .icon-btn {
     width: 32px;
     height: 32px;
@@ -226,13 +201,11 @@
 
 .play-btn {
     flex: 1;
-    /* ← fills remaining horizontal space */
     justify-content: center;
     border-radius: 10px;
     min-width: 56px;
 }
 
-/* Speed display */
 .speed-display {
     min-width: 36px;
     height: 32px;
@@ -246,69 +219,6 @@
     font-size: 13px;
     font-weight: 500;
     color: #444;
-}
-
-/* Checkbox row */
-.checkbox-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 13px;
-    color: v.$gray-600;
-    cursor: pointer;
-    user-select: none;
-    margin-bottom: 14px;
-
-    input[type="checkbox"] {
-        display: none; // hide native checkbox
-    }
-
-    .custom-checkbox {
-        width: 14px;
-        height: 14px;
-        border-radius: 6px;
-        border: 1px solid #d0d0d0;
-        background: white;
-        display: inline-block;
-        position: relative;
-        transition: all 0.2s ease;
-
-        /* center dot */
-        &::after {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 6px;
-            height: 6px;
-            background-color: white;
-            /* default invisible */
-            border-radius: 50%;
-            transform: translate(-50%, -50%) scale(0);
-            transition: transform 0.2s ease, background-color 0.2s ease;
-        }
-    }
-
-    input[type="checkbox"]:checked+.custom-checkbox {
-        background-color: v.$color-blue-highlight;
-        /* $color-blue-highlight */
-        border-color: #1e88e5;
-
-        &::after {
-            background-color: white;
-            /* the dot is white on blue */
-            transform: translate(-50%, -50%) scale(1);
-        }
-    }
-
-    .label-text {
-        user-select: none;
-    }
-}
-
-/* Color scale selector */
-.color-scale-select {
-    @include m.color-scale-select;
 }
 
 /* Background projection status */
@@ -405,7 +315,6 @@
     border-radius: 2px;
     overflow: hidden;
 
-    // Indeterminate progress animation
     &.indeterminate .progress-fill-mini {
         width: 30% !important;
         animation: indeterminate-progress 1.5s ease-in-out infinite;
@@ -429,57 +338,4 @@
     background: #f5a623;
     border-radius: 2px;
     transition: width 0.3s ease;
-}
-
-.control-cell {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    position: relative;
-    max-width: 260px;
-
-    .dashboard-button {
-        width: 41px;
-        height: 41px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        background: transparent;
-        border: 1px solid #999;
-        cursor: pointer;
-        color: v.$gray-600;
-        font-size: 24px;
-        position: relative;
-
-        &:focus-visible {
-            outline: none;
-            box-shadow: none;
-        }
-
-        &:hover {
-            color: #000;
-        }
-
-        &.active {
-            border-color: v.$color-blue-highlight;
-            color: v.$color-blue-highlight;
-        }
-
-        @include m.tooltip-below(28px);
-    }
-
-    .config-toggle {
-        padding: 8px 10px;
-        font-size: 11px;
-        background-color: #ccc;
-        border: none;
-        cursor: pointer;
-        border-radius: 0px;
-        transition: background-color 0.2s;
-
-        &.active {
-            background-color: v.$color-blue-highlight;
-            color: white;
-        }
-    }
 }

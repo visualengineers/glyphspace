@@ -1,0 +1,193 @@
+<!-- Collapsed icon strip -->
+<div class="collapsed-strip" *ngIf="collapsed">
+  <button class="strip-btn" (click)="expandTo('appearance')" title="Appearance">
+    <span class="material-icons">palette</span>
+  </button>
+  <button class="strip-btn" (click)="expandTo('filters')" title="Filters">
+    <span class="material-icons">bar_chart</span>
+  </button>
+  <div class="strip-spacer"></div>
+  <button class="strip-btn" (click)="toggleCollapse()" title="Expand sidebar">
+    <span class="material-icons">chevron_left</span>
+  </button>
+</div>
+
+<!-- Expanded sidebar -->
+<ng-container *ngIf="!collapsed">
+  <!-- Color scale bar + collapse button -->
+  <div class="sidebar-header" *ngIf="getSelectedScale() as scale">
+    <span class="color-label">{{ colorFeature }}</span>
+    <div class="color-bar-preview">
+      <div *ngIf="scale.type === 'numeric'" class="color-gradient"
+        [style.background]="getContinuousGradient(scale)"></div>
+      <ng-container *ngIf="scale.type === 'categorical'">
+        <div class="color-box" *ngFor="let c of getCategoricalColors(scale)" [style.background]="c"></div>
+      </ng-container>
+    </div>
+    <button class="collapse-btn" (click)="toggleCollapse()" title="Collapse sidebar">
+      <span class="material-icons">chevron_right</span>
+    </button>
+  </div>
+
+  <!-- Scrollable content -->
+  <div class="sidebar-content">
+
+    <!-- APPEARANCE ACCORDION -->
+    <div class="accordion-section">
+      <button class="accordion-header" (click)="toggleSection('appearance')">
+        <span class="material-icons accordion-icon">{{ appearanceOpen ? 'expand_more' : 'chevron_right' }}</span>
+        <span class="accordion-title">Appearance</span>
+        <span class="accordion-summary" *ngIf="!appearanceOpen">
+          {{ getGlyphName(glyphConfig.glyphType) }} · {{ colorFeature }}
+        </span>
+      </button>
+
+      <div class="accordion-body" *ngIf="appearanceOpen">
+        <!-- Color attribute -->
+        <div class="form-group">
+          <label class="menu-label">COLOR ATTRIBUTE</label>
+          <select [(ngModel)]="selectedColorAttribute" (ngModelChange)="selectColor()">
+            <option *ngFor="let featureId of featureIds" [value]="featureId">
+              {{ getFeatureName(featureId) }}
+            </option>
+          </select>
+        </div>
+
+        <!-- Color scale -->
+        <div class="form-group">
+          <label class="menu-label">COLOR SCALE</label>
+          <div class="color-scale-select" (click)="$event.stopPropagation(); toggleColorScaleDropdown()">
+            <div class="selected-scale" *ngIf="getSelectedScale() as scale">
+              <div *ngIf="scale.type === 'numeric'" class="color-gradient"
+                [style.background]="getContinuousGradient(scale)"></div>
+              <ng-container *ngIf="scale.type === 'categorical'">
+                <div class="color-box" *ngFor="let c of getCategoricalColors(scale)" [style.background]="c"></div>
+              </ng-container>
+            </div>
+
+            <div class="color-scale-options" *ngIf="colorScaleDropdownOpen">
+              <ng-container *ngFor="let group of groupedColorScales; let gi = index">
+                <div class="color-scale-group-label">{{ group.group }}</div>
+                <div class="color-scale-option" *ngFor="let scale of group.scales"
+                  [class.active]="scale.id === selectedColorScaleId"
+                  (click)="selectColorScale(scale.id); colorScaleDropdownOpen = false; $event.stopPropagation()">
+                  <div *ngIf="scale.type === 'numeric'" class="color-gradient"
+                    [style.background]="getContinuousGradient(scale)"></div>
+                  <ng-container *ngIf="scale.type === 'categorical'">
+                    <div class="color-box" *ngFor="let c of getCategoricalColors(scale)" [style.background]="c"></div>
+                  </ng-container>
+                </div>
+                <div class="color-scale-group-divider" *ngIf="gi < groupedColorScales.length - 1"></div>
+              </ng-container>
+            </div>
+          </div>
+        </div>
+
+        <!-- Glyph type -->
+        <div class="form-group">
+          <label class="menu-label">GLYPH TYPE</label>
+          <div class="control-cell">
+            <button class="glyph-btn" [class.active]="glyphConfig.glyphType === GlyphType.Star"
+              (click)="setGlyphType(GlyphType.Star)" title="Star Shape">
+              <i class="material-icons">star</i>
+            </button>
+            <button class="glyph-btn" [class.active]="glyphConfig.glyphType === GlyphType.Flower"
+              (click)="setGlyphType(GlyphType.Flower)" title="Flower Shape">
+              <i class="material-icons">local_florist</i>
+            </button>
+            <button class="glyph-btn" [class.active]="glyphConfig.glyphType === GlyphType.Whisker"
+              (click)="setGlyphType(GlyphType.Whisker)" title="Whisker Shape">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="12" x2="12" y2="2" />
+                <line x1="12" y1="12" x2="17" y2="5" />
+                <line x1="12" y1="12" x2="22" y2="10" />
+                <line x1="12" y1="12" x2="20" y2="17" />
+                <line x1="12" y1="12" x2="12" y2="22" />
+                <line x1="12" y1="12" x2="7" y2="19" />
+                <line x1="12" y1="12" x2="2" y2="14" />
+                <line x1="12" y1="12" x2="4" y2="7" />
+              </svg>
+            </button>
+            <button class="glyph-btn" [class.active]="glyphConfig.glyphType === GlyphType.Thumb"
+              (click)="setGlyphType(GlyphType.Thumb)" title="Thumbnails">
+              <i class="material-icons">collections</i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Glyph options -->
+        <div class="form-group">
+          <label class="menu-label">GLYPH OPTIONS</label>
+          <div class="control-cell config-toggle-group">
+            <button *ngFor="let opt of glyphConfig.glyphOptions" class="config-toggle"
+              [class.active]="isOptionEnabled(opt.property)" (click)="toggleOption(opt.property)">
+              {{ opt.label }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Glyph preview -->
+        <div class="glyph-preview">
+          <canvas #glyphCanvas></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- FILTERS ACCORDION -->
+    <div class="accordion-section">
+      <button class="accordion-header" (click)="toggleSection('filters')">
+        <span class="material-icons accordion-icon">{{ filtersOpen ? 'expand_more' : 'chevron_right' }}</span>
+        <span class="accordion-title">Filters</span>
+        <span class="accordion-badge" *ngIf="dataProvider.filteredItems !== dataProvider.totalItems">
+          {{ dataProvider.filteredItems }}
+        </span>
+        <button class="clear-filters-btn" (click)="clearFilters(); $event.stopPropagation()" type="button"
+          title="Clear selection and filters">
+          <span class="material-icons">filter_alt_off</span>
+        </button>
+      </button>
+
+      <div class="accordion-body" *ngIf="filtersOpen">
+        <!-- Search -->
+        <div class="dashboard-search">
+          <input #searchInput type="text" [(ngModel)]="searchTerm" (keydown.enter)="onSearchEnter()" (focus)="onFocus()"
+            (blur)="onBlur()" placeholder="Text search in features..." />
+          <button class="clear-btn" *ngIf="searchTerms.length > 0 || searchTerm" (click)="clearSearch(searchInput)">
+            <i class="material-icons">close</i>
+          </button>
+          <ul class="search-term-list" *ngIf="inputFocused && searchTerms.length > 0">
+            <li *ngFor="let term of searchTerms; let i = index">
+              <span>{{ term }}</span>
+              <button class="remove-btn" (click)="removeTerm(i)">
+                <i class="material-icons">close</i>
+              </button>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Data info -->
+        <div class="dashboard-infos" [hidden]="dataProvider.totalItems == 0">
+          <span>Total items&nbsp;</span>
+          <span>{{ dataProvider.totalItems }}</span>
+          <span class="right" [hidden]="dataProvider.filteredItems == dataProvider.totalItems">{{ dataProvider.filteredItems }}</span>
+          <span class="right" [hidden]="dataProvider.filteredItems == dataProvider.totalItems">Filtered Items&nbsp;</span>
+        </div>
+
+        <!-- Histogram filters -->
+        <div class="filter-container">
+          <ng-container *ngFor="let featureId of featureIds; trackBy: trackByFeatureId">
+            <div class="filter-item-wrapper">
+              <app-histogram [configuration]="config" [dataProvider]="dataProvider"
+                [histogramData]="features[featureId].histogram" [categories]="features[featureId].categories"
+                [featureMin]="features[featureId].min" [featureMax]="features[featureId].max"
+                [label]="getFeatureName(featureId)" [type]="getFeatureType(featureId)" [property]="featureId">
+              </app-histogram>
+            </div>
+          </ng-container>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</ng-container>

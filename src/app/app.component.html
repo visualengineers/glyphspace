@@ -4,19 +4,23 @@
 >
 </app-menubar>
 
-<div
-  #canvasGrid
-  class="grid"
-  [style.gridTemplateColumns]="'repeat(' + cols + ', 1fr)'"
-  [style.gridTemplateRows]="'repeat(' + rows + ', 1fr)'"
->
-  <glyph-canvas
-    class="glyph-canvas"
-    *ngFor="let cell of grid; trackBy: trackById"
-    [id]="cell.id"
-    [totalCells]="grid.length"
-    >
-  </glyph-canvas>
+<div class="content-area">
+  <div
+    #canvasGrid
+    class="grid"
+    [style.gridTemplateColumns]="'repeat(' + cols + ', 1fr)'"
+    [style.gridTemplateRows]="'repeat(' + rows + ', 1fr)'"
+  >
+    <glyph-canvas
+      class="glyph-canvas"
+      *ngFor="let cell of grid; trackBy: trackById"
+      [id]="cell.id"
+      [totalCells]="grid.length"
+      >
+    </glyph-canvas>
+  </div>
+
+  <app-sidebar></app-sidebar>
 </div>
 
 <!-- Global toast notifications -->

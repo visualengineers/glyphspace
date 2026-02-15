@@ -2,7 +2,6 @@ import { Component, EventEmitter, Input, OnDestroy, OnInit, Output } from '@angu
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subscription } from 'rxjs';
-import { LegendDropdownComponent } from './legend-dropdown/legend-dropdown.component';
 import { PreprocessingWizardComponent } from '../preprocessing-wizard/preprocessing-wizard.component';
 import { DataProviderService } from '../services/dataprovider.service';
 import { ConfigService } from '../services/config.service';
@@ -10,7 +9,7 @@ import { ConfigService } from '../services/config.service';
 @Component({
     selector: 'app-menubar',
     standalone: true,
-    imports: [LegendDropdownComponent, PreprocessingWizardComponent, CommonModule, FormsModule],
+    imports: [PreprocessingWizardComponent, CommonModule, FormsModule],
     templateUrl: './menubar.component.html',
     styleUrls: ['./menubar.component.scss'],
 })
@@ -19,7 +18,6 @@ export class MenuBarComponent implements OnInit, OnDestroy {
     @Input() totalCells: number = 0;
 
     menuOpen = false;
-    legendOpen = false;
     showWizard = false;
     hasData = false;
     datasetNames: string[] = [];
@@ -56,10 +54,6 @@ export class MenuBarComponent implements OnInit, OnDestroy {
     onDatasetSelect(name: string) {
         this.dataProvider.clearFilters();
         this.configService.loadData(name);        
-    }
-
-    toggleLegend() {
-        this.legendOpen = !this.legendOpen;
     }
 
     upload() {

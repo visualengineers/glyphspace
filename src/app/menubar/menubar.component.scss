@@ -44,12 +44,6 @@
     gap: 24px;
 }
 
-/* RIGHT pushed all the way */
-.menu-right {
-    margin-left: auto;
-    /* ← critical */
-}
-
 /* hamburger hidden on desktop */
 .hamburger {
     display: none;
@@ -209,55 +203,6 @@
     }
 }
 
-.legend-anchor {
-    position: relative;
-    width: 360px;
-    /* SAME as dropdown width */
-}
-
-.legend-toggle {
-    width: 100%;
-    /* ← stretch to panel width */
-
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    /* text left, icon right */
-
-    padding: 8px 14px;
-    border-radius: 12px;
-    border: none;
-
-    background: #f2f2f2;
-    cursor: pointer;
-    font-size: 14px;
-
-    z-index: 2;
-
-    &:hover {
-        background: #e6e6e6;
-    }
-
-    &.open {
-        border-bottom-left-radius: 0;
-        border-bottom-right-radius: 0;
-    }
-}
-
-.legend-toggle.open {
-    background: white;
-    border: 1px solid #e5e5e5;
-    border-bottom: none;
-}
-
-.legend-toggle .material-icons {
-    transition: transform 0.2s ease;
-}
-
-.legend-toggle.open .material-icons {
-    transform: rotate(180deg);
-}
-
 @media (max-width: 1200px) {
 
     /* Show the hamburger button */
@@ -322,9 +267,8 @@
         overflow: visible !important;
     }
 
-    /* Reset menu-center and menu-right layout */
-    .menu-center,
-    .menu-right {
+    /* Reset menu-center layout */
+    .menu-center {
         position: relative;
         left: 0;
         transform: none;
@@ -338,8 +282,7 @@
     }
 
     /* Buttons: icon + label left-aligned */
-    .menu-center button,
-    .menu-right button {
+    .menu-center button {
         justify-content: flex-start;
     }
 
