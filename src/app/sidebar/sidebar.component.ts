@@ -50,13 +50,16 @@ export class SidebarComponent implements OnInit, OnDestroy {
   private glyphCanvas?: HTMLCanvasElement;
   private glyphContext?: CanvasRenderingContext2D;
   private currentGlyph: GlyphObject | null = null;
+  private resizeObserver?: ResizeObserver;
 
   @ViewChild('glyphCanvas') set glyphCanvasRef(ref: ElementRef | undefined) {
     if (ref) {
       this.glyphCanvas = ref.nativeElement;
       this.setupGlyphCanvas();
       this.drawGlyphPreview();
+      this.observeCanvasResize();
     } else {
+      this.resizeObserver?.disconnect();
       this.glyphCanvas = undefined;
       this.glyphContext = undefined;
     }
@@ -163,6 +166,7 @@ export class SidebarComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.resizeObserver?.disconnect();
     this.subs.unsubscribe();
   }
 
@@ -185,6 +189,17 @@ export class SidebarComponent implements OnInit, OnDestroy {
   }
 
   // --- Glyph preview canvas ---
+  private observeCanvasResize(): void {
+    this.resizeObserver?.disconnect();
+    const container = this.glyphCanvas?.parentElement;
+    if (!container) return;
+    this.resizeObserver = new ResizeObserver(() => {
+      this.setupGlyphCanvas();
+      this.drawGlyphPreview();
+    });
+    this.resizeObserver.observe(container);
+  }
+
   private setupGlyphCanvas(): void {
     if (!this.glyphCanvas) return;
     const ctx = this.glyphCanvas.getContext('2d');

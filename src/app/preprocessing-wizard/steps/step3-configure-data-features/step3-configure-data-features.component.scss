@@ -4,8 +4,6 @@
 .step3-configure-data-features {
   display: flex;
   flex-direction: column;
-  flex: 1;
-  min-height: 0;
 
   .step-content {
     @include w.step-content;
@@ -52,7 +50,6 @@
     display: flex;
     gap: 16px;
     margin-bottom: 16px;
-    height: 420px;
   }
 
   // ── Left Panel: Column List ──────────────────────────────────────────────────
@@ -65,7 +62,6 @@
     border: 1px solid v.$gray-300;
     border-radius: 4px;
     background: white;
-    overflow: hidden;
   }
 
   .list-header {
@@ -125,8 +121,7 @@
   }
 
   .column-list {
-    flex: 1;
-    overflow-y: auto;
+    flex: none;
   }
 
   .column-item {
@@ -238,7 +233,6 @@
     border: 1px solid v.$gray-300;
     border-radius: 4px;
     background: white;
-    overflow-y: auto;
     display: flex;
     flex-direction: column;
   }

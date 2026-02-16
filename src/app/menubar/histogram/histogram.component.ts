@@ -67,6 +67,7 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
 
     private defaultBarColor = '#333'; // dark gray
     private colorScale: ColorScale = COLOR_SCALES[0];
+    private resizeObserver?: ResizeObserver;
 
     constructor() { }
 
@@ -79,6 +80,20 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
     }
 
     ngAfterViewInit(): void {
+        // Observe container resize (e.g. sidebar collapse/expand transition)
+        const container = this.histogramContainer.nativeElement;
+        this.resizeObserver = new ResizeObserver(() => {
+            const newWidth = container.clientWidth - this.margin.left - this.margin.right;
+            if (newWidth > 0 && newWidth !== this.width) {
+                this.width = newWidth;
+                this.cachedStackedBins = null;
+                d3.select(container).select('svg')
+                    .attr('width', this.width + this.margin.left + this.margin.right);
+                this.updateChart();
+            }
+        });
+        this.resizeObserver.observe(container);
+
         this.configSub.add(
             this.configuration.glyphConfigSubject$.subscribe(() => {
                 this.colorScale = COLOR_SCALES.find(cs => cs.id === this.configuration.colorRange) || COLOR_SCALES[0];
@@ -116,8 +131,9 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
     }
 
     ngOnDestroy(): void {
+        this.resizeObserver?.disconnect();
         if (this.svg) {
-            this.svg.remove(); // removes the appended <svg> element
+            this.svg.remove();
             this.svg = null;
         }
         d3.select(this.histogramContainer!.nativeElement).select('svg').remove();
@@ -502,10 +518,14 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
         const effectiveType = this.getEffectiveType();
         const totalBins = Object.keys(this.histogramData).length;
 
+        // Clear both filters upfront so the unused one doesn't interfere
+        // (FeatureFilter defaults minValue=0/maxValue=0 which is NOT empty)
+        this.categoryFilter.clear();
+        this.filter.clear();
+
         if (effectiveType === 'categorical') {
             // For categorical: Filter by actual feature values
             // Values can be either normalized [0,1] or raw integers depending on scaling config
-            this.categoryFilter.clear();
 
             // Get the number of actual categories from the non-zero bins
             const nonZeroBins = Object.entries(this.histogramData)
@@ -552,8 +572,6 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
         } else {
             // For numeric: Filter by continuous range
             // Bins represent ranges of continuous values
-            this.filter.clear();
-
             const steps = 1 / totalBins;
 
             selectedBins.forEach(bin => {
