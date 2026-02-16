@@ -1,12 +1,11 @@
 import { Component, Input, OnInit, OnChanges, ElementRef, ViewChild, AfterViewInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import * as d3 from 'd3';
 import { HistogramData } from '../../models/column-statistics';
 
 @Component({
   selector: 'app-histogram-chart',
   standalone: true,
-  imports: [CommonModule],
+  imports: [],
   templateUrl: './histogram-chart.component.html',
   styleUrl: './histogram-chart.component.scss'
 })

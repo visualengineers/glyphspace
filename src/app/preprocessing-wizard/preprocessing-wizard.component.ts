@@ -1,5 +1,4 @@
 import { Component, OnInit, OnDestroy, Output, EventEmitter, ViewChild, ElementRef } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { Subscription, distinctUntilChanged, map } from 'rxjs';
 import { PreprocessingService } from './services/preprocessing.service';
 import { ProgressStepperComponent, Step } from './shared/progress-stepper/progress-stepper.component';
@@ -14,7 +13,6 @@ import { DataProfile } from './models/column-statistics';
   selector: 'app-preprocessing-wizard',
   standalone: true,
   imports: [
-    CommonModule,
     ProgressStepperComponent,
     Step1UploadComponent,
     Step2ColumnSelectionComponent,

@@ -1,5 +1,4 @@
 import { Component, Input, Output, EventEmitter, HostListener } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import {
   ColorScale,
   getContinuousGradient,
@@ -9,7 +8,7 @@ import {
 @Component({
   selector: 'app-color-scale-selector',
   standalone: true,
-  imports: [CommonModule],
+  imports: [],
   templateUrl: './color-scale-selector.component.html',
   styleUrl: './color-scale-selector.component.scss'
 })

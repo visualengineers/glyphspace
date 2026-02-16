@@ -1,5 +1,4 @@
 import { Component, Input, OnInit, OnChanges, ElementRef, ViewChild, AfterViewInit, SimpleChanges } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import * as d3 from 'd3';
 import { HistogramData } from '../../models/column-statistics';
 import { DataType } from '../../models/data-type.enum';
@@ -12,7 +11,7 @@ import {
 @Component({
   selector: 'app-wizard-histogram',
   standalone: true,
-  imports: [CommonModule],
+  imports: [],
   templateUrl: './wizard-histogram.component.html',
   styleUrl: './wizard-histogram.component.scss'
 })

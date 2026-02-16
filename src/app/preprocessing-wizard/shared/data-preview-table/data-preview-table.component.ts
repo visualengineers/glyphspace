@@ -1,10 +1,8 @@
 import { Component, Input } from '@angular/core';
-import { CommonModule } from '@angular/common';
-
 @Component({
   selector: 'app-data-preview-table',
   standalone: true,
-  imports: [CommonModule],
+  imports: [],
   templateUrl: './data-preview-table.component.html',
   styleUrl: './data-preview-table.component.scss'
 })

@@ -1,6 +1,4 @@
 import { Component, Input, Output, EventEmitter } from '@angular/core';
-import { CommonModule } from '@angular/common';
-
 export interface Step {
   label: string;
   icon?: string;
@@ -10,7 +8,7 @@ export interface Step {
 @Component({
   selector: 'app-progress-stepper',
   standalone: true,
-  imports: [CommonModule],
+  imports: [],
   templateUrl: './progress-stepper.component.html',
   styleUrl: './progress-stepper.component.scss'
 })

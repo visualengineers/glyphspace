@@ -1,5 +1,4 @@
 import { Component, EventEmitter, Input, OnDestroy, OnInit, Output } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subscription } from 'rxjs';
 import { PreprocessingWizardComponent } from '../preprocessing-wizard/preprocessing-wizard.component';
@@ -9,7 +8,7 @@ import { ConfigService } from '../services/config.service';
 @Component({
     selector: 'app-menubar',
     standalone: true,
-    imports: [PreprocessingWizardComponent, CommonModule, FormsModule],
+    imports: [PreprocessingWizardComponent, FormsModule],
     templateUrl: './menubar.component.html',
     styleUrls: ['./menubar.component.scss'],
 })

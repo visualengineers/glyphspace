@@ -1,5 +1,4 @@
 import { Component, ElementRef, HostBinding, inject, NgZone, OnDestroy, OnInit, ViewChild } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subscription } from 'rxjs';
 
@@ -35,7 +34,7 @@ export type AccordionSection = 'encoding' | 'style' | 'filters';
 @Component({
   selector: 'app-sidebar',
   standalone: true,
-  imports: [CommonModule, FormsModule, HistogramComponent, ColorScaleSelectorComponent],
+  imports: [FormsModule, HistogramComponent, ColorScaleSelectorComponent],
   templateUrl: './sidebar.component.html',
   styleUrls: ['./sidebar.component.scss']
 })

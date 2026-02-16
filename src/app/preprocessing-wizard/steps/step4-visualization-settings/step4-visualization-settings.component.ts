@@ -1,10 +1,10 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PreprocessingService } from '../../services/preprocessing.service';
 import { ProjectionConfig } from '../../models/column-config';
 import { ColumnStatistics } from '../../models/column-statistics';
-import { DataType, getDataTypeBadgeClass as badgeClassFn } from '../../models/data-type.enum';
+import { DataType } from '../../models/data-type.enum';
 import { HelpTooltipComponent } from '../../shared/help-tooltip/help-tooltip.component';
 import { HELP_TEXT } from '../../shared/constants/help-text';
 import { STEP_INFO } from '../../shared/constants/step-info';
@@ -47,14 +47,12 @@ interface ProjectionMethodUI {
   templateUrl: './step4-visualization-settings.component.html',
   styleUrl: './step4-visualization-settings.component.scss'
 })
-export class Step4VisualizationSettingsComponent implements OnInit, OnDestroy {
+export class Step4VisualizationSettingsComponent implements OnInit {
   // Color feature selection
   columns: ColumnStatistics[] = [];
   colorFeature: string | null = null;
   selectedColorScaleId: number = 0;
   groupedColorScales: { group: string; scales: ColorScale[] }[] = [];
-  getDataTypeBadgeClass = badgeClassFn;
-
   // Glyph feature mapping
   availableFeatures: string[] = [];
   selectedGlyphFeatures: string[] = [];
@@ -259,8 +257,6 @@ export class Step4VisualizationSettingsComponent implements OnInit, OnDestroy {
       this.projectionConfig = { ...state.projectionConfig };
     }
   }
-
-  ngOnDestroy(): void {}
 
   // ============================================================================
   // Color Feature Selection

@@ -323,8 +323,6 @@ export class ProjectionService {
         throw new Error('No valid feature data found in CSV');
       }
 
-      console.log(`Parsed ${features.length} samples with ${features[0].length} features each`);
-
       return { features, ids };
     } catch (error: any) {
       throw new Error(`Failed to parse CSV features: ${error.message}`);
@@ -381,7 +379,6 @@ export class ProjectionService {
    */
   terminateAllWorkers(): void {
     this.workers.forEach((worker, method) => {
-      console.log(`Terminating worker for ${method}`);
       worker.terminate();
     });
     this.workers.clear();

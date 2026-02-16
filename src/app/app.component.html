@@ -11,13 +11,14 @@
     [style.gridTemplateColumns]="'repeat(' + cols + ', 1fr)'"
     [style.gridTemplateRows]="'repeat(' + rows + ', 1fr)'"
   >
-    <glyph-canvas
-      class="glyph-canvas"
-      *ngFor="let cell of grid; trackBy: trackById"
-      [id]="cell.id"
-      [totalCells]="grid.length"
-      >
-    </glyph-canvas>
+    @for (cell of grid; track cell.id) {
+      <glyph-canvas
+        class="glyph-canvas"
+        [id]="cell.id"
+        [totalCells]="grid.length"
+        >
+      </glyph-canvas>
+    }
   </div>
 
   <app-sidebar></app-sidebar>

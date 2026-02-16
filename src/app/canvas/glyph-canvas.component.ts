@@ -10,10 +10,9 @@ import { forceCollide, forceSimulation, Simulation } from 'd3-force';
 import { clusterGlyphs, getGlyphFromObject } from '../shared/helpers/glyph-helper';
 import { InteractionCommand } from '../shared/enum/interaction-command';
 import { GlyphCacheObject } from '../glyph/glyph-cache-object';
-import { convertToScreenSpace, exportThreeSceneAsPNG, hitTest, hitTestCandidates, jitterFromVector, nearlyEqual, panCamera, scalePosition, screenToWorld } from '../shared/helpers/three-helper';
+import { convertToScreenSpace, exportThreeSceneAsPNG, hitTest, hitTestCandidates, nearlyEqual, panCamera, scalePosition, screenToWorld } from '../shared/helpers/three-helper';
 import { TooltipComponent } from "./tooltip/tooltip.component";
 import { MagiclensComponent } from "./magiclens/magiclens.component";
-import { CommonModule } from '@angular/common';
 import { GlyphSizeInfo } from '../glyph/glyph-size-info';
 import { ItemFilter } from '../shared/filter/item-filter';
 import { IdFilter } from '../shared/filter/id-filter';
@@ -28,7 +27,7 @@ import { SpatialGrid } from '../shared/helpers/spatial-grid';
 @Component({
   selector: 'glyph-canvas',
   standalone: true,
-  imports: [CommonModule, FormsModule, TooltipComponent, MagiclensComponent, CanvasNavigationControlsComponent, SettingsControlPanelComponent],
+  imports: [FormsModule, TooltipComponent, MagiclensComponent, CanvasNavigationControlsComponent, SettingsControlPanelComponent],
   templateUrl: './glyph-canvas.component.html',
   styleUrls: ['./glyph-canvas.component.scss']
 })

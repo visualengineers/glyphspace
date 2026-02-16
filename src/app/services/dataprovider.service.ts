@@ -177,7 +177,6 @@ export class DataProviderService {
                 this.dataSetCollectionSubject.next([...this.dataSetCollectionSubject.getValue()]);
             }
 
-            console.log(`[DataProvider] Dataset "${datasetName}" saved to IndexedDB`);
         } catch (error) {
             console.warn('[DataProvider] Failed to save dataset to IndexedDB:', error);
         }
@@ -413,7 +412,6 @@ export class DataProviderService {
             return false;
         }
 
-        console.log(`[DataProvider] Adding ${positions.length} positions for algorithm: ${algorithm} to loaded dataset`);
         let matchCount = 0;
 
         for (const posEntry of positions) {
@@ -429,8 +427,6 @@ export class DataProviderService {
             glyph.positions[timestamp][algorithm] = { ...posEntry.position };
             matchCount++;
         }
-
-        console.log(`[DataProvider] Matched ${matchCount}/${positions.length} positions for ${algorithm}`);
 
         // Update the collection to include this algorithm in the position list
         // This ensures getPositions() returns the new algorithm
@@ -500,17 +496,12 @@ export class DataProviderService {
 
         // --- Add positions for this timestamp ---
         for (const [algorithm, entries] of positions) {
-            console.log(`[DataProvider] Adding ${entries.length} positions for algorithm: ${algorithm}`);
             let matchCount = 0;
             for (const posEntry of entries) {
                 // Always normalize position ID to string for consistent lookups
                 const idStr = String(posEntry.id);
                 const glyph = glyphMap.get(idStr);
                 if (!glyph) {
-                    if (matchCount === 0) {
-                        console.warn(`[DataProvider] No glyph found for ID: ${idStr}`);
-                        console.log(`[DataProvider] Available glyph IDs sample:`, Array.from(glyphMap.keys()).slice(0, 5));
-                    }
                     continue;
                 }
 
@@ -519,7 +510,6 @@ export class DataProviderService {
                 };
                 matchCount++;
             }
-            console.log(`[DataProvider] Matched ${matchCount}/${entries.length} positions for ${algorithm}`);
         }
 
         return glyphMap.size;
@@ -527,7 +517,6 @@ export class DataProviderService {
 
 
     async loadDataSet(name: string, timestamp: string) {
-        console.log("load data set " + name + " " + timestamp);
         // Clear any existing filters from previous dataset
         this.clearFilters();
 

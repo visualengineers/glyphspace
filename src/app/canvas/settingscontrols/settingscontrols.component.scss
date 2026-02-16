@@ -230,7 +230,6 @@
     overflow-y: scroll;
     overflow-x: hidden;
     overscroll-behavior: contain;
-    -webkit-overflow-scrolling: touch;
     touch-action: pan-y;
     pointer-events: auto;
     @include m.styled-scrollbar-thin;

@@ -1,10 +1,8 @@
 import { Component, Input, OnChanges } from '@angular/core';
-import { CommonModule } from '@angular/common';
-
 @Component({
   selector: 'app-sparkline-chart',
   standalone: true,
-  imports: [CommonModule],
+  imports: [],
   templateUrl: './sparkline-chart.component.html',
   styleUrl: './sparkline-chart.component.scss'
 })

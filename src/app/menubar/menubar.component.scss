@@ -32,9 +32,6 @@
 
 /* CENTER grows normally */
 .menu-center {
-    //       display: flex;
-    //   align-items: center;
-    //   gap: 24px;
     position: absolute;
     left: 50%;
     transform: translateX(-70%);
@@ -105,9 +102,6 @@
 
     select {
         appearance: none;
-        /* Remove native arrow */
-        -webkit-appearance: none;
-        -moz-appearance: none;
 
         padding: 6px 12px;
         border-radius: 10px;

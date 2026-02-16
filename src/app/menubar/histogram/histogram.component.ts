@@ -16,9 +16,6 @@ import {
     getEffectiveHistogramType
 } from '../../shared/utils/histogram.utils';
 
-// Re-export for backward compatibility
-export type { Histogram } from '../../shared/types/histogram.types';
-
 @Component({
     selector: 'app-histogram',
     templateUrl: './histogram.component.html',

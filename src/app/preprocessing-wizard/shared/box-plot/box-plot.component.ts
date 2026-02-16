@@ -1,10 +1,8 @@
 import { Component, Input, OnChanges } from '@angular/core';
-import { CommonModule } from '@angular/common';
-
 @Component({
   selector: 'app-box-plot',
   standalone: true,
-  imports: [CommonModule],
+  imports: [],
   templateUrl: './box-plot.component.html',
   styleUrl: './box-plot.component.scss'
 })

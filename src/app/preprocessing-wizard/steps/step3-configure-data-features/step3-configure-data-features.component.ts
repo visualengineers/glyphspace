@@ -1,5 +1,4 @@
 import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PreprocessingService } from '../../services/preprocessing.service';
 import { ColumnConfig, CleaningConfig } from '../../models/column-config';
@@ -28,7 +27,7 @@ interface ColumnConfigState {
 @Component({
   selector: 'app-step3-configure-data-features',
   standalone: true,
-  imports: [CommonModule, FormsModule, HelpTooltipComponent, DataTypeBadgeComponent],
+  imports: [FormsModule, HelpTooltipComponent, DataTypeBadgeComponent],
   templateUrl: './step3-configure-data-features.component.html',
   styleUrl: './step3-configure-data-features.component.scss'
 })

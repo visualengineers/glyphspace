@@ -427,7 +427,6 @@ export class PreprocessingService {
     // If wizard was reset while background projection was running, silently skip
     // (user has already moved on to dashboard)
     if (!state.processedDataset) {
-      console.log(`[Preprocessing] Skipping ${method} projection - wizard was reset`);
       return;
     }
 

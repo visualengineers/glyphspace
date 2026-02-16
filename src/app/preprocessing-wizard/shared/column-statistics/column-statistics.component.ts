@@ -1,12 +1,11 @@
 import { Component, Input } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { ColumnStatistics } from '../../models/column-statistics';
 import { DataTypeBadgeComponent } from '../../../shared/components/data-type-badge/data-type-badge.component';
 
 @Component({
   selector: 'app-column-statistics',
   standalone: true,
-  imports: [CommonModule, DataTypeBadgeComponent],
+  imports: [DataTypeBadgeComponent],
   templateUrl: './column-statistics.component.html',
   styleUrl: './column-statistics.component.scss'
 })

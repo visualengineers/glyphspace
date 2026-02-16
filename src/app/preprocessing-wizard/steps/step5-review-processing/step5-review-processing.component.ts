@@ -1,5 +1,4 @@
-import { Component, OnInit, OnDestroy, ChangeDetectorRef, NgZone, Output, EventEmitter, ElementRef } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, NgZone, Output, EventEmitter } from '@angular/core';
 import { Subscription } from 'rxjs';
 import { PreprocessingService } from '../../services/preprocessing.service';
 import { DataProviderService } from '../../../services/dataprovider.service';
@@ -13,7 +12,7 @@ import { DataTypeBadgeComponent } from '../../../shared/components/data-type-bad
 @Component({
   selector: 'app-step5-review-processing',
   standalone: true,
-  imports: [CommonModule, DataTypeBadgeComponent],
+  imports: [DataTypeBadgeComponent],
   templateUrl: './step5-review-processing.component.html',
   styleUrl: './step5-review-processing.component.scss'
 })
@@ -61,8 +60,7 @@ export class Step5ReviewProcessingComponent implements OnInit, OnDestroy {
     private projectionService: ProjectionService,
     private toastService: ToastService,
     private cdr: ChangeDetectorRef,
-    private ngZone: NgZone,
-    private elementRef: ElementRef
+    private ngZone: NgZone
   ) {}
 
   ngOnInit(): void {

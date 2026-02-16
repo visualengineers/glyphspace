@@ -1,10 +1,9 @@
 import { Component, Input, Output, EventEmitter } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
 @Component({
   selector: 'app-overlaycontrols',
-  imports: [CommonModule, FormsModule],
+  imports: [FormsModule],
   templateUrl: './overlaycontrols.component.html',
   styleUrls: ['./overlaycontrols.component.scss']
 })
