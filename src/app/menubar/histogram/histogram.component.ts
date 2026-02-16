@@ -2,6 +2,7 @@ import { Component, Input, OnInit, ElementRef, ViewChild, AfterViewInit, OnChang
 import * as d3 from 'd3';
 import { ItemFilter } from '../../shared/filter/item-filter';
 import { FeatureFilter } from '../../shared/filter/feature-filter';
+import { IdFilter } from '../../shared/filter/id-filter';
 import { FilterMode } from '../../shared/enum/filter-mode';
 import { Subscription } from 'rxjs';
 import { COLOR_SCALES, ColorScale } from '../../shared/interfaces/color-scale';
@@ -44,8 +45,6 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
     private filter!: ItemFilter;
     private categoryFilter!: CategoryFilter;
 
-    active = false;
-
     private svg: any;
     private margin = { top: 6, right: 6, bottom: 6, left: 6 };
     private width = 300;
@@ -59,6 +58,12 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
     private selectedBins = new Set<number>();
     private cachedStackedBins: StackedBin[] | null = null;
     private binToCategory = new Map<number, string>();
+
+    private selectionCounts: Map<number, number> | null = null;
+    private totalCounts: Map<number, number> | null = null;
+    private selectionHighlightColor = 'rgba(59, 130, 246, 0.85)';
+    private isOwnRedraw = false;
+    private suppressBrushEvent = false;
 
     private defaultBarColor = '#333'; // dark gray
     private colorScale: ColorScale = COLOR_SCALES[0];
@@ -84,6 +89,8 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
             this.configuration.loadedDataSubject$.subscribe(() => {
                 this.brushSelection = null;
                 this.selectedBins.clear();
+                this.selectionCounts = null;
+                this.totalCounts = null;
             })
         );
         this.configSub.add(
@@ -91,6 +98,17 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
                 if (command == InteractionCommand.clearselection) {
                     this.brushSelection = null;
                     this.selectedBins.clear();
+                    this.selectionCounts = null;
+                    this.updateChart();
+                } else if (command == InteractionCommand.redraw && !this.isOwnRedraw) {
+                    // Clear brush/selection visuals if filter was externally cleared
+                    if (this.filter.empty() && this.brushSelection) {
+                        this.brushSelection = null;
+                    }
+                    if (this.categoryFilter.empty() && this.selectedBins.size > 0) {
+                        this.selectedBins.clear();
+                    }
+                    this.computeSelectionOverlay();
                     this.updateChart();
                 }
             })
@@ -110,18 +128,6 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
         if (changes['histogramData'] && !changes['histogramData'].firstChange) {
             this.updateChart();
         }
-    }
-
-    public changed(): void {
-        this.active = !this.active;
-        const index = this.configuration.activeFeatures.indexOf(this.property);
-        if (this.active && index < 0) {
-            this.configuration?.activeFeatures.push(this.property);
-        } else if (index >= 0) {
-            this.configuration?.activeFeatures.splice(index, 1);
-        }
-
-        this.configuration?.updateConfiguration();
     }
 
     private createHistogram(): void {
@@ -144,7 +150,6 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
 
         // Clear cached bins when data changes
         this.cachedStackedBins = null;
-        this.active = this.configuration.activeFeatures.indexOf(this.property) >= 0;
 
         this.svg.selectAll('*').remove();
 
@@ -185,23 +190,24 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
         return prepareStackedBinsFromObject(this.histogramData, { availableWidth: this.width });
     }
 
-    private updateCategoricalSelection(
+    /** Visual-only: update bar fill colors based on selectedBins and selectionCounts. */
+    private applyCategoricalFill(
         bars: d3.Selection<SVGRectElement, any, any, any>,
         totalBins: number
     ): void {
+        const hasSelection = this.selectionCounts != null && this.selectionCounts.size > 0;
+
         if (this.selectedBins.size === 0) {
             bars.attr('fill', (d: { bin: number }) =>
-                this.getBarColor(d.bin, totalBins)
+                hasSelection ? '#d4d4d4' : this.getBarColor(d.bin, totalBins)
             );
         } else {
             bars.attr('fill', (d: { bin: number }) =>
                 this.selectedBins.has(d.bin)
-                    ? this.getBarColor(d.bin, totalBins)
+                    ? (hasSelection ? '#d4d4d4' : this.getBarColor(d.bin, totalBins))
                     : '#bdbdbd'
             );
         }
-
-        this.filteringFromBins(Array.from(this.selectedBins));
     }
 
     private drawCategoricalStack(): void {
@@ -218,19 +224,23 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
         this.svg.selectAll('*').remove();
 
         const originalBinCount = Object.keys(this.histogramData).length;
+        const hasSelection = this.selectionCounts != null && this.selectionCounts.size > 0;
 
         const bars = this.svg
-            .selectAll('rect')
+            .selectAll('rect.bar')
             .data(bins)
             .enter()
             .append('rect')
+            .attr('class', 'bar')
             .attr('x', (d: { x0: number; }) => d.x0)
             .attr('y', 0)
             .attr('width', (d: { x1: number; x0: number; }) => (d.x1 - d.x0))
             .attr('height', this.innerHeight)
             .attr('rx', 3)
             .attr('ry', 3)
-            .attr('fill', (d: { bin: number; }) => this.getBarColor(d.bin, originalBinCount))
+            .attr('fill', (d: { bin: number; }) =>
+                hasSelection ? '#d4d4d4' : this.getBarColor(d.bin, originalBinCount)
+            )
             .style('cursor', 'pointer')
             .on('mousemove', (event: MouseEvent) => {
                 const rect = event.currentTarget as SVGRectElement;
@@ -251,17 +261,41 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
                 event.stopPropagation();
 
                 if (this.selectedBins.has(d.bin)) {
-                    // Deselect
                     this.selectedBins.delete(d.bin);
                 } else {
-                    // Select
                     this.selectedBins.add(d.bin);
                 }
 
-                this.updateCategoricalSelection(bars, originalBinCount);
+                this.applyCategoricalFill(bars, originalBinCount);
+                this.filteringFromBins(Array.from(this.selectedBins));
             });
 
-        this.updateCategoricalSelection(bars, originalBinCount);
+        // Draw selection overlay for categorical bars (proportional to bin total)
+        if (hasSelection) {
+            this.svg.selectAll('rect.selection-overlay')
+                .data(bins.filter((d: StackedBin) => this.selectionCounts!.has(d.bin)))
+                .enter()
+                .append('rect')
+                .attr('class', 'selection-overlay')
+                .attr('x', (d: StackedBin) => d.x0)
+                .attr('y', (d: StackedBin) => {
+                    const sel = this.selectionCounts!.get(d.bin) || 0;
+                    const tot = this.totalCounts?.get(d.bin) || 1;
+                    return this.innerHeight * (1 - sel / tot);
+                })
+                .attr('width', (d: StackedBin) => d.x1 - d.x0)
+                .attr('height', (d: StackedBin) => {
+                    const sel = this.selectionCounts!.get(d.bin) || 0;
+                    const tot = this.totalCounts?.get(d.bin) || 1;
+                    return this.innerHeight * (sel / tot);
+                })
+                .attr('rx', 3)
+                .attr('ry', 3)
+                .attr('fill', this.selectionHighlightColor)
+                .attr('pointer-events', 'none');
+        }
+
+        this.applyCategoricalFill(bars, originalBinCount);
     }
 
     private buildBinCategoryMap() {
@@ -313,26 +347,64 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
 
         const tooltip = this.createTooltip();
 
-        const bars = this.svg.selectAll('rect')
+        const hasSelection = this.selectionCounts != null && this.selectionCounts.size > 0;
+
+        const bars = this.svg.selectAll('rect.bar')
             .data(bins)
             .join('rect')
+            .attr('class', 'bar')
             .attr('x', (d: { bin: any; }) => this.xScale(d.bin))
             .attr('y', (d: { value: any; }) => this.yScale(d.value))
             .attr('width', this.xScale(1) - this.xScale(0) - 1)
             .attr('height', (d: { value: any; }) => this.innerHeight - this.yScale(d.value))
-            .attr('fill', (d: { bin: number }) => this.getBarColor(d.bin, bins.length))
-            .attr('rx', 3)  // horizontal corner radius
-            .attr('ry', 3)
+            .attr('fill', (d: { bin: number }) =>
+                hasSelection ? '#d4d4d4' : this.getBarColor(d.bin, bins.length)
+            )
+            .attr('rx', 3)
+            .attr('ry', 3);
+
+        // Draw selection overlay bars (proportional to each bin's bar height)
+        if (hasSelection) {
+            const overlayData = bins
+                .filter((d: { bin: number; value: number }) => this.selectionCounts!.has(d.bin))
+                .map((d: { bin: number; value: number }) => ({
+                    bin: d.bin,
+                    binValue: d.value,
+                    sel: this.selectionCounts!.get(d.bin)!,
+                    tot: this.totalCounts?.get(d.bin) || 1
+                }));
+
+            this.svg.selectAll('rect.selection-overlay')
+                .data(overlayData)
+                .join('rect')
+                .attr('class', 'selection-overlay')
+                .attr('x', (d: any) => this.xScale(d.bin))
+                .attr('y', (d: any) => {
+                    const barHeight = this.innerHeight - this.yScale(d.binValue);
+                    const overlayHeight = barHeight * (d.sel / d.tot);
+                    return this.innerHeight - overlayHeight;
+                })
+                .attr('width', this.xScale(1) - this.xScale(0) - 1)
+                .attr('height', (d: any) => {
+                    const barHeight = this.innerHeight - this.yScale(d.binValue);
+                    return barHeight * (d.sel / d.tot);
+                })
+                .attr('fill', this.selectionHighlightColor)
+                .attr('rx', 3)
+                .attr('ry', 3)
+                .attr('pointer-events', 'none');
+        }
 
         this.brush = d3.brushX()
             .extent([[0, 0], [this.width, this.innerHeight]])
             .on('end', ({ selection }: { selection: [number, number] | null }) => {
+                if (this.suppressBrushEvent) return;
                 // save the current selection
                 this.brushSelection = selection;
 
                 if (!selection) {
                     bars.attr('fill', (d: { bin: number }) =>
-                        this.getBarColor(d.bin, bins.length)
+                        hasSelection ? '#d4d4d4' : this.getBarColor(d.bin, bins.length)
                     );
 
                     this.removeFilter();
@@ -344,7 +416,7 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
 
                 bars.attr('fill', (d: { bin: number }) =>
                     d.bin >= minBin && d.bin <= maxBin
-                        ? this.getBarColor(d.bin, bins.length)
+                        ? (hasSelection ? '#d4d4d4' : this.getBarColor(d.bin, bins.length))
                         : '#bdbdbd'
                 );
 
@@ -369,9 +441,11 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
                 tooltip.style('opacity', 0);
             });
 
-        // restore previous selection if it exists
+        // restore previous selection if it exists (suppress event to avoid cascade)
         if (this.brushSelection) {
+            this.suppressBrushEvent = true;
             brushG.call(this.brush.move, this.brushSelection);
+            this.suppressBrushEvent = false;
         }
     }
 
@@ -419,7 +493,9 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
             this.categoryFilter.clear();
             this.filter.clear();
             this.dataProvider.refreshFilters();
+            this.isOwnRedraw = true;
             this.configuration.redraw();
+            this.isOwnRedraw = false;
             return;
         }
 
@@ -487,7 +563,9 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
         }
 
         this.dataProvider.refreshFilters();
+        this.isOwnRedraw = true;
         this.configuration.redraw();
+        this.isOwnRedraw = false;
     }
 
     private filtering(selection: any): void {
@@ -516,7 +594,9 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
         (this.filter as FeatureFilter).maxValue = Math.min(maxValue, 1.0);
 
         this.dataProvider.refreshFilters();
+        this.isOwnRedraw = true;
         this.configuration.redraw();
+        this.isOwnRedraw = false;
     }
 
     public removeFilter() {
@@ -524,6 +604,97 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
         const pos = this.dataProvider.getFilters().indexOf(this.filter);
         if (pos >= 0) this.dataProvider.getFilters().splice(pos, 1);
         this.dataProvider.refreshFilters();
+        this.isOwnRedraw = true;
         this.configuration.redraw();
+        this.isOwnRedraw = false;
+    }
+
+    private computeSelectionOverlay(): void {
+        const glyphMap = this.dataProvider.getGlyphDataSync?.();
+        if (!glyphMap || !this.histogramData) {
+            this.selectionCounts = null;
+            this.totalCounts = null;
+            return;
+        }
+
+        const idFilter = this.dataProvider.getFilters().find(
+            (f: ItemFilter) => f instanceof IdFilter && !f.empty()
+        ) as IdFilter | undefined;
+
+        if (!idFilter) {
+            this.selectionCounts = null;
+            this.totalCounts = null;
+            return;
+        }
+
+        const totalBins = Object.keys(this.histogramData).length;
+        const selCounts = new Map<number, number>();
+        const totCounts = new Map<number, number>();
+
+        const effectiveType = this.getEffectiveType();
+
+        if (effectiveType === 'categorical') {
+            // Categorical: map feature values → category index → histogram bin key
+            const nonZeroBins = Object.entries(this.histogramData)
+                .filter(([, v]) => v !== 0)
+                .map(([k]) => +k)
+                .sort((a, b) => a - b);
+            const numCategories = nonZeroBins.length;
+
+            // Detect value range
+            let vMin = Infinity, vMax = -Infinity;
+            glyphMap.forEach((glyph: any) => {
+                const v = glyph.features?.['1']?.[this.property];
+                if (v != null && !isNaN(v)) {
+                    if (v < vMin) vMin = v;
+                    if (v > vMax) vMax = v;
+                }
+            });
+            const vRange = (vMax - vMin) || 1;
+
+            glyphMap.forEach((glyph: any) => {
+                const featureValue = glyph.features?.['1']?.[this.property];
+                if (featureValue == null || isNaN(featureValue)) return;
+
+                // Normalize to [0,1] then round to nearest category index
+                const normalized = (featureValue - vMin) / vRange;
+                const catIdx = numCategories <= 1 ? 0 : Math.round(normalized * (numCategories - 1));
+                if (catIdx < 0 || catIdx >= nonZeroBins.length) return;
+
+                const bin = nonZeroBins[catIdx];
+                totCounts.set(bin, (totCounts.get(bin) || 0) + 1);
+
+                if (idFilter.inFilter(glyph)) {
+                    selCounts.set(bin, (selCounts.get(bin) || 0) + 1);
+                }
+            });
+        } else {
+            // Numeric: detect value range and use linear binning
+            let vMin = Infinity, vMax = -Infinity;
+            glyphMap.forEach((glyph: any) => {
+                const v = glyph.features?.['1']?.[this.property];
+                if (v != null && !isNaN(v)) {
+                    if (v < vMin) vMin = v;
+                    if (v > vMax) vMax = v;
+                }
+            });
+            const vRange = (vMax - vMin) || 1;
+
+            glyphMap.forEach((glyph: any) => {
+                const featureValue = glyph.features?.['1']?.[this.property];
+                if (featureValue == null || isNaN(featureValue)) return;
+
+                const normalized = (featureValue - vMin) / vRange;
+                const bin = Math.min(Math.floor(normalized * totalBins), totalBins - 1);
+                totCounts.set(bin, (totCounts.get(bin) || 0) + 1);
+
+                if (idFilter.inFilter(glyph)) {
+                    selCounts.set(bin, (selCounts.get(bin) || 0) + 1);
+                }
+            });
+        }
+
+        this.selectionCounts = selCounts.size > 0 ? selCounts : null;
+        this.totalCounts = totCounts.size > 0 ? totCounts : null;
     }
 }

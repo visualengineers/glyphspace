@@ -1,6 +1,9 @@
 <!-- Collapsed icon strip -->
 <div class="collapsed-strip" *ngIf="collapsed">
-  <button class="strip-btn" (click)="expandTo('appearance')" title="Appearance">
+  <button class="strip-btn" (click)="expandTo('encoding')" title="Encoding">
+    <span class="material-icons">tune</span>
+  </button>
+  <button class="strip-btn" (click)="expandTo('style')" title="Style">
     <span class="material-icons">palette</span>
   </button>
   <button class="strip-btn" (click)="expandTo('filters')" title="Filters">
@@ -32,17 +35,17 @@
   <!-- Scrollable content -->
   <div class="sidebar-content">
 
-    <!-- APPEARANCE ACCORDION -->
+    <!-- ENCODING ACCORDION -->
     <div class="accordion-section">
-      <button class="accordion-header" (click)="toggleSection('appearance')">
-        <span class="material-icons accordion-icon">{{ appearanceOpen ? 'expand_more' : 'chevron_right' }}</span>
-        <span class="accordion-title">Appearance</span>
-        <span class="accordion-summary" *ngIf="!appearanceOpen">
-          {{ getGlyphName(glyphConfig.glyphType) }} · {{ colorFeature }}
+      <button class="accordion-header" (click)="toggleSection('encoding')">
+        <span class="material-icons accordion-icon">{{ encodingOpen ? 'expand_more' : 'chevron_right' }}</span>
+        <span class="accordion-title">Encoding</span>
+        <span class="accordion-summary" *ngIf="!encodingOpen">
+          {{ getActiveFeatureCount() }}
         </span>
       </button>
 
-      <div class="accordion-body" *ngIf="appearanceOpen">
+      <div class="accordion-body" *ngIf="encodingOpen">
         <!-- Color attribute -->
         <div class="form-group">
           <label class="menu-label">COLOR ATTRIBUTE</label>
@@ -83,6 +86,38 @@
           </div>
         </div>
 
+        <!-- Glyph axes -->
+        <div class="form-group">
+          <label class="menu-label">GLYPH AXES <span class="feature-count">{{ getActiveFeatureCount() }}</span></label>
+          <div class="feature-list">
+            <label class="feature-checkbox" *ngFor="let featureId of getSortedFeatureIds()"
+              [class.active]="isFeatureActive(featureId)">
+              <input type="checkbox"
+                [checked]="isFeatureActive(featureId)"
+                (change)="toggleFeature(featureId)" />
+              <span class="feature-label">{{ getFeatureName(featureId) }}</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Glyph preview -->
+        <div class="glyph-preview">
+          <canvas #glyphCanvas></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- STYLE ACCORDION -->
+    <div class="accordion-section">
+      <button class="accordion-header" (click)="toggleSection('style')">
+        <span class="material-icons accordion-icon">{{ styleOpen ? 'expand_more' : 'chevron_right' }}</span>
+        <span class="accordion-title">Style</span>
+        <span class="accordion-summary" *ngIf="!styleOpen">
+          {{ getStyleSummary() }}
+        </span>
+      </button>
+
+      <div class="accordion-body" *ngIf="styleOpen">
         <!-- Glyph type -->
         <div class="form-group">
           <label class="menu-label">GLYPH TYPE</label>
@@ -126,11 +161,6 @@
             </button>
           </div>
         </div>
-
-        <!-- Glyph preview -->
-        <div class="glyph-preview">
-          <canvas #glyphCanvas></canvas>
-        </div>
       </div>
     </div>
 
@@ -149,6 +179,22 @@
       </button>
 
       <div class="accordion-body" *ngIf="filtersOpen">
+        <!-- Active filter chips -->
+        <div class="active-filters" *ngIf="hasActiveFilters()">
+          <div class="filter-chip" *ngFor="let term of searchTerms; let i = index">
+            <span class="chip-label">"{{ term }}"</span>
+            <button class="chip-remove" (click)="removeTerm(i)">
+              <i class="material-icons">close</i>
+            </button>
+          </div>
+          <div class="filter-chip" *ngFor="let item of getActiveFilters()">
+            <span class="chip-label">{{ item.displayName }}</span>
+            <button class="chip-remove" (click)="removeFilter(item.filter)">
+              <i class="material-icons">close</i>
+            </button>
+          </div>
+        </div>
+
         <!-- Search -->
         <div class="dashboard-search">
           <input #searchInput type="text" [(ngModel)]="searchTerm" (keydown.enter)="onSearchEnter()" (focus)="onFocus()"

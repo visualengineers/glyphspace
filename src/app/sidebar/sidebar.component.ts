@@ -14,6 +14,10 @@ import { drawFlowerGlyph, drawRadarChart, drawWhiskerGlyph } from '../shared/hel
 
 import { TextFilter } from '../shared/filter/text-filter';
 import { FilterMode } from '../shared/enum/filter-mode';
+import { ItemFilter } from '../shared/filter/item-filter';
+import { IdFilter } from '../shared/filter/id-filter';
+import { FeatureFilter } from '../shared/filter/feature-filter';
+import { CategoryFilter } from '../shared/filter/category-filter';
 
 import { FeaturesData } from '../shared/interfaces/glyph-meta';
 import { GlyphSchema } from '../shared/interfaces/glyph-schema';
@@ -25,7 +29,7 @@ import {
 
 import { HistogramComponent } from '../menubar/histogram/histogram.component';
 
-export type AccordionSection = 'appearance' | 'filters';
+export type AccordionSection = 'encoding' | 'style' | 'filters';
 
 @Component({
   selector: 'app-sidebar',
@@ -38,7 +42,8 @@ export class SidebarComponent implements OnInit, OnDestroy {
   @HostBinding('class.collapsed') collapsed = false;
 
   // --- Accordion state ---
-  appearanceOpen = false;
+  encodingOpen = true;
+  styleOpen = false;
   filtersOpen = true;
 
   // --- Glyph preview ---
@@ -57,7 +62,7 @@ export class SidebarComponent implements OnInit, OnDestroy {
     }
   }
 
-  // --- Legend section ---
+  // --- Data ---
   colorFeature = '';
   searchTerm = '';
   searchTerms: string[] = [];
@@ -68,7 +73,7 @@ export class SidebarComponent implements OnInit, OnDestroy {
   featureIds: string[] = [];
   schema?: GlyphSchema;
 
-  // --- Color section ---
+  // --- Color ---
   colorScales: ColorScale[] = COLOR_SCALES;
   getContinuousGradient = continuousGradientFn;
   getCategoricalColors = categoricalColorsFn;
@@ -77,7 +82,7 @@ export class SidebarComponent implements OnInit, OnDestroy {
   colorScaleDropdownOpen = false;
   selectedColorScaleId = COLOR_SCALES[0].id;
 
-  // --- Glyph section ---
+  // --- Glyph ---
   glyphConfig = new GlyphConfiguration();
   GlyphType = GlyphType;
 
@@ -113,7 +118,6 @@ export class SidebarComponent implements OnInit, OnDestroy {
           if (schema) this.colorFeature = schema.label[this.config.colorFeature];
         });
 
-        // Grab a sample glyph for the mini preview
         const glyphData = await this.dataProvider.getGlyphData();
         if (glyphData?.length) {
           this.currentGlyph = glyphData[Math.floor(Math.random() * glyphData.length)];
@@ -149,6 +153,13 @@ export class SidebarComponent implements OnInit, OnDestroy {
         this.drawGlyphPreview();
       })
     );
+
+    // Re-evaluate filter chips when filters change (histogram brush, canvas selection, etc.)
+    this.subs.add(
+      this.config.commandSubject$.subscribe(() => {
+        this.ngZone.run(() => {});
+      })
+    );
   }
 
   ngOnDestroy(): void {
@@ -162,19 +173,15 @@ export class SidebarComponent implements OnInit, OnDestroy {
 
   expandTo(section: AccordionSection): void {
     this.collapsed = false;
-    if (section === 'appearance') {
-      this.appearanceOpen = true;
-    } else {
-      this.filtersOpen = true;
-    }
+    if (section === 'encoding') this.encodingOpen = true;
+    else if (section === 'style') this.styleOpen = true;
+    else this.filtersOpen = true;
   }
 
   toggleSection(section: AccordionSection): void {
-    if (section === 'appearance') {
-      this.appearanceOpen = !this.appearanceOpen;
-    } else {
-      this.filtersOpen = !this.filtersOpen;
-    }
+    if (section === 'encoding') this.encodingOpen = !this.encodingOpen;
+    else if (section === 'style') this.styleOpen = !this.styleOpen;
+    else this.filtersOpen = !this.filtersOpen;
   }
 
   // --- Glyph preview canvas ---
@@ -186,7 +193,7 @@ export class SidebarComponent implements OnInit, OnDestroy {
     const dpr = window.devicePixelRatio || 1;
     const container = this.glyphCanvas.parentElement;
     const logicalWidth = container ? container.clientWidth : 316;
-    const logicalHeight = container ? container.clientHeight : 120;
+    const logicalHeight = container ? container.clientHeight : 180;
 
     this.glyphCanvas.width = logicalWidth * dpr;
     this.glyphCanvas.height = logicalHeight * dpr;
@@ -206,8 +213,6 @@ export class SidebarComponent implements OnInit, OnDestroy {
     const canvasW = this.glyphCanvas.clientWidth;
     const canvasH = this.glyphCanvas.clientHeight;
 
-    // Draw functions place glyph center at ~(170, 90) with radius 50
-    // Including labels, the bounding box is roughly 180x160 centered at (170, 90)
     const glyphCX = 170;
     const glyphCY = 90;
     const glyphW = 180;
@@ -218,7 +223,6 @@ export class SidebarComponent implements OnInit, OnDestroy {
     this.glyphContext.save();
     this.glyphContext.clearRect(0, 0, this.glyphCanvas.width, this.glyphCanvas.height);
 
-    // Center the glyph in the canvas and scale to fill
     this.glyphContext.translate(canvasW / 2, canvasH / 2);
     this.glyphContext.scale(scale, scale);
     this.glyphContext.translate(-glyphCX, -glyphCY);
@@ -232,6 +236,71 @@ export class SidebarComponent implements OnInit, OnDestroy {
     }
 
     this.glyphContext.restore();
+  }
+
+  // --- Glyph axes ---
+  toggleFeature(featureId: string): void {
+    const index = this.config.activeFeatures.indexOf(featureId);
+    if (index >= 0) {
+      this.config.activeFeatures.splice(index, 1);
+    } else {
+      this.config.activeFeatures.push(featureId);
+    }
+    this.config.updateConfiguration();
+  }
+
+  isFeatureActive(featureId: string): boolean {
+    return this.config.activeFeatures.includes(featureId);
+  }
+
+  getActiveFeatureCount(): string {
+    return `${this.config.activeFeatures.length} of ${this.featureIds.length}`;
+  }
+
+  getSortedFeatureIds(): string[] {
+    const active = this.featureIds.filter(id => this.isFeatureActive(id));
+    const inactive = this.featureIds.filter(id => !this.isFeatureActive(id));
+    return [...active, ...inactive];
+  }
+
+  // --- Active filter chips ---
+  getActiveFilters(): { filter: ItemFilter; displayName: string }[] {
+    const result: { filter: ItemFilter; displayName: string }[] = [];
+    for (const filter of this.dataProvider.getFilters()) {
+      if (filter.empty()) continue;
+      if (filter instanceof IdFilter) {
+        const count = filter.accaptableIds.length;
+        result.push({ filter, displayName: `${count} selected` });
+      } else if (filter instanceof FeatureFilter) {
+        result.push({ filter, displayName: this.getFeatureName(filter.featureName) || filter.featureName });
+      } else if (filter instanceof CategoryFilter) {
+        result.push({ filter, displayName: this.getFeatureName(filter.featureName) || filter.featureName });
+      }
+    }
+    return result;
+  }
+
+  removeFilter(filter: ItemFilter): void {
+    filter.clear();
+    this.dataProvider.refreshFilters();
+    if (filter instanceof IdFilter) {
+      this.config.clearSelection();
+    } else {
+      this.config.redraw();
+    }
+  }
+
+  hasActiveFilters(): boolean {
+    return this.searchTerms.length > 0 || this.getActiveFilters().length > 0;
+  }
+
+  // --- Style summary ---
+  getStyleSummary(): string {
+    const parts = [this.getGlyphName(this.glyphConfig.glyphType)];
+    for (const opt of this.glyphConfig.glyphOptions) {
+      if ((this.glyphConfig as any)[opt.property]) parts.push(opt.label);
+    }
+    return parts.join(' · ');
   }
 
   // --- Search / text filter ---

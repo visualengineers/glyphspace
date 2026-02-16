@@ -344,6 +344,110 @@
   }
 }
 
+// --- Glyph axes feature list ---
+.feature-list {
+  display: flex;
+  flex-direction: column;
+  max-height: 240px;
+  overflow-y: auto;
+  @include m.styled-scrollbar-thin;
+}
+
+.feature-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.1s ease;
+
+  &:hover {
+    background: v.$gray-100;
+  }
+
+  &.active {
+    .feature-label {
+      color: v.$gray-800;
+      font-weight: 500;
+    }
+  }
+
+  input[type='checkbox'] {
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    flex-shrink: 0;
+    accent-color: v.$color-blue-highlight;
+  }
+
+  .feature-label {
+    font-size: 13px;
+    color: v.$gray-600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+.feature-count {
+  font-weight: 400;
+  font-size: 11px;
+  color: v.$gray-500;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+// --- Active filter chips ---
+.active-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-bottom: 10px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid v.$gray-200;
+}
+
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 4px 2px 8px;
+  background: v.$color-blue-highlight;
+  color: white;
+  border-radius: 12px;
+  font-size: 12px;
+  max-width: 160px;
+
+  .chip-label {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .chip-remove {
+    all: unset;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background-color 0.15s ease;
+
+    i.material-icons {
+      font-size: 14px;
+      color: white;
+    }
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.25);
+    }
+  }
+}
+
 // --- Clear filters ---
 .clear-filters-btn {
   background: none;

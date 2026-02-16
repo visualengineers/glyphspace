@@ -226,6 +226,10 @@ export class DataProviderService {
         return this.filters;
     }
 
+    getGlyphDataSync(): Map<string, GlyphObject> | undefined {
+        return this.glyphCache.get(this.config.loadedData);
+    }
+
     clearIdFilters() {
         this.filters.forEach(filter => {
             if (filter instanceof IdFilter) {
