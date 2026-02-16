@@ -6,8 +6,6 @@ import * as d3 from 'd3';
 import { Features } from '../shared/interfaces/glyph-feature';
 import { hexToRgb } from '../shared/helpers/d3-helper';
 import { GlyphConfiguration } from '../glyph/glyph-configuration';
-import { ItemFilter } from '../shared/filter/item-filter';
-import { IdFilter } from '../shared/filter/id-filter';
 import { COLOR_SCALES, ColorScale } from '../shared/interfaces/color-scale';
 import { normalizeFeatureValue } from '../shared/helpers/color-helper';
 

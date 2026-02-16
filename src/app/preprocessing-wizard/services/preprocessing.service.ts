@@ -145,10 +145,10 @@ export class PreprocessingService {
 
       this.saveStateToStorage();
       return profile;
-    } catch (error: any) {
+    } catch (error: unknown) {
       this.updateState({
         isProcessing: false,
-        error: error.message || 'Failed to load data file',
+        error: error instanceof Error ? error.message : 'Failed to load data file',
       });
       throw error;
     }
@@ -362,7 +362,12 @@ export class PreprocessingService {
   // Duplicate detection
   public async detectDuplicates(
     subsetColumns?: string[]
-  ): Promise<{ duplicateCount: number; duplicateIndices: number[]; percentage: number; sampleDuplicates: any[] }> {
+  ): Promise<{
+    duplicateCount: number;
+    duplicateIndices: number[];
+    percentage: number;
+    sampleDuplicates: Record<string, unknown>[];
+  }> {
     if (!this.currentState.rawFileName) {
       throw new Error('No data file loaded');
     }
@@ -405,10 +410,10 @@ export class PreprocessingService {
       });
 
       this.saveStateToStorage();
-    } catch (error: any) {
+    } catch (error: unknown) {
       this.updateState({
         isProcessing: false,
-        error: error.message || 'Processing failed',
+        error: error instanceof Error ? error.message : 'Processing failed',
       });
       throw error;
     }
@@ -438,6 +443,7 @@ export class PreprocessingService {
     }
 
     // The dataset structure from worker
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const collection = state.processedDataset as any;
     const datasetKey = collection.selectedDataset || (collection.datasets ? Object.keys(collection.datasets)[0] : null);
 
@@ -468,6 +474,7 @@ export class PreprocessingService {
     this.updateState({ processedDataset: collection });
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private buildProcessingConfig(): any {
     const state = this.currentState;
 

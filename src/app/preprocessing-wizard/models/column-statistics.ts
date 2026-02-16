@@ -43,5 +43,5 @@ export interface DataProfile {
   columns: ColumnStatistics[];
   qualityScore: number;
   duplicateCount: number;
-  previewRows: any[];
+  previewRows: Record<string, unknown>[];
 }

@@ -163,7 +163,10 @@ export class SidebarComponent implements OnInit, OnDestroy {
     // Re-evaluate filter chips when filters change (histogram brush, canvas selection, etc.)
     this.subs.add(
       this.config.commandSubject$.subscribe(() => {
-        this.ngZone.run(() => {});
+        // Trigger Angular change detection to update filter chip UI
+        this.ngZone.run(() => {
+          /* intentional: forces CD */
+        });
       })
     );
   }
@@ -407,6 +410,7 @@ export class SidebarComponent implements OnInit, OnDestroy {
   }
 
   getSelectedScale(): ColorScale {
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- selectedColorScaleId is always set to a valid COLOR_SCALES id
     return this.colorScales.find(s => s.id === this.selectedColorScaleId)!;
   }
 
@@ -447,10 +451,12 @@ export class SidebarComponent implements OnInit, OnDestroy {
   }
 
   isOptionEnabled(prop: string): boolean {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic property access on GlyphConfiguration
     return (this.glyphConfig as any)[prop] === true;
   }
 
   toggleOption(property: string): void {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic property access on GlyphConfiguration
     (this.glyphConfig as any)[property] = !(this.glyphConfig as any)[property];
     this.config.updateConfiguration();
   }

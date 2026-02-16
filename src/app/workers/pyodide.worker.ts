@@ -5,7 +5,7 @@ import { WorkerReply, WorkerRequest } from '../shared/interfaces/pyodide-message
 
 // -- Load Pyodide from CDN --
 
-// @ts-ignore
+// @ts-expect-error -- dynamic ESM import from CDN
 const pyodideModule = await import('https://cdn.jsdelivr.net/pyodide/v0.28.0/full/pyodide.mjs');
 
 const pyodideReady = (async () => {
@@ -27,6 +27,7 @@ function runSerialized<T>(fn: () => Promise<T>): Promise<T> {
   const prev = executionLock;
   let resolveNext: () => void;
   executionLock = new Promise(res => (resolveNext = res));
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- resolveNext is assigned synchronously in the Promise constructor above
   return prev.then(() => fn().finally(resolveNext!));
 }
 
@@ -93,23 +94,29 @@ self.onmessage = async (ev: MessageEvent<WorkerRequest>) => {
               unpack_flat("${zipPath}")
             `);
 
-            // ✅ Ensure the directory now exists
+            // Ensure the directory now exists
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Pyodide FS API has incomplete type definitions
             if (!(pyodide.FS as any).analyzePath(`/${zipName}`).exists) {
               throw new Error(`Unpack failed: folder /${zipName} not found`);
             }
 
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Pyodide FS API has incomplete type definitions
             const files = (pyodide.FS as any).readdir(`/${zipName}`);
             const images = files.filter((f: string) => /\.(png|jpe?g|webp)$/i.test(f));
 
             postMessage({ type: 'unzipped', folder: zipName, images });
-          } catch (err: any) {
-            postMessage({ type: 'error', message: `Unzip failed: ${err.message}` });
+          } catch (err: unknown) {
+            postMessage({
+              type: 'error',
+              message: `Unzip failed: ${err instanceof Error ? err.message : String(err)}`,
+            });
           }
           break;
         }
         case 'getThumb': {
           const filePath = ev.data.file;
           try {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Pyodide FS API has incomplete type definitions
             const data = (pyodide.FS as any).readFile(`/${filePath}`, { encoding: 'binary' });
             postMessage(
               {
@@ -119,8 +126,11 @@ self.onmessage = async (ev: MessageEvent<WorkerRequest>) => {
               },
               [data.buffer]
             );
-          } catch (err: any) {
-            postMessage({ type: 'error', message: `Thumbnail error: ${err.message}` });
+          } catch (err: unknown) {
+            postMessage({
+              type: 'error',
+              message: `Thumbnail error: ${err instanceof Error ? err.message : String(err)}`,
+            });
           }
           break;
         }
@@ -208,6 +218,7 @@ self.onmessage = async (ev: MessageEvent<WorkerRequest>) => {
           const configJson = JSON.stringify(config);
 
           // Create a global callback function that Python can call
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Pyodide globals API has incomplete type definitions
           (pyodide.globals as any).set('sendProgress', (step: string, progress: number, message: string) => {
             postMessage({
               type: 'processingProgress',
@@ -251,10 +262,14 @@ preprocessing_processor_config.process_with_config(
 
           // Cleanup: files are no longer needed after processing
           try {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Pyodide FS API has incomplete type definitions
             if ((pyodide.FS as any).analyzePath(fileName).exists) {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Pyodide FS API has incomplete type definitions
               (pyodide.FS as any).unlink(fileName);
             }
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Pyodide FS API has incomplete type definitions
             if ((pyodide.FS as any).analyzePath(outputFileName).exists) {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Pyodide FS API has incomplete type definitions
               (pyodide.FS as any).unlink(outputFileName);
             }
           } catch (cleanupErr) {
@@ -268,14 +283,17 @@ preprocessing_processor_config.process_with_config(
           try {
             const csvText = pyodide.FS.readFile('processed_features.csv', { encoding: 'utf8' });
             postMessage({ type: 'processedFeatures', data: csvText } as WorkerReply);
-          } catch (err: any) {
-            postMessage({ type: 'error', message: `Failed to read processed features: ${err.message}` } as WorkerReply);
+          } catch (err: unknown) {
+            postMessage({
+              type: 'error',
+              message: `Failed to read processed features: ${err instanceof Error ? err.message : String(err)}`,
+            } as WorkerReply);
           }
           break;
         }
       }
-    } catch (err: any) {
-      postMessage({ type: 'error', message: err.message ?? String(err) } as WorkerReply);
+    } catch (err: unknown) {
+      postMessage({ type: 'error', message: err instanceof Error ? err.message : String(err) } as WorkerReply);
     }
   });
 };

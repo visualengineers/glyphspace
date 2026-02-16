@@ -9,8 +9,8 @@
     <div class="config-panel color-feature-panel">
       <div class="panel-header-row">
         <div class="form-group">
-          <label class="menu-label">COLOR ATTRIBUTE</label>
-          <select [ngModel]="colorFeature" (ngModelChange)="setColorFeature($event)">
+          <label class="menu-label" for="step4-color-attribute">COLOR ATTRIBUTE</label>
+          <select id="step4-color-attribute" [ngModel]="colorFeature" (ngModelChange)="setColorFeature($event)">
             @for (column of columns; track column.name) {
               <option [value]="column.name">{{ column.name }}</option>
             }
@@ -18,8 +18,9 @@
         </div>
 
         <div class="form-group">
-          <label class="menu-label">COLOR SCALE</label>
+          <label class="menu-label" for="step4-color-scale">COLOR SCALE</label>
           <app-color-scale-selector
+            id="step4-color-scale"
             [groupedColorScales]="groupedColorScales"
             [selectedScale]="getSelectedColorScale()"
             (scaleSelected)="selectColorScale($event)"
@@ -112,6 +113,8 @@
               <div
                 class="feature-row available"
                 (click)="addGlyphFeature(feature)"
+                (keydown.enter)="addGlyphFeature(feature)"
+                tabindex="0"
                 draggable="true"
                 (dragstart)="onDragStart($event, feature, 'available', -1)"
                 (dragend)="onDragEnd($event)"
@@ -265,6 +268,8 @@
             [class.enabled]="projectionConfig[method.key]"
             [class.has-warning]="shouldShowLargeDatasetWarning(method)"
             (click)="isMethodDisabled(method) ? null : toggleProjectionMethod(method)"
+            (keydown.enter)="isMethodDisabled(method) ? null : toggleProjectionMethod(method)"
+            tabindex="0"
           >
             <div class="card-row">
               <input
@@ -310,12 +315,13 @@
             <span class="params-label">{{ method.name }} Parameters</span>
             @for (param of method.params; track param.configKey) {
               <div class="param-field">
-                <label>
+                <label [for]="'step4-param-' + param.configKey">
                   {{ param.label }}
                   <app-help-tooltip [helpText]="$any(HELP_TEXT.parameters)[param.helpKey]"></app-help-tooltip>
                 </label>
                 <div class="input-group">
                   <input
+                    [id]="'step4-param-' + param.configKey"
                     type="range"
                     [min]="param.min"
                     [max]="param.max"

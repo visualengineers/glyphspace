@@ -1,4 +1,4 @@
-import { Component, Input, OnInit, OnChanges, ElementRef, ViewChild, AfterViewInit } from '@angular/core';
+import { Component, Input, OnChanges, ElementRef, ViewChild, AfterViewInit } from '@angular/core';
 import * as d3 from 'd3';
 import { HistogramData } from '../../models/column-statistics';
 
@@ -9,7 +9,7 @@ import { HistogramData } from '../../models/column-statistics';
   templateUrl: './histogram-chart.component.html',
   styleUrl: './histogram-chart.component.scss',
 })
-export class HistogramChartComponent implements OnInit, OnChanges, AfterViewInit {
+export class HistogramChartComponent implements OnChanges, AfterViewInit {
   @ViewChild('chart', { static: false }) chartContainer!: ElementRef;
 
   @Input() data!: HistogramData;
@@ -18,10 +18,9 @@ export class HistogramChartComponent implements OnInit, OnChanges, AfterViewInit
   @Input() showAxes = true;
   @Input() color = '#2196F3';
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private svg: any;
   private initialized = false;
-
-  ngOnInit(): void {}
 
   ngAfterViewInit(): void {
     this.initialized = true;
@@ -93,6 +92,7 @@ export class HistogramChartComponent implements OnInit, OnChanges, AfterViewInit
       const xAxis = d3
         .axisBottom(xScale)
         .ticks(5)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .tickFormat((d: any) => {
           const index = Math.floor(d);
           if (index >= 0 && index < this.data.binEdges.length) {

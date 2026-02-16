@@ -143,6 +143,7 @@ export function buildGroupedColorScales(
     if (!map.has(s.group)) {
       map.set(s.group, []);
     }
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- key is guaranteed by the map.set() just above
     map.get(s.group)!.push(s);
   }
   return Array.from(map.entries()).map(([group, scales]) => ({ group, scales }));

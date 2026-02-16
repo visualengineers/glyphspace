@@ -5,13 +5,7 @@ import { DataLoaderService } from '../../../services/data-loader.service';
 import { ProjectionService, ProjectionResult } from '../../../services/projection.service';
 import { ToastService } from '../../../services/toast.service';
 import { ColumnConfig, ProjectionConfig } from '../../models/column-config';
-import {
-  DataType,
-  EncodingMethod,
-  ScalingMethod,
-  getEncodingLabel as encLabelFn,
-  getScalingLabel as scaleLabelFn,
-} from '../../models/data-type.enum';
+import { DataType, getEncodingLabel as encLabelFn, getScalingLabel as scaleLabelFn } from '../../models/data-type.enum';
 import { STEP_INFO } from '../../shared/constants/step-info';
 import { DataTypeBadgeComponent } from '../../../shared/components/data-type-badge/data-type-badge.component';
 
@@ -23,7 +17,7 @@ import { DataTypeBadgeComponent } from '../../../shared/components/data-type-bad
   styleUrl: './step5-review-processing.component.scss',
 })
 export class Step5ReviewProcessingComponent implements OnInit, OnDestroy {
-  @Output() finish = new EventEmitter<void>();
+  @Output() wizardFinish = new EventEmitter<void>();
   getEncodingLabel = encLabelFn;
   getScalingLabel = scaleLabelFn;
 
@@ -182,10 +176,10 @@ export class Step5ReviewProcessingComponent implements OnInit, OnDestroy {
       });
 
       this.startBackgroundProjections(features, ids);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Processing failed:', error);
       this.ngZone.run(() => {
-        this.error = error.message || 'Processing failed';
+        this.error = error instanceof Error ? error.message : 'Processing failed';
         this.isProcessing = false;
         this.cdr.detectChanges();
       });
@@ -288,6 +282,7 @@ export class Step5ReviewProcessingComponent implements OnInit, OnDestroy {
       const state = this.preprocessingService.currentState;
       if (state.processedDataset) {
         // Wizard still active - update via normal flow
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- processedDataset is an opaque structure from Python processing
         const collection = state.processedDataset as any;
         const datasetKey =
           collection.selectedDataset || (collection.datasets ? Object.keys(collection.datasets)[0] : null);
@@ -314,10 +309,13 @@ export class Step5ReviewProcessingComponent implements OnInit, OnDestroy {
       this.ngZone.run(() => {
         this.toastService.success(`${name} projection ready! (${(result.computeTime / 1000).toFixed(1)}s)`, 4000);
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(`${name} projection failed:`, error);
       this.ngZone.run(() => {
-        this.toastService.error(`${name} projection failed: ${error.message}`, 6000);
+        this.toastService.error(
+          `${name} projection failed: ${error instanceof Error ? error.message : String(error)}`,
+          6000
+        );
       });
     }
   }
@@ -326,6 +324,7 @@ export class Step5ReviewProcessingComponent implements OnInit, OnDestroy {
     const state = this.preprocessingService.currentState;
 
     if (state.processedDataset) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- processedDataset is an opaque structure from Python processing
       const collection = state.processedDataset as any;
       const datasetKey =
         collection.selectedDataset || (collection.datasets ? Object.keys(collection.datasets)[0] : null);
@@ -351,7 +350,7 @@ export class Step5ReviewProcessingComponent implements OnInit, OnDestroy {
     // Reset wizard state so it's ready for a new upload
     this.preprocessingService.resetState();
 
-    this.finish.emit();
+    this.wizardFinish.emit();
   }
 
   goBack(): void {

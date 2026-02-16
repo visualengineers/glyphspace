@@ -15,7 +15,7 @@ export class TooltipComponent implements OnInit, OnDestroy {
   @Input() container!: HTMLElement;
   @ViewChild('tooltip') tooltipRef!: ElementRef<HTMLDivElement>;
 
-  private hoverTimeout: any = null;
+  private hoverTimeout: ReturnType<typeof setTimeout> | undefined;
   private subscription = new Subscription();
   tooltipVisible = false;
   tooltipFixed = false;

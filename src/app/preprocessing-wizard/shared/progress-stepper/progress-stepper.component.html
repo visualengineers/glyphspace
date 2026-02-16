@@ -8,6 +8,8 @@
           [class.completed]="isStepCompleted($index)"
           [class.clickable]="isStepClickable($index)"
           (click)="onStepClick($index)"
+          (keydown.enter)="onStepClick($index)"
+          tabindex="0"
         >
           <div class="step-circle">
             @if (isStepCompleted($index) && !isStepActive($index)) {

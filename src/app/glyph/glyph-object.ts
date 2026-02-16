@@ -157,6 +157,7 @@ export class GlyphObject {
         } else {
           // Fallback to flower
           const fallback = getGlyphRenderer(GlyphType.Flower);
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- Flower renderer is always registered
           mesh = fallback!.render(
             this.buildRenderContext(sizeInfo),
             sizeInfo,

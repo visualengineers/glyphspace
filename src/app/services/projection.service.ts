@@ -4,7 +4,6 @@ import * as druid from '@saehrimnir/druidjs';
 import {
   ProjectionMethod,
   ProjectionResult,
-  ProjectionComputeConfig,
   ProjectionWorkerRequest,
   ProjectionWorkerResponse,
 } from '../shared/types/projection.types';
@@ -43,6 +42,7 @@ export class ProjectionService {
 
     try {
       // DruidJS PCA: new druid.PCA(data, components).transform()
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- DruidJS type definitions are incomplete
       const pca = new (druid as any).PCA(features, 2); // 2 components for 2D visualization
       const embedding = pca.transform();
 
@@ -57,8 +57,8 @@ export class ProjectionService {
         positions,
         computeTime: Date.now() - startTime,
       };
-    } catch (error: any) {
-      throw new Error(`PCA failed: ${error.message}`);
+    } catch (error: unknown) {
+      throw new Error(`PCA failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -71,6 +71,7 @@ export class ProjectionService {
     const startTime = Date.now();
 
     try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- DruidJS type definitions are incomplete
       const fastmap = new (druid as any).FASTMAP(features, 2);
       const embedding = fastmap.transform();
 
@@ -85,8 +86,8 @@ export class ProjectionService {
         positions,
         computeTime: Date.now() - startTime,
       };
-    } catch (error: any) {
-      throw new Error(`FastMap failed: ${error.message}`);
+    } catch (error: unknown) {
+      throw new Error(`FastMap failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -98,6 +99,7 @@ export class ProjectionService {
     const startTime = Date.now();
 
     try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- DruidJS type definitions are incomplete
       const isomap = new (druid as any).ISOMAP(features, 2);
       const embedding = isomap.transform();
 
@@ -112,8 +114,8 @@ export class ProjectionService {
         positions,
         computeTime: Date.now() - startTime,
       };
-    } catch (error: any) {
-      throw new Error(`IsoMap failed: ${error.message}`);
+    } catch (error: unknown) {
+      throw new Error(`IsoMap failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -238,6 +240,7 @@ export class ProjectionService {
     method: ProjectionMethod,
     features: number[][],
     ids: (string | number)[],
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- config varies per projection method
     config?: any
   ): Promise<ProjectionResult> {
     return new Promise((resolve, reject) => {
@@ -266,8 +269,11 @@ export class ProjectionService {
             worker.terminate();
             this.workers.delete(method);
             resolve({
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any -- ProjectionMethod type narrowing not available here
               method: method as any,
+              // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- guaranteed present when data.type === 'result'
               positions: data.positions!,
+              // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- guaranteed present when data.type === 'result'
               computeTime: data.computeTime!,
             });
           } else if (data.type === 'error') {
@@ -349,8 +355,8 @@ export class ProjectionService {
       }
 
       return { features, ids };
-    } catch (error: any) {
-      throw new Error(`Failed to parse CSV features: ${error.message}`);
+    } catch (error: unknown) {
+      throw new Error(`Failed to parse CSV features: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -403,7 +409,7 @@ export class ProjectionService {
    * Terminate all running workers
    */
   terminateAllWorkers(): void {
-    this.workers.forEach((worker, method) => {
+    this.workers.forEach((worker, _method) => {
       worker.terminate();
     });
     this.workers.clear();

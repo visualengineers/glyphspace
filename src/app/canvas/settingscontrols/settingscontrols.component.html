@@ -29,8 +29,8 @@
       <div class="overlay-content">
         <!-- TIME STAMP -->
         <div class="form-group">
-          <label class="menu-label">TIME STAMP</label>
-          <select [(ngModel)]="selectedTimestamp" (ngModelChange)="emitSettingsChange()">
+          <label class="menu-label" for="settings-timestamp">TIME STAMP</label>
+          <select id="settings-timestamp" [(ngModel)]="selectedTimestamp" (ngModelChange)="emitSettingsChange()">
             @for (t of timestamps; track t) {
               <option [value]="t">{{ t }}</option>
             }
@@ -39,8 +39,8 @@
 
         <!-- DIMENSIONALITY REDUCTION -->
         <div class="form-group">
-          <label class="menu-label">DIMENSIONALITY REDUCTION</label>
-          <select [(ngModel)]="selectedAlgorithm" (ngModelChange)="emitSettingsChange()">
+          <label class="menu-label" for="settings-algorithm">DIMENSIONALITY REDUCTION</label>
+          <select id="settings-algorithm" [(ngModel)]="selectedAlgorithm" (ngModelChange)="emitSettingsChange()">
             @for (algo of algorithms; track algo) {
               <option [value]="algo">{{ algo }}</option>
             }
@@ -50,8 +50,8 @@
         <!-- BACKGROUND PROJECTION STATUS -->
         @if (backgroundProjections.length > 0) {
           <div class="form-group">
-            <label class="menu-label">BACKGROUND PROJECTIONS</label>
-            <div class="projection-status-list" (wheel)="$event.stopPropagation()">
+            <label class="menu-label" for="settings-bg-projections">BACKGROUND PROJECTIONS</label>
+            <div id="settings-bg-projections" class="projection-status-list" (wheel)="$event.stopPropagation()">
               @for (proj of backgroundProjections; track proj.method) {
                 <div class="projection-status-item" [ngClass]="'status-' + proj.status" [class.fading]="proj.fading">
                   <div class="status-row">
@@ -85,12 +85,12 @@
         }
 
         <div class="animation-control-group">
-          <label class="menu-label">TRANSITION SPEED AND PLAYBACK</label>
+          <label class="menu-label" for="settings-speed-display">TRANSITION SPEED AND PLAYBACK</label>
           <div class="animation-controls">
             <button class="icon-btn" (click)="decreaseSpeed()" data-tooltip="Decrease speed">
               <i class="material-icons">remove</i>
             </button>
-            <div class="speed-display">
+            <div id="settings-speed-display" class="speed-display">
               {{ animationSpeed }}
             </div>
             <button class="icon-btn" (click)="increaseSpeed()" data-tooltip="Increase speed">

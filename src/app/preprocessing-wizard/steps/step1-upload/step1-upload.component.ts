@@ -95,8 +95,8 @@ export class Step1UploadComponent implements OnInit, OnDestroy {
       this.profile = await this.preprocessingService.loadCSV(file);
       // Don't emit here - let user review the data first
       // User will click "Continue to Column Selection" button to emit and proceed
-    } catch (err: any) {
-      this.error = err.message || 'Failed to load data file';
+    } catch (err: unknown) {
+      this.error = err instanceof Error ? err.message : 'Failed to load data file';
       this.profile = null;
     } finally {
       this.isLoading = false;

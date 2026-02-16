@@ -1,6 +1,6 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ToastService, Toast } from '../../../services/toast.service';
+import { ToastService } from '../../../services/toast.service';
 
 @Component({
   selector: 'app-toast',
@@ -9,7 +9,13 @@ import { ToastService, Toast } from '../../../services/toast.service';
   template: `
     <div class="toast-container">
       @for (toast of toasts$ | async; track toast.id) {
-        <div class="toast toast-{{ toast.type }}" (click)="remove(toast.id)">
+        <div
+          class="toast toast-{{ toast.type }}"
+          role="alert"
+          tabindex="0"
+          (click)="remove(toast.id)"
+          (keydown.enter)="remove(toast.id)"
+        >
           <span class="toast-icon">
             @switch (toast.type) {
               @case ('success') {

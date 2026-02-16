@@ -18,7 +18,6 @@ import { IdFilter } from '../../shared/filter/id-filter';
 import { FilterMode } from '../../shared/enum/filter-mode';
 import { Subscription } from 'rxjs';
 import { COLOR_SCALES, ColorScale } from '../../shared/interfaces/color-scale';
-import { GlyphMeta } from '../../shared/interfaces/glyph-meta';
 import { CategoryFilter } from '../../shared/filter/category-filter';
 import { InteractionCommand } from '../../shared/enum/interaction-command';
 import { Histogram, StackedBin } from '../../shared/types/histogram.types';
@@ -38,7 +37,9 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges, OnD
   @Input() featureMin = 0;
   @Input() featureMax = 1;
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   @Input() configuration: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   @Input() dataProvider: any;
 
   @Output() selectionChanged = new EventEmitter<{ property: string; minBin: number; maxBin: number }>();
@@ -50,14 +51,18 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges, OnD
   private filter!: ItemFilter;
   private categoryFilter!: CategoryFilter;
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private svg: any;
   private margin = { top: 6, right: 6, bottom: 6, left: 6 };
   private width = 300;
   private height = 60;
   private innerHeight = 60;
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private xScale: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private yScale: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private brush: any;
   private brushSelection: [number, number] | null = null;
   private selectedBins = new Set<number>();
@@ -73,8 +78,6 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges, OnD
   private defaultBarColor = '#333'; // dark gray
   private colorScale: ColorScale = COLOR_SCALES[0];
   private resizeObserver?: ResizeObserver;
-
-  constructor() {}
 
   ngOnInit(): void {
     this.filter = new FeatureFilter(this.property);
@@ -142,7 +145,7 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges, OnD
       this.svg.remove();
       this.svg = null;
     }
-    d3.select(this.histogramContainer!.nativeElement).select('svg').remove();
+    d3.select(this.histogramContainer?.nativeElement).select('svg').remove();
     this.configSub.unsubscribe();
   }
 
@@ -214,6 +217,7 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges, OnD
   }
 
   /** Visual-only: update bar fill colors based on selectedBins and selectionCounts. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private applyCategoricalFill(bars: d3.Selection<SVGRectElement, any, any, any>, totalBins: number): void {
     const hasSelection = this.selectionCounts != null && this.selectionCounts.size > 0;
 
@@ -288,18 +292,21 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges, OnD
     if (hasSelection) {
       this.svg
         .selectAll('rect.selection-overlay')
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- guarded by `if (hasSelection)` which checks selectionCounts != null
         .data(bins.filter((d: StackedBin) => this.selectionCounts!.has(d.bin)))
         .enter()
         .append('rect')
         .attr('class', 'selection-overlay')
         .attr('x', (d: StackedBin) => d.x0)
         .attr('y', (d: StackedBin) => {
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- guarded by `if (hasSelection)` and filtered to bins present in selectionCounts
           const sel = this.selectionCounts!.get(d.bin) || 0;
           const tot = this.totalCounts?.get(d.bin) || 1;
           return this.innerHeight * (1 - sel / tot);
         })
         .attr('width', (d: StackedBin) => d.x1 - d.x0)
         .attr('height', (d: StackedBin) => {
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- guarded by `if (hasSelection)` and filtered to bins present in selectionCounts
           const sel = this.selectionCounts!.get(d.bin) || 0;
           const tot = this.totalCounts?.get(d.bin) || 1;
           return this.innerHeight * (sel / tot);
@@ -360,10 +367,10 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges, OnD
       .data(bins)
       .join('rect')
       .attr('class', 'bar')
-      .attr('x', (d: { bin: any }) => this.xScale(d.bin))
-      .attr('y', (d: { value: any }) => this.yScale(d.value))
+      .attr('x', (d: { bin: number }) => this.xScale(d.bin))
+      .attr('y', (d: { value: number }) => this.yScale(d.value))
       .attr('width', this.xScale(1) - this.xScale(0) - 1)
-      .attr('height', (d: { value: any }) => this.innerHeight - this.yScale(d.value))
+      .attr('height', (d: { value: number }) => this.innerHeight - this.yScale(d.value))
       .attr('fill', (d: { bin: number }) => (hasSelection ? '#d4d4d4' : this.getBarColor(d.bin, bins.length)))
       .attr('rx', 3)
       .attr('ry', 3);
@@ -371,10 +378,12 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges, OnD
     // Draw selection overlay bars (proportional to each bin's bar height)
     if (hasSelection) {
       const overlayData = bins
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- guarded by `if (hasSelection)` which checks selectionCounts != null
         .filter((d: { bin: number; value: number }) => this.selectionCounts!.has(d.bin))
         .map((d: { bin: number; value: number }) => ({
           bin: d.bin,
           binValue: d.value,
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- filtered to bins that exist in selectionCounts
           sel: this.selectionCounts!.get(d.bin)!,
           tot: this.totalCounts?.get(d.bin) || 1,
         }));
@@ -384,14 +393,14 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges, OnD
         .data(overlayData)
         .join('rect')
         .attr('class', 'selection-overlay')
-        .attr('x', (d: any) => this.xScale(d.bin))
-        .attr('y', (d: any) => {
+        .attr('x', (d: { bin: number; binValue: number; sel: number; tot: number }) => this.xScale(d.bin))
+        .attr('y', (d: { bin: number; binValue: number; sel: number; tot: number }) => {
           const barHeight = this.innerHeight - this.yScale(d.binValue);
           const overlayHeight = barHeight * (d.sel / d.tot);
           return this.innerHeight - overlayHeight;
         })
         .attr('width', this.xScale(1) - this.xScale(0) - 1)
-        .attr('height', (d: any) => {
+        .attr('height', (d: { bin: number; binValue: number; sel: number; tot: number }) => {
           const barHeight = this.innerHeight - this.yScale(d.binValue);
           return barHeight * (d.sel / d.tot);
         })
@@ -570,14 +579,16 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges, OnD
     this.refreshAndRedraw();
   }
 
-  private filtering(selection: any): void {
+  private filtering(selection: [number, number]): void {
     if (selection === null || selection === undefined) {
       return;
     }
 
     this.dataProvider.ensureFilter(this.filter);
 
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- selection is a non-empty [number, number] tuple at this point
     const absoluteMinValue: number = +d3.min(selection)!;
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- selection is a non-empty [number, number] tuple at this point
     const absoluteMaxValue: number = +d3.max(selection)!;
 
     const relativeMinValue: number = absoluteMinValue / this.width;
@@ -637,6 +648,7 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges, OnD
     // Detect value range (shared by both categorical and numeric paths)
     let vMin = Infinity,
       vMax = -Infinity;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     glyphMap.forEach((glyph: any) => {
       const v = glyph.features?.['1']?.[this.property];
       if (v != null && !isNaN(v)) {
@@ -658,6 +670,7 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges, OnD
     }
 
     // Single pass: assign each glyph to a bin and tally counts
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     glyphMap.forEach((glyph: any) => {
       const featureValue = glyph.features?.['1']?.[this.property];
       if (featureValue == null || isNaN(featureValue)) return;

@@ -408,7 +408,7 @@ export class Step4VisualizationSettingsComponent implements OnInit {
     }
   }
 
-  onDragEnd(event: DragEvent): void {
+  onDragEnd(_event: DragEvent): void {
     this.draggedFeature = null;
     this.draggedFromList = 'available';
     this.draggedIndex = -1;
@@ -455,6 +455,7 @@ export class Step4VisualizationSettingsComponent implements OnInit {
   }
 
   onParamChange(configKey: keyof ProjectionConfig, value: number, min: number, max: number): void {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (this.projectionConfig as any)[configKey] = Math.max(min, Math.min(max, value));
     this.updateProjectionConfig();
   }

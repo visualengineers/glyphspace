@@ -47,10 +47,11 @@ export class DataLoaderService {
         const datasetId = ds.dataset;
         const time = item.time;
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- HTTP responses are typed at consumption via result keys
         const requests: Record<string, Observable<any>> = {
-          schema: this.http.get<any>(basePath + algos.schema),
-          meta: this.http.get<any>(basePath + algos.meta),
-          feature: this.http.get<any>(basePath + algos.feature),
+          schema: this.http.get<GlyphSchema>(basePath + algos.schema),
+          meta: this.http.get<GlyphMeta>(basePath + algos.meta),
+          feature: this.http.get<GlyphFeature[]>(basePath + algos.feature),
         };
 
         const positionKeys = Object.keys(algos.position);
@@ -216,7 +217,11 @@ export class DataLoaderService {
   public async getGlyphData(): Promise<GlyphObject[] | undefined>;
   public async getGlyphData(name?: string): Promise<GlyphObject[] | undefined>;
   public async getGlyphData(name?: string, timestamp?: string): Promise<GlyphObject[] | undefined>;
-  public async getGlyphData(name?: string, timestamp?: string, algorithm?: string): Promise<GlyphObject[] | undefined> {
+  public async getGlyphData(
+    name?: string,
+    timestamp?: string,
+    _algorithm?: string
+  ): Promise<GlyphObject[] | undefined> {
     const resolved = this.resolveDatasetParams(name, timestamp || undefined);
     if (!resolved) return undefined;
 
@@ -294,7 +299,7 @@ export class DataLoaderService {
   }
 
   getContexts(name: string): string[];
-  getContexts(name: string, time?: string): string[] {
+  getContexts(_name: string, _time?: string): string[] {
     const result: string[] = [];
     // TODO: Get from schema ...
     return result;
@@ -356,6 +361,7 @@ export class DataLoaderService {
 
   // === Processed dataset loading ===
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dataset is an opaque structure from Python/WASM processing
   public loadProcessedDataset(dataset: any, datasetName: string, timestamp: string): void {
     this.filterService.clearFilters();
 
@@ -365,7 +371,9 @@ export class DataLoaderService {
 
     const positions = new Map<string, GlyphPosition[]>();
     if (dataset.projections && Array.isArray(dataset.projections)) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- projection entries from Python processing have dynamic shape
       dataset.projections.forEach((proj: any) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- projection data items from Python processing
         const posArray: GlyphPosition[] = proj.data.map((item: any) => ({
           id: item.id,
           position: { x: item.x, y: item.y },
@@ -373,6 +381,7 @@ export class DataLoaderService {
         positions.set(proj.name, posArray);
       });
     } else if (dataset.positions) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- positions from Python processing have dynamic shape
       Object.entries(dataset.positions).forEach(([name, data]: [string, any]) => {
         positions.set(name, data);
       });
@@ -394,9 +403,11 @@ export class DataLoaderService {
     }
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dataset is an opaque structure from Python/WASM processing
   public addProcessedDatasetToCollection(datasetName: string, timestamp: string, dataset: any): void {
     const positionMapping: Record<string, string> = {};
     if (dataset.projections && Array.isArray(dataset.projections)) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- projection entries from Python processing
       dataset.projections.forEach((proj: any) => {
         positionMapping[proj.name] = `memory://${datasetName}/${timestamp}/${proj.name}`;
       });

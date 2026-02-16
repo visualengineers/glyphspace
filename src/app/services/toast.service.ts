@@ -16,8 +16,6 @@ export class ToastService {
   public toasts$ = this.toastsSubject.asObservable();
   private nextId = 0;
 
-  constructor() {}
-
   show(message: string, type: Toast['type'] = 'info', duration = 5000): void {
     const toast: Toast = {
       id: this.nextId++,

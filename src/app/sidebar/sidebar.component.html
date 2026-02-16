@@ -57,8 +57,8 @@
         <div class="accordion-body">
           <!-- Color attribute -->
           <div class="form-group">
-            <label class="menu-label">COLOR ATTRIBUTE</label>
-            <select [(ngModel)]="selectedColorAttribute" (ngModelChange)="selectColor()">
+            <label class="menu-label" for="sidebar-color-attribute">COLOR ATTRIBUTE</label>
+            <select id="sidebar-color-attribute" [(ngModel)]="selectedColorAttribute" (ngModelChange)="selectColor()">
               @for (featureId of featureIds; track featureId) {
                 <option [value]="featureId">
                   {{ getFeatureName(featureId) }}
@@ -69,8 +69,9 @@
 
           <!-- Color scale -->
           <div class="form-group">
-            <label class="menu-label">COLOR SCALE</label>
+            <label class="menu-label" for="sidebar-color-scale">COLOR SCALE</label>
             <app-color-scale-selector
+              id="sidebar-color-scale"
               [groupedColorScales]="groupedColorScales"
               [selectedScale]="getSelectedScale()"
               (scaleSelected)="selectColorScale($event)"
@@ -80,10 +81,10 @@
 
           <!-- Glyph axes -->
           <div class="form-group">
-            <label class="menu-label"
+            <label class="menu-label" for="sidebar-glyph-axes"
               >GLYPH AXES <span class="feature-count">{{ getActiveFeatureCount() }}</span></label
             >
-            <div class="feature-list">
+            <div id="sidebar-glyph-axes" class="feature-list">
               @for (featureId of getSortedFeatureIds(); track featureId) {
                 <label class="feature-checkbox" [class.active]="isFeatureActive(featureId)">
                   <input type="checkbox" [checked]="isFeatureActive(featureId)" (change)="toggleFeature(featureId)" />
@@ -117,8 +118,8 @@
         <div class="accordion-body">
           <!-- Glyph type -->
           <div class="form-group">
-            <label class="menu-label">GLYPH TYPE</label>
-            <div class="control-cell">
+            <label class="menu-label" for="sidebar-glyph-type">GLYPH TYPE</label>
+            <div id="sidebar-glyph-type" class="control-cell">
               <button
                 class="glyph-btn"
                 [class.active]="glyphConfig.glyphType === GlyphType.Star"
@@ -174,8 +175,8 @@
 
           <!-- Glyph options -->
           <div class="form-group">
-            <label class="menu-label">GLYPH OPTIONS</label>
-            <div class="control-cell config-toggle-group">
+            <label class="menu-label" for="sidebar-glyph-options">GLYPH OPTIONS</label>
+            <div id="sidebar-glyph-options" class="control-cell config-toggle-group">
               @for (opt of glyphConfig.glyphOptions; track opt.property) {
                 <button
                   class="config-toggle"
@@ -266,13 +267,13 @@
           </div>
 
           <!-- Data info -->
-          <div class="dashboard-infos" [hidden]="filterService.totalItems == 0">
+          <div class="dashboard-infos" [hidden]="filterService.totalItems === 0">
             <span>Total items&nbsp;</span>
             <span>{{ filterService.totalItems }}</span>
-            <span class="right" [hidden]="filterService.filteredItems == filterService.totalItems">{{
+            <span class="right" [hidden]="filterService.filteredItems === filterService.totalItems">{{
               filterService.filteredItems
             }}</span>
-            <span class="right" [hidden]="filterService.filteredItems == filterService.totalItems"
+            <span class="right" [hidden]="filterService.filteredItems === filterService.totalItems"
               >Filtered Items&nbsp;</span
             >
           </div>

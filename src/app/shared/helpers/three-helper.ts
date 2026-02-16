@@ -3,6 +3,7 @@ import { GlyphSizeInfo } from '../../glyph/glyph-size-info';
 
 export function createGrayPlaceholderTexture(size = 16, gray = 136): THREE.Texture {
   const canvas = new OffscreenCanvas(size, size);
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- getContext('2d') on a freshly created OffscreenCanvas never returns null
   const ctx = canvas.getContext('2d')!;
   ctx.fillStyle = `rgb(${gray}, ${gray}, ${gray})`;
   ctx.fillRect(0, 0, size, size);
@@ -159,7 +160,7 @@ export function convertToScreenSpace(
   return new THREE.Vector2(screenX, screenY);
 }
 
-export function jitterFromVector(vec: THREE.Vector3, amount = 5) {
+export function jitterFromVector(vec: THREE.Vector3) {
   const seed = (vec.x * 73856093) ^ (vec.y * 19349663) ^ (vec.z * 83492791);
   const rng = Math.sin(seed) * 10000;
   return (rng - Math.floor(rng)) * 2 - 1; // in [-1, 1]
@@ -182,8 +183,6 @@ export function scalePosition(
 
   // Normalize to [0, 1]
   const normX = (x - bounds.minX) / dataWidth;
-  const normY = (y - bounds.minY) / dataHeight;
-
   // Scale X to [0, maxNormWidth], and scale Y proportionally
   const xInWorld = normX * maxNormWidth;
   const scale = maxNormWidth / dataWidth;

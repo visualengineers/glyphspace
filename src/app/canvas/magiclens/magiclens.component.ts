@@ -76,8 +76,11 @@ export class MagiclensComponent implements AfterViewInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.lensRenderer.forceContextLoss?.(); // Optional for full GPU cleanup
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- intentional cleanup to release DOM reference
     this.lensRenderer.domElement = null!;
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- intentional cleanup to release scene reference
     this.lensScene = null!;
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- intentional cleanup to release camera reference
     this.lensCamera = null!;
     this.lensGlyphGroup.clear();
     this.lensRenderer.dispose();
@@ -280,7 +283,8 @@ export class MagiclensComponent implements AfterViewInit, OnDestroy {
     this.updatePositions(lastMousePosition);
     this.lensRenderer.render(this.lensScene, this.lensCamera);
 
-    const lensElem = this.lensCanvasRef!.nativeElement;
+    const lensElem = this.lensCanvasRef?.nativeElement;
+    if (!lensElem) return;
     const canvasRect = this.container.getBoundingClientRect(); // or your canvas element
 
     // Dimensions

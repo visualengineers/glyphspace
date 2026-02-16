@@ -39,7 +39,7 @@ export class CanvasRendererService {
 
   // Safety mechanism to prevent infinite render loops
   private renderGlyphsCallCount = 0;
-  private renderGlyphsResetTimer: any = null;
+  private renderGlyphsResetTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly MAX_RENDER_CALLS_PER_SECOND = 20;
 
   setRenderRequestCallback(fn: () => void): void {
@@ -219,7 +219,7 @@ export class CanvasRendererService {
       const { x: scaledX, y: scaledY } = scalePosition(
         originalX,
         originalY,
-        this.positionBounds!,
+        this.positionBounds!, // eslint-disable-line @typescript-eslint/no-non-null-assertion -- guarded by `if (this.positionBounds == undefined) return` above
         canvasWidth,
         canvasHeight
       );
@@ -422,10 +422,12 @@ export class CanvasRendererService {
 
     this.renderer?.forceContextLoss?.();
     if (this.renderer) {
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- intentional cleanup to release DOM reference
       this.renderer.domElement = null!;
       this.renderer.dispose();
     }
     this.glyphGroup.clear();
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- intentional cleanup to release scene reference
     this.scene = null!;
   }
 }

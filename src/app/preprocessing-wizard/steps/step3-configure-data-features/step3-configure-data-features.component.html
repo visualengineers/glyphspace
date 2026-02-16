@@ -72,6 +72,8 @@
                 [class.selected]="selectedColumnName === colState.column.name"
                 [class.has-issues]="hasIssues(colState)"
                 (click)="selectColumn(colState.column.name)"
+                (keydown.enter)="selectColumn(colState.column.name)"
+                tabindex="0"
               >
                 <div class="item-content">
                   <div class="item-top">
@@ -88,7 +90,12 @@
                     }
                   </div>
                 </div>
-                <div class="item-projection" (click)="$event.stopPropagation()">
+                <div
+                  class="item-projection"
+                  (click)="$event.stopPropagation()"
+                  (keydown.enter)="$event.stopPropagation()"
+                  tabindex="0"
+                >
                   <input
                     type="checkbox"
                     [checked]="colState.config.includeInProjection"
@@ -155,13 +162,14 @@
               }
               @if (
                 selectedColumn.column.dataType === DataType.Date &&
-                selectedColumn.column.min != null &&
-                selectedColumn.column.max != null
+                selectedColumn.column.min !== null &&
+                selectedColumn.column.max !== null
               ) {
                 <div class="stat stat-date">
                   <span class="stat-label">Range</span>
                   <span class="stat-value"
-                    >{{ formatDate(selectedColumn.column.min) }} — {{ formatDate(selectedColumn.column.max) }}</span
+                    >{{ formatDate(selectedColumn.column.min ?? 0) }} —
+                    {{ formatDate(selectedColumn.column.max ?? 0) }}</span
                   >
                 </div>
               }
@@ -275,8 +283,9 @@
                 </div>
                 <div class="outlier-controls">
                   <div class="control-group">
-                    <label>Detection Method</label>
+                    <label for="step3-outlier-method">Detection Method</label>
                     <select
+                      id="step3-outlier-method"
                       class="config-select"
                       [value]="selectedColumn.config.outlierMethod"
                       (change)="onOutlierMethodChange(selectedColumn.column.name, $any($event.target).value)"
@@ -288,8 +297,9 @@
                     </select>
                   </div>
                   <div class="control-group">
-                    <label>Strategy</label>
+                    <label for="step3-outlier-strategy">Strategy</label>
                     <select
+                      id="step3-outlier-strategy"
                       class="config-select"
                       [value]="selectedColumn.config.outlierStrategy"
                       (change)="onOutlierStrategyChange(selectedColumn.column.name, $any($event.target).value)"

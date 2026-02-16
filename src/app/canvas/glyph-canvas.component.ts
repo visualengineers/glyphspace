@@ -2,7 +2,6 @@ import {
   Component,
   ElementRef,
   HostListener,
-  OnInit,
   ViewChild,
   AfterViewInit,
   OnDestroy,
@@ -50,7 +49,7 @@ import { CanvasSelectionService } from './services/canvas-selection.service';
   templateUrl: './glyph-canvas.component.html',
   styleUrls: ['./glyph-canvas.component.scss'],
 })
-export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy, OnChanges {
+export class GlyphCanvasComponent implements AfterViewInit, OnDestroy, OnChanges {
   @ViewChild('canvasContainer', { static: true }) canvasContainer!: ElementRef;
   @ViewChild('sceneContainer') sceneContainer!: ElementRef<HTMLDivElement>;
   @ViewChild('settingsPanel') settingsPanel!: SettingsControlPanelComponent;
@@ -85,7 +84,7 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy, O
   private throttleDelay = 50;
   lastMousePosition = new THREE.Vector2();
   mouseInside = false;
-  private mouseIdleTimer: any;
+  private mouseIdleTimer: ReturnType<typeof setTimeout> | undefined;
   private readonly MOUSE_IDLE_MS = 2000;
   private mouseDownTime = 0;
   private readonly clickThreshold = 4;
@@ -114,8 +113,6 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy, O
   ) {}
 
   //#region Life Cycle methods
-  ngOnInit(): void {}
-
   ngAfterViewInit(): void {
     this.initThree();
     this.subscribeToEvents();
@@ -159,7 +156,6 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy, O
   }
 
   private subscribeToEvents() {
-    this.dataLoader.dataSetCollectionSubject$.subscribe(data => {});
     this.configSub.add(
       this.config.loadedDataSubject$.subscribe(async loadedData => {
         if (loadedData == '') return;
@@ -328,7 +324,7 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy, O
   //#endregion
 
   //#region Mode Changes
-  toggleNavigationMode(doToggle = true) {
+  toggleNavigationMode(_doToggle = true) {
     this.toggleSelectionMode(false);
     this.toggleMagicLens(false);
   }
@@ -512,7 +508,7 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy, O
   private clearMouseIdleTimer(): void {
     if (this.mouseIdleTimer) {
       clearTimeout(this.mouseIdleTimer);
-      this.mouseIdleTimer = null;
+      this.mouseIdleTimer = undefined;
     }
   }
 

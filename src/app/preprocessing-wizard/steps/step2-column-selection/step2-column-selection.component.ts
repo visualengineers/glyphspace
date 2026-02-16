@@ -5,7 +5,7 @@ import { PreprocessingService } from '../../services/preprocessing.service';
 import { WizardHistogramComponent } from '../../shared/wizard-histogram/wizard-histogram.component';
 import { ColumnStatistics, HistogramData } from '../../models/column-statistics';
 import { ColumnConfig } from '../../models/column-config';
-import { DataType, getDataTypeColor } from '../../models/data-type.enum';
+import { getDataTypeColor } from '../../models/data-type.enum';
 import { HelpTooltipComponent } from '../../shared/help-tooltip/help-tooltip.component';
 import { HELP_TEXT } from '../../shared/constants/help-text';
 import { STEP_INFO } from '../../shared/constants/step-info';

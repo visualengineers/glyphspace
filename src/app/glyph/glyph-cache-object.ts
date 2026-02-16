@@ -1,6 +1,5 @@
 import { SimulationNodeDatum } from 'd3-force';
 import { Coordinates } from '../shared/interfaces/coordinates';
-import { ZoomLevel } from '../shared/enum/zoom-level';
 import { Object3D } from 'three';
 
 export class GlyphCacheObject implements SimulationNodeDatum {

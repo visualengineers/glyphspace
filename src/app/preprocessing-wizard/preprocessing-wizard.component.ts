@@ -8,6 +8,7 @@ import { Step3ConfigureDataFeaturesComponent } from './steps/step3-configure-dat
 import { Step4VisualizationSettingsComponent } from './steps/step4-visualization-settings/step4-visualization-settings.component';
 import { Step5ReviewProcessingComponent } from './steps/step5-review-processing/step5-review-processing.component';
 import { DataProfile } from './models/column-statistics';
+import { PreprocessingState } from './models/preprocessing-state';
 
 @Component({
   selector: 'app-preprocessing-wizard',
@@ -24,7 +25,7 @@ import { DataProfile } from './models/column-statistics';
   styleUrl: './preprocessing-wizard.component.scss',
 })
 export class PreprocessingWizardComponent implements OnInit, OnDestroy {
-  @Output() close = new EventEmitter<void>();
+  @Output() wizardClose = new EventEmitter<void>();
   @ViewChild('wizardContent') wizardContent!: ElementRef<HTMLElement>;
 
   private subscription = new Subscription();
@@ -91,7 +92,7 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
     this.subscription.unsubscribe();
   }
 
-  private updateStepCompletion(state: any): void {
+  private updateStepCompletion(state: PreprocessingState): void {
     // Mark steps as completed based on:
     // 1. Whether the step's required data exists
     // 2. Whether the user has visited beyond this step (highestStepVisited)
@@ -106,7 +107,7 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
     this.preprocessingService.goToStep(step);
   }
 
-  onDataLoaded(profile: DataProfile): void {
+  onDataLoaded(_profile: DataProfile): void {
     // User clicked "Continue to Column Selection" button - proceed to next step
     this.preprocessingService.nextStep();
   }
@@ -146,10 +147,10 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
   }
 
   closeWizard(): void {
-    this.close.emit();
+    this.wizardClose.emit();
   }
 
   onWizardComplete(): void {
-    this.close.emit();
+    this.wizardClose.emit();
   }
 }

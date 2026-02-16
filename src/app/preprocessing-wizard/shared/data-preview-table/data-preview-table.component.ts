@@ -7,12 +7,12 @@ import { Component, Input } from '@angular/core';
   styleUrl: './data-preview-table.component.scss',
 })
 export class DataPreviewTableComponent {
-  @Input() data: any[] = [];
+  @Input() data: Record<string, unknown>[] = [];
   @Input() columns: string[] = [];
   @Input() highlightColumns = new Set<string>();
   @Input() maxRows = 10;
 
-  get displayData(): any[] {
+  get displayData(): Record<string, unknown>[] {
     return this.data.slice(0, this.maxRows);
   }
 
@@ -30,7 +30,7 @@ export class DataPreviewTableComponent {
     return this.highlightColumns.has(column);
   }
 
-  getCellValue(row: any, column: string): string {
+  getCellValue(row: Record<string, unknown>, column: string): string {
     const value = row[column];
     if (value === null || value === undefined) {
       return '-';

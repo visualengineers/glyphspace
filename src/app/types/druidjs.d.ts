@@ -77,7 +77,7 @@ declare module '@saehrimnir/druidjs' {
   }
 
   export class LLE {
-    constructor(data: number[][], parameters?: any);
+    constructor(data: number[][], parameters?: { d?: number; neighbors?: number });
     transform(): number[][];
   }
 }

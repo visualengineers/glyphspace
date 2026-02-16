@@ -6,18 +6,14 @@
  * to prevent blocking the main UI thread.
  */
 
-import {
-  ProjectionMethod,
-  ProjectionComputeConfig,
-  ProjectionWorkerRequest,
-  ProjectionWorkerResponse,
-} from '../shared/types/projection.types';
+import { ProjectionWorkerRequest, ProjectionWorkerResponse } from '../shared/types/projection.types';
 
 // Local type aliases for cleaner code within this worker
 type ProjectionRequest = ProjectionWorkerRequest;
 type ProjectionResponse = ProjectionWorkerResponse;
 
 // Import DruidJS dynamically
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- DruidJS module is dynamically imported and has incomplete type definitions
 let druid: any = null;
 
 async function loadDruidJS() {
@@ -87,6 +83,7 @@ async function runIsoMap(
   const druidModule = await loadDruidJS();
 
   // neighbors = 0 or undefined means auto (let DruidJS decide)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- DruidJS constructor options are not fully typed
   const options: any = { d: 2 };
   if (neighbors && neighbors > 0) {
     options.neighbors = neighbors;
@@ -215,6 +212,7 @@ async function runLLE(
   const druidModule = await loadDruidJS();
 
   // neighbors = 0 or undefined means auto (let DruidJS decide)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- DruidJS constructor options are not fully typed
   const options: any = { d: 2 };
   if (neighbors && neighbors > 0) {
     options.neighbors = neighbors;
@@ -244,6 +242,7 @@ async function runLTSA(
   const druidModule = await loadDruidJS();
 
   // neighbors = 0 or undefined means auto (let DruidJS decide)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- DruidJS constructor options are not fully typed
   const options: any = { d: 2 };
   if (neighbors && neighbors > 0) {
     options.neighbors = neighbors;
@@ -272,6 +271,7 @@ async function runTriMap(
   const startTime = performance.now();
   const druidModule = await loadDruidJS();
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- DruidJS constructor options are not fully typed
   const options: any = { d: 2 };
   if (weightAdj && weightAdj > 0) {
     options.weight_adj = weightAdj;
@@ -411,11 +411,11 @@ addEventListener('message', async ({ data }: MessageEvent<ProjectionRequest>) =>
         computeTime: result.computeTime,
       } as ProjectionResponse);
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     postMessage({
       type: 'error',
       method: data.method,
-      error: error.message || 'Unknown error',
+      error: error instanceof Error ? error.message : 'Unknown error',
     } as ProjectionResponse);
   }
 });

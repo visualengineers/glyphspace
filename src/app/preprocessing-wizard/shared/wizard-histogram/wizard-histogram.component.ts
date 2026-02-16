@@ -1,13 +1,4 @@
-import {
-  Component,
-  Input,
-  OnInit,
-  OnChanges,
-  ElementRef,
-  ViewChild,
-  AfterViewInit,
-  SimpleChanges,
-} from '@angular/core';
+import { Component, Input, OnChanges, ElementRef, ViewChild, AfterViewInit, SimpleChanges } from '@angular/core';
 import * as d3 from 'd3';
 import { HistogramData } from '../../models/column-statistics';
 import { DataType } from '../../models/data-type.enum';
@@ -21,7 +12,7 @@ import { prepareStackedBinsFromArray, rebinHistogramData } from '../../../shared
   templateUrl: './wizard-histogram.component.html',
   styleUrl: './wizard-histogram.component.scss',
 })
-export class WizardHistogramComponent implements OnInit, OnChanges, AfterViewInit {
+export class WizardHistogramComponent implements OnChanges, AfterViewInit {
   @ViewChild('chartContainer', { static: false }) chartContainer!: ElementRef;
 
   @Input() data!: HistogramData;
@@ -31,20 +22,19 @@ export class WizardHistogramComponent implements OnInit, OnChanges, AfterViewIni
   @Input() height = 40;
   @Input() enabled = true;
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private svg: any;
   private initialized = false;
   private cachedStackedBins: StackedBin[] | null = null;
 
   hoverLabel = '';
   showHoverLabel = false;
-  private lastHoveredBar: any = null;
+  private lastHoveredBar: SVGRectElement | null = null;
   private hoverLabelElement: HTMLElement | null = null;
 
   private readonly MAX_CATEGORICAL_BINS = 40;
   private readonly MAX_NUMERIC_BINS = 20;
   private readonly margin = { top: 2, right: 2, bottom: 2, left: 2 };
-
-  ngOnInit(): void {}
 
   ngAfterViewInit(): void {
     this.initialized = true;
@@ -201,10 +191,10 @@ export class WizardHistogramComponent implements OnInit, OnChanges, AfterViewIni
       .enter()
       .append('rect')
       .attr('class', 'histogram-bar')
-      .attr('x', (d: any) => xScale(d.bin))
-      .attr('y', (d: any) => yScale(d.value))
+      .attr('x', (d: { bin: number; value: number }) => xScale(d.bin))
+      .attr('y', (d: { bin: number; value: number }) => yScale(d.value))
       .attr('width', Math.max(barWidth - 1, 1))
-      .attr('height', (d: any) => height - yScale(d.value))
+      .attr('height', (d: { bin: number; value: number }) => height - yScale(d.value))
       .attr('fill', displayColor)
       .attr('rx', 2)
       .attr('ry', 2)
@@ -213,7 +203,7 @@ export class WizardHistogramComponent implements OnInit, OnChanges, AfterViewIni
       .style('pointer-events', 'all');
 
     if (this.enabled) {
-      bars.on('mouseenter', (event: MouseEvent, d: any) => {
+      bars.on('mouseenter', (event: MouseEvent, d: { bin: number; value: number }) => {
         const currentBar = event.currentTarget as SVGRectElement;
 
         // Reset previous bar if it exists

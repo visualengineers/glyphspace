@@ -1,4 +1,4 @@
-import { Component, Input, HostListener, ElementRef, ViewChild, AfterViewInit, ChangeDetectorRef } from '@angular/core';
+import { Component, Input, HostListener, ElementRef, ViewChild, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 @Component({
@@ -8,7 +8,7 @@ import { CommonModule } from '@angular/common';
   templateUrl: './help-tooltip.component.html',
   styleUrl: './help-tooltip.component.scss',
 })
-export class HelpTooltipComponent implements AfterViewInit {
+export class HelpTooltipComponent {
   @Input() helpText = '';
   @Input() position: 'top' | 'bottom' | 'left' | 'right' = 'top';
   @ViewChild('tooltipContent') tooltipContent!: ElementRef;
@@ -20,10 +20,6 @@ export class HelpTooltipComponent implements AfterViewInit {
     private elementRef: ElementRef,
     private cdr: ChangeDetectorRef
   ) {}
-
-  ngAfterViewInit(): void {
-    // Initial positioning
-  }
 
   showTooltip(): void {
     this.isVisible = true;

@@ -44,7 +44,7 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit {
   // Duplicate handling
   duplicateCount = 0;
   duplicatePercentage = 0;
-  sampleDuplicates: any[] = [];
+  sampleDuplicates: Record<string, unknown>[] = [];
   showDuplicateSamples = false;
   totalRows = 0;
 
@@ -135,6 +135,7 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit {
     this.columns = state.dataProfile.columns
       .filter(col => state.columnConfigs.get(col.name)?.enabled)
       .map(col => {
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- guaranteed by the .filter() which checks columnConfigs.get(col.name)?.enabled
         const config = state.columnConfigs.get(col.name)!;
         return {
           column: col,

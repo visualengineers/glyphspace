@@ -1,4 +1,9 @@
-<div class="color-scale-select" (click)="$event.stopPropagation(); toggleDropdown()">
+<div
+  class="color-scale-select"
+  (click)="$event.stopPropagation(); toggleDropdown()"
+  (keydown.enter)="$event.stopPropagation(); toggleDropdown()"
+  tabindex="0"
+>
   <div class="selected-scale">
     @if (selectedScale.type === 'numeric') {
       <div class="color-gradient" [style.background]="getContinuousGradient(selectedScale)"></div>
@@ -18,6 +23,8 @@
             class="color-scale-option"
             [class.active]="scale.id === selectedScale.id"
             (click)="selectScale(scale.id); $event.stopPropagation()"
+            (keydown.enter)="selectScale(scale.id); $event.stopPropagation()"
+            tabindex="0"
           >
             @if (scale.type === 'numeric') {
               <div class="color-gradient" [style.background]="getContinuousGradient(scale)"></div>

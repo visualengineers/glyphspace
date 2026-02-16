@@ -53,6 +53,7 @@ export class DataProcessorService {
     return result.dataset;
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- returns dynamically typed JSON from the worker filesystem
   async fetchJson(file: string): Promise<any> {
     const result = await this.sendRequestUntil<WorkerReply & { type: 'json' }>(
       'json',
@@ -66,6 +67,7 @@ export class DataProcessorService {
   }
 
   // Preprocessing methods
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- returns dynamically shaped profile data from Python
   async profileData(fileName: string, buffer: ArrayBuffer): Promise<any> {
     const result = await this.sendRequestUntil<WorkerReply & { type: 'dataProfile' }>('dataProfile', {
       type: 'profileData',
@@ -75,6 +77,7 @@ export class DataProcessorService {
     return result.profile;
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- returns dynamically shaped histogram data from Python
   async computeHistogram(fileName: string, columnName: string, bins = 50): Promise<any> {
     const result = await this.sendRequestUntil<WorkerReply & { type: 'histogram' }>(
       'histogram',
@@ -89,6 +92,7 @@ export class DataProcessorService {
     return result.data;
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- returns dynamically shaped outlier data from Python
   async detectOutliers(fileName: string, columnName: string, method: string): Promise<any> {
     const result = await this.sendRequestUntil<WorkerReply & { type: 'outliers' }>(
       'outliers',
@@ -103,6 +107,7 @@ export class DataProcessorService {
     return result.data;
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- returns dynamically shaped duplicate data from Python
   async detectDuplicates(fileName: string, subsetColumns?: string[]): Promise<any> {
     const result = await this.sendRequestUntil<WorkerReply & { type: 'duplicates' }>(
       'duplicates',
@@ -116,6 +121,7 @@ export class DataProcessorService {
     return result.data;
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- config is a dynamic processing configuration object
   async processWithConfig(fileName: string, config: any): Promise<DatasetCollection> {
     const result = await this.sendRequestUntil<WorkerReply & { type: 'processed' }>('processed', {
       type: 'processWithConfig',
@@ -148,6 +154,7 @@ export class DataProcessorService {
    */
   requestThumb(file: string): Observable<ImageBitmap | null> {
     if (this.thumbCache.has(file)) {
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- guarded by `if (this.thumbCache.has(file))` above
       return of(this.thumbCache.get(file)!);
     }
 
@@ -157,6 +164,7 @@ export class DataProcessorService {
       this.worker.postMessage({ type: 'getThumb', file });
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- entry is guaranteed by the thumbSubjects.set() above
     return this.thumbSubjects.get(file)!.asObservable();
   }
 
@@ -193,6 +201,7 @@ export class DataProcessorService {
    */
   private sendRequestUntil<T extends WorkerReply>(
     type: T['type'],
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- worker messages are dynamically typed
     message: any,
     matchFn: (msg: T) => boolean = () => true,
     timeoutMs = 60000

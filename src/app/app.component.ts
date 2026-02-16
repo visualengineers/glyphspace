@@ -43,8 +43,10 @@ export class AppComponent implements OnInit {
         this.totalCells--;
 
         const canvas = this.grid.find(c => c.id === change);
-        this.grid.splice(this.grid.indexOf(canvas!), 1);
-        this.recalculateGrid();
+        if (canvas) {
+          this.grid.splice(this.grid.indexOf(canvas), 1);
+          this.recalculateGrid();
+        }
       }
     });
   }
@@ -111,9 +113,6 @@ export class AppComponent implements OnInit {
       this.updateGrid();
     }
   }
-
-  @HostListener('window:resize')
-  onResize() {}
 
   @HostListener('document:keyup', ['$event'])
   handleKeyboardEvent(event: KeyboardEvent) {
