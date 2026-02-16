@@ -12,6 +12,11 @@ import {
   scalePosition,
   screenToWorld,
 } from '../../shared/helpers/three-helper';
+import { LENS_ENLARGEMENT_FACTOR } from '../../shared/constants/canvas-constants';
+import { GlyphRenderConfig } from '../../glyph/glyph-render-config';
+
+// Reusable scratch vector to avoid per-frame allocations
+const _tempVec3 = new THREE.Vector3();
 
 @Injectable()
 export class CanvasRendererService {
@@ -37,10 +42,10 @@ export class CanvasRendererService {
   // Clipping
   private clippingFrameCounter = 0;
 
-  // Safety mechanism to prevent infinite render loops
-  private renderGlyphsCallCount = 0;
-  private renderGlyphsResetTimer: ReturnType<typeof setTimeout> | null = null;
-  private readonly MAX_RENDER_CALLS_PER_SECOND = 20;
+  // Render throttling to prevent cascading re-renders
+  private lastRenderTime = 0;
+  private pendingRender: ReturnType<typeof setTimeout> | null = null;
+  private readonly MIN_RENDER_INTERVAL_MS = 50;
 
   setRenderRequestCallback(fn: () => void): void {
     this.onRenderRequested = fn;
@@ -51,8 +56,7 @@ export class CanvasRendererService {
     this.scene.background = this.standardBackgroundColor;
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
-    const pixelRatio = window.devicePixelRatio > 1 ? window.devicePixelRatio * 4 : window.screen.pixelDepth;
-    this.renderer.setPixelRatio(pixelRatio);
+    this.renderer.setPixelRatio(window.devicePixelRatio || 1);
     this.renderer.domElement.style.width = '100%';
     this.renderer.domElement.style.height = '100%';
     this.renderer.domElement.style.display = 'block';
@@ -60,6 +64,12 @@ export class CanvasRendererService {
     this.scene.add(this.glyphGroup);
     container.appendChild(this.renderer.domElement);
 
+    this.renderer.setSize(width, height, false);
+    this.sizeInfo.update(width, height);
+  }
+
+  updateRendererSize(width: number, height: number): void {
+    this.renderer.setSize(width, height, false);
     this.sizeInfo.update(width, height);
   }
 
@@ -80,33 +90,60 @@ export class CanvasRendererService {
     selectedTimestamp: string,
     selectedAlgorithm: string,
     aggregated: boolean,
+    renderConfig: GlyphRenderConfig,
     force = false
   ): void {
     if (!this.scene) return;
 
-    // Safety mechanism to prevent infinite render loops
-    this.renderGlyphsCallCount++;
-    if (this.renderGlyphsResetTimer) clearTimeout(this.renderGlyphsResetTimer);
-    this.renderGlyphsResetTimer = setTimeout(() => {
-      this.renderGlyphsCallCount = 0;
-    }, 1000);
+    const now = performance.now();
+    const elapsed = now - this.lastRenderTime;
 
-    if (this.renderGlyphsCallCount > this.MAX_RENDER_CALLS_PER_SECOND) {
-      console.warn(`Rapid render calls detected (${this.renderGlyphsCallCount} calls/sec). Deferring render.`);
-      this.renderGlyphsCallCount = 0;
-      setTimeout(
-        () => this.renderGlyphs(glyphData, canvasId, selectedTimestamp, selectedAlgorithm, aggregated, true),
-        200
-      );
+    // Throttle: if called too rapidly, schedule a single trailing render
+    if (elapsed < this.MIN_RENDER_INTERVAL_MS && !force) {
+      if (!this.pendingRender) {
+        this.pendingRender = setTimeout(() => {
+          this.pendingRender = null;
+          this.doRenderGlyphs(
+            glyphData,
+            canvasId,
+            selectedTimestamp,
+            selectedAlgorithm,
+            aggregated,
+            renderConfig,
+            force
+          );
+        }, this.MIN_RENDER_INTERVAL_MS - elapsed);
+      }
       return;
     }
+
+    this.doRenderGlyphs(glyphData, canvasId, selectedTimestamp, selectedAlgorithm, aggregated, renderConfig, force);
+  }
+
+  private doRenderGlyphs(
+    glyphData: GlyphObject[],
+    canvasId: number,
+    selectedTimestamp: string,
+    selectedAlgorithm: string,
+    aggregated: boolean,
+    renderConfig: GlyphRenderConfig,
+    force: boolean
+  ): void {
+    this.lastRenderTime = performance.now();
 
     glyphData.forEach((glyph: GlyphObject) => {
       const cacheObject = glyph.getCacheObject(canvasId, selectedTimestamp, selectedAlgorithm);
       const oldMesh = cacheObject.mesh;
       if (oldMesh) this.glyphGroup.remove(oldMesh);
       if (cacheObject.visible || force) {
-        const mesh = glyph.render(this.sizeInfo, selectedTimestamp, selectedAlgorithm, canvasId, aggregated);
+        const mesh = glyph.render(
+          this.sizeInfo,
+          selectedTimestamp,
+          selectedAlgorithm,
+          canvasId,
+          aggregated,
+          renderConfig
+        );
         if (mesh != null) this.glyphGroup.add(mesh);
       }
     });
@@ -120,12 +157,20 @@ export class CanvasRendererService {
     selectedTimestamp: string,
     selectedAlgorithm: string,
     canvasId: number,
-    aggregated: boolean
+    aggregated: boolean,
+    renderConfig: GlyphRenderConfig
   ): void {
     const mesh = glyph.getMesh(selectedTimestamp, selectedAlgorithm, canvasId);
     if (mesh != undefined) this.glyphGroup.remove(mesh);
 
-    const newMesh = glyph.render(this.sizeInfo, selectedTimestamp, selectedAlgorithm, canvasId, aggregated);
+    const newMesh = glyph.render(
+      this.sizeInfo,
+      selectedTimestamp,
+      selectedAlgorithm,
+      canvasId,
+      aggregated,
+      renderConfig
+    );
     if (newMesh) this.glyphGroup.add(newMesh);
 
     this.requestRender(RenderTask.SceneRender);
@@ -138,7 +183,8 @@ export class CanvasRendererService {
     canvasId: number,
     selectedTimestamp: string,
     selectedAlgorithm: string,
-    aggregated: boolean
+    aggregated: boolean,
+    renderConfig: GlyphRenderConfig
   ): void {
     // Throttle to 30fps (every 2nd frame)
     this.clippingFrameCounter++;
@@ -178,7 +224,7 @@ export class CanvasRendererService {
       for (const glyph of visibleGlyphs) {
         const cachedObject = glyph.getCacheObject(canvasId, selectedTimestamp, selectedAlgorithm);
         if (!cachedObject.visible) {
-          this.renderGlyph(glyph, selectedTimestamp, selectedAlgorithm, canvasId, aggregated);
+          this.renderGlyph(glyph, selectedTimestamp, selectedAlgorithm, canvasId, aggregated, renderConfig);
         }
         cachedObject.visible = true;
       }
@@ -193,7 +239,7 @@ export class CanvasRendererService {
             cachedMesh.position.y + r > bottom &&
             cachedMesh.position.y - r < top;
           if (!cachedObject.visible && isVisible) {
-            this.renderGlyph(glyph, selectedTimestamp, selectedAlgorithm, canvasId, aggregated);
+            this.renderGlyph(glyph, selectedTimestamp, selectedAlgorithm, canvasId, aggregated, renderConfig);
           }
           cachedObject.visible = isVisible;
         }
@@ -249,7 +295,7 @@ export class CanvasRendererService {
       if (mesh) {
         const finalPosition = nearlyEqual(mesh.position.x, target.x) && nearlyEqual(mesh.position.y, target.y);
         finished = finished && finalPosition;
-        mesh.position.lerp(new THREE.Vector3(target.x, target.y, 0), animationSpeed);
+        mesh.position.lerp(_tempVec3.set(target.x, target.y, 0), animationSpeed);
       }
     });
     return finished;
@@ -311,7 +357,8 @@ export class CanvasRendererService {
     canvasId: number,
     selectedTimestamp: string,
     selectedAlgorithm: string,
-    aggregated: boolean
+    aggregated: boolean,
+    renderConfig: GlyphRenderConfig
   ): void {
     const highlightedIds = new Set(glyphs.map(g => g.id));
 
@@ -334,7 +381,7 @@ export class CanvasRendererService {
       });
 
       // Simple iterative collision resolution
-      const enlargedRadius = this.sizeInfo.getRadius(ZoomLevel.high) * 5;
+      const enlargedRadius = this.sizeInfo.getRadius(ZoomLevel.high) * LENS_ENLARGEMENT_FACTOR;
       const minDist = enlargedRadius * 2;
 
       for (let iter = 0; iter < 5; iter++) {
@@ -365,11 +412,11 @@ export class CanvasRendererService {
     glyphs.forEach(glyph => {
       const lensSize = this.sizeInfo.clone();
       lensSize.currentZoomLevel = ZoomLevel.high;
-      lensSize.radius = lensSize.radius * 5;
+      lensSize.radius = lensSize.radius * LENS_ENLARGEMENT_FACTOR;
 
       const mesh = glyph.getMesh(selectedTimestamp, selectedAlgorithm, canvasId);
       if (mesh != undefined) this.glyphGroup.remove(mesh);
-      const newMesh = glyph.render(lensSize, selectedTimestamp, selectedAlgorithm, canvasId, aggregated);
+      const newMesh = glyph.render(lensSize, selectedTimestamp, selectedAlgorithm, canvasId, aggregated, renderConfig);
       if (newMesh) this.glyphGroup.add(newMesh);
     });
 

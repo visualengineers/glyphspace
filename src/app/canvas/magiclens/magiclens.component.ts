@@ -6,7 +6,9 @@ import { ZoomLevel } from '../../shared/enum/zoom-level';
 import { getGlyphFromObject } from '../../shared/helpers/glyph-helper';
 import { hitTest, screenToWorld } from '../../shared/helpers/three-helper';
 import { ConfigService } from '../../services/config.service';
+import { DataProcessorService } from '../../services/data-processor';
 import { GlyphSizeInfo } from '../../glyph/glyph-size-info';
+import { buildGlyphRenderConfig } from '../../glyph/glyph-render-config';
 
 @Component({
   selector: 'app-magiclens',
@@ -40,7 +42,10 @@ export class MagiclensComponent implements AfterViewInit, OnDestroy {
   private readonly TARGET_FRAME_TIME = 12; // ms (target ~80fps to leave headroom)
   private lastRenderTime = 0;
 
-  constructor(private config: ConfigService) {
+  constructor(
+    private config: ConfigService,
+    private dataProcessor: DataProcessorService
+  ) {
     this.sizeInfo.currentZoomLevel = ZoomLevel.high;
     this.sizeInfo.radius = this.sizeInfo.radius * this.lensZoomFactor;
     this.sizeInfo.hitTolerance = this.sizeInfo.radius;
@@ -172,7 +177,8 @@ export class MagiclensComponent implements AfterViewInit, OnDestroy {
     const nodes: { x: number; y: number; threeObj: THREE.Object3D }[] = [];
 
     for (const glyph of glyphsToRender) {
-      const mesh = glyph.renderGlyph(this.sizeInfo, timestamp, algorithm, this.parentId, false);
+      const renderConfig = buildGlyphRenderConfig(this.config, this.dataProcessor);
+      const mesh = glyph.renderGlyph(this.sizeInfo, timestamp, algorithm, this.parentId, false, renderConfig);
       if (mesh != null) {
         const wrapper = new THREE.Group();
         wrapper.name = 'Wrapper';

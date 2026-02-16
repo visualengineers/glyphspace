@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import * as THREE from 'three';
 import { ZoomLevel } from '../../shared/enum/zoom-level';
 import { panCamera } from '../../shared/helpers/three-helper';
+import { FIT_ANIMATION_DURATION_MS, FIT_MARGIN_FACTOR } from '../../shared/constants/canvas-constants';
 
 @Injectable()
 export class CanvasCameraService {
@@ -16,7 +17,7 @@ export class CanvasCameraService {
   private fitEndPosition!: THREE.Vector3;
   private fitStartTarget!: THREE.Vector3;
   private fitEndTarget!: THREE.Vector3;
-  private fitDuration = 500; // ms
+  private fitDuration = FIT_ANIMATION_DURATION_MS;
 
   // Navigation
   isPanning = false;
@@ -62,7 +63,7 @@ export class CanvasCameraService {
     const size = box.getSize(new THREE.Vector3());
     const center = box.getCenter(new THREE.Vector3());
 
-    const margin = 1.1;
+    const margin = FIT_MARGIN_FACTOR;
     const widthWithMargin = size.x * margin;
     const heightWithMargin = size.y * margin;
 

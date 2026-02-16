@@ -1,19 +1,17 @@
 import * as THREE from 'three';
 import { GlyphSizeInfo } from '../glyph-size-info';
 import { GlyphRenderer, GlyphRenderContext } from './glyph-renderer';
-import { ConfigService } from '../../services/config.service';
-import { DataProcessorService } from '../../services/data-processor';
+import { GlyphRenderConfig } from '../glyph-render-config';
 import { createGrayPlaceholderTexture } from '../../shared/helpers/three-helper';
 
 /**
- * Thumbnail renderer is special: it needs runtime services for loading images.
- * Constructed with service references rather than being a pure stateless renderer.
+ * Thumbnail renderer is special: it needs runtime config for loading images.
+ * Constructed with a GlyphRenderConfig snapshot rather than Angular services.
  */
 export class ThumbnailRenderer implements GlyphRenderer {
   constructor(
     private glyphId: string,
-    private config: ConfigService,
-    private dataProcessor: DataProcessorService
+    private renderConfig: GlyphRenderConfig
   ) {}
 
   render(_ctx: GlyphRenderContext, sizeInfo: GlyphSizeInfo, _linearScale: boolean): THREE.Object3D {
@@ -22,17 +20,17 @@ export class ThumbnailRenderer implements GlyphRenderer {
     const mat = new THREE.MeshBasicMaterial({ map: placeholderTexture, transparent: true });
     const mesh = new THREE.Mesh(geom, mat);
 
-    const file = `${this.config.loadedData}/${this.glyphId}.jpg`;
+    const file = `${this.renderConfig.loadedData}/${this.glyphId}.jpg`;
 
-    if (this.config.dataSource == 'wasm') {
-      this.dataProcessor.requestThumb(file).subscribe(bitmap => {
+    if (this.renderConfig.dataSource === 'wasm' && this.renderConfig.thumbnailResolver) {
+      this.renderConfig.thumbnailResolver.requestThumb(file).subscribe(bitmap => {
         if (bitmap) {
           this.applyThumbnailTexture(bitmap, mesh, mat, sizeInfo);
         }
       });
     } else {
       const image = new Image();
-      image.src = `assets/thumbnails/${this.config.loadedData}/${this.glyphId}.jpg`;
+      image.src = `assets/thumbnails/${this.renderConfig.loadedData}/${this.glyphId}.jpg`;
       image.crossOrigin = 'anonymous';
 
       image.onload = () => {
@@ -76,6 +74,6 @@ export class ThumbnailRenderer implements GlyphRenderer {
     mat.map = texture;
     mat.needsUpdate = true;
 
-    this.config.reRender();
+    this.renderConfig.onReRender?.();
   }
 }

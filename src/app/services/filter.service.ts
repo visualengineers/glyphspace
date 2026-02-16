@@ -1,4 +1,5 @@
 import { Injectable } from '@angular/core';
+import { Observable, Subject } from 'rxjs';
 import { GlyphObject } from '../glyph/glyph-object';
 import { FilterMode } from '../shared/enum/filter-mode';
 import { ItemFilter } from '../shared/filter/item-filter';
@@ -10,6 +11,9 @@ import { IdFilter } from '../shared/filter/id-filter';
 export class FilterService {
   private filters: ItemFilter[] = [];
   private activeGlyphData: Map<string, GlyphObject> | undefined;
+
+  private filterChangedSubject = new Subject<void>();
+  filterChanged$: Observable<void> = this.filterChangedSubject.asObservable();
 
   totalItems = 0;
   filteredItems = 0;
@@ -58,9 +62,9 @@ export class FilterService {
     if (glyphData == null) return;
 
     let count = 0;
-    const allFiltersEmpty = this.filters.length == 0 || this.filters.every(filter => filter.empty());
+    const allFiltersEmpty = this.filters.length === 0 || this.filters.every(filter => filter.empty());
     const orFiltering = this.filters
-      .filter(filter => filter.filterMode == FilterMode.Or)
+      .filter(filter => filter.filterMode === FilterMode.Or)
       .every(filter => filter.empty());
     glyphData.forEach((item: GlyphObject) => {
       let andFilter = true;
@@ -70,9 +74,9 @@ export class FilterService {
           return;
         }
 
-        if (filter.filterMode == FilterMode.Or) {
+        if (filter.filterMode === FilterMode.Or) {
           orFilter = orFilter || filter.inFilter(item);
-        } else if (filter.filterMode == FilterMode.And) {
+        } else if (filter.filterMode === FilterMode.And) {
           andFilter = andFilter && filter.inFilter(item);
         }
       });
@@ -81,5 +85,6 @@ export class FilterService {
       if (!item.passive) count++;
     });
     this.filteredItems = count;
+    this.filterChangedSubject.next();
   }
 }

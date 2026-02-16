@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { BehaviorSubject, forkJoin, Observable } from 'rxjs';
+import { forkJoin, Observable } from 'rxjs';
 import { GlyphObject } from '../glyph/glyph-object';
 import { ConfigService } from './config.service';
 import { GlyphMeta } from '../shared/interfaces/glyph-meta';
@@ -13,17 +13,16 @@ import { DEFAULT_DATASETCOLLECTION } from '../../default-dataset';
 import { DatasetStorageService, StoredDataset } from './dataset-storage.service';
 import { ToastService } from './toast.service';
 import { FilterService } from './filter.service';
+import { DatasetCollectionService } from './dataset-collection.service';
+import { DatasetCacheService } from './dataset-cache.service';
+import { SchemaConfigSyncService } from './schema-config-sync.service';
 
 @Injectable({
   providedIn: 'root',
 })
 export class DataLoaderService {
-  private glyphCache = new Map<string, Map<string, GlyphObject>>();
-  private metaCache = new Map<string, Map<string, GlyphMeta>>();
-  private schemaCache = new Map<string, Map<string, GlyphSchema>>();
-
-  private dataSetCollectionSubject = new BehaviorSubject<DatasetCollection>(DEFAULT_DATASETCOLLECTION);
-  dataSetCollectionSubject$ = this.dataSetCollectionSubject.asObservable();
+  /** Observable for dataset collection changes (delegates to DatasetCollectionService) */
+  dataSetCollectionSubject$!: DatasetCollectionService['dataSetCollectionSubject$'];
 
   constructor(
     private http: HttpClient,
@@ -31,8 +30,12 @@ export class DataLoaderService {
     private dataProcessor: DataProcessorService,
     private datasetStorage: DatasetStorageService,
     private toast: ToastService,
-    private filterService: FilterService
+    private filterService: FilterService,
+    private collectionSvc: DatasetCollectionService,
+    private cacheSvc: DatasetCacheService,
+    private schemaSyncSvc: SchemaConfigSyncService
   ) {
+    this.dataSetCollectionSubject$ = this.collectionSvc.dataSetCollectionSubject$;
     this.loadDatasets(DEFAULT_DATASETCOLLECTION);
     this.loadSavedDatasets();
   }
@@ -70,12 +73,12 @@ export class DataLoaderService {
               positions.set(posKey, result[posKey]);
             });
 
-            const items = this.buildDataSet(datasetId, time, schema, meta, feature, positions);
+            const items = this.cacheSvc.buildDataSet(datasetId, time, schema, meta, feature, positions);
 
             if (!this.filterService.totalItems) {
               this.filterService.totalItems = items;
               this.filterService.filteredItems = items;
-              this.applySchemaToConfig(schema);
+              this.schemaSyncSvc.applySchemaToConfig(schema);
               this.config.updateConfiguration();
               this.config.loadData(datasetId);
             }
@@ -99,7 +102,7 @@ export class DataLoaderService {
           positionsMap.set(algo, posArr);
         }
 
-        this.buildDataSet(saved.name, saved.timestamp, saved.schema, saved.meta, saved.features, positionsMap);
+        this.cacheSvc.buildDataSet(saved.name, saved.timestamp, saved.schema, saved.meta, saved.features, positionsMap);
 
         const positionMapping: Record<string, string> = {};
         for (const algo of Object.keys(saved.positions)) {
@@ -122,7 +125,7 @@ export class DataLoaderService {
           ],
         };
 
-        this.setDatasetCollection([entry]);
+        this.collectionSvc.setDatasetCollection([entry]);
       }
     } catch (error) {
       console.warn('[DataLoader] Failed to load saved datasets from IndexedDB:', error);
@@ -131,14 +134,14 @@ export class DataLoaderService {
 
   public async saveDatasetToStorage(datasetName: string, timestamp: string): Promise<void> {
     try {
-      const schema = this.schemaCache.get(datasetName)?.get(timestamp);
-      const meta = this.metaCache.get(datasetName)?.get(timestamp);
+      const schema = this.cacheSvc.getSchemaMap(datasetName)?.get(timestamp);
+      const meta = this.cacheSvc.getMetaMap(datasetName)?.get(timestamp);
       if (!schema || !meta) {
         console.warn('[DataLoader] Cannot save to IndexedDB - missing schema or meta for:', datasetName);
         return;
       }
 
-      const glyphMap = this.glyphCache.get(datasetName);
+      const glyphMap = this.cacheSvc.getGlyphMap(datasetName);
       if (!glyphMap) return;
 
       const features: GlyphFeature[] = [];
@@ -175,10 +178,10 @@ export class DataLoaderService {
 
       await this.datasetStorage.saveDataset(stored);
 
-      const entry = this.getCollectionEntry(datasetName);
+      const entry = this.collectionSvc.getCollectionEntry(datasetName);
       if (entry) {
         entry.source = 'indexeddb';
-        this.dataSetCollectionSubject.next([...this.dataSetCollectionSubject.getValue()]);
+        this.collectionSvc.notifyChange();
       }
     } catch (error) {
       console.warn('[DataLoader] Failed to save dataset to IndexedDB:', error);
@@ -186,32 +189,28 @@ export class DataLoaderService {
   }
 
   public async deleteDataset(datasetName: string): Promise<boolean> {
-    const entry = this.getCollectionEntry(datasetName);
+    const entry = this.collectionSvc.getCollectionEntry(datasetName);
 
     if (!entry || entry.source === 'local') {
       return false;
     }
 
     await this.datasetStorage.deleteDataset(datasetName);
+    this.cacheSvc.deleteDataset(datasetName);
+    this.collectionSvc.removeDataset(datasetName);
 
-    this.glyphCache.delete(datasetName);
-    this.schemaCache.delete(datasetName);
-    this.metaCache.delete(datasetName);
-
-    const updated = this.dataSetCollectionSubject.getValue().filter(c => c.dataset !== datasetName);
-    this.dataSetCollectionSubject.next(updated);
-
-    if (this.config.loadedData === datasetName && updated.length > 0) {
-      this.config.loadData(updated[0].dataset);
+    const collection = this.collectionSvc.getCollection();
+    if (this.config.loadedData === datasetName && collection.length > 0) {
+      this.config.loadData(collection[0].dataset);
     }
 
     return true;
   }
 
-  // === Data access ===
+  // === Data access (facade) ===
 
   getGlyphDataSync(): Map<string, GlyphObject> | undefined {
-    return this.glyphCache.get(this.config.loadedData);
+    return this.cacheSvc.getGlyphMap(this.config.loadedData);
   }
 
   public async getGlyphData(): Promise<GlyphObject[] | undefined>;
@@ -225,12 +224,12 @@ export class DataLoaderService {
     const resolved = this.resolveDatasetParams(name, timestamp || undefined);
     if (!resolved) return undefined;
 
-    const collection = this.getCollectionEntry(resolved.name);
+    const collection = this.collectionSvc.getCollectionEntry(resolved.name);
 
-    let data = this.glyphCache.get(resolved.name);
+    let data = this.cacheSvc.getGlyphMap(resolved.name);
     if (!data) {
       await this.loadDataSet(resolved.name, resolved.timestamp);
-      data = this.glyphCache.get(resolved.name);
+      data = this.cacheSvc.getGlyphMap(resolved.name);
     }
     if (data) {
       this.filterService.totalItems = data.size;
@@ -246,10 +245,10 @@ export class DataLoaderService {
     const resolved = this.resolveDatasetParams(name, timestamp);
     if (!resolved) return undefined;
 
-    let meta = this.metaCache.get(resolved.name);
+    let meta = this.cacheSvc.getMetaMap(resolved.name);
     if (!meta) {
       await this.loadDataSet(resolved.name, resolved.timestamp);
-      meta = this.metaCache.get(resolved.name);
+      meta = this.cacheSvc.getMetaMap(resolved.name);
     }
     return meta?.get(resolved.timestamp);
   }
@@ -259,104 +258,50 @@ export class DataLoaderService {
     const resolved = this.resolveDatasetParams(name, timestamp);
     if (!resolved) return undefined;
 
-    let schema = this.schemaCache.get(resolved.name);
+    let schema = this.cacheSvc.getSchemaMap(resolved.name);
     if (!schema) {
       await this.loadDataSet(resolved.name, resolved.timestamp);
-      schema = this.schemaCache.get(resolved.name);
+      schema = this.cacheSvc.getSchemaMap(resolved.name);
     }
     const schemaResult = schema?.get(resolved.timestamp);
     if (schemaResult) {
-      this.applySchemaToConfig(schemaResult);
-      this.calculateFeatureMaxValues(resolved.name);
+      this.schemaSyncSvc.applySchemaToConfig(schemaResult);
+      const glyphMap = this.cacheSvc.getGlyphMap(resolved.name);
+      if (glyphMap) this.schemaSyncSvc.calculateFeatureMaxValues(glyphMap);
     }
 
     return schemaResult;
   }
 
+  // Collection access (facade delegates)
   getTimestamps(name: string): string[] {
-    const result: string[] = [];
-    const collection = this.getCollectionEntry(name);
-    if (collection) {
-      collection.items.forEach(it => {
-        result.push(it.time);
-      });
-    }
-    return result;
+    return this.collectionSvc.getTimestamps(name);
   }
 
   getPositions(name: string): string[];
   getPositions(name: string, time?: string): string[] {
-    const result: string[] = [];
-    const collection = this.getCollectionEntry(name);
-    if (collection) {
-      const item = time ? collection.items.find(it => it.time == time) : collection.items.at(0);
-
-      if (item) {
-        result.push(...Object.keys(item.algorithms.position));
-      }
-    }
-    return result;
+    return this.collectionSvc.getPositions(name, time);
   }
 
   getContexts(name: string): string[];
-  getContexts(_name: string, _time?: string): string[] {
-    const result: string[] = [];
-    // TODO: Get from schema ...
-    return result;
+  getContexts(name: string, _time?: string): string[] {
+    return this.collectionSvc.getContexts(name, _time);
   }
 
   getDataSetNames(): string[] {
-    const collection = this.dataSetCollectionSubject.getValue() ?? [];
-    return collection.map(entry => entry.dataset);
+    return this.collectionSvc.getDataSetNames();
   }
 
-  /**
-   * Get the glyph map for a dataset. Used by DataExportService.
-   */
   getGlyphMap(name: string): Map<string, GlyphObject> | undefined {
-    return this.glyphCache.get(name);
+    return this.cacheSvc.getGlyphMap(name);
   }
 
-  /**
-   * Get the schema map for a dataset. Used by DataExportService.
-   */
   getSchemaMap(name: string): Map<string, GlyphSchema> | undefined {
-    return this.schemaCache.get(name);
+    return this.cacheSvc.getSchemaMap(name);
   }
 
-  // === Dataset collection management ===
-
-  setDatasetCollection(newCollection: DatasetCollection) {
-    const currentCollection = this.dataSetCollectionSubject.getValue() ?? [];
-
-    const datasetMap = new Map<string, DatasetCollectionEntry>();
-
-    for (const entry of currentCollection) {
-      datasetMap.set(entry.dataset, { ...entry, items: [...entry.items] });
-    }
-
-    for (const incoming of newCollection) {
-      const existing = datasetMap.get(incoming.dataset);
-
-      if (existing) {
-        for (const incomingItem of incoming.items) {
-          const existingItem = existing.items.find(item => item.time === incomingItem.time);
-
-          if (existingItem) {
-            existingItem.algorithms.position = {
-              ...existingItem.algorithms.position,
-              ...incomingItem.algorithms.position,
-            };
-          } else {
-            existing.items.push(incomingItem);
-          }
-        }
-      } else {
-        datasetMap.set(incoming.dataset, { ...incoming, items: [...incoming.items] });
-      }
-    }
-
-    this.dataSetCollectionSubject.next(Array.from(datasetMap.values()));
+  setDatasetCollection(newCollection: DatasetCollection): void {
+    this.collectionSvc.setDatasetCollection(newCollection);
   }
 
   // === Processed dataset loading ===
@@ -387,15 +332,17 @@ export class DataLoaderService {
       });
     }
 
-    this.buildDataSet(datasetName, timestamp, schema, meta, features, positions);
+    this.cacheSvc.buildDataSet(datasetName, timestamp, schema, meta, features, positions);
 
-    this.applySchemaToConfig(schema);
-    this.extractFeatureMaxValuesFromMeta(datasetName, timestamp);
+    this.schemaSyncSvc.applySchemaToConfig(schema);
+    const metaMap = this.cacheSvc.getMetaMap(datasetName);
+    const metaEntry = metaMap?.get(timestamp);
+    if (metaEntry) this.schemaSyncSvc.extractFeatureMaxValuesFromMeta(metaEntry);
 
     this.config.updateConfiguration();
     this.config.loadData(datasetName);
 
-    const glyphMap = this.glyphCache.get(datasetName);
+    const glyphMap = this.cacheSvc.getGlyphMap(datasetName);
     if (glyphMap) {
       this.filterService.totalItems = glyphMap.size;
       this.filterService.filteredItems = this.filterService.totalItems;
@@ -433,7 +380,7 @@ export class DataLoaderService {
       ],
     };
 
-    this.setDatasetCollection([newEntry]);
+    this.collectionSvc.setDatasetCollection([newEntry]);
   }
 
   public addPositionsToLoadedDataset(
@@ -442,7 +389,7 @@ export class DataLoaderService {
     algorithm: string,
     positions: { id: string | number; position: { x: number; y: number } }[]
   ): boolean {
-    const glyphMap = this.glyphCache.get(datasetName);
+    const glyphMap = this.cacheSvc.getGlyphMap(datasetName);
     if (!glyphMap) {
       console.warn(`[DataLoader] Cannot add positions - dataset ${datasetName} not in cache`);
       return false;
@@ -463,12 +410,12 @@ export class DataLoaderService {
       matchCount++;
     }
 
-    const entry = this.getCollectionEntry(datasetName);
+    const entry = this.collectionSvc.getCollectionEntry(datasetName);
     if (entry) {
       const item = entry.items.find(it => it.time === timestamp);
       if (item && !item.algorithms.position[algorithm]) {
         item.algorithms.position[algorithm] = `memory://${datasetName}/${timestamp}/${algorithm}`;
-        this.dataSetCollectionSubject.next([...this.dataSetCollectionSubject.getValue()]);
+        this.collectionSvc.notifyChange();
       }
     }
 
@@ -479,63 +426,10 @@ export class DataLoaderService {
 
   // === Internal helpers ===
 
-  private buildDataSet(
-    name: string,
-    timestamp: string,
-    schema: GlyphSchema,
-    meta: GlyphMeta,
-    features: GlyphFeature[],
-    positions: Map<string, GlyphPosition[]>
-  ): number {
-    const schemaMap = this.getOrCreateSubMap(this.schemaCache, name);
-    schemaMap.set(timestamp, schema);
-
-    const metaMap = this.getOrCreateSubMap(this.metaCache, name);
-    metaMap.set(timestamp, meta);
-
-    const glyphMap = this.getOrCreateSubMap(this.glyphCache, name);
-
-    for (const feature of features) {
-      const idStr = String(feature.id);
-
-      let glyph = glyphMap.get(idStr);
-
-      if (!glyph) {
-        glyph = new GlyphObject(idStr, this.config, this.dataProcessor);
-        glyph.features = feature.features;
-        glyph.values = feature.values;
-        glyph.defaultcontext = feature.defaultcontext ? parseInt(feature.defaultcontext) : 1;
-        glyph.positions = {};
-
-        glyphMap.set(idStr, glyph);
-      }
-
-      if (!glyph.positions[timestamp]) {
-        glyph.positions[timestamp] = {};
-      }
-    }
-
-    for (const [algorithm, entries] of positions) {
-      for (const posEntry of entries) {
-        const idStr = String(posEntry.id);
-        const glyph = glyphMap.get(idStr);
-        if (!glyph) {
-          continue;
-        }
-
-        glyph.positions[timestamp][algorithm] = {
-          ...posEntry.position,
-        };
-      }
-    }
-
-    return glyphMap.size;
-  }
-
   async loadDataSet(name: string, timestamp: string) {
     this.filterService.clearFilters();
 
-    const dataset = this.getCollectionEntry(name);
+    const dataset = this.collectionSvc.getCollectionEntry(name);
     const item = dataset?.items.find(item => item.time == timestamp);
     if (item && dataset?.source == 'wasm') {
       const schema = (await this.dataProcessor.fetchJson(item.algorithms.schema)) as GlyphSchema;
@@ -547,10 +441,10 @@ export class DataLoaderService {
         positions.set(key, position);
       }
 
-      this.applySchemaToConfig(schema);
+      this.schemaSyncSvc.applySchemaToConfig(schema);
       this.config.updateConfiguration();
 
-      const totalItems = this.buildDataSet(name, timestamp, schema, meta, features, positions);
+      const totalItems = this.cacheSvc.buildDataSet(name, timestamp, schema, meta, features, positions);
       this.filterService.totalItems = totalItems;
       this.filterService.filteredItems = totalItems;
     } else if (item && dataset?.source === 'indexeddb') {
@@ -560,9 +454,9 @@ export class DataLoaderService {
         for (const [algo, posArr] of Object.entries(saved.positions)) {
           positionsMap.set(algo, posArr);
         }
-        this.applySchemaToConfig(saved.schema);
+        this.schemaSyncSvc.applySchemaToConfig(saved.schema);
         this.config.updateConfiguration();
-        const totalItems = this.buildDataSet(
+        const totalItems = this.cacheSvc.buildDataSet(
           name,
           saved.timestamp,
           saved.schema,
@@ -572,89 +466,19 @@ export class DataLoaderService {
         );
         this.filterService.totalItems = totalItems;
         this.filterService.filteredItems = totalItems;
-        this.extractFeatureMaxValuesFromMeta(name, saved.timestamp);
+        const metaMap = this.cacheSvc.getMetaMap(name);
+        const metaEntry = metaMap?.get(saved.timestamp);
+        if (metaEntry) this.schemaSyncSvc.extractFeatureMaxValuesFromMeta(metaEntry);
       }
-    }
-  }
-
-  private applySchemaToConfig(schema: GlyphSchema): void {
-    this.config.colorFeature = schema.color;
-    this.config.replaceActiveFeatures(schema.glyph);
-    this.config.featureLabels = schema.label;
-
-    if (schema.colorScaleId !== undefined) {
-      this.config.colorRange = schema.colorScaleId;
-    } else if (schema.colorRange !== undefined) {
-      this.config.colorRange = schema.colorRange ? 0 : 4;
-    }
-
-    if (schema.types) {
-      this.config.featureTypes = schema.types;
     }
   }
 
   private resolveDatasetParams(name?: string, timestamp?: string): { name: string; timestamp: string } | undefined {
     if (name == undefined) name = this.config.loadedData;
     if (timestamp == undefined) {
-      timestamp = this.getCollectionEntry(name)?.items.at(0)?.time;
+      timestamp = this.collectionSvc.getCollectionEntry(name)?.items.at(0)?.time;
     }
     if (name == undefined || timestamp == undefined) return undefined;
     return { name, timestamp };
-  }
-
-  private getOrCreateSubMap<V>(map: Map<string, Map<string, V>>, key: string): Map<string, V> {
-    let sub = map.get(key);
-    if (!sub) {
-      sub = new Map();
-      map.set(key, sub);
-    }
-    return sub;
-  }
-
-  private getCollectionEntry(name: string | undefined): DatasetCollectionEntry | undefined {
-    if (!name) return undefined;
-    return this.dataSetCollectionSubject.getValue().find(c => c.dataset === name);
-  }
-
-  private calculateFeatureMaxValues(name: string): void {
-    const glyphMap = this.glyphCache.get(name);
-    if (!glyphMap) return;
-
-    const featureTypes = this.config.featureTypes;
-    const maxValues: Record<string, number> = {};
-
-    glyphMap.forEach((glyph: GlyphObject) => {
-      const features = glyph.features['1'];
-      if (features) {
-        Object.keys(featureTypes).forEach(featureId => {
-          if (featureTypes[featureId] === 'categorical') {
-            const value = features[featureId];
-            if (value !== undefined) {
-              maxValues[featureId] = Math.max(maxValues[featureId] || 0, value);
-            }
-          }
-        });
-      }
-    });
-
-    this.config.featureMaxValues = maxValues;
-  }
-
-  private extractFeatureMaxValuesFromMeta(datasetName: string, timestamp: string): void {
-    const metaMap = this.metaCache.get(datasetName);
-    if (!metaMap) return;
-
-    const meta = metaMap.get(timestamp);
-    if (!meta || !meta.features) return;
-
-    const maxValues: Record<string, number> = {};
-
-    Object.entries(meta.features).forEach(([featureId, stats]) => {
-      if (stats.max !== undefined) {
-        maxValues[featureId] = stats.max;
-      }
-    });
-
-    this.config.featureMaxValues = maxValues;
   }
 }

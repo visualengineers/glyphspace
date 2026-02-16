@@ -40,6 +40,7 @@ module.exports = defineConfig([
       "@angular-eslint/prefer-inject": "off",
       "@angular-eslint/no-empty-lifecycle-method": "warn",
       "@angular-eslint/no-output-native": "warn",
+      "eqeqeq": ["warn", "smart"],
     },
   },
   {

@@ -34,6 +34,14 @@ import { SettingsControlPanelComponent } from './settingscontrols/settingscontro
 import { CanvasCameraService } from './services/canvas-camera.service';
 import { CanvasRendererService } from './services/canvas-renderer.service';
 import { CanvasSelectionService } from './services/canvas-selection.service';
+import {
+  HIT_TEST_THROTTLE_MS,
+  MOUSE_IDLE_MS,
+  CLICK_TIME_THRESHOLD_MS,
+  CLICK_DISTANCE_THRESHOLD,
+} from '../shared/constants/canvas-constants';
+import { DataProcessorService } from '../services/data-processor';
+import { buildGlyphRenderConfig, GlyphRenderConfig } from '../glyph/glyph-render-config';
 
 @Component({
   selector: 'glyph-canvas',
@@ -81,14 +89,10 @@ export class GlyphCanvasComponent implements AfterViewInit, OnDestroy, OnChanges
   private animateGlyph: GlyphObject | null = null;
   private pulseStartTime = performance.now();
   private lastHitTestTime = 0;
-  private throttleDelay = 50;
   lastMousePosition = new THREE.Vector2();
   mouseInside = false;
   private mouseIdleTimer: ReturnType<typeof setTimeout> | undefined;
-  private readonly MOUSE_IDLE_MS = 2000;
   private mouseDownTime = 0;
-  private readonly clickThreshold = 4;
-  private readonly clickTimeThreshold = 300;
 
   // Overlay controls
   canvasActivated = false;
@@ -106,11 +110,16 @@ export class GlyphCanvasComponent implements AfterViewInit, OnDestroy, OnChanges
     private logger: LoggerService,
     private config: ConfigService,
     private dataLoader: DataLoaderService,
+    private dataProcessor: DataProcessorService,
     private filterService: FilterService,
     public cameraSvc: CanvasCameraService,
     public rendererSvc: CanvasRendererService,
     public selectionSvc: CanvasSelectionService
   ) {}
+
+  private buildRenderConfig(): GlyphRenderConfig {
+    return buildGlyphRenderConfig(this.config, this.dataProcessor);
+  }
 
   //#region Life Cycle methods
   ngAfterViewInit(): void {
@@ -158,7 +167,7 @@ export class GlyphCanvasComponent implements AfterViewInit, OnDestroy, OnChanges
   private subscribeToEvents() {
     this.configSub.add(
       this.config.loadedDataSubject$.subscribe(async loadedData => {
-        if (loadedData == '') return;
+        if (loadedData === '') return;
 
         const data = await this.dataLoader.getGlyphData(this.config.loadedData, this.selectedTimestamp);
         if (data) this.glyphData = data;
@@ -213,35 +222,38 @@ export class GlyphCanvasComponent implements AfterViewInit, OnDestroy, OnChanges
             this.id,
             this.selectedTimestamp,
             this.selectedAlgorithm,
-            this.aggregated
+            this.aggregated,
+            this.buildRenderConfig()
           );
         }
       })
     );
     this.configSub.add(
       this.config.commandSubject$.subscribe(command => {
-        if (command == InteractionCommand.fittoscreen) {
+        if (command === InteractionCommand.fittoscreen) {
           this.fitToView();
-        } else if (command == InteractionCommand.redraw) {
+        } else if (command === InteractionCommand.redraw) {
           this.rendererSvc.renderGlyphs(
             this.glyphData,
             this.id,
             this.selectedTimestamp,
             this.selectedAlgorithm,
-            this.aggregated
+            this.aggregated,
+            this.buildRenderConfig()
           );
-        } else if (command == InteractionCommand.rerender) {
+        } else if (command === InteractionCommand.rerender) {
           this.rendererSvc.requestRender(RenderTask.SceneRender);
-        } else if (command == InteractionCommand.clearselection) {
+        } else if (command === InteractionCommand.clearselection) {
           this.selectionSvc.selectionFilter.clear();
           this.rendererSvc.renderGlyphs(
             this.glyphData,
             this.id,
             this.selectedTimestamp,
             this.selectedAlgorithm,
-            this.aggregated
+            this.aggregated,
+            this.buildRenderConfig()
           );
-        } else if (command == InteractionCommand.exportimage) {
+        } else if (command === InteractionCommand.exportimage) {
           exportThreeSceneAsPNG(this.rendererSvc.renderer, this.rendererSvc.scene, this.cameraSvc.camera, {
             filename: 'three-scene-' + this.id + '.png',
             scaleFactor: 2,
@@ -254,14 +266,21 @@ export class GlyphCanvasComponent implements AfterViewInit, OnDestroy, OnChanges
     this.configSub.add(
       this.config.redrawGlyphSubject$.subscribe(glyph => {
         if (glyph != null && this.glyphData.includes(glyph)) {
-          this.rendererSvc.renderGlyph(glyph, this.selectedTimestamp, this.selectedAlgorithm, this.id, this.aggregated);
+          this.rendererSvc.renderGlyph(
+            glyph,
+            this.selectedTimestamp,
+            this.selectedAlgorithm,
+            this.id,
+            this.aggregated,
+            this.buildRenderConfig()
+          );
         }
       })
     );
     this.configSub.add(
       this.config.animateGlyphSubject$.subscribe(glyph => {
         if (this.mouseInside) return; // no animation in current canvas
-        if (this.animateGlyph == glyph) return;
+        if (this.animateGlyph === glyph) return;
 
         this.resetAnimatedGlyph();
         this.startAnimateGlyph(glyph);
@@ -279,6 +298,7 @@ export class GlyphCanvasComponent implements AfterViewInit, OnDestroy, OnChanges
           this.selectedTimestamp,
           this.selectedAlgorithm,
           this.aggregated,
+          this.buildRenderConfig(),
           true
         );
       })
@@ -294,9 +314,7 @@ export class GlyphCanvasComponent implements AfterViewInit, OnDestroy, OnChanges
         const height = Math.floor(entry.contentRect.height);
         this.canvasWidth = width;
         this.canvasHeight = height;
-        this.rendererSvc.sizeInfo.update(this.canvasWidth, this.canvasHeight);
-
-        // Note: renderer.setSize causes infinite loops - aspect ratio fix needs different approach
+        this.rendererSvc.updateRendererSize(width, height);
         this.cameraSvc.updateCameraBounds(width, height);
         this.simulation?.force('collide', forceCollide(this.rendererSvc.sizeInfo.getRadius(ZoomLevel.high)));
         this.resetAnimatedGlyph();
@@ -305,7 +323,8 @@ export class GlyphCanvasComponent implements AfterViewInit, OnDestroy, OnChanges
           this.id,
           this.selectedTimestamp,
           this.selectedAlgorithm,
-          this.aggregated
+          this.aggregated,
+          this.buildRenderConfig()
         );
       }
     });
@@ -343,9 +362,8 @@ export class GlyphCanvasComponent implements AfterViewInit, OnDestroy, OnChanges
 
   toggleCollisionAvoidance(doToggle = true) {
     if (
-      this.rendererSvc.needsRender.has(
-        RenderTask.ForceSimulation || this.rendererSvc.needsRender.has(RenderTask.OriginalSimulation)
-      )
+      this.rendererSvc.needsRender.has(RenderTask.ForceSimulation) ||
+      this.rendererSvc.needsRender.has(RenderTask.OriginalSimulation)
     )
       return;
 
@@ -379,7 +397,8 @@ export class GlyphCanvasComponent implements AfterViewInit, OnDestroy, OnChanges
       this.id,
       this.selectedTimestamp,
       this.selectedAlgorithm,
-      this.aggregated
+      this.aggregated,
+      this.buildRenderConfig()
     );
   }
 
@@ -441,6 +460,7 @@ export class GlyphCanvasComponent implements AfterViewInit, OnDestroy, OnChanges
       this.selectedTimestamp,
       this.selectedAlgorithm,
       this.aggregated,
+      this.buildRenderConfig(),
       true
     );
 
@@ -502,7 +522,7 @@ export class GlyphCanvasComponent implements AfterViewInit, OnDestroy, OnChanges
 
     this.mouseIdleTimer = setTimeout(() => {
       this.mouseInside = false;
-    }, this.MOUSE_IDLE_MS);
+    }, MOUSE_IDLE_MS);
   }
 
   private clearMouseIdleTimer(): void {
@@ -552,6 +572,7 @@ export class GlyphCanvasComponent implements AfterViewInit, OnDestroy, OnChanges
         this.selectedTimestamp,
         this.selectedAlgorithm,
         this.aggregated,
+        this.buildRenderConfig(),
         true
       );
       return true;
@@ -569,7 +590,7 @@ export class GlyphCanvasComponent implements AfterViewInit, OnDestroy, OnChanges
 
   //#region Rendering and Glyph Manipulations
   private animate = () => {
-    if (this.rendererSvc.needsRender.size == 0) {
+    if (this.rendererSvc.needsRender.size === 0) {
       this.animationFrameId = undefined; // stop the loop
       return;
     }
@@ -605,7 +626,7 @@ export class GlyphCanvasComponent implements AfterViewInit, OnDestroy, OnChanges
 
     if (
       this.rendererSvc.needsRender.has(RenderTask.GlyphAnimation) &&
-      this.rendererSvc.sizeInfo.currentZoomLevel == ZoomLevel.low
+      this.rendererSvc.sizeInfo.currentZoomLevel === ZoomLevel.low
     ) {
       if (this.animateGlyph != null) {
         const elapsed = performance.now() - this.pulseStartTime;
@@ -631,7 +652,8 @@ export class GlyphCanvasComponent implements AfterViewInit, OnDestroy, OnChanges
       this.id,
       this.selectedTimestamp,
       this.selectedAlgorithm,
-      this.aggregated
+      this.aggregated,
+      this.buildRenderConfig()
     );
 
     this.rendererSvc.renderer.render(this.rendererSvc.scene, this.cameraSvc.camera);
@@ -642,7 +664,14 @@ export class GlyphCanvasComponent implements AfterViewInit, OnDestroy, OnChanges
     if (glyph == null) {
       this.animateGlyph = null;
     } else {
-      this.rendererSvc.renderGlyph(glyph, this.selectedTimestamp, this.selectedAlgorithm, this.id, this.aggregated);
+      this.rendererSvc.renderGlyph(
+        glyph,
+        this.selectedTimestamp,
+        this.selectedAlgorithm,
+        this.id,
+        this.aggregated,
+        this.buildRenderConfig()
+      );
       this.animateGlyph = glyph;
       this.pulseStartTime = performance.now();
       this.rendererSvc.requestRender(RenderTask.GlyphAnimation);
@@ -657,7 +686,8 @@ export class GlyphCanvasComponent implements AfterViewInit, OnDestroy, OnChanges
         this.selectedTimestamp,
         this.selectedAlgorithm,
         this.id,
-        this.aggregated
+        this.aggregated,
+        this.buildRenderConfig()
       );
     this.rendererSvc.cancelRender(RenderTask.GlyphAnimation);
   }
@@ -694,47 +724,58 @@ export class GlyphCanvasComponent implements AfterViewInit, OnDestroy, OnChanges
     if (event.key === 'Shift') this.selectionSvc.isShiftDown = true;
   }
 
+  private keyBindings = new Map<string, () => void>([
+    ['c', () => this.toggleCollisionAvoidance()],
+    ['f', () => this.fitToView()],
+    ['a', () => this.toggleAggregation()],
+    ['d', () => this.toggleSettings()],
+    [
+      'n',
+      () => {
+        if (this.selectionSvc.selectionMode) this.toggleSelectionMode();
+        if (this.magicLensComponent.isActive()) this.toggleMagicLens();
+      },
+    ],
+    ['s', () => this.toggleSelectionMode()],
+    [
+      'x',
+      () =>
+        this.rendererSvc.renderGlyphs(
+          this.glyphData,
+          this.id,
+          this.selectedTimestamp,
+          this.selectedAlgorithm,
+          this.aggregated,
+          this.buildRenderConfig()
+        ),
+    ],
+    [
+      'l',
+      () => {
+        this.clearHoveredGlyph();
+        this.toggleMagicLens();
+        this.magicLensComponent.updateMagicLens(
+          this.lastMousePosition,
+          this.cameraSvc.camera,
+          this.rendererSvc.renderer
+        );
+        this.magicLensComponent.renderMagicLensGlyphs(this.selectedTimestamp, this.selectedAlgorithm);
+      },
+    ],
+  ]);
+
   @HostListener('document:keyup', ['$event'])
   onKeyUp(event: KeyboardEvent): void {
     if (checkTextInput(event)) return;
-
     if (!this.mouseInside) return;
 
-    if (event.key === 'Shift') this.selectionSvc.isShiftDown = false;
-    if (event.key.toLowerCase() === 'c') {
-      this.toggleCollisionAvoidance();
+    if (event.key === 'Shift') {
+      this.selectionSvc.isShiftDown = false;
+      return;
     }
-    if (event.key.toLowerCase() === 'f') {
-      this.fitToView();
-    }
-    if (event.key.toLowerCase() === 'a') {
-      this.toggleAggregation();
-    }
-    if (event.key.toLowerCase() === 'd') {
-      this.toggleSettings();
-    }
-    if (event.key.toLowerCase() === 'n') {
-      if (this.selectionSvc.selectionMode) this.toggleSelectionMode();
-      if (this.magicLensComponent.isActive()) this.toggleMagicLens();
-    }
-    if (event.key.toLowerCase() === 's') {
-      this.toggleSelectionMode();
-    }
-    if (event.key.toLowerCase() === 'x') {
-      this.rendererSvc.renderGlyphs(
-        this.glyphData,
-        this.id,
-        this.selectedTimestamp,
-        this.selectedAlgorithm,
-        this.aggregated
-      );
-    }
-    if (event.key.toLowerCase() === 'l') {
-      this.clearHoveredGlyph();
-      this.toggleMagicLens();
-      this.magicLensComponent.updateMagicLens(this.lastMousePosition, this.cameraSvc.camera, this.rendererSvc.renderer);
-      this.magicLensComponent.renderMagicLensGlyphs(this.selectedTimestamp, this.selectedAlgorithm);
-    }
+
+    const action = this.keyBindings.get(event.key.toLowerCase());
+    action?.();
   }
 
   @HostListener('mousedown', ['$event'])
@@ -767,7 +808,7 @@ export class GlyphCanvasComponent implements AfterViewInit, OnDestroy, OnChanges
     const distance = Math.sqrt(dx * dx + dy * dy);
     const elapsedTime = Date.now() - this.mouseDownTime;
 
-    const isClick = distance < this.clickThreshold && elapsedTime < this.clickTimeThreshold;
+    const isClick = distance < CLICK_DISTANCE_THRESHOLD && elapsedTime < CLICK_TIME_THRESHOLD_MS;
 
     if (isClick && this.magicLensComponent.isActive()) {
       this.toggleFixMagicLens();
@@ -880,7 +921,7 @@ export class GlyphCanvasComponent implements AfterViewInit, OnDestroy, OnChanges
       !this.selectionSvc.selectionMode
     ) {
       const now = performance.now();
-      if (now - this.lastHitTestTime < this.throttleDelay) return;
+      if (now - this.lastHitTestTime < HIT_TEST_THROTTLE_MS) return;
       this.lastHitTestTime = now;
 
       const closestObject: THREE.Object3D | null = this.rendererSvc.optimizedHitTest(
@@ -904,7 +945,8 @@ export class GlyphCanvasComponent implements AfterViewInit, OnDestroy, OnChanges
               this.selectedTimestamp,
               this.selectedAlgorithm,
               this.id,
-              this.aggregated
+              this.aggregated,
+              this.buildRenderConfig()
             );
             this.config.animateGlyph(hoveredGlyph);
             this.currentHoveredObject = hoveredGlyph;

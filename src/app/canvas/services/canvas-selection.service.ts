@@ -79,7 +79,7 @@ export class CanvasSelectionService {
     selectedAlgorithm: string,
     replace = false
   ): void {
-    if (selectedObjects.length == 0) {
+    if (selectedObjects.length === 0) {
       this.filterService.clearIdFilters();
     } else {
       if (replace) this.filterService.clearIdFilters();

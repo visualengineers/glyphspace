@@ -9,6 +9,22 @@ const geometryCache = {
   rings: new Map<string, THREE.RingGeometry>(),
 };
 
+// Shared material cache for performance (reuse materials by color + options)
+const materialCache = new Map<string, THREE.MeshBasicMaterial>();
+
+export function getCachedBasicMaterial(
+  color: string | number,
+  options?: { side?: THREE.Side; transparent?: boolean; opacity?: number; depthTest?: boolean }
+): THREE.MeshBasicMaterial {
+  const key = `${color}_${options?.side ?? THREE.FrontSide}_${options?.transparent ?? false}_${options?.opacity ?? 1}_${options?.depthTest ?? true}`;
+  let mat = materialCache.get(key);
+  if (!mat) {
+    mat = new THREE.MeshBasicMaterial({ color, ...options });
+    materialCache.set(key, mat);
+  }
+  return mat;
+}
+
 export function getCachedCircleGeometry(radius: number, segments = 32): THREE.CircleGeometry {
   const key = `${radius.toFixed(2)}_${segments}`;
   let geom = geometryCache.circles.get(key);

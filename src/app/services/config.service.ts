@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { BehaviorSubject } from 'rxjs';
+import { BehaviorSubject, Subject } from 'rxjs';
 import { InteractionCommand } from '../shared/enum/interaction-command';
 import { GlyphObject } from '../glyph/glyph-object';
 import * as d3 from 'd3';
@@ -44,16 +44,16 @@ export class ConfigService {
   private glyphConfigSubject = new BehaviorSubject<GlyphConfiguration>(this.config);
   glyphConfigSubject$ = this.glyphConfigSubject.asObservable();
 
-  private commandSubject = new BehaviorSubject<InteractionCommand>(InteractionCommand.noop);
+  private commandSubject = new Subject<InteractionCommand>();
   commandSubject$ = this.commandSubject.asObservable();
 
-  private redrawGlyphSubject = new BehaviorSubject<GlyphObject | null>(null);
+  private redrawGlyphSubject = new Subject<GlyphObject | null>();
   redrawGlyphSubject$ = this.redrawGlyphSubject.asObservable();
 
-  private drawMagicLensGlyphsSubject = new BehaviorSubject<GlyphObject[] | null>(null);
+  private drawMagicLensGlyphsSubject = new Subject<GlyphObject[] | null>();
   drawMagicLensGlyphsSubject$ = this.drawMagicLensGlyphsSubject.asObservable();
 
-  private animateGlyphSubject = new BehaviorSubject<GlyphObject | null>(null);
+  private animateGlyphSubject = new Subject<GlyphObject | null>();
   animateGlyphSubject$ = this.animateGlyphSubject.asObservable();
 
   private loadedDataSubject = new BehaviorSubject<string>('');

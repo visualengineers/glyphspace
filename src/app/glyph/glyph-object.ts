@@ -4,22 +4,19 @@ import { ZoomLevel } from '../shared/enum/zoom-level';
 import * as THREE from 'three';
 import { Features, StringStringMap } from '../shared/interfaces/glyph-feature';
 import { GlyphCacheObject } from './glyph-cache-object';
-import { ConfigService } from '../services/config.service';
 import { GlyphType } from '../shared/enum/glyph-type';
 import { GlyphSizeInfo } from './glyph-size-info';
-import { DataProcessorService } from '../services/data-processor';
 import { normalizeFeatureValue } from '../shared/helpers/color-helper';
 import { GlyphRenderContext, getGlyphRenderer } from './renderers/glyph-renderer';
 import { ThumbnailRenderer } from './renderers/thumbnail.renderer';
-import { getCachedCircleGeometry, getCachedRingGeometry } from './renderers/shared-rendering';
+import { getCachedCircleGeometry, getCachedRingGeometry, getCachedBasicMaterial } from './renderers/shared-rendering';
+import { GlyphRenderConfig } from './glyph-render-config';
 
 // Side-effect import: registers all built-in glyph renderers
 import './renderers/glyph-renderer-registry';
 
 export class GlyphObject {
   id: string;
-  private config!: ConfigService;
-  private dataProcessor!: DataProcessorService;
   positions: Record<string, Record<string, Coordinates>> = {};
   defaultcontext = 0;
   features!: Features;
@@ -33,10 +30,8 @@ export class GlyphObject {
   highlightColor = 0x9b274d;
   passivecolor = 0xe0e0e0;
 
-  constructor(id: string, config: ConfigService, dataProcessor: DataProcessorService) {
+  constructor(id: string) {
     this.id = id;
-    this.config = config;
-    this.dataProcessor = dataProcessor;
   }
 
   public getPosition(timestamp: string, algorithm: string): Coordinates {
@@ -49,7 +44,7 @@ export class GlyphObject {
 
   public getCacheObject(owner = 0, timestamp: string, algorithm: string): GlyphCacheObject {
     let cacheObject = this.renderCache.get(owner);
-    if (cacheObject == undefined || cacheObject == null) {
+    if (cacheObject == null) {
       cacheObject = new GlyphCacheObject(this.id, { ...this.getPosition(timestamp, algorithm) });
       this.renderCache.set(owner, cacheObject);
     }
@@ -63,12 +58,12 @@ export class GlyphObject {
   }
 
   public setHighlighted(highlight: boolean) {
-    if (this.highlighted == highlight) return;
+    if (this.highlighted === highlight) return;
 
     this.highlighted = highlight;
   }
 
-  private getCurrentColor(trueColor = false): string | number {
+  private getCurrentColor(renderConfig: GlyphRenderConfig, trueColor = false): string | number {
     if (this.highlighted && !trueColor) {
       return this.highlightColor;
     }
@@ -79,13 +74,13 @@ export class GlyphObject {
     let currentColor: string | number = 0x00cc88;
     if (this.features != null) {
       const featureValue = normalizeFeatureValue(
-        this.features['1'][this.config.colorFeature],
-        this.config.colorFeature,
-        this.config.featureTypes,
-        this.config.featureMaxValues
+        this.features['1'][renderConfig.colorFeature],
+        renderConfig.colorFeature,
+        renderConfig.featureTypes,
+        renderConfig.featureMaxValues
       );
 
-      const scale = this.config.color;
+      const scale = renderConfig.colorScale;
       if (scale) {
         currentColor = scale(featureValue);
       }
@@ -98,10 +93,11 @@ export class GlyphObject {
     sizeInfo: GlyphSizeInfo,
     timestamp: string,
     algorithm: string,
-    owner = 0,
-    clustered = false
+    owner: number,
+    clustered: boolean,
+    renderConfig: GlyphRenderConfig
   ): THREE.Object3D | null {
-    const mesh = this.renderGlyph(sizeInfo, timestamp, algorithm, owner, clustered);
+    const mesh = this.renderGlyph(sizeInfo, timestamp, algorithm, owner, clustered, renderConfig);
     const cacheObject = this.getCacheObject(owner, timestamp, algorithm);
     if (mesh) cacheObject.mesh = mesh;
     return mesh;
@@ -111,58 +107,51 @@ export class GlyphObject {
     sizeInfo: GlyphSizeInfo,
     timestamp: string,
     algorithm: string,
-    owner = 0,
-    clustered = false
+    owner: number,
+    clustered: boolean,
+    renderConfig: GlyphRenderConfig
   ): THREE.Object3D | null {
     const cacheObject = this.getCacheObject(owner, timestamp, algorithm);
     const cachedMesh = cacheObject.mesh;
 
     let mesh: THREE.Object3D;
 
-    if (sizeInfo.currentZoomLevel == ZoomLevel.low) {
+    if (sizeInfo.currentZoomLevel === ZoomLevel.low) {
       if (clustered && cacheObject.isClustered && !cacheObject.isClusterRepresentative) {
         return null; // Omit this glyph entirely
       }
 
-      const currentColor = this.getCurrentColor();
+      const currentColor = this.getCurrentColor(renderConfig);
 
       if (cacheObject.isClusterRepresentative && clustered) {
         const ringGeom = getCachedRingGeometry(sizeInfo.radius - 1, sizeInfo.radius, 24);
-        const ringMat = new THREE.MeshBasicMaterial({ color: currentColor, side: THREE.DoubleSide });
+        const ringMat = getCachedBasicMaterial(currentColor, { side: THREE.DoubleSide });
         mesh = new THREE.Mesh(ringGeom, ringMat);
       } else {
         const geom = getCachedCircleGeometry(sizeInfo.radius, 24);
-        const mat = new THREE.MeshBasicMaterial({ color: currentColor });
+        const mat = getCachedBasicMaterial(currentColor);
         mesh = new THREE.Mesh(geom, mat);
       }
     } else {
-      const glyphType = this.config.getConfiguration().glyphType;
+      const glyphType = renderConfig.glyphType;
 
       // Thumbnail is special: needs per-glyph service injection
       if (glyphType === GlyphType.Thumb) {
-        const thumbRenderer = new ThumbnailRenderer(this.id, this.config, this.dataProcessor);
+        const thumbRenderer = new ThumbnailRenderer(this.id, renderConfig);
         mesh = thumbRenderer.render(
-          this.buildRenderContext(sizeInfo),
+          this.buildRenderContext(sizeInfo, renderConfig),
           sizeInfo,
-          this.config.getConfiguration().scaleLinear
+          renderConfig.scaleLinear
         );
       } else {
         const renderer = getGlyphRenderer(glyphType);
         if (renderer) {
-          mesh = renderer.render(
-            this.buildRenderContext(sizeInfo),
-            sizeInfo,
-            this.config.getConfiguration().scaleLinear
-          );
+          mesh = renderer.render(this.buildRenderContext(sizeInfo, renderConfig), sizeInfo, renderConfig.scaleLinear);
         } else {
           // Fallback to flower
           const fallback = getGlyphRenderer(GlyphType.Flower);
           // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- Flower renderer is always registered
-          mesh = fallback!.render(
-            this.buildRenderContext(sizeInfo),
-            sizeInfo,
-            this.config.getConfiguration().scaleLinear
-          );
+          mesh = fallback!.render(this.buildRenderContext(sizeInfo, renderConfig), sizeInfo, renderConfig.scaleLinear);
         }
       }
     }
@@ -179,10 +168,9 @@ export class GlyphObject {
   /**
    * Build the render context that glyph renderers need.
    */
-  private buildRenderContext(sizeInfo: GlyphSizeInfo): GlyphRenderContext {
-    const featureCtx = this.getFeatureContext(this.currentContext);
-    const config = this.config.getConfiguration();
-    const color = this.getCurrentColor(sizeInfo.currentZoomLevel == ZoomLevel.high);
+  private buildRenderContext(sizeInfo: GlyphSizeInfo, renderConfig: GlyphRenderConfig): GlyphRenderContext {
+    const featureCtx = this.getFeatureContext(this.currentContext, renderConfig);
+    const color = this.getCurrentColor(renderConfig, sizeInfo.currentZoomLevel === ZoomLevel.high);
 
     return {
       featureMap: featureCtx?.featureMap ?? {},
@@ -191,25 +179,25 @@ export class GlyphObject {
       featureMaxValues: featureCtx?.featureMaxValues ?? [],
       segments: featureCtx?.segments ?? 0,
       color,
-      useContour: config.useContour,
-      useBackground: config.useBackground,
-      useCoordinateSystem: config.useCoordinateSystem,
+      useContour: renderConfig.useContour,
+      useBackground: renderConfig.useBackground,
+      useCoordinateSystem: renderConfig.useCoordinateSystem,
       highlighted: this.highlighted,
       highlightColor: this.highlightColor,
     };
   }
 
   // === Shared feature extraction ===
-  private getFeatureContext(contextId: number) {
+  private getFeatureContext(contextId: number, renderConfig: GlyphRenderConfig) {
     if (!this.features) return null;
 
     const featureMap = Object.fromEntries(
-      Object.entries(this.features[contextId] || {}).filter(([k]) => this.config.activeFeatures.includes(k))
+      Object.entries(this.features[contextId] || {}).filter(([k]) => renderConfig.activeFeatures.includes(k))
     );
     const keys = Object.keys(featureMap);
     const values = keys.map(k => +featureMap[k]);
 
-    const globalMaxValues = this.config.featureMaxValues;
+    const globalMaxValues = renderConfig.featureMaxValues;
     const featureMaxValues = keys.map(k => globalMaxValues[k] ?? 1);
 
     const localMaxValue = Math.max(...values) || 1;
