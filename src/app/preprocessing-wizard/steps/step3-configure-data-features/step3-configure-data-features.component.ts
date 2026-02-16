@@ -9,7 +9,7 @@ import {
   ScalingMethod,
   MissingValueStrategy,
   OutlierStrategy,
-  OutlierMethod
+  OutlierMethod,
 } from '../../models/data-type.enum';
 import { HelpTooltipComponent } from '../../shared/help-tooltip/help-tooltip.component';
 import { HELP_TEXT } from '../../shared/constants/help-text';
@@ -29,7 +29,7 @@ interface ColumnConfigState {
   standalone: true,
   imports: [FormsModule, HelpTooltipComponent, DataTypeBadgeComponent],
   templateUrl: './step3-configure-data-features.component.html',
-  styleUrl: './step3-configure-data-features.component.scss'
+  styleUrl: './step3-configure-data-features.component.scss',
 })
 export class Step3ConfigureDataFeaturesComponent implements OnInit {
   columns: ColumnConfigState[] = [];
@@ -39,21 +39,21 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit {
   selectedColumnName: string | null = null;
 
   // UI state
-  showInfoBox: boolean = true;
+  showInfoBox = true;
 
   // Duplicate handling
-  duplicateCount: number = 0;
-  duplicatePercentage: number = 0;
+  duplicateCount = 0;
+  duplicatePercentage = 0;
   sampleDuplicates: any[] = [];
-  showDuplicateSamples: boolean = false;
-  totalRows: number = 0;
+  showDuplicateSamples = false;
+  totalRows = 0;
 
   cleaningConfig: CleaningConfig;
 
   // Filters
-  filterText: string = '';
+  filterText = '';
   filterType: DataType | 'all' = 'all';
-  showIssuesOnly: boolean = false;
+  showIssuesOnly = false;
 
   // Enum references for template
   DataType = DataType;
@@ -69,14 +69,14 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit {
     { value: EncodingMethod.Label, label: 'Label', description: 'Integer encoding' },
     { value: EncodingMethod.OneHot, label: 'One-Hot', description: 'Binary columns' },
     { value: EncodingMethod.Normalize, label: 'Normalize', description: 'Scale [0,1]' },
-    { value: EncodingMethod.Standardize, label: 'Standardize', description: 'Z-score' }
+    { value: EncodingMethod.Standardize, label: 'Standardize', description: 'Z-score' },
   ];
 
   scalingMethods = [
     { value: ScalingMethod.None, label: 'None', description: 'No scaling' },
     { value: ScalingMethod.Standard, label: 'Standard', description: 'Z-score' },
     { value: ScalingMethod.MinMax, label: 'Min-Max', description: '[0,1]' },
-    { value: ScalingMethod.Robust, label: 'Robust', description: 'IQR-based' }
+    { value: ScalingMethod.Robust, label: 'Robust', description: 'IQR-based' },
   ];
 
   missingValueStrategies = [
@@ -85,7 +85,7 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit {
     { value: MissingValueStrategy.FillMean, label: 'Fill Mean', description: 'Average value', numericOnly: true },
     { value: MissingValueStrategy.FillMedian, label: 'Fill Median', description: 'Middle value', numericOnly: true },
     { value: MissingValueStrategy.FillMode, label: 'Fill Mode', description: 'Most common', categoricalOnly: true },
-    { value: MissingValueStrategy.FillValue, label: 'Fill Value', description: 'Custom value' }
+    { value: MissingValueStrategy.FillValue, label: 'Fill Value', description: 'Custom value' },
   ];
 
   outlierMethods = [
@@ -94,13 +94,13 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit {
     { value: OutlierMethod.IQR_3_0, label: 'IQR (3.0x)', description: 'Very Relaxed' },
     { value: OutlierMethod.ZScore_2, label: 'Z-Score (2σ)', description: 'Strict' },
     { value: OutlierMethod.ZScore_3, label: 'Z-Score (3σ)', description: 'Moderate' },
-    { value: OutlierMethod.ZScore_4, label: 'Z-Score (4σ)', description: 'Relaxed' }
+    { value: OutlierMethod.ZScore_4, label: 'Z-Score (4σ)', description: 'Relaxed' },
   ];
 
   outlierStrategies = [
     { value: OutlierStrategy.Keep, label: 'Keep', description: 'No change' },
     { value: OutlierStrategy.Remove, label: 'Remove', description: 'Delete rows' },
-    { value: OutlierStrategy.Cap, label: 'Cap', description: 'Limit to bounds' }
+    { value: OutlierStrategy.Cap, label: 'Cap', description: 'Limit to bounds' },
   ];
 
   error: string | null = null;
@@ -140,7 +140,7 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit {
           column: col,
           config: config,
           outlierCount: config.outlierCount,
-          isLoadingOutliers: false
+          isLoadingOutliers: false,
         };
       });
 
@@ -179,7 +179,7 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit {
 
       // Update config
       this.preprocessingService.updateColumnConfig(colState.column.name, {
-        outlierCount: result.outlierCount
+        outlierCount: result.outlierCount,
       });
     } catch (err) {
       console.error(`Failed to detect outliers for ${colState.column.name}:`, err);
@@ -269,7 +269,7 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit {
 
   onMissingStrategyChange(columnName: string, strategy: MissingValueStrategy): void {
     this.preprocessingService.updateColumnConfig(columnName, {
-      missingValueStrategy: strategy
+      missingValueStrategy: strategy,
     });
     // Update local state to trigger template re-render
     const colState = this.columns.find(c => c.column.name === columnName);
@@ -280,13 +280,13 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit {
 
   onMissingValueFillChange(columnName: string, fillValue: string): void {
     this.preprocessingService.updateColumnConfig(columnName, {
-      missingValueFillValue: fillValue
+      missingValueFillValue: fillValue,
     });
   }
 
   async onOutlierMethodChange(columnName: string, method: OutlierMethod): Promise<void> {
     this.preprocessingService.updateColumnConfig(columnName, {
-      outlierMethod: method
+      outlierMethod: method,
     });
 
     const colState = this.columns.find(c => c.column.name === columnName);
@@ -297,7 +297,7 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit {
 
   onOutlierStrategyChange(columnName: string, strategy: OutlierStrategy): void {
     this.preprocessingService.updateColumnConfig(columnName, {
-      outlierStrategy: strategy
+      outlierStrategy: strategy,
     });
   }
 
@@ -307,7 +307,7 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit {
       const newValue = !colState.config.includeInProjection;
       // Update service
       this.preprocessingService.updateColumnConfig(columnName, {
-        includeInProjection: newValue
+        includeInProjection: newValue,
       });
       // Update local state to trigger template re-render
       colState.config.includeInProjection = newValue;
@@ -317,7 +317,7 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit {
   toggleRemoveDuplicates(): void {
     this.cleaningConfig.removeDuplicates = !this.cleaningConfig.removeDuplicates;
     this.preprocessingService.updateCleaningConfig({
-      removeDuplicates: this.cleaningConfig.removeDuplicates
+      removeDuplicates: this.cleaningConfig.removeDuplicates,
     });
   }
 
@@ -355,21 +355,15 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit {
           [EncodingMethod.None, EncodingMethod.Normalize, EncodingMethod.Standardize].includes(m.value)
         );
       case DataType.Categorical:
-        return this.encodingMethods.filter(m =>
-          [EncodingMethod.Label, EncodingMethod.OneHot].includes(m.value)
-        );
+        return this.encodingMethods.filter(m => [EncodingMethod.Label, EncodingMethod.OneHot].includes(m.value));
       case DataType.Text:
         return this.encodingMethods.filter(m =>
           [EncodingMethod.None, EncodingMethod.Label, EncodingMethod.OneHot].includes(m.value)
         );
       case DataType.Date:
-        return this.encodingMethods.filter(m =>
-          [EncodingMethod.None, EncodingMethod.Normalize].includes(m.value)
-        );
+        return this.encodingMethods.filter(m => [EncodingMethod.None, EncodingMethod.Normalize].includes(m.value));
       default:
-        return this.encodingMethods.filter(m =>
-          [EncodingMethod.None, EncodingMethod.Label].includes(m.value)
-        );
+        return this.encodingMethods.filter(m => [EncodingMethod.None, EncodingMethod.Label].includes(m.value));
     }
   }
 
@@ -402,8 +396,6 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit {
   hasIssues(colState: ColumnConfigState): boolean {
     return this.hasMissingValues(colState) || this.hasOutliers(colState);
   }
-
-
 
   formatDate(timestamp: number): string {
     const date = new Date(timestamp);

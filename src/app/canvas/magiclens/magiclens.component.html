@@ -1,11 +1,18 @@
-<canvas #lensCanvas
-        id="lens-canvas"
-        [hidden]="!magicLensActive"
-        [width]="lensRadius"
-        [height]="lensRadius"
-        style="position: absolute; border-radius: 50%;
-                border: 2px solid black; pointer-events: none;
-                background: white; z-index: 10;">
+<canvas
+  #lensCanvas
+  id="lens-canvas"
+  [hidden]="!magicLensActive"
+  [width]="lensRadius"
+  [height]="lensRadius"
+  style="
+    position: absolute;
+    border-radius: 50%;
+    border: 2px solid black;
+    pointer-events: none;
+    background: white;
+    z-index: 10;
+  "
+>
 </canvas>
 <div
   class="lens-indicator"

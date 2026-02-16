@@ -9,8 +9,8 @@
     <div class="info-box">
       <span class="material-icons">info</span>
       <div>
-        <strong>Tip:</strong> Start by deselecting ID columns and text fields unless needed for tooltips.
-        You can search by column name or type (e.g., "numeric").
+        <strong>Tip:</strong> Start by deselecting ID columns and text fields unless needed for tooltips. You can search
+        by column name or type (e.g., "numeric").
       </div>
     </div>
 
@@ -21,7 +21,8 @@
           type="text"
           [(ngModel)]="searchTerm"
           placeholder="Search by name or type (e.g., 'numeric')..."
-          class="search-input">
+          class="search-input"
+        />
         @if (searchTerm) {
           <button class="clear-search" (click)="searchTerm = ''">
             <span class="material-icons">close</span>
@@ -53,120 +54,126 @@
           <p>No columns match your search</p>
         </div>
       } @else {
-          <table class="columns-table">
-            <thead>
-              <tr>
-                <th class="col-checkbox">
+        <table class="columns-table">
+          <thead>
+            <tr>
+              <th class="col-checkbox">
+                <input
+                  type="checkbox"
+                  [checked]="enabledCount === columns.length"
+                  [indeterminate]="enabledCount > 0 && enabledCount < columns.length"
+                  (change)="toggleAllColumns()"
+                  title="Toggle all columns"
+                />
+              </th>
+              <th class="col-name">Column Name</th>
+              <th class="col-type">
+                <span class="header-with-tooltip">
+                  Data Type
+                  <app-help-tooltip [helpText]="HELP_TEXT.tableHeaders.type" position="bottom"></app-help-tooltip>
+                </span>
+              </th>
+              <th class="col-count">Count</th>
+              <th class="col-unique">
+                <span class="header-with-tooltip">
+                  Unique
+                  <app-help-tooltip [helpText]="HELP_TEXT.tableHeaders.unique" position="bottom"></app-help-tooltip>
+                </span>
+              </th>
+              <th class="col-missing">
+                <span class="header-with-tooltip">
+                  Missing
+                  <app-help-tooltip [helpText]="HELP_TEXT.tableHeaders.missing" position="bottom"></app-help-tooltip>
+                </span>
+              </th>
+              <th class="col-distribution">
+                <span class="header-with-tooltip">
+                  Distribution
+                  <app-help-tooltip
+                    [helpText]="HELP_TEXT.tableHeaders.distribution"
+                    position="bottom"
+                  ></app-help-tooltip>
+                </span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (column of filteredColumns; track column.name) {
+              <tr
+                class="column-row"
+                [class.disabled]="!isColumnEnabled(column.name)"
+                [class.has-issues]="hasIssues(column)"
+              >
+                <!-- Checkbox -->
+                <td class="col-checkbox">
                   <input
                     type="checkbox"
-                    [checked]="enabledCount === columns.length"
-                    [indeterminate]="enabledCount > 0 && enabledCount < columns.length"
-                    (change)="toggleAllColumns()"
-                    title="Toggle all columns">
-                </th>
-                <th class="col-name">Column Name</th>
-                <th class="col-type">
-                  <span class="header-with-tooltip">
-                    Data Type
-                    <app-help-tooltip [helpText]="HELP_TEXT.tableHeaders.type" position="bottom"></app-help-tooltip>
-                  </span>
-                </th>
-                <th class="col-count">Count</th>
-                <th class="col-unique">
-                  <span class="header-with-tooltip">
-                    Unique
-                    <app-help-tooltip [helpText]="HELP_TEXT.tableHeaders.unique" position="bottom"></app-help-tooltip>
-                  </span>
-                </th>
-                <th class="col-missing">
-                  <span class="header-with-tooltip">
-                    Missing
-                    <app-help-tooltip [helpText]="HELP_TEXT.tableHeaders.missing" position="bottom"></app-help-tooltip>
-                  </span>
-                </th>
-                <th class="col-distribution">
-                  <span class="header-with-tooltip">
-                    Distribution
-                    <app-help-tooltip [helpText]="HELP_TEXT.tableHeaders.distribution" position="bottom"></app-help-tooltip>
-                  </span>
-                </th>
+                    [checked]="isColumnEnabled(column.name)"
+                    (change)="toggleColumn(column.name)"
+                    [id]="'col-' + column.name"
+                  />
+                </td>
+
+                <!-- Column Name -->
+                <td class="col-name">
+                  <div class="name-cell">
+                    <span class="name-text" [title]="column.name">{{ column.name }}</span>
+                    @if (hasIssues(column)) {
+                      <span class="material-icons issue-icon" title="Quality issues detected">warning</span>
+                    }
+                  </div>
+                </td>
+
+                <!-- Data Type -->
+                <td class="col-type">
+                  <app-data-type-badge [dataType]="column.dataType"></app-data-type-badge>
+                </td>
+
+                <!-- Count -->
+                <td class="col-count">
+                  {{ column.count | number }}
+                </td>
+
+                <!-- Unique -->
+                <td class="col-unique">
+                  <div class="unique-cell">
+                    <span class="unique-count">{{ column.uniqueCount | number }}</span>
+                    <span class="unique-percent">({{ getUniquePercent(column) }}%)</span>
+                  </div>
+                </td>
+
+                <!-- Missing -->
+                <td class="col-missing">
+                  @if (column.missingCount > 0) {
+                    <div class="missing-cell">
+                      <span class="missing-count">{{ column.missingCount | number }}</span>
+                      <span class="missing-percent warn">({{ column.missingPercentage.toFixed(1) }}%)</span>
+                    </div>
+                  } @else {
+                    <span class="text-muted">—</span>
+                  }
+                </td>
+
+                <!-- Distribution -->
+                <td class="col-distribution">
+                  @if (getColumnHistogramData(column); as histogramData) {
+                    <app-wizard-histogram
+                      [data]="histogramData"
+                      [dataType]="column.dataType"
+                      [color]="getDataTypeColor(column.dataType)"
+                      [width]="112"
+                      [height]="25"
+                      [enabled]="isColumnEnabled(column.name)"
+                    >
+                    </app-wizard-histogram>
+                  } @else {
+                    <span class="text-muted">—</span>
+                  }
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              @for (column of filteredColumns; track column.name) {
-                <tr
-                  class="column-row"
-                  [class.disabled]="!isColumnEnabled(column.name)"
-                  [class.has-issues]="hasIssues(column)">
-
-                  <!-- Checkbox -->
-                  <td class="col-checkbox">
-                    <input
-                      type="checkbox"
-                      [checked]="isColumnEnabled(column.name)"
-                      (change)="toggleColumn(column.name)"
-                      [id]="'col-' + column.name">
-                  </td>
-
-                  <!-- Column Name -->
-                  <td class="col-name">
-                    <div class="name-cell">
-                      <span class="name-text" [title]="column.name">{{ column.name }}</span>
-                      @if (hasIssues(column)) {
-                        <span class="material-icons issue-icon" title="Quality issues detected">warning</span>
-                      }
-                    </div>
-                  </td>
-
-                  <!-- Data Type -->
-                  <td class="col-type">
-                    <app-data-type-badge [dataType]="column.dataType"></app-data-type-badge>
-                  </td>
-
-                  <!-- Count -->
-                  <td class="col-count">
-                    {{ column.count | number }}
-                  </td>
-
-                  <!-- Unique -->
-                  <td class="col-unique">
-                    <div class="unique-cell">
-                      <span class="unique-count">{{ column.uniqueCount | number }}</span>
-                      <span class="unique-percent">({{ getUniquePercent(column) }}%)</span>
-                    </div>
-                  </td>
-
-                  <!-- Missing -->
-                  <td class="col-missing">
-                    @if (column.missingCount > 0) {
-                      <div class="missing-cell">
-                        <span class="missing-count">{{ column.missingCount | number }}</span>
-                        <span class="missing-percent warn">({{ column.missingPercentage.toFixed(1) }}%)</span>
-                      </div>
-                    } @else {
-                      <span class="text-muted">—</span>
-                    }
-                  </td>
-
-                  <!-- Distribution -->
-                  <td class="col-distribution">
-                    @if (getColumnHistogramData(column); as histogramData) {
-                      <app-wizard-histogram
-                        [data]="histogramData"
-                        [dataType]="column.dataType"
-                        [color]="getDataTypeColor(column.dataType)"
-                        [width]="112"
-                        [height]="25"
-                        [enabled]="isColumnEnabled(column.name)">
-                      </app-wizard-histogram>
-                    } @else {
-                      <span class="text-muted">—</span>
-                    }
-                  </td>
-                </tr>
-              }
-            </tbody>
-          </table>
+            }
+          </tbody>
+        </table>
       }
     </div>
   </div>
@@ -185,10 +192,7 @@
         </div>
       }
 
-      <button
-        class="btn-primary"
-        (click)="onContinue()"
-        [disabled]="enabledCount === 0">
+      <button class="btn-primary" (click)="onContinue()" [disabled]="enabledCount === 0">
         Continue to Configure Data & Features
         <span class="material-icons">arrow_forward</span>
       </button>

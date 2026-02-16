@@ -3,12 +3,12 @@
  * Used for viewport culling and hit testing with large datasets.
  */
 export class SpatialGrid<T> {
-  private grid: Map<string, Set<T>> = new Map();
-  private itemToCells: Map<T, string[]> = new Map();
+  private grid = new Map<string, Set<T>>();
+  private itemToCells = new Map<T, string[]>();
   private cellSize: number;
   private bounds: { minX: number; maxX: number; minY: number; maxY: number } | null = null;
 
-  constructor(cellSize: number = 50) {
+  constructor(cellSize = 50) {
     this.cellSize = cellSize;
   }
 
@@ -33,7 +33,7 @@ export class SpatialGrid<T> {
   /**
    * Insert an item at a given position
    */
-  insert(item: T, x: number, y: number, radius: number = 0): void {
+  insert(item: T, x: number, y: number, radius = 0): void {
     // Remove from previous cells if already inserted
     this.remove(item);
 
@@ -94,7 +94,7 @@ export class SpatialGrid<T> {
   /**
    * Update an item's position (remove and re-insert)
    */
-  update(item: T, x: number, y: number, radius: number = 0): void {
+  update(item: T, x: number, y: number, radius = 0): void {
     this.insert(item, x, y, radius);
   }
 
@@ -127,7 +127,7 @@ export class SpatialGrid<T> {
   /**
    * Query all items near a point (within a given radius)
    */
-  queryPoint(x: number, y: number, radius: number = 0): Set<T> {
+  queryPoint(x: number, y: number, radius = 0): Set<T> {
     return this.queryRect(x - radius, x + radius, y - radius, y + radius);
   }
 

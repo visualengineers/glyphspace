@@ -3,7 +3,8 @@
   [attr.height]="height"
   class="sparkline"
   [class.sparkline-bar]="type === 'bar'"
-  [class.sparkline-line]="type === 'line'">
+  [class.sparkline-line]="type === 'line'"
+>
   @if (type === 'bar') {
     @for (bar of bars; track $index) {
       <rect
@@ -12,16 +13,12 @@
         [attr.width]="bar.width"
         [attr.height]="bar.height"
         [attr.fill]="color"
-        class="sparkline-bar-item">
+        class="sparkline-bar-item"
+      >
         <title>{{ bar.label }}</title>
       </rect>
     }
   } @else {
-    <path
-      [attr.d]="svgPath"
-      [attr.stroke]="color"
-      fill="none"
-      stroke-width="1.5"
-      class="sparkline-path" />
+    <path [attr.d]="svgPath" [attr.stroke]="color" fill="none" stroke-width="1.5" class="sparkline-path" />
   }
 </svg>

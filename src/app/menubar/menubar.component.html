@@ -1,78 +1,72 @@
 <header class="menu-bar">
-    <div class="menu-top-row">
-        <!-- LEFT -->
-        <div class="menu-left">
-            <div class="logo">
-                <img src="assets/images/glyph-flower.png" alt="Glyphspace logo" />
-                <span class="title">GLYPHSPACE</span>
-            </div>
-        </div>
+  <div class="menu-top-row">
+    <!-- LEFT -->
+    <div class="menu-left">
+      <div class="logo">
+        <img src="assets/images/glyph-flower.png" alt="Glyphspace logo" />
+        <span class="title">GLYPHSPACE</span>
+      </div>
+    </div>
 
-        <button class="hamburger" (click)="menuOpen = !menuOpen" aria-label="Toggle menu">
-            <span class="material-icons">
-                {{ menuOpen ? 'close' : 'menu' }}
-            </span>
+    <button class="hamburger" (click)="menuOpen = !menuOpen" aria-label="Toggle menu">
+      <span class="material-icons">
+        {{ menuOpen ? 'close' : 'menu' }}
+      </span>
+    </button>
+  </div>
+
+  <!-- COLLAPSIBLE -->
+  <div class="menu-collapsible" [class.open]="menuOpen">
+    <!-- CENTER -->
+    <div class="menu-center">
+      <!-- DATA -->
+      <div class="data-control">
+        <span class="label">Data</span>
+        <div class="dataset-selector">
+          <select [(ngModel)]="selectedDataset" (ngModelChange)="onDatasetSelect($event)">
+            @for (entry of datasetEntries; track entry.name) {
+              <option [value]="entry.name">{{ entry.name }}{{ entry.source !== 'local' ? ' (uploaded)' : '' }}</option>
+            }
+          </select>
+          @if (isUserDataset(selectedDataset)) {
+            <button class="delete-btn" (click)="onDeleteDataset(selectedDataset)" title="Delete this dataset">
+              <span class="material-icons">delete_outline</span>
+            </button>
+          }
+        </div>
+      </div>
+
+      <!-- UPLOAD / EXPORT -->
+      <div class="icon-panel">
+        <button (click)="upload()">
+          <span class="material-icons">upload</span>
+          <span class="btn-label">Upload</span>
         </button>
+
+        <button (click)="download()">
+          <span class="material-icons">download</span>
+          <span class="btn-label">Export</span>
+        </button>
+      </div>
+
+      <!-- CANVAS -->
+      <div class="canvas-control">
+        <span class="label">Canvas</span>
+        <button class="add-btn" (click)="addCanvas.emit()" [disabled]="totalCells >= 4">
+          <span class="material-icons">add</span>
+          Add
+        </button>
+        <button class="add-btn" (click)="fitAll()">
+          <span class="material-icons">fullscreen</span>
+          Fit all
+        </button>
+      </div>
     </div>
-
-    <!-- COLLAPSIBLE -->
-    <div class="menu-collapsible" [class.open]="menuOpen">
-        <!-- CENTER -->
-        <div class="menu-center">
-            <!-- DATA -->
-            <div class="data-control">
-                <span class="label">Data</span>
-                <div class="dataset-selector">
-                    <select [(ngModel)]="selectedDataset" (ngModelChange)="onDatasetSelect($event)">
-                        @for (entry of datasetEntries; track entry.name) {
-                            <option [value]="entry.name">
-                                {{ entry.name }}{{ entry.source !== 'local' ? ' (uploaded)' : '' }}
-                            </option>
-                        }
-                    </select>
-                    @if (isUserDataset(selectedDataset)) {
-                        <button
-                            class="delete-btn"
-                            (click)="onDeleteDataset(selectedDataset)"
-                            title="Delete this dataset">
-                            <span class="material-icons">delete_outline</span>
-                        </button>
-                    }
-                </div>
-            </div>
-
-            <!-- UPLOAD / EXPORT -->
-            <div class="icon-panel">
-                <button (click)="upload()">
-                    <span class="material-icons">upload</span>
-                    <span class="btn-label">Upload</span>
-                </button>
-
-                <button (click)="download()">
-                    <span class="material-icons">download</span>
-                    <span class="btn-label">Export</span>
-                </button>
-            </div>
-
-            <!-- CANVAS -->
-            <div class="canvas-control">
-                <span class="label">Canvas</span>
-                <button class="add-btn" (click)="addCanvas.emit()" [disabled]="totalCells >= 4">
-                    <span class="material-icons">add</span>
-                    Add
-                </button>
-                <button class="add-btn" (click)="fitAll()">
-                    <span class="material-icons">fullscreen</span>
-                    Fit all
-                </button>
-            </div>
-        </div>
-
-    </div>
+  </div>
 </header>
 
 @if (showWizard) {
-    <div class="wizard-overlay">
-        <app-preprocessing-wizard (close)="closePreprocessingWizard()"></app-preprocessing-wizard>
-    </div>
+  <div class="wizard-overlay">
+    <app-preprocessing-wizard (close)="closePreprocessingWizard()"></app-preprocessing-wizard>
+  </div>
 }

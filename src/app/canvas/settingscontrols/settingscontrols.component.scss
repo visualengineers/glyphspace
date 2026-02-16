@@ -2,339 +2,341 @@
 @use '../../../styles/mixins' as m;
 
 .settings-panel {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 14px;
+  background-color: v.$gray-100;
+  border-top: none;
+  border-bottom: 1px solid v.$gray-200;
+  z-index: 400;
+  box-sizing: border-box;
+
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+
+  &.active {
+    background-color: v.$ui-active-bg;
+    border-bottom: 1px solid v.$ui-active-border;
+  }
+
+  .settings-overlay {
     position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px 14px;
-    background-color: v.$gray-100;
-    border-top: none;
-    border-bottom: 1px solid v.$gray-200;
-    z-index: 400;
-    box-sizing: border-box;
+    top: 90%;
+    left: 14px;
+    margin-top: 4px;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    z-index: 450;
 
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.2s ease;
-
-    &.active {
-        background-color: v.$ui-active-bg;
-        border-bottom: 1px solid v.$ui-active-border;
+    .overlay-content {
+      padding: 12px;
+      min-width: 200px;
     }
-
-    .settings-overlay {
-        position: absolute;
-        top: 90%;
-        left: 14px;
-        margin-top: 4px;
-        background: white;
-        border-radius: 10px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        z-index: 450;
-
-        .overlay-content {
-            padding: 12px;
-            min-width: 200px;
-        }
-    }
+  }
 }
 
 .settings-panel.visible {
-    opacity: 1;
-    pointer-events: auto;
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .settings-buttons {
-    display: flex;
-    gap: 4px;
-    background: white;
-    padding: 4px 8px;
-    border-radius: 10px;
+  display: flex;
+  gap: 4px;
+  background: white;
+  padding: 4px 8px;
+  border-radius: 10px;
 }
 
 .setting-btn {
-    border: none;
-    border-radius: 8px;
-    background: white;
-    cursor: pointer;
-    padding: 6px 10px;
-    font-size: 14px;
+  border: none;
+  border-radius: 8px;
+  background: white;
+  cursor: pointer;
+  padding: 6px 10px;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  color: v.$gray-600;
+
+  span {
+    color: v.$gray-500;
     transition: all 0.2s ease;
-    color: v.$gray-600;
+  }
+
+  &:hover:not(.active) {
+    background: v.$ui-hover-bg;
+  }
+
+  &.active {
+    background: v.$color-blue-highlight;
+    color: white;
 
     span {
-        color: v.$gray-500;
-        transition: all 0.2s ease;
+      color: white;
     }
-
-    &:hover:not(.active) {
-        background: v.$ui-hover-bg;
-    }
-
-    &.active {
-        background: v.$color-blue-highlight;
-        color: white;
-
-        span {
-            color: white;
-        }
-    }
+  }
 }
 
 .settings-actions {
-    display: flex;
-    gap: 2px;
-    margin-right: 0;
-    flex-shrink: 0;
+  display: flex;
+  gap: 2px;
+  margin-right: 0;
+  flex-shrink: 0;
 
-    .action-btn {
-        background: transparent;
-        border: none;
-        cursor: pointer;
-        color: v.$gray-600;
-        font-size: 20px;
-        padding: 4px;
+  .action-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: v.$gray-600;
+    font-size: 20px;
+    padding: 4px;
 
-        &:hover {
-            color: v.$color-blue-highlight;
-        }
-
-        &:disabled {
-            opacity: 0.3;
-            cursor: auto;
-            pointer-events: none;
-        }
+    &:hover {
+      color: v.$color-blue-highlight;
     }
+
+    &:disabled {
+      opacity: 0.3;
+      cursor: auto;
+      pointer-events: none;
+    }
+  }
 }
 
 .form-group {
-    @include m.form-group;
-    margin-bottom: 12px;
+  @include m.form-group;
+  margin-bottom: 12px;
 }
 
 .menu-label {
-    @include m.menu-label;
+  @include m.menu-label;
 }
 
 .toggle-group.horizontal {
-    display: flex;
-    gap: 8px;
-    margin-top: 12px;
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
 
-    .toggle-btn {
-        flex: 1;
-        text-align: center;
-        padding: 10px 8px;
-    }
+  .toggle-btn {
+    flex: 1;
+    text-align: center;
+    padding: 10px 8px;
+  }
 }
 
 .toggle-btn {
-    width: 100%;
-    padding: 10px 12px;
-    border-radius: 10px;
-    border: 1px solid v.$ui-border-light;
-    background: white;
-    font-size: 13px;
-    text-align: left;
-    cursor: pointer;
-    transition: background-color 0.15s ease, border-color 0.15s ease;
-    color: v.$gray-700;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid v.$ui-border-light;
+  background: white;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease;
+  color: v.$gray-700;
 
-    &:hover {
-        border-color: v.$ui-accent-blue;
-    }
+  &:hover {
+    border-color: v.$ui-accent-blue;
+  }
 
-    &.active {
-        background: v.$color-blue-highlight;
-        border-color: v.$ui-accent-blue;
-        color: white;
-    }
+  &.active {
+    background: v.$color-blue-highlight;
+    border-color: v.$ui-accent-blue;
+    color: white;
+  }
 }
 
 .animation-control-group {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .animation-controls {
-    display: flex;
-    align-items: center;
-    gap: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .icon-btn {
-    width: 32px;
-    height: 32px;
-    border-radius: 8px;
-    border: 1px solid v.$ui-border-light;
-    background: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition:
-        background-color 0.15s ease,
-        border-color 0.15s ease;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid v.$ui-border-light;
+  background: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease;
+
+  i {
+    font-size: 18px;
+    color: v.$gray-700;
+  }
+
+  &:hover {
+    border-color: v.$ui-accent-blue;
+  }
+
+  &.active {
+    background: v.$ui-active-pressed-bg;
+    border-color: v.$ui-accent-blue;
 
     i {
-        font-size: 18px;
-        color: v.$gray-700;
+      color: v.$color-blue-highlight;
     }
-
-    &:hover {
-        border-color: v.$ui-accent-blue;
-    }
-
-    &.active {
-        background: v.$ui-active-pressed-bg;
-        border-color: v.$ui-accent-blue;
-
-        i {
-            color: v.$color-blue-highlight;
-        }
-    }
+  }
 }
 
 .play-btn {
-    flex: 1;
-    justify-content: center;
-    border-radius: 10px;
-    min-width: 56px;
+  flex: 1;
+  justify-content: center;
+  border-radius: 10px;
+  min-width: 56px;
 }
 
 .speed-display {
-    min-width: 36px;
-    height: 32px;
-    padding: 0 8px;
-    border-radius: 8px;
-    background: v.$ui-bg-light;
-    border: 1px solid v.$gray-200;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 13px;
-    font-weight: 500;
-    color: v.$gray-700;
+  min-width: 36px;
+  height: 32px;
+  padding: 0 8px;
+  border-radius: 8px;
+  background: v.$ui-bg-light;
+  border: 1px solid v.$gray-200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 500;
+  color: v.$gray-700;
 }
 
 /* Background projection status */
 .projection-status-list {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    max-height: 150px;
-    overflow-y: scroll;
-    overflow-x: hidden;
-    overscroll-behavior: contain;
-    touch-action: pan-y;
-    pointer-events: auto;
-    @include m.styled-scrollbar-thin;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 150px;
+  overflow-y: scroll;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  pointer-events: auto;
+  @include m.styled-scrollbar-thin;
 }
 
 .projection-status-item {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    padding: 6px 8px;
-    border-radius: 6px;
-    background: v.$ui-bg-light;
-    border: 1px solid v.$gray-200;
-    opacity: 1;
-    transition: opacity 0.5s ease-out;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: v.$ui-bg-light;
+  border: 1px solid v.$gray-200;
+  opacity: 1;
+  transition: opacity 0.5s ease-out;
 
-    &.fading {
-        opacity: 0;
-    }
+  &.fading {
+    opacity: 0;
+  }
 
-    &.status-running {
-        background: v.$proj-running-bg;
-        border-color: v.$proj-running-border;
-    }
+  &.status-running {
+    background: v.$proj-running-bg;
+    border-color: v.$proj-running-border;
+  }
 
-    &.status-complete {
-        background: v.$proj-complete-bg;
-        border-color: v.$proj-complete-border;
-    }
+  &.status-complete {
+    background: v.$proj-complete-bg;
+    border-color: v.$proj-complete-border;
+  }
 
-    &.status-error {
-        background: v.$proj-error-bg;
-        border-color: v.$proj-error-border;
-    }
+  &.status-error {
+    background: v.$proj-error-bg;
+    border-color: v.$proj-error-border;
+  }
 
-    &.status-pending {
-        background: v.$gray-100;
-        border-color: v.$gray-200;
-    }
+  &.status-pending {
+    background: v.$gray-100;
+    border-color: v.$gray-200;
+  }
 }
 
 .status-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .method-name {
-    font-size: 12px;
-    font-weight: 500;
-    color: v.$gray-700;
+  font-size: 12px;
+  font-weight: 500;
+  color: v.$gray-700;
 }
 
 .status-indicator {
-    display: flex;
-    align-items: center;
+  display: flex;
+  align-items: center;
 
-    .material-icons {
-        font-size: 16px;
-    }
+  .material-icons {
+    font-size: 16px;
+  }
 
-    &.running .material-icons {
-        color: v.$proj-running;
-    }
+  &.running .material-icons {
+    color: v.$proj-running;
+  }
 
-    &.complete .material-icons {
-        color: v.$proj-complete;
-    }
+  &.complete .material-icons {
+    color: v.$proj-complete;
+  }
 
-    &.error .material-icons {
-        color: v.$proj-error;
-    }
+  &.error .material-icons {
+    color: v.$proj-error;
+  }
 
-    &.pending .material-icons {
-        color: v.$color-gray-border;
-    }
+  &.pending .material-icons {
+    color: v.$color-gray-border;
+  }
 }
 
 .progress-bar-mini {
-    height: 3px;
-    background: v.$gray-200;
-    border-radius: 2px;
-    overflow: hidden;
+  height: 3px;
+  background: v.$gray-200;
+  border-radius: 2px;
+  overflow: hidden;
 
-    &.indeterminate .progress-fill-mini {
-        width: 30% !important;
-        animation: indeterminate-progress 1.5s ease-in-out infinite;
-    }
+  &.indeterminate .progress-fill-mini {
+    width: 30% !important;
+    animation: indeterminate-progress 1.5s ease-in-out infinite;
+  }
 }
 
 @keyframes indeterminate-progress {
-    0% {
-        transform: translateX(-100%);
-    }
-    50% {
-        transform: translateX(200%);
-    }
-    100% {
-        transform: translateX(-100%);
-    }
+  0% {
+    transform: translateX(-100%);
+  }
+  50% {
+    transform: translateX(200%);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
 }
 
 .progress-fill-mini {
-    height: 100%;
-    background: v.$proj-running;
-    border-radius: 2px;
-    transition: width 0.3s ease;
+  height: 100%;
+  background: v.$proj-running;
+  border-radius: 2px;
+  transition: width 0.3s ease;
 }

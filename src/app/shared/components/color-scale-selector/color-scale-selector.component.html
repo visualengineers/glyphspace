@@ -14,9 +14,11 @@
       @for (group of groupedColorScales; track group.group; let gi = $index) {
         <div class="color-scale-group-label">{{ group.group }}</div>
         @for (scale of group.scales; track scale.id) {
-          <div class="color-scale-option"
-               [class.active]="scale.id === selectedScale.id"
-               (click)="selectScale(scale.id); $event.stopPropagation()">
+          <div
+            class="color-scale-option"
+            [class.active]="scale.id === selectedScale.id"
+            (click)="selectScale(scale.id); $event.stopPropagation()"
+          >
             @if (scale.type === 'numeric') {
               <div class="color-gradient" [style.background]="getContinuousGradient(scale)"></div>
             } @else {

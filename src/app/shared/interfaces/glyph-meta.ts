@@ -3,7 +3,7 @@ import { Histogram } from '../types/histogram.types';
 // Re-export Histogram from shared types for backward compatibility
 export type { Histogram } from '../types/histogram.types';
 
-export type FeatureStats = {
+export interface FeatureStats {
   type: string; // "categorical" | "numeric"
   histogram: Histogram;
   categories?: string[]; // add optional categorical values for this feature
@@ -12,12 +12,10 @@ export type FeatureStats = {
   median: number;
   variance: number;
   deviation: number;
-};
+}
 
-export type FeaturesData = {
-  [featureId: string]: FeatureStats; // featureId: "1", "2", "3", ...
-};
+export type FeaturesData = Record<string, FeatureStats>;
 
-export type GlyphMeta = {
+export interface GlyphMeta {
   features: FeaturesData;
-};
+}

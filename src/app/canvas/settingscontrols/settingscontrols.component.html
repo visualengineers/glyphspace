@@ -1,7 +1,7 @@
 <div class="settings-panel" [class.active]="panelActive" [class.visible]="visible || panelActive">
   <!-- Left-aligned white button group -->
   <div class="settings-buttons">
-    <button class="setting-btn" [class.active]="activeSetting==='position'" (click)="toggleSetting('position')">
+    <button class="setting-btn" [class.active]="activeSetting === 'position'" (click)="toggleSetting('position')">
       Position:
       <span>{{ this.selectedAlgorithm }}</span>
     </button>
@@ -58,10 +58,18 @@
                     <span class="method-name">{{ proj.method }}</span>
                     <span class="status-indicator" [ngClass]="proj.status">
                       @switch (proj.status) {
-                        @case ('running') { <span class="material-icons spinning">sync</span> }
-                        @case ('complete') { <span class="material-icons">check_circle</span> }
-                        @case ('error') { <span class="material-icons">error</span> }
-                        @case ('pending') { <span class="material-icons">schedule</span> }
+                        @case ('running') {
+                          <span class="material-icons spinning">sync</span>
+                        }
+                        @case ('complete') {
+                          <span class="material-icons">check_circle</span>
+                        }
+                        @case ('error') {
+                          <span class="material-icons">error</span>
+                        }
+                        @case ('pending') {
+                          <span class="material-icons">schedule</span>
+                        }
                       }
                     </span>
                   </div>
@@ -88,8 +96,12 @@
             <button class="icon-btn" (click)="increaseSpeed()" data-tooltip="Increase speed">
               <i class="material-icons">add</i>
             </button>
-            <button class="icon-btn play-btn" (click)="togglePaused()" [class.active]="!paused"
-              [attr.data-tooltip]="paused ? 'Play animation' : 'Pause animation'">
+            <button
+              class="icon-btn play-btn"
+              (click)="togglePaused()"
+              [class.active]="!paused"
+              [attr.data-tooltip]="paused ? 'Play animation' : 'Pause animation'"
+            >
               <i class="material-icons">
                 {{ paused ? 'play_arrow' : 'pause' }}
               </i>

@@ -8,9 +8,7 @@ import { DataType } from '../../models/data-type.enum';
 import { HelpTooltipComponent } from '../../shared/help-tooltip/help-tooltip.component';
 import { HELP_TEXT } from '../../shared/constants/help-text';
 import { STEP_INFO } from '../../shared/constants/step-info';
-import {
-  COLOR_SCALES, ColorScale, buildGroupedColorScales
-} from '../../../shared/interfaces/color-scale';
+import { COLOR_SCALES, ColorScale, buildGroupedColorScales } from '../../../shared/interfaces/color-scale';
 import { ColorScaleSelectorComponent } from '../../../shared/components/color-scale-selector/color-scale-selector.component';
 
 /** Describes a tunable parameter for a projection method. */
@@ -29,7 +27,19 @@ interface ProjectionParam {
  * which is the string union type for method identifiers.
  */
 interface ProjectionMethodUI {
-  key: keyof Pick<ProjectionConfig, 'enablePCA' | 'enableIsoMap' | 'enableMDS' | 'enableLLE' | 'enableLTSA' | 'enableTSNE' | 'enableUMAP' | 'enableTriMap' | 'enableTopoMap' | 'enableSammon'>;
+  key: keyof Pick<
+    ProjectionConfig,
+    | 'enablePCA'
+    | 'enableIsoMap'
+    | 'enableMDS'
+    | 'enableLLE'
+    | 'enableLTSA'
+    | 'enableTSNE'
+    | 'enableUMAP'
+    | 'enableTriMap'
+    | 'enableTopoMap'
+    | 'enableSammon'
+  >;
   name: string;
   description: string;
   icon: string;
@@ -45,33 +55,33 @@ interface ProjectionMethodUI {
   standalone: true,
   imports: [CommonModule, FormsModule, HelpTooltipComponent, ColorScaleSelectorComponent],
   templateUrl: './step4-visualization-settings.component.html',
-  styleUrl: './step4-visualization-settings.component.scss'
+  styleUrl: './step4-visualization-settings.component.scss',
 })
 export class Step4VisualizationSettingsComponent implements OnInit {
   // Color feature selection
   columns: ColumnStatistics[] = [];
   colorFeature: string | null = null;
-  selectedColorScaleId: number = 0;
+  selectedColorScaleId = 0;
   groupedColorScales: { group: string; scales: ColorScale[] }[] = [];
   // Glyph feature mapping
   availableFeatures: string[] = [];
   selectedGlyphFeatures: string[] = [];
   suggestedFeatures: string[] = [];
-  featureVariances: Map<string, number> = new Map();
+  featureVariances = new Map<string, number>();
   readonly MIN_GLYPH_FEATURES = 3;
   readonly MAX_GLYPH_FEATURES = 12;
   draggedFeature: string | null = null;
   draggedFromList: 'selected' | 'available' = 'available';
-  draggedIndex: number = -1;
+  draggedIndex = -1;
 
   // Glyph preview
   selectedGlyphType: 'star' | 'flower' | 'whisker' = 'star';
-  glyphPreviewData: Map<string, number> = new Map();
+  glyphPreviewData = new Map<string, number>();
   readonly PREVIEW_RADIUS = 90;
   readonly PREVIEW_CENTER = 120;
 
   // Projection parameter visibility
-  expandedMethodParams: Set<string> = new Set();
+  expandedMethodParams = new Set<string>();
 
   // Projection configuration (FastMap is always primary, these are background options)
   projectionConfig: ProjectionConfig = {
@@ -92,7 +102,7 @@ export class Step4VisualizationSettingsComponent implements OnInit {
     tsneIterations: 1000,
     umapNeighbors: 15,
     umapMinDist: 0.1,
-    trimapWeightAdj: 500
+    trimapWeightAdj: 500,
   };
 
   readonly TSNE_WARNING_THRESHOLD = 5000;
@@ -106,7 +116,7 @@ export class Step4VisualizationSettingsComponent implements OnInit {
       description: 'Linear projection via eigendecomposition',
       icon: 'analytics',
       badge: 'Very Fast',
-      sizeHint: 'any size'
+      sizeHint: 'any size',
     },
     {
       key: 'enableTriMap',
@@ -116,8 +126,15 @@ export class Step4VisualizationSettingsComponent implements OnInit {
       badge: 'Fast',
       sizeHint: 'up to 100K rows',
       params: [
-        { label: 'Weight Adjustment', helpKey: 'trimapWeightAdj', configKey: 'trimapWeightAdj', min: 100, max: 2000, step: 50 }
-      ]
+        {
+          label: 'Weight Adjustment',
+          helpKey: 'trimapWeightAdj',
+          configKey: 'trimapWeightAdj',
+          min: 100,
+          max: 2000,
+          step: 50,
+        },
+      ],
     },
     {
       key: 'enableMDS',
@@ -126,7 +143,7 @@ export class Step4VisualizationSettingsComponent implements OnInit {
       icon: 'grid_on',
       badge: 'Medium',
       sizeHint: 'up to 5K rows',
-      largeDatasetWarning: true
+      largeDatasetWarning: true,
     },
     {
       key: 'enableIsoMap',
@@ -137,8 +154,8 @@ export class Step4VisualizationSettingsComponent implements OnInit {
       sizeHint: 'up to 5K rows',
       largeDatasetWarning: true,
       params: [
-        { label: 'Neighbors (0 = auto)', helpKey: 'isomapNeighbors', configKey: 'isomapNeighbors', min: 0, max: 200 }
-      ]
+        { label: 'Neighbors (0 = auto)', helpKey: 'isomapNeighbors', configKey: 'isomapNeighbors', min: 0, max: 200 },
+      ],
     },
     {
       key: 'enableLLE',
@@ -148,9 +165,7 @@ export class Step4VisualizationSettingsComponent implements OnInit {
       badge: 'Medium',
       sizeHint: 'up to 30K rows',
       largeDatasetWarning: true,
-      params: [
-        { label: 'Neighbors (0 = auto)', helpKey: 'lleNeighbors', configKey: 'lleNeighbors', min: 0, max: 200 }
-      ]
+      params: [{ label: 'Neighbors (0 = auto)', helpKey: 'lleNeighbors', configKey: 'lleNeighbors', min: 0, max: 200 }],
     },
     {
       key: 'enableLTSA',
@@ -161,8 +176,8 @@ export class Step4VisualizationSettingsComponent implements OnInit {
       sizeHint: 'up to 20K rows',
       largeDatasetWarning: true,
       params: [
-        { label: 'Neighbors (0 = auto)', helpKey: 'ltsaNeighbors', configKey: 'ltsaNeighbors', min: 0, max: 200 }
-      ]
+        { label: 'Neighbors (0 = auto)', helpKey: 'ltsaNeighbors', configKey: 'ltsaNeighbors', min: 0, max: 200 },
+      ],
     },
     {
       key: 'enableTopoMap',
@@ -171,7 +186,7 @@ export class Step4VisualizationSettingsComponent implements OnInit {
       icon: 'terrain',
       badge: 'Medium',
       sizeHint: 'up to 8K rows',
-      largeDatasetWarning: true
+      largeDatasetWarning: true,
     },
     {
       key: 'enableUMAP',
@@ -183,8 +198,8 @@ export class Step4VisualizationSettingsComponent implements OnInit {
       largeDatasetWarning: true,
       params: [
         { label: 'Number of Neighbors', helpKey: 'umapNeighbors', configKey: 'umapNeighbors', min: 2, max: 200 },
-        { label: 'Minimum Distance', helpKey: 'umapMinDist', configKey: 'umapMinDist', min: 0, max: 0.99, step: 0.01 }
-      ]
+        { label: 'Minimum Distance', helpKey: 'umapMinDist', configKey: 'umapMinDist', min: 0, max: 0.99, step: 0.01 },
+      ],
     },
     {
       key: 'enableSammon',
@@ -193,7 +208,7 @@ export class Step4VisualizationSettingsComponent implements OnInit {
       icon: 'hub',
       badge: 'Slow',
       sizeHint: 'up to 5K rows',
-      largeDatasetWarning: true
+      largeDatasetWarning: true,
     },
     {
       key: 'enableTSNE',
@@ -205,17 +220,15 @@ export class Step4VisualizationSettingsComponent implements OnInit {
       largeDatasetWarning: true,
       params: [
         { label: 'Perplexity', helpKey: 'tsnePerplexity', configKey: 'tsnePerplexity', min: 5, max: 50 },
-        { label: 'Iterations', helpKey: 'tsneIterations', configKey: 'tsneIterations', min: 250, max: 5000, step: 250 }
-      ]
-    }
+        { label: 'Iterations', helpKey: 'tsneIterations', configKey: 'tsneIterations', min: 250, max: 5000, step: 250 },
+      ],
+    },
   ];
 
   readonly HELP_TEXT = HELP_TEXT;
   readonly stepInfo = STEP_INFO[3]; // Step 4 (index 3)
 
-  constructor(
-    public preprocessingService: PreprocessingService
-  ) {}
+  constructor(public preprocessingService: PreprocessingService) {}
 
   ngOnInit(): void {
     const state = this.preprocessingService.currentState;
@@ -291,7 +304,7 @@ export class Step4VisualizationSettingsComponent implements OnInit {
     const profile = state.dataProfile;
     if (!profile) return;
 
-    const featureScores: Array<{name: string; score: number}> = [];
+    const featureScores: { name: string; score: number }[] = [];
 
     for (const feature of this.availableFeatures) {
       const baseColName = feature.split('_')[0];
@@ -376,8 +389,10 @@ export class Step4VisualizationSettingsComponent implements OnInit {
   }
 
   saveGlyphFeatures(): void {
-    if (this.selectedGlyphFeatures.length >= this.MIN_GLYPH_FEATURES &&
-        this.selectedGlyphFeatures.length <= this.MAX_GLYPH_FEATURES) {
+    if (
+      this.selectedGlyphFeatures.length >= this.MIN_GLYPH_FEATURES &&
+      this.selectedGlyphFeatures.length <= this.MAX_GLYPH_FEATURES
+    ) {
       this.preprocessingService.setGlyphFeatures(this.selectedGlyphFeatures);
     }
   }
@@ -486,7 +501,7 @@ export class Step4VisualizationSettingsComponent implements OnInit {
   private simpleHash(str: string): number {
     let hash = 0;
     for (let i = 0; i < str.length; i++) {
-      hash = ((hash << 5) - hash) + str.charCodeAt(i);
+      hash = (hash << 5) - hash + str.charCodeAt(i);
       hash |= 0;
     }
     return Math.abs(hash);
@@ -510,7 +525,7 @@ export class Step4VisualizationSettingsComponent implements OnInit {
     return `M${points.join('L')}Z`;
   }
 
-  generateFlowerPetals(): Array<{ path: string; angleDeg: number }> {
+  generateFlowerPetals(): { path: string; angleDeg: number }[] {
     const segments = this.selectedGlyphFeatures.length;
     if (segments < 3) return [];
     const r = this.PREVIEW_RADIUS;
@@ -528,14 +543,14 @@ export class Step4VisualizationSettingsComponent implements OnInit {
         `0,${(-petalLength).toFixed(1)}`,
         `C${(-petalWidth * 0.6).toFixed(1)},${(-petalLength * 0.75).toFixed(1)}`,
         `${(-petalWidth * 0.25).toFixed(1)},${(-petalLength * 0.3).toFixed(1)}`,
-        `0,0`
+        `0,0`,
       ].join(' ');
 
       return { path: d, angleDeg };
     });
   }
 
-  generateWhiskerBars(): Array<{ length: number; angleDeg: number }> {
+  generateWhiskerBars(): { length: number; angleDeg: number }[] {
     const segments = this.selectedGlyphFeatures.length;
     if (segments < 3) return [];
     const r = this.PREVIEW_RADIUS;
@@ -548,7 +563,7 @@ export class Step4VisualizationSettingsComponent implements OnInit {
     });
   }
 
-  getPreviewAxes(): Array<{ x: number; y: number }> {
+  getPreviewAxes(): { x: number; y: number }[] {
     const segments = this.selectedGlyphFeatures.length;
     if (segments < 3) return [];
     const cx = this.PREVIEW_CENTER;
@@ -559,12 +574,12 @@ export class Step4VisualizationSettingsComponent implements OnInit {
       const angle = (i / segments) * Math.PI * 2;
       return {
         x: cx + Math.cos(angle) * r,
-        y: cy - Math.sin(angle) * r
+        y: cy - Math.sin(angle) * r,
       };
     });
   }
 
-  getPreviewAxisLabels(): Array<{ x: number; y: number; name: string; anchor: string }> {
+  getPreviewAxisLabels(): { x: number; y: number; name: string; anchor: string }[] {
     const segments = this.selectedGlyphFeatures.length;
     if (segments < 3) return [];
     const cx = this.PREVIEW_CENTER;
@@ -607,8 +622,9 @@ export class Step4VisualizationSettingsComponent implements OnInit {
   // ============================================================================
 
   canProceed(): boolean {
-    const glyphValid = this.selectedGlyphFeatures.length >= this.MIN_GLYPH_FEATURES &&
-                      this.selectedGlyphFeatures.length <= this.MAX_GLYPH_FEATURES;
+    const glyphValid =
+      this.selectedGlyphFeatures.length >= this.MIN_GLYPH_FEATURES &&
+      this.selectedGlyphFeatures.length <= this.MAX_GLYPH_FEATURES;
     const projectionValid = this.hasEnabledMethod();
     return glyphValid && projectionValid;
   }

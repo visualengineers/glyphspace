@@ -42,7 +42,9 @@
   align-items: center;
   justify-content: center;
   color: v.$gray-600;
-  transition: background-color 0.15s ease, color 0.15s ease;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
 
   &:hover {
     background: v.$gray-100;

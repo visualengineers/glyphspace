@@ -99,7 +99,7 @@
       color: v.$gray-700;
       white-space: nowrap;
 
-      input[type="checkbox"] {
+      input[type='checkbox'] {
         width: 14px;
         height: 14px;
         cursor: pointer;
@@ -203,7 +203,7 @@
   .item-projection {
     flex-shrink: 0;
 
-    input[type="checkbox"] {
+    input[type='checkbox'] {
       width: 16px;
       height: 16px;
       cursor: pointer;
@@ -396,7 +396,7 @@
       font-weight: 500;
       color: v.$gray-800;
 
-      input[type="checkbox"] {
+      input[type='checkbox'] {
         @include w.checkbox;
       }
     }
@@ -495,7 +495,7 @@
           color: v.$gray-800;
           font-weight: 500;
 
-          input[type="checkbox"] {
+          input[type='checkbox'] {
             @include w.checkbox;
           }
         }

@@ -1,4 +1,4 @@
-import { ZoomLevel } from "../shared/enum/zoom-level";
+import { ZoomLevel } from '../shared/enum/zoom-level';
 
 export class GlyphSizeInfo {
   private radii = new Map<ZoomLevel, number>();
@@ -14,14 +14,10 @@ export class GlyphSizeInfo {
     private baseRadius = 2,
     private baseContour = 0.3,
     private baseHitTolerance = 8
-  ) { }
+  ) {}
 
   clone(): GlyphSizeInfo {
-    const cloned = new GlyphSizeInfo(
-      this.baseRadius,
-      this.baseContour,
-      this.baseHitTolerance
-    );
+    const cloned = new GlyphSizeInfo(this.baseRadius, this.baseContour, this.baseHitTolerance);
 
     // Clone maps
     this.radii.forEach((value, key) => cloned.radii.set(key, value));
@@ -45,7 +41,7 @@ export class GlyphSizeInfo {
     const depthFactor = window.screen.pixelDepth / 24;
 
     const scale = 1.25; // pixelRatio * depthFactor;
-    const base = 1 / (depthFactor / pixelRatio) * (minDim / baseDim); // minDim * this.baseRatio;
+    const base = (1 / (depthFactor / pixelRatio)) * (minDim / baseDim); // minDim * this.baseRatio;
 
     this.radii.set(ZoomLevel.low, base * this.baseRadius);
     this.radii.set(ZoomLevel.medium, base * this.baseRadius * scale);
@@ -56,8 +52,8 @@ export class GlyphSizeInfo {
     this.contourThicknesses.set(ZoomLevel.high, this.baseContour * scale);
 
     this.hitTolerances.set(ZoomLevel.low, this.baseHitTolerance / depthFactor / pixelRatio);
-    this.hitTolerances.set(ZoomLevel.medium, this.baseHitTolerance * 4 / depthFactor / pixelRatio);
-    this.hitTolerances.set(ZoomLevel.high, this.baseHitTolerance * 16 / depthFactor / pixelRatio);
+    this.hitTolerances.set(ZoomLevel.medium, (this.baseHitTolerance * 4) / depthFactor / pixelRatio);
+    this.hitTolerances.set(ZoomLevel.high, (this.baseHitTolerance * 16) / depthFactor / pixelRatio);
 
     this.updateInfo();
   }
@@ -72,7 +68,7 @@ export class GlyphSizeInfo {
   // === Zoom level management ===
   set currentZoomLevel(level: ZoomLevel) {
     this._currentZoomLevel = level;
-    this.updateInfo();  // Update AFTER setting the new level
+    this.updateInfo(); // Update AFTER setting the new level
   }
 
   get currentZoomLevel(): ZoomLevel {

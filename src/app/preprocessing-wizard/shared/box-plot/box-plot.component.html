@@ -1,8 +1,4 @@
-<svg
-  [attr.width]="width"
-  [attr.height]="height"
-  class="box-plot">
-
+<svg [attr.width]="width" [attr.height]="height" class="box-plot">
   <!-- Left whisker -->
   <line
     [attr.x1]="whiskerLeftPos"
@@ -11,7 +7,8 @@
     [attr.y2]="height / 2"
     [attr.stroke]="color"
     stroke-width="1.5"
-    class="whisker">
+    class="whisker"
+  >
     <title>Min: {{ formatValue(min) }}</title>
   </line>
 
@@ -23,7 +20,8 @@
     [attr.y2]="height / 2"
     [attr.stroke]="color"
     stroke-width="1.5"
-    class="whisker">
+    class="whisker"
+  >
     <title>Max: {{ formatValue(max) }}</title>
   </line>
 
@@ -37,7 +35,8 @@
     fill-opacity="0.2"
     [attr.stroke]="color"
     stroke-width="1.5"
-    class="box">
+    class="box"
+  >
     <title>Q1: {{ formatValue(q1) }} | Q3: {{ formatValue(q3) }}</title>
   </rect>
 
@@ -49,18 +48,14 @@
     [attr.y2]="boxY + boxHeight"
     [attr.stroke]="color"
     stroke-width="2"
-    class="median">
+    class="median"
+  >
     <title>Median: {{ formatValue(median) }}</title>
   </line>
 
   <!-- Mean marker (circle) -->
   @if (meanPos !== undefined) {
-    <circle
-      [attr.cx]="meanPos"
-      [attr.cy]="height / 2"
-      r="3"
-      [attr.fill]="color"
-      class="mean">
+    <circle [attr.cx]="meanPos" [attr.cy]="height / 2" r="3" [attr.fill]="color" class="mean">
       <title>Mean: {{ formatValue(mean) }}</title>
     </circle>
   }
@@ -73,7 +68,8 @@
     [attr.y2]="boxY + boxHeight - 4"
     [attr.stroke]="color"
     stroke-width="1.5"
-    class="whisker-cap" />
+    class="whisker-cap"
+  />
 
   <!-- Max cap -->
   <line
@@ -83,7 +79,8 @@
     [attr.y2]="boxY + boxHeight - 4"
     [attr.stroke]="color"
     stroke-width="1.5"
-    class="whisker-cap" />
+    class="whisker-cap"
+  />
 
   <!-- Min label -->
   <text
@@ -92,7 +89,8 @@
     class="axis-label"
     text-anchor="middle"
     [attr.fill]="color"
-    font-size="9">
+    font-size="9"
+  >
     {{ formatShortValue(min) }}
   </text>
 
@@ -103,7 +101,8 @@
     class="axis-label"
     text-anchor="middle"
     [attr.fill]="color"
-    font-size="9">
+    font-size="9"
+  >
     {{ formatShortValue(max) }}
   </text>
 </svg>

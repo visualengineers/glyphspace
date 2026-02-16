@@ -7,22 +7,21 @@ import { HistogramData } from '../../models/column-statistics';
   standalone: true,
   imports: [],
   templateUrl: './histogram-chart.component.html',
-  styleUrl: './histogram-chart.component.scss'
+  styleUrl: './histogram-chart.component.scss',
 })
 export class HistogramChartComponent implements OnInit, OnChanges, AfterViewInit {
   @ViewChild('chart', { static: false }) chartContainer!: ElementRef;
 
   @Input() data!: HistogramData;
-  @Input() width: number = 300;
-  @Input() height: number = 150;
-  @Input() showAxes: boolean = true;
-  @Input() color: string = '#2196F3';
+  @Input() width = 300;
+  @Input() height = 150;
+  @Input() showAxes = true;
+  @Input() color = '#2196F3';
 
   private svg: any;
   private initialized = false;
 
-  ngOnInit(): void {
-  }
+  ngOnInit(): void {}
 
   ngAfterViewInit(): void {
     this.initialized = true;
@@ -51,7 +50,8 @@ export class HistogramChartComponent implements OnInit, OnChanges, AfterViewInit
     const height = this.height - margin.top - margin.bottom;
 
     // Create SVG
-    this.svg = d3.select(this.chartContainer.nativeElement)
+    this.svg = d3
+      .select(this.chartContainer.nativeElement)
       .append('svg')
       .attr('width', this.width)
       .attr('height', this.height)
@@ -59,18 +59,18 @@ export class HistogramChartComponent implements OnInit, OnChanges, AfterViewInit
       .attr('transform', `translate(${margin.left},${margin.top})`);
 
     // Scales
-    const xScale = d3.scaleLinear()
-      .domain([0, this.data.counts.length])
-      .range([0, width]);
+    const xScale = d3.scaleLinear().domain([0, this.data.counts.length]).range([0, width]);
 
-    const yScale = d3.scaleLinear()
+    const yScale = d3
+      .scaleLinear()
       .domain([0, d3.max(this.data.counts) || 1])
       .range([height, 0]);
 
     // Bars
     const barWidth = width / this.data.counts.length;
 
-    this.svg.selectAll('.bar')
+    this.svg
+      .selectAll('.bar')
       .data(this.data.counts)
       .enter()
       .append('rect')
@@ -81,16 +81,17 @@ export class HistogramChartComponent implements OnInit, OnChanges, AfterViewInit
       .attr('height', (d: number) => height - yScale(d))
       .attr('fill', this.color)
       .attr('opacity', 0.8)
-      .on('mouseover', function(this: SVGRectElement) {
+      .on('mouseover', function (this: SVGRectElement) {
         d3.select(this).attr('opacity', 1);
       })
-      .on('mouseout', function(this: SVGRectElement) {
+      .on('mouseout', function (this: SVGRectElement) {
         d3.select(this).attr('opacity', 0.8);
       });
 
     if (this.showAxes) {
       // X Axis
-      const xAxis = d3.axisBottom(xScale)
+      const xAxis = d3
+        .axisBottom(xScale)
         .ticks(5)
         .tickFormat((d: any) => {
           const index = Math.floor(d);
@@ -100,20 +101,17 @@ export class HistogramChartComponent implements OnInit, OnChanges, AfterViewInit
           return '';
         });
 
-      this.svg.append('g')
+      this.svg
+        .append('g')
         .attr('transform', `translate(0,${height})`)
         .call(xAxis)
         .selectAll('text')
         .style('font-size', '10px');
 
       // Y Axis
-      const yAxis = d3.axisLeft(yScale)
-        .ticks(5);
+      const yAxis = d3.axisLeft(yScale).ticks(5);
 
-      this.svg.append('g')
-        .call(yAxis)
-        .selectAll('text')
-        .style('font-size', '10px');
+      this.svg.append('g').call(yAxis).selectAll('text').style('font-size', '10px');
     }
   }
 }

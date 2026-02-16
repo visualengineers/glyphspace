@@ -12,10 +12,7 @@
       </div>
     </div>
 
-    <app-progress-stepper
-      [steps]="steps"
-      [currentStep]="currentStep"
-      (stepClick)="onStepClick($event)">
+    <app-progress-stepper [steps]="steps" [currentStep]="currentStep" (stepClick)="onStepClick($event)">
     </app-progress-stepper>
   </div>
 
@@ -50,5 +47,4 @@
       }
     </div>
   </div>
-
 </div>

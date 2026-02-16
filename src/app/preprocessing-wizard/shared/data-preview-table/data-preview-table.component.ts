@@ -4,13 +4,13 @@ import { Component, Input } from '@angular/core';
   standalone: true,
   imports: [],
   templateUrl: './data-preview-table.component.html',
-  styleUrl: './data-preview-table.component.scss'
+  styleUrl: './data-preview-table.component.scss',
 })
 export class DataPreviewTableComponent {
   @Input() data: any[] = [];
   @Input() columns: string[] = [];
-  @Input() highlightColumns: Set<string> = new Set();
-  @Input() maxRows: number = 10;
+  @Input() highlightColumns = new Set<string>();
+  @Input() maxRows = 10;
 
   get displayData(): any[] {
     return this.data.slice(0, this.maxRows);

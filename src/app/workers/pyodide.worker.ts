@@ -10,7 +10,7 @@ const pyodideModule = await import('https://cdn.jsdelivr.net/pyodide/v0.28.0/ful
 
 const pyodideReady = (async () => {
   const pyodide = await pyodideModule.loadPyodide({
-    indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.28.0/full/'
+    indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.28.0/full/',
   });
 
   await pyodide.loadPackage('micropip');
@@ -47,21 +47,25 @@ self.onmessage = async (ev: MessageEvent<WorkerRequest>) => {
             pyodide.FS.writeFile('processor.py', pyCode);
           }
 
-          const dataset: DatasetCollection = await pyodide.runPythonAsync(`
+          const dataset: DatasetCollection = await pyodide
+            .runPythonAsync(
+              `
             import json, processor
             processor.process_csv_file("${fileName}")
-          `).then(JSON.parse);
+          `
+            )
+            .then(JSON.parse);
 
-          postMessage(<WorkerReply>{ type: 'processed', dataset });
+          postMessage({ type: 'processed', dataset } as WorkerReply);
           break;
         }
         case 'getJson': {
           const { file } = ev.data;
           const text = pyodide.FS.readFile(file, { encoding: 'utf8' });
-          postMessage(<WorkerReply>{ type: 'json', file, data: JSON.parse(text) });
+          postMessage({ type: 'json', file, data: JSON.parse(text) } as WorkerReply);
           break;
         }
-        case "unzip": {
+        case 'unzip': {
           const { fileName, buffer } = ev.data;
           const zipName = fileName.replace(/\.zip$/, '');
           const zipPath = `${zipName}.zip`;
@@ -95,32 +99,32 @@ self.onmessage = async (ev: MessageEvent<WorkerRequest>) => {
             }
 
             const files = (pyodide.FS as any).readdir(`/${zipName}`);
-            const images = files.filter((f: string) =>
-              /\.(png|jpe?g|webp)$/i.test(f)
-            );
+            const images = files.filter((f: string) => /\.(png|jpe?g|webp)$/i.test(f));
 
-            postMessage({ type: "unzipped", folder: zipName, images });
-
+            postMessage({ type: 'unzipped', folder: zipName, images });
           } catch (err: any) {
-            postMessage({ type: "error", message: `Unzip failed: ${err.message}` });
+            postMessage({ type: 'error', message: `Unzip failed: ${err.message}` });
           }
           break;
         }
-        case "getThumb": {
+        case 'getThumb': {
           const filePath = ev.data.file;
           try {
             const data = (pyodide.FS as any).readFile(`/${filePath}`, { encoding: 'binary' });
-            postMessage({
-              type: "thumb",
-              file: filePath,
-              data: data.buffer
-            }, [data.buffer]);
+            postMessage(
+              {
+                type: 'thumb',
+                file: filePath,
+                data: data.buffer,
+              },
+              [data.buffer]
+            );
           } catch (err: any) {
-            postMessage({ type: "error", message: `Thumbnail error: ${err.message}` });
+            postMessage({ type: 'error', message: `Thumbnail error: ${err.message}` });
           }
           break;
         }
-        case "profileData": {
+        case 'profileData': {
           const { fileName, buffer } = ev.data;
           pyodide.FS.writeFile(fileName, new Uint8Array(buffer));
 
@@ -138,10 +142,10 @@ self.onmessage = async (ev: MessageEvent<WorkerRequest>) => {
           const profile = JSON.parse(profileJson);
           profile.fileSize = buffer.byteLength;
 
-          postMessage(<WorkerReply>{ type: 'dataProfile', profile });
+          postMessage({ type: 'dataProfile', profile } as WorkerReply);
           break;
         }
-        case "computeHistogram": {
+        case 'computeHistogram': {
           const { fileName, columnName, bins = 50 } = ev.data;
 
           const histogramJson = await pyodide.runPythonAsync(`
@@ -151,10 +155,10 @@ self.onmessage = async (ev: MessageEvent<WorkerRequest>) => {
 
           const histogram = JSON.parse(histogramJson);
 
-          postMessage(<WorkerReply>{ type: 'histogram', columnName, data: histogram });
+          postMessage({ type: 'histogram', columnName, data: histogram } as WorkerReply);
           break;
         }
-        case "detectOutliers": {
+        case 'detectOutliers': {
           const { fileName, columnName, method } = ev.data;
 
           const outliersJson = await pyodide.runPythonAsync(`
@@ -164,10 +168,10 @@ self.onmessage = async (ev: MessageEvent<WorkerRequest>) => {
 
           const outliers = JSON.parse(outliersJson);
 
-          postMessage(<WorkerReply>{ type: 'outliers', columnName, data: outliers });
+          postMessage({ type: 'outliers', columnName, data: outliers } as WorkerReply);
           break;
         }
-        case "detectDuplicates": {
+        case 'detectDuplicates': {
           const { fileName, subsetColumns } = ev.data;
 
           let pythonCode: string;
@@ -188,10 +192,10 @@ self.onmessage = async (ev: MessageEvent<WorkerRequest>) => {
           const duplicatesJson = await pyodide.runPythonAsync(pythonCode);
           const duplicates = JSON.parse(duplicatesJson);
 
-          postMessage(<WorkerReply>{ type: 'duplicates', data: duplicates });
+          postMessage({ type: 'duplicates', data: duplicates } as WorkerReply);
           break;
         }
-        case "processWithConfig": {
+        case 'processWithConfig': {
           const { fileName, config } = ev.data;
 
           // Load config-based processor if not already loaded
@@ -209,7 +213,7 @@ self.onmessage = async (ev: MessageEvent<WorkerRequest>) => {
               type: 'processingProgress',
               step: step,
               progress: progress,
-              message: message
+              message: message,
             });
           });
 
@@ -243,7 +247,7 @@ preprocessing_processor_config.process_with_config(
           const resultText = pyodide.FS.readFile(outputFileName, { encoding: 'utf8' });
           const dataset = JSON.parse(resultText);
 
-          postMessage(<WorkerReply>{ type: 'processed', dataset });
+          postMessage({ type: 'processed', dataset } as WorkerReply);
 
           // Cleanup: files are no longer needed after processing
           try {
@@ -259,19 +263,19 @@ preprocessing_processor_config.process_with_config(
 
           break;
         }
-        case "getProcessedFeatures": {
+        case 'getProcessedFeatures': {
           // Read processed features CSV exported by Python for JavaScript projections
           try {
             const csvText = pyodide.FS.readFile('processed_features.csv', { encoding: 'utf8' });
-            postMessage(<WorkerReply>{ type: 'processedFeatures', data: csvText });
+            postMessage({ type: 'processedFeatures', data: csvText } as WorkerReply);
           } catch (err: any) {
-            postMessage(<WorkerReply>{ type: 'error', message: `Failed to read processed features: ${err.message}` });
+            postMessage({ type: 'error', message: `Failed to read processed features: ${err.message}` } as WorkerReply);
           }
           break;
         }
       }
     } catch (err: any) {
-      postMessage(<WorkerReply>{ type: 'error', message: err.message ?? String(err) });
+      postMessage({ type: 'error', message: err.message ?? String(err) } as WorkerReply);
     }
   });
 };

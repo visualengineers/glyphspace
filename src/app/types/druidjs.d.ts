@@ -29,12 +29,15 @@ declare module '@saehrimnir/druidjs' {
    * Preserves local structure for cluster discovery
    */
   export class TSNE {
-    constructor(data: number[][], parameters?: {
-      d?: number;           // Output dimensions (default: 2)
-      perplexity?: number;  // Balances local vs global (default: 30)
-      epsilon?: number;     // Learning rate (default: 10)
-      iterations?: number;  // Number of iterations (default: 1000)
-    });
+    constructor(
+      data: number[][],
+      parameters?: {
+        d?: number; // Output dimensions (default: 2)
+        perplexity?: number; // Balances local vs global (default: 30)
+        epsilon?: number; // Learning rate (default: 10)
+        iterations?: number; // Number of iterations (default: 1000)
+      }
+    );
     transform(): number[][];
   }
 
@@ -43,12 +46,15 @@ declare module '@saehrimnir/druidjs' {
    * Balances local and global structure
    */
   export class UMAP {
-    constructor(data: number[][], parameters?: {
-      d?: number;           // Output dimensions (default: 2)
-      n_neighbors?: number; // Number of neighbors (default: 15)
-      min_dist?: number;    // Minimum distance (default: 0.1)
-      local_connectivity?: number;  // Local connectivity (default: 1)
-    });
+    constructor(
+      data: number[][],
+      parameters?: {
+        d?: number; // Output dimensions (default: 2)
+        n_neighbors?: number; // Number of neighbors (default: 15)
+        min_dist?: number; // Minimum distance (default: 0.1)
+        local_connectivity?: number; // Local connectivity (default: 1)
+      }
+    );
     transform(): number[][];
   }
 

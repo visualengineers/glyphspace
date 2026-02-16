@@ -4,19 +4,19 @@ import { Component, Input, OnChanges } from '@angular/core';
   standalone: true,
   imports: [],
   templateUrl: './sparkline-chart.component.html',
-  styleUrl: './sparkline-chart.component.scss'
+  styleUrl: './sparkline-chart.component.scss',
 })
 export class SparklineChartComponent implements OnChanges {
   @Input() data: number[] = [];
-  @Input() labels: string[] = [];  // Labels for tooltip
-  @Input() width: number = 100;
-  @Input() height: number = 30;
-  @Input() color: string = '#00bcd4';
+  @Input() labels: string[] = []; // Labels for tooltip
+  @Input() width = 100;
+  @Input() height = 30;
+  @Input() color = '#00bcd4';
   @Input() type: 'bar' | 'line' = 'bar';
 
-  svgPath: string = '';
-  bars: Array<{ x: number; y: number; width: number; height: number; label: string; value: number }> = [];
-  maxValue: number = 0;
+  svgPath = '';
+  bars: { x: number; y: number; width: number; height: number; label: string; value: number }[] = [];
+  maxValue = 0;
 
   ngOnChanges(): void {
     if (this.data && this.data.length > 0) {
@@ -39,16 +39,14 @@ export class SparklineChartComponent implements OnChanges {
       const barHeight = this.maxValue > 0 ? (value / this.maxValue) * this.height : 0;
       // If label is provided, use it as-is (may already include count)
       // Otherwise create a default label with count
-      const label = this.labels && this.labels[index]
-        ? this.labels[index]
-        : `#${index + 1}: ${value}`;
+      const label = this.labels && this.labels[index] ? this.labels[index] : `#${index + 1}: ${value}`;
       return {
         x: index * barWidth,
         y: this.height - barHeight,
         width: actualBarWidth,
         height: barHeight,
         label: label,
-        value: value
+        value: value,
       };
     });
   }

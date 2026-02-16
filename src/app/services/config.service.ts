@@ -9,6 +9,7 @@ import { GlyphConfiguration } from '../glyph/glyph-configuration';
 import { ItemFilter } from '../shared/filter/item-filter';
 import { IdFilter } from '../shared/filter/id-filter';
 import { COLOR_SCALES, ColorScale } from '../shared/interfaces/color-scale';
+import { normalizeFeatureValue } from '../shared/helpers/color-helper';
 
 @Injectable({
   providedIn: 'root',
@@ -17,12 +18,12 @@ export class ConfigService {
   colorScales: ColorScale[] = COLOR_SCALES;
 
   private _activeFeatures: string[] = [];
-  private _colorFeature: string = "";
+  private _colorFeature = '';
   private _featureLabels: Record<string, string> = {};
   private _featureTypes: Record<string, string> = {};
   private _featureMaxValues: Record<string, number> = {};
-  private _dataSource: string = "";
-  private _selectedColorScale: number = 0;
+  private _dataSource = '';
+  private _selectedColorScale = 0;
 
   // Flag to indicate if a modal (like preprocessing wizard) is open
   // Used to hide tooltips when modals are displayed
@@ -57,9 +58,8 @@ export class ConfigService {
   private animateGlyphSubject = new BehaviorSubject<GlyphObject | null>(null);
   animateGlyphSubject$ = this.animateGlyphSubject.asObservable();
 
-  private loadedDataSubject = new BehaviorSubject<string>("");
+  private loadedDataSubject = new BehaviorSubject<string>('');
   loadedDataSubject$ = this.loadedDataSubject.asObservable();
-  
 
   // --- Methods to update config ---
   redrawGlyph(glyph: GlyphObject) {
@@ -67,7 +67,7 @@ export class ConfigService {
   }
 
   reRender() {
-      this.commandSubject.next(InteractionCommand.rerender);
+    this.commandSubject.next(InteractionCommand.rerender);
   }
 
   removeCanvas(id: number) {
@@ -77,7 +77,7 @@ export class ConfigService {
   drawMagicLensGlyphs(glyphs: GlyphObject[]) {
     this.drawMagicLensGlyphsSubject.next(glyphs);
   }
- 
+
   animateGlyph(glyph: GlyphObject | null) {
     this.animateGlyphSubject.next(glyph);
   }
@@ -111,24 +111,23 @@ export class ConfigService {
   }
 
   getRgbaColor(features: Features): string {
-    let currentColor = hexToRgb("#00cc88");
+    let currentColor = hexToRgb('#00cc88');
     if (features != null) {
-      let featureValue = features["1"][this._colorFeature];
+      const featureValue = normalizeFeatureValue(
+        features['1'][this._colorFeature],
+        this._colorFeature,
+        this._featureTypes,
+        this._featureMaxValues
+      );
 
-      // Normalize categorical values to [0,1] range for proper color mapping
-      const featureType = this._featureTypes[this._colorFeature];
-      if (featureType === 'categorical') {
-        const maxValue = this._featureMaxValues[this._colorFeature];
-        if (maxValue !== undefined && maxValue > 0) {
-          featureValue = featureValue / maxValue;
-        }
+      const scale = this.color;
+      if (scale) {
+        currentColor = scale(featureValue);
+        if (!this.colorRange) currentColor = hexToRgb(currentColor);
       }
-
-      currentColor = this.color(featureValue);
-      if (!this.colorRange) currentColor = hexToRgb(currentColor);
     }
 
-    return currentColor
+    return currentColor;
   }
 
   getConfiguration(): GlyphConfiguration {
@@ -144,7 +143,7 @@ export class ConfigService {
     this.activeFeatures.push(...features);
   }
 
-  get color(): any {
+  get color(): d3.ScaleLinear<string, string> | d3.ScaleQuantize<string> | undefined {
     return this.colorScales.find(s => s.id === this._selectedColorScale)?.scale;
   }
 

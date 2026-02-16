@@ -1,8 +1,8 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, inject, Input, NgZone, OnDestroy, Output } from '@angular/core';
+import { Component, EventEmitter, inject, Input, NgZone, OnDestroy, Output, OnInit } from '@angular/core';
 import { ConfigService } from '../../services/config.service';
 import { FormsModule } from '@angular/forms';
-import { DataProviderService } from '../../services/dataprovider.service';
+import { FilterService } from '../../services/filter.service';
 import { ProjectionService } from '../../services/projection.service';
 import { Subscription } from 'rxjs';
 
@@ -15,7 +15,7 @@ export type SettingMode = 'position' | null;
   templateUrl: './settingscontrols.component.html',
   styleUrls: ['./settingscontrols.component.scss'],
 })
-export class SettingsControlPanelComponent implements OnDestroy {
+export class SettingsControlPanelComponent implements OnDestroy, OnInit {
   @Input() visible = false;
 
   panelActive = false;
@@ -24,7 +24,13 @@ export class SettingsControlPanelComponent implements OnDestroy {
   paused = true;
 
   // Background projection status
-  backgroundProjections: Array<{ method: string; status: string; progress: number; message: string; fading?: boolean }> = [];
+  backgroundProjections: {
+    method: string;
+    status: string;
+    progress: number;
+    message: string;
+    fading?: boolean;
+  }[] = [];
   private backgroundStatusSubscription?: Subscription;
   private completedProjectionTimers = new Map<string, ReturnType<typeof setTimeout>>();
   private fadingTimers = new Map<string, ReturnType<typeof setTimeout>>();
@@ -33,7 +39,7 @@ export class SettingsControlPanelComponent implements OnDestroy {
   private ngZone!: NgZone;
 
   @Input() parentId!: number;
-  @Input() totalCells: number = 0;
+  @Input() totalCells = 0;
 
   @Input() collisionAvoidance!: boolean;
   @Input() aggregated!: boolean;
@@ -63,7 +69,7 @@ export class SettingsControlPanelComponent implements OnDestroy {
 
   constructor(
     private config: ConfigService,
-    private dataProvider: DataProviderService,
+    private filterService: FilterService,
     private projectionService: ProjectionService
   ) {
     this.ngZone = inject(NgZone);
@@ -73,7 +79,13 @@ export class SettingsControlPanelComponent implements OnDestroy {
     // Subscribe to background projection status updates
     this.backgroundStatusSubscription = this.projectionService.backgroundStatusObservable.subscribe(statusMap => {
       this.ngZone.run(() => {
-        const newProjections: Array<{ method: string; status: string; progress: number; message: string; fading?: boolean }> = [];
+        const newProjections: {
+          method: string;
+          status: string;
+          progress: number;
+          message: string;
+          fading?: boolean;
+        }[] = [];
 
         statusMap.forEach((status, method) => {
           if (status.status === 'running' || status.status === 'pending') {
@@ -90,7 +102,7 @@ export class SettingsControlPanelComponent implements OnDestroy {
               method,
               status: status.status,
               progress: status.progress,
-              message: status.message
+              message: status.message,
             });
           } else if (status.status === 'complete') {
             if (!this.completedProjectionTimers.has(method)) {
@@ -121,7 +133,7 @@ export class SettingsControlPanelComponent implements OnDestroy {
                 status: status.status,
                 progress: 100,
                 message: status.message,
-                fading: false
+                fading: false,
               });
             }
           }
@@ -168,7 +180,7 @@ export class SettingsControlPanelComponent implements OnDestroy {
   }
 
   clearSelection() {
-    this.dataProvider.clearFilters();
+    this.filterService.clearFilters();
     this.config.clearSelection();
   }
 
@@ -176,7 +188,7 @@ export class SettingsControlPanelComponent implements OnDestroy {
     this.settingsChanged.emit({
       timestamp: this.selectedTimestamp,
       algorithm: this.selectedAlgorithm,
-      context: this.selectedContext
+      context: this.selectedContext,
     });
     this.paused = false;
   }

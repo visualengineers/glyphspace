@@ -6,8 +6,10 @@ import { DataType, getDataTypeBadgeClass, getDataTypeLabel } from '../../../prep
   selector: 'app-data-type-badge',
   standalone: true,
   imports: [CommonModule],
-  template: `<span class="data-type-badge" [ngClass]="getDataTypeBadgeClass(dataType)">{{ getDataTypeLabel(dataType) }}</span>`,
-  styleUrl: './data-type-badge.component.scss'
+  template: `<span class="data-type-badge" [ngClass]="getDataTypeBadgeClass(dataType)">{{
+    getDataTypeLabel(dataType)
+  }}</span>`,
+  styleUrl: './data-type-badge.component.scss',
 })
 export class DataTypeBadgeComponent {
   @Input() dataType!: DataType;

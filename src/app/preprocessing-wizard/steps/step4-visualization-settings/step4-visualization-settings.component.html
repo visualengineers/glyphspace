@@ -10,9 +10,7 @@
       <div class="panel-header-row">
         <div class="form-group">
           <label class="menu-label">COLOR ATTRIBUTE</label>
-          <select
-            [ngModel]="colorFeature"
-            (ngModelChange)="setColorFeature($event)">
+          <select [ngModel]="colorFeature" (ngModelChange)="setColorFeature($event)">
             @for (column of columns; track column.name) {
               <option [value]="column.name">{{ column.name }}</option>
             }
@@ -24,7 +22,8 @@
           <app-color-scale-selector
             [groupedColorScales]="groupedColorScales"
             [selectedScale]="getSelectedColorScale()"
-            (scaleSelected)="selectColorScale($event)">
+            (scaleSelected)="selectColorScale($event)"
+          >
           </app-color-scale-selector>
         </div>
       </div>
@@ -32,7 +31,6 @@
 
     <!-- ====== Two-Column: Glyph Features + Live Preview ====== -->
     <div class="glyph-section-two-col">
-
       <!-- LEFT: Feature Selection -->
       <div class="config-panel glyph-features-panel">
         <div class="glyph-panel-header">
@@ -41,8 +39,11 @@
             Glyph Features ({{ selectedGlyphFeatures.length }}/{{ MAX_GLYPH_FEATURES }})
             <app-help-tooltip [helpText]="HELP_TEXT.general.glyphFeatures"></app-help-tooltip>
           </h3>
-          <button class="btn-suggestion-compact" (click)="applySuggestedFeatures()"
-                  [disabled]="suggestedFeatures.length === 0 || !suggestionsWouldChange()">
+          <button
+            class="btn-suggestion-compact"
+            (click)="applySuggestedFeatures()"
+            [disabled]="suggestedFeatures.length === 0 || !suggestionsWouldChange()"
+          >
             <span class="material-icons">auto_awesome</span>
             Smart Suggestions
           </button>
@@ -54,14 +55,15 @@
             <div
               class="progress-fill"
               [style.width.%]="(selectedGlyphFeatures.length / MAX_GLYPH_FEATURES) * 100"
-              [class.complete]="selectedGlyphFeatures.length >= MIN_GLYPH_FEATURES && selectedGlyphFeatures.length <= MAX_GLYPH_FEATURES">
-            </div>
+              [class.complete]="
+                selectedGlyphFeatures.length >= MIN_GLYPH_FEATURES && selectedGlyphFeatures.length <= MAX_GLYPH_FEATURES
+              "
+            ></div>
           </div>
         </div>
 
         <!-- Selected features (drop zone) -->
-        <div class="feature-list-unified"
-             (drop)="onDropInSelected($event)" (dragover)="onDragOver($event)">
+        <div class="feature-list-unified" (drop)="onDropInSelected($event)" (dragover)="onDragOver($event)">
           @if (selectedGlyphFeatures.length === 0) {
             <div class="empty-hint">
               <span class="material-icons">info</span>
@@ -69,10 +71,12 @@
             </div>
           }
           @for (feature of selectedGlyphFeatures; track feature; let i = $index) {
-            <div class="feature-row selected"
-                 draggable="true"
-                 (dragstart)="onDragStart($event, feature, 'selected', i)"
-                 (dragend)="onDragEnd($event)">
+            <div
+              class="feature-row selected"
+              draggable="true"
+              (dragstart)="onDragStart($event, feature, 'selected', i)"
+              (dragend)="onDragEnd($event)"
+            >
               <span class="feature-order">{{ i + 1 }}</span>
               <span class="feature-name">{{ feature }}</span>
               @if (getFeatureVariance(feature) !== null) {
@@ -80,8 +84,7 @@
                   <span class="variance-fill" [style.width.%]="getFeatureVariancePercent(feature)"></span>
                 </span>
               }
-              <button class="btn-remove" (click)="removeGlyphFeature(i)" type="button"
-                      title="Remove feature">
+              <button class="btn-remove" (click)="removeGlyphFeature(i)" type="button" title="Remove feature">
                 <span class="material-icons">close</span>
               </button>
             </div>
@@ -106,11 +109,13 @@
         <div class="available-features-list">
           @for (feature of availableFeatures; track feature) {
             @if (!isFeatureSelected(feature)) {
-              <div class="feature-row available"
-                   (click)="addGlyphFeature(feature)"
-                   draggable="true"
-                   (dragstart)="onDragStart($event, feature, 'available', -1)"
-                   (dragend)="onDragEnd($event)">
+              <div
+                class="feature-row available"
+                (click)="addGlyphFeature(feature)"
+                draggable="true"
+                (dragstart)="onDragStart($event, feature, 'available', -1)"
+                (dragend)="onDragEnd($event)"
+              >
                 <span class="material-icons add-icon">add</span>
                 <span class="feature-name">{{ feature }}</span>
                 @if (getFeatureVariance(feature) !== null) {
@@ -135,30 +140,47 @@
           @if (selectedGlyphFeatures.length >= MIN_GLYPH_FEATURES) {
             <svg viewBox="0 0 240 240" class="glyph-preview-svg">
               <!-- Background circle -->
-              <circle [attr.cx]="PREVIEW_CENTER" [attr.cy]="PREVIEW_CENTER"
-                      [attr.r]="PREVIEW_RADIUS"
-                      fill="#f0f0f0" stroke="#ddd" stroke-width="0.5"/>
+              <circle
+                [attr.cx]="PREVIEW_CENTER"
+                [attr.cy]="PREVIEW_CENTER"
+                [attr.r]="PREVIEW_RADIUS"
+                fill="#f0f0f0"
+                stroke="#ddd"
+                stroke-width="0.5"
+              />
 
               <!-- Axes -->
               @for (axis of getPreviewAxes(); track $index) {
-                <line [attr.x1]="PREVIEW_CENTER" [attr.y1]="PREVIEW_CENTER"
-                      [attr.x2]="axis.x" [attr.y2]="axis.y"
-                      stroke="#ccc" stroke-width="0.5"/>
+                <line
+                  [attr.x1]="PREVIEW_CENTER"
+                  [attr.y1]="PREVIEW_CENTER"
+                  [attr.x2]="axis.x"
+                  [attr.y2]="axis.y"
+                  stroke="#ccc"
+                  stroke-width="0.5"
+                />
               }
 
               <!-- Star glyph -->
               @if (selectedGlyphType === 'star') {
-                <path [attr.d]="generateStarPath()"
-                      fill="rgba(0, 188, 212, 0.35)" stroke="#00bcd4" stroke-width="1.5"
-                      stroke-linejoin="round"/>
+                <path
+                  [attr.d]="generateStarPath()"
+                  fill="rgba(0, 188, 212, 0.35)"
+                  stroke="#00bcd4"
+                  stroke-width="1.5"
+                  stroke-linejoin="round"
+                />
               }
 
               <!-- Flower glyph -->
               @if (selectedGlyphType === 'flower') {
                 @for (petal of generateFlowerPetals(); track $index) {
-                  <g [attr.transform]="'translate(' + PREVIEW_CENTER + ',' + PREVIEW_CENTER + ') rotate(' + petal.angleDeg + ')'">
-                    <path [attr.d]="petal.path"
-                          fill="rgba(0, 188, 212, 0.45)" stroke="#00bcd4" stroke-width="1"/>
+                  <g
+                    [attr.transform]="
+                      'translate(' + PREVIEW_CENTER + ',' + PREVIEW_CENTER + ') rotate(' + petal.angleDeg + ')'
+                    "
+                  >
+                    <path [attr.d]="petal.path" fill="rgba(0, 188, 212, 0.45)" stroke="#00bcd4" stroke-width="1" />
                   </g>
                 }
               }
@@ -166,19 +188,36 @@
               <!-- Whisker glyph -->
               @if (selectedGlyphType === 'whisker') {
                 @for (bar of generateWhiskerBars(); track $index) {
-                  <g [attr.transform]="'translate(' + PREVIEW_CENTER + ',' + PREVIEW_CENTER + ') rotate(' + bar.angleDeg + ')'">
-                    <rect x="-3" [attr.y]="-(bar.length)" width="6" [attr.height]="bar.length"
-                          fill="rgba(0, 188, 212, 0.5)" stroke="#00bcd4" stroke-width="0.5" rx="1"/>
+                  <g
+                    [attr.transform]="
+                      'translate(' + PREVIEW_CENTER + ',' + PREVIEW_CENTER + ') rotate(' + bar.angleDeg + ')'
+                    "
+                  >
+                    <rect
+                      x="-3"
+                      [attr.y]="-bar.length"
+                      width="6"
+                      [attr.height]="bar.length"
+                      fill="rgba(0, 188, 212, 0.5)"
+                      stroke="#00bcd4"
+                      stroke-width="0.5"
+                      rx="1"
+                    />
                   </g>
                 }
               }
 
               <!-- Axis labels -->
               @for (label of getPreviewAxisLabels(); track label.name) {
-                <text [attr.x]="label.x" [attr.y]="label.y"
-                      [attr.text-anchor]="label.anchor"
-                      dominant-baseline="middle"
-                      class="axis-label">{{ label.name }}</text>
+                <text
+                  [attr.x]="label.x"
+                  [attr.y]="label.y"
+                  [attr.text-anchor]="label.anchor"
+                  dominant-baseline="middle"
+                  class="axis-label"
+                >
+                  {{ label.name }}
+                </text>
               }
             </svg>
           } @else {
@@ -191,16 +230,13 @@
 
         <!-- Glyph type selector -->
         <div class="glyph-type-tabs">
-          <button [class.active]="selectedGlyphType === 'star'"
-                  (click)="selectedGlyphType = 'star'">
+          <button [class.active]="selectedGlyphType === 'star'" (click)="selectedGlyphType = 'star'">
             <span class="material-icons">star</span> Star
           </button>
-          <button [class.active]="selectedGlyphType === 'flower'"
-                  (click)="selectedGlyphType = 'flower'">
+          <button [class.active]="selectedGlyphType === 'flower'" (click)="selectedGlyphType = 'flower'">
             <span class="material-icons">local_florist</span> Flower
           </button>
-          <button [class.active]="selectedGlyphType === 'whisker'"
-                  (click)="selectedGlyphType = 'whisker'">
+          <button [class.active]="selectedGlyphType === 'whisker'" (click)="selectedGlyphType = 'whisker'">
             <span class="material-icons">equalizer</span> Whisker
           </button>
         </div>
@@ -224,19 +260,25 @@
 
       <div class="projection-grid">
         @for (method of projectionMethods; track method.key) {
-          <div class="projection-card"
-               [class.enabled]="projectionConfig[method.key]"
-               [class.has-warning]="shouldShowLargeDatasetWarning(method)"
-               (click)="isMethodDisabled(method) ? null : toggleProjectionMethod(method)">
+          <div
+            class="projection-card"
+            [class.enabled]="projectionConfig[method.key]"
+            [class.has-warning]="shouldShowLargeDatasetWarning(method)"
+            (click)="isMethodDisabled(method) ? null : toggleProjectionMethod(method)"
+          >
             <div class="card-row">
-              <input type="checkbox"
-                     [checked]="projectionConfig[method.key]"
-                     [disabled]="isMethodDisabled(method)"
-                     (click)="$event.stopPropagation()"
-                     (change)="toggleProjectionMethod(method)">
+              <input
+                type="checkbox"
+                [checked]="projectionConfig[method.key]"
+                [disabled]="isMethodDisabled(method)"
+                (click)="$event.stopPropagation()"
+                (change)="toggleProjectionMethod(method)"
+              />
               <span class="method-name">{{ method.name }}</span>
               @if (method.badge) {
-                <span class="speed-badge" [ngClass]="'badge-' + method.badge!.toLowerCase().split(' ').join('-')">{{ method.badge }}</span>
+                <span class="speed-badge" [ngClass]="'badge-' + method.badge!.toLowerCase().split(' ').join('-')">{{
+                  method.badge
+                }}</span>
               }
               @if (method.sizeHint) {
                 <span class="size-hint">{{ method.sizeHint }}</span>
@@ -245,9 +287,11 @@
                 <span class="material-icons warning-icon" title="May be slow with large datasets">warning</span>
               }
               @if (methodHasParams(method) && projectionConfig[method.key]) {
-                <button class="btn-expand-params"
-                        (click)="toggleMethodParams(method.key); $event.stopPropagation()"
-                        title="Configure parameters">
+                <button
+                  class="btn-expand-params"
+                  (click)="toggleMethodParams(method.key); $event.stopPropagation()"
+                  title="Configure parameters"
+                >
                   <span class="material-icons">
                     {{ isMethodParamsExpanded(method.key) ? 'expand_less' : 'tune' }}
                   </span>
@@ -271,14 +315,24 @@
                   <app-help-tooltip [helpText]="$any(HELP_TEXT.parameters)[param.helpKey]"></app-help-tooltip>
                 </label>
                 <div class="input-group">
-                  <input type="range" [min]="param.min" [max]="param.max" [step]="param.step || 1"
-                         [value]="projectionConfig[param.configKey]"
-                         (input)="onParamChange(param.configKey, +$any($event.target).value, param.min, param.max)"
-                         class="range-input">
-                  <input type="number" [min]="param.min" [max]="param.max" [step]="param.step || 1"
-                         [value]="projectionConfig[param.configKey]"
-                         (input)="onParamChange(param.configKey, +$any($event.target).value, param.min, param.max)"
-                         class="number-input">
+                  <input
+                    type="range"
+                    [min]="param.min"
+                    [max]="param.max"
+                    [step]="param.step || 1"
+                    [value]="projectionConfig[param.configKey]"
+                    (input)="onParamChange(param.configKey, +$any($event.target).value, param.min, param.max)"
+                    class="range-input"
+                  />
+                  <input
+                    type="number"
+                    [min]="param.min"
+                    [max]="param.max"
+                    [step]="param.step || 1"
+                    [value]="projectionConfig[param.configKey]"
+                    (input)="onParamChange(param.configKey, +$any($event.target).value, param.min, param.max)"
+                    class="number-input"
+                  />
                 </div>
               </div>
             }
@@ -286,7 +340,9 @@
               <div class="warning-box">
                 <span class="material-icons">warning</span>
                 <div>
-                  <p><strong>{{ getTSNETimeEstimate() }}</strong></p>
+                  <p>
+                    <strong>{{ getTSNETimeEstimate() }}</strong>
+                  </p>
                   <p>t-SNE will run in the background. Explore with FastMap while waiting.</p>
                 </div>
               </div>

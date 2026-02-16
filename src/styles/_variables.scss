@@ -10,7 +10,7 @@ $gray-800: #222222;
 
 // Functional
 $active-color: #00bcd4; // cyan highlight
-$color-blue-highlight: #4EB9FA;
+$color-blue-highlight: #4eb9fa;
 $tooltip-bg: rgba(0, 0, 0, 0.75);
 $tooltip-text: white;
 
@@ -25,12 +25,12 @@ $color-gray-border: #999;
 $color-gray-bg-light: rgba(128, 128, 128, 0.1);
 
 // Status Colors
-$status-warning: #FF9800;
-$status-warning-dark: #E65100;
-$status-error: #F44336;
-$status-error-dark: #C62828;
-$status-success: #4CAF50;
-$status-success-dark: #388E3C;
+$status-warning: #ff9800;
+$status-warning-dark: #e65100;
+$status-error: #f44336;
+$status-error-dark: #c62828;
+$status-success: #4caf50;
+$status-success-dark: #388e3c;
 $status-info: #00838f;
 
 // Projection Status Colors
@@ -67,21 +67,21 @@ $focus-outline: #c7d2fe;
 $option-hover-bg: #f0f5ff;
 
 // Wizard-specific colors
-$wizard-header-bg: #F4F5F7;
-$wizard-content-bg: #FFFFFF;
-$wizard-table-header-bg: #F9FAFB;
-$wizard-table-bg: #FFFFFF;
+$wizard-header-bg: #f4f5f7;
+$wizard-content-bg: #ffffff;
+$wizard-table-header-bg: #f9fafb;
+$wizard-table-bg: #ffffff;
 
 // Data Type Colors (following design spec)
-$data-type-numeric: #16A34A;  // Green
-$data-type-numeric-bg: #DCFCE7;
-$data-type-categorical: #7C3AED;  // Purple
-$data-type-categorical-bg: #F3E8FF;
-$data-type-text: #8BC34A;  // Light Green
+$data-type-numeric: #16a34a; // Green
+$data-type-numeric-bg: #dcfce7;
+$data-type-categorical: #7c3aed; // Purple
+$data-type-categorical-bg: #f3e8ff;
+$data-type-text: #8bc34a; // Light Green
 $data-type-text-bg: rgba(139, 195, 74, 0.1);
-$data-type-date: #EA580C;  // Orange (Temporal)
-$data-type-date-bg: #FED7AA;
-$data-type-boolean: #00bcd4;  // Cyan (active-color)
+$data-type-date: #ea580c; // Orange (Temporal)
+$data-type-date-bg: #fed7aa;
+$data-type-boolean: #00bcd4; // Cyan (active-color)
 $data-type-boolean-bg: rgba(0, 188, 212, 0.1);
-$data-type-id: #888888;  // Gray
+$data-type-id: #888888; // Gray
 $data-type-id-bg: rgba(136, 136, 136, 0.1);

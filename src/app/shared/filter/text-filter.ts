@@ -16,14 +16,14 @@ export class TextFilter extends ItemFilter {
   public override empty() {
     return this._acceptableStrings.length <= 0;
   }
-  
+
   public override info() {
-    return "";
+    return '';
   }
 
   public override inFilter(item: GlyphObject): boolean {
-    if (!item.values) return false
-    
+    if (!item.values) return false;
+
     return Object.values(item.values).some(val => {
       const valStr = String(val).toLowerCase();
       return this._acceptableStrings.some(substr => valStr.includes(substr));
@@ -42,7 +42,7 @@ export class TextFilter extends ItemFilter {
     this._acceptableStrings.sort();
   }
 
-  public extendacceptableStrings(newStrings: string[]) {
+  public extendAcceptableStrings(newStrings: string[]) {
     newStrings.forEach((text: string) => {
       if (this._acceptableStrings.indexOf(text.toLowerCase()) === -1) {
         this._acceptableStrings.push(text.toLowerCase());

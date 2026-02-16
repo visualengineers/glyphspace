@@ -1,4 +1,4 @@
-import { Component, ElementRef, Input, ViewChild } from '@angular/core';
+import { Component, ElementRef, Input, ViewChild, AfterViewInit, OnDestroy } from '@angular/core';
 import { forceSimulation, forceCollide } from 'd3-force';
 import * as THREE from 'three';
 import { GlyphObject } from '../../glyph/glyph-object';
@@ -12,9 +12,9 @@ import { GlyphSizeInfo } from '../../glyph/glyph-size-info';
   selector: 'app-magiclens',
   imports: [],
   templateUrl: './magiclens.component.html',
-  styleUrl: './magiclens.component.scss'
+  styleUrl: './magiclens.component.scss',
 })
-export class MagiclensComponent {
+export class MagiclensComponent implements AfterViewInit, OnDestroy {
   @Input() container!: HTMLElement;
   @Input() glyphGroup!: THREE.Group;
   @Input() parentId!: number;
@@ -52,7 +52,7 @@ export class MagiclensComponent {
       this.lensRenderer = new THREE.WebGLRenderer({
         canvas: this.lensCanvasRef.nativeElement,
         alpha: true,
-        antialias: true
+        antialias: true,
       });
       this.lensRenderer.setClearColor(0xffffff, 1);
       this.lensRenderer.setSize(this.lensRadius, this.lensRadius);
@@ -60,8 +60,8 @@ export class MagiclensComponent {
 
       // Lens Camera is just a zoomed clone of main
       this.lensCamera = new THREE.OrthographicCamera(
-        (-this.lensRadius) / 2,
-        (this.lensRadius) / 2,
+        -this.lensRadius / 2,
+        this.lensRadius / 2,
         this.lensRadius / 2,
         -this.lensRadius / 2,
         1,
@@ -73,7 +73,7 @@ export class MagiclensComponent {
       this.lensCamera.updateProjectionMatrix();
     }
   }
-  
+
   ngOnDestroy(): void {
     this.lensRenderer.forceContextLoss?.(); // Optional for full GPU cleanup
     this.lensRenderer.domElement = null!;
@@ -106,7 +106,11 @@ export class MagiclensComponent {
     this.lensGlyphs = [];
   }
 
-  updateMagicLens(lastMousePosition: THREE.Vector2, camera: THREE.OrthographicCamera, renderer: THREE.WebGLRenderer): boolean {
+  updateMagicLens(
+    lastMousePosition: THREE.Vector2,
+    camera: THREE.OrthographicCamera,
+    renderer: THREE.WebGLRenderer
+  ): boolean {
     if (!this.magicLensActive || !this.lensCamera) return false;
 
     this.updatePositions(lastMousePosition);
@@ -122,7 +126,7 @@ export class MagiclensComponent {
     const worldRadius = screenRadius / camera.zoom;
 
     // Check glyphs within world-space radius (O(n) but with cheaper distance calc)
-    this.glyphGroup.children.forEach((obj) => {
+    this.glyphGroup.children.forEach(obj => {
       const dx = obj.position.x - mouseWorld.x;
       const dy = obj.position.y - mouseWorld.y;
       const distSq = dx * dx + dy * dy;
@@ -137,8 +141,7 @@ export class MagiclensComponent {
 
     // Compare current lens glyphs to new ones
     const same =
-      newLensGlyphs.length === this.lensGlyphs.length &&
-      newLensGlyphs.every((g, i) => g === this.lensGlyphs[i]);
+      newLensGlyphs.length === this.lensGlyphs.length && newLensGlyphs.every((g, i) => g === this.lensGlyphs[i]);
 
     if (same) return false;
 
@@ -151,10 +154,7 @@ export class MagiclensComponent {
 
   updatePositions(lastMousePosition: THREE.Vector2) {
     const canvasRect = this.container.getBoundingClientRect();
-    this.relativePosition.set(
-      lastMousePosition.x - canvasRect.left,
-      lastMousePosition.y - canvasRect.top
-    );
+    this.relativePosition.set(lastMousePosition.x - canvasRect.left, lastMousePosition.y - canvasRect.top);
   }
 
   renderMagicLensGlyphs(timestamp: string, algorithm: string): void {
@@ -162,9 +162,8 @@ export class MagiclensComponent {
     this.lensGlyphGroup.clear();
 
     // Adaptive limit based on previous performance
-    const glyphsToRender = this.lensGlyphs.length > this.maxLensGlyphs
-      ? this.lensGlyphs.slice(0, this.maxLensGlyphs)
-      : this.lensGlyphs;
+    const glyphsToRender =
+      this.lensGlyphs.length > this.maxLensGlyphs ? this.lensGlyphs.slice(0, this.maxLensGlyphs) : this.lensGlyphs;
 
     // Build nodes array while creating glyphs
     const nodes: { x: number; y: number; threeObj: THREE.Object3D }[] = [];
@@ -173,7 +172,7 @@ export class MagiclensComponent {
       const mesh = glyph.renderGlyph(this.sizeInfo, timestamp, algorithm, this.parentId, false);
       if (mesh != null) {
         const wrapper = new THREE.Group();
-        wrapper.name = "Wrapper";
+        wrapper.name = 'Wrapper';
         wrapper.userData = { item: new WeakRef(glyph) };
         wrapper.add(mesh);
         mesh.position.set(0, 0, 0);
@@ -182,7 +181,7 @@ export class MagiclensComponent {
         nodes.push({
           x: (Math.random() - 0.5) * 2,
           y: (Math.random() - 0.5) * 2,
-          threeObj: wrapper
+          threeObj: wrapper,
         });
       }
     }
@@ -213,7 +212,7 @@ export class MagiclensComponent {
   }
 
   private runForceSimulation(nodes: { x: number; y: number; threeObj: THREE.Object3D }[], count: number): void {
-    const maxRadius = (this.lensRadius / 2) - this.sizeInfo.radius;
+    const maxRadius = this.lensRadius / 2 - this.sizeInfo.radius;
     const maxRadiusSq = maxRadius * maxRadius;
 
     const simulation = forceSimulation(nodes)
@@ -252,7 +251,7 @@ export class MagiclensComponent {
     this.lensCamera.lookAt(0, 0, 0);
     this.lensCamera.updateProjectionMatrix();
 
-    renderedGlyphs.forEach((glyph) => {
+    renderedGlyphs.forEach(glyph => {
       glyph.isInLense = true;
     });
     this.config.drawMagicLensGlyphs(renderedGlyphs);
@@ -268,16 +267,10 @@ export class MagiclensComponent {
 
     if (this.lastRenderTime > this.TARGET_FRAME_TIME * 1.5) {
       // Too slow - decrease limit
-      this.maxLensGlyphs = Math.max(
-        this.MIN_LENS_GLYPHS,
-        Math.floor(this.maxLensGlyphs * 0.8)
-      );
+      this.maxLensGlyphs = Math.max(this.MIN_LENS_GLYPHS, Math.floor(this.maxLensGlyphs * 0.8));
     } else if (this.lastRenderTime < this.TARGET_FRAME_TIME * 0.5) {
       // Fast enough - can increase limit
-      this.maxLensGlyphs = Math.min(
-        this.MAX_LENS_GLYPHS,
-        Math.floor(this.maxLensGlyphs * 1.2)
-      );
+      this.maxLensGlyphs = Math.min(this.MAX_LENS_GLYPHS, Math.floor(this.maxLensGlyphs * 1.2));
     }
   }
 

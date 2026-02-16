@@ -2,11 +2,12 @@
 
 /* styles.scss */
 
-html, body {
+html,
+body {
   margin: 0;
   height: 100%;
-  font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande',
-               'Lucida Sans Unicode', Geneva, Verdana, sans-serif;
+  font-family:
+    'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif;
 }
 
 * {
@@ -15,8 +16,12 @@ html, body {
 
 /* Global spin animation — used by loading indicators across all components */
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .spinning {

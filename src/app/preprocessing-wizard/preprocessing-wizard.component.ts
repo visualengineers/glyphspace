@@ -18,10 +18,10 @@ import { DataProfile } from './models/column-statistics';
     Step2ColumnSelectionComponent,
     Step3ConfigureDataFeaturesComponent,
     Step4VisualizationSettingsComponent,
-    Step5ReviewProcessingComponent
+    Step5ReviewProcessingComponent,
   ],
   templateUrl: './preprocessing-wizard.component.html',
-  styleUrl: './preprocessing-wizard.component.scss'
+  styleUrl: './preprocessing-wizard.component.scss',
 })
 export class PreprocessingWizardComponent implements OnInit, OnDestroy {
   @Output() close = new EventEmitter<void>();
@@ -30,7 +30,7 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
   private subscription = new Subscription();
 
   currentStep = 0;
-  highestStepVisited = 0;  // Track highest step to enable forward navigation
+  highestStepVisited = 0; // Track highest step to enable forward navigation
   isProcessing = false;
   error: string | null = null;
 
@@ -39,10 +39,10 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
     { label: 'Select Columns', completed: false },
     { label: 'Configure Data & Features', completed: false },
     { label: 'Visualization Settings', completed: false },
-    { label: 'Review & Process', completed: false }
+    { label: 'Review & Process', completed: false },
   ];
 
-  constructor(private preprocessingService: PreprocessingService) { }
+  constructor(private preprocessingService: PreprocessingService) {}
 
   ngOnInit(): void {
     // Subscribe to state changes
@@ -64,12 +64,14 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
 
     // Scroll to top when step changes
     this.subscription.add(
-      this.preprocessingService.state$.pipe(
-        map(state => state.currentStep),
-        distinctUntilChanged()
-      ).subscribe(() => {
-        this.scrollToTop();
-      })
+      this.preprocessingService.state$
+        .pipe(
+          map(state => state.currentStep),
+          distinctUntilChanged()
+        )
+        .subscribe(() => {
+          this.scrollToTop();
+        })
     );
   }
 
@@ -138,7 +140,7 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
 
   reset(): void {
     if (confirm('Are you sure you want to start over? All progress will be lost.')) {
-      this.highestStepVisited = 0;  // Reset navigation tracking
+      this.highestStepVisited = 0; // Reset navigation tracking
       this.preprocessingService.resetState();
     }
   }

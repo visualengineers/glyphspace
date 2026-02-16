@@ -7,8 +7,8 @@
           [class.active]="isStepActive($index)"
           [class.completed]="isStepCompleted($index)"
           [class.clickable]="isStepClickable($index)"
-          (click)="onStepClick($index)">
-
+          (click)="onStepClick($index)"
+        >
           <div class="step-circle">
             @if (isStepCompleted($index) && !isStepActive($index)) {
               <span class="material-icons">check</span>
@@ -21,10 +21,7 @@
         </div>
 
         @if ($index < steps.length - 1) {
-          <div
-            class="step-connector"
-            [class.completed]="isStepCompleted($index + 1)">
-          </div>
+          <div class="step-connector" [class.completed]="isStepCompleted($index + 1)"></div>
         }
       </div>
     }

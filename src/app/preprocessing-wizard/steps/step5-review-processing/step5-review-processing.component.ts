@@ -1,11 +1,17 @@
 import { Component, OnInit, OnDestroy, ChangeDetectorRef, NgZone, Output, EventEmitter } from '@angular/core';
 import { Subscription } from 'rxjs';
 import { PreprocessingService } from '../../services/preprocessing.service';
-import { DataProviderService } from '../../../services/dataprovider.service';
+import { DataLoaderService } from '../../../services/data-loader.service';
 import { ProjectionService, ProjectionResult } from '../../../services/projection.service';
 import { ToastService } from '../../../services/toast.service';
 import { ColumnConfig, ProjectionConfig } from '../../models/column-config';
-import { DataType, EncodingMethod, ScalingMethod, getEncodingLabel as encLabelFn, getScalingLabel as scaleLabelFn } from '../../models/data-type.enum';
+import {
+  DataType,
+  EncodingMethod,
+  ScalingMethod,
+  getEncodingLabel as encLabelFn,
+  getScalingLabel as scaleLabelFn,
+} from '../../models/data-type.enum';
 import { STEP_INFO } from '../../shared/constants/step-info';
 import { DataTypeBadgeComponent } from '../../../shared/components/data-type-badge/data-type-badge.component';
 
@@ -14,7 +20,7 @@ import { DataTypeBadgeComponent } from '../../../shared/components/data-type-bad
   standalone: true,
   imports: [DataTypeBadgeComponent],
   templateUrl: './step5-review-processing.component.html',
-  styleUrl: './step5-review-processing.component.scss'
+  styleUrl: './step5-review-processing.component.scss',
 })
 export class Step5ReviewProcessingComponent implements OnInit, OnDestroy {
   @Output() finish = new EventEmitter<void>();
@@ -43,8 +49,8 @@ export class Step5ReviewProcessingComponent implements OnInit, OnDestroy {
   backgroundProjections = new Map<string, { status: string; progress: number; message: string }>();
 
   // Capture dataset info for background projections (survives wizard reset)
-  private backgroundDatasetName: string = '';
-  private backgroundTimestamp: string = '';
+  private backgroundDatasetName = '';
+  private backgroundTimestamp = '';
 
   // Expose enums
   DataType = DataType;
@@ -56,7 +62,7 @@ export class Step5ReviewProcessingComponent implements OnInit, OnDestroy {
 
   constructor(
     public preprocessingService: PreprocessingService,
-    private dataProvider: DataProviderService,
+    private dataLoader: DataLoaderService,
     private projectionService: ProjectionService,
     private toastService: ToastService,
     private cdr: ChangeDetectorRef,
@@ -143,11 +149,11 @@ export class Step5ReviewProcessingComponent implements OnInit, OnDestroy {
     this.processingStep = 'Initializing...';
 
     this.progressSubscription = this.preprocessingService.processingProgress.subscribe({
-      next: (progress) => {
+      next: progress => {
         this.processingStep = progress.message || progress.step;
         this.processingProgress = Math.min(progress.progress, 70);
         this.cdr.detectChanges();
-      }
+      },
     });
 
     try {
@@ -176,7 +182,6 @@ export class Step5ReviewProcessingComponent implements OnInit, OnDestroy {
       });
 
       this.startBackgroundProjections(features, ids);
-
     } catch (error: any) {
       console.error('Processing failed:', error);
       this.ngZone.run(() => {
@@ -192,7 +197,7 @@ export class Step5ReviewProcessingComponent implements OnInit, OnDestroy {
     }
   }
 
-  private async startBackgroundProjections(features: number[][], ids: (string|number)[]): Promise<void> {
+  private async startBackgroundProjections(features: number[][], ids: (string | number)[]): Promise<void> {
     const config = this.projectionConfig;
 
     // Capture dataset info so background projections can add positions even after wizard reset
@@ -207,7 +212,7 @@ export class Step5ReviewProcessingComponent implements OnInit, OnDestroy {
           this.backgroundProjections.set(method, {
             status: status.status,
             progress: status.progress,
-            message: status.message
+            message: status.message,
           });
         });
         this.cdr.detectChanges();
@@ -216,16 +221,48 @@ export class Step5ReviewProcessingComponent implements OnInit, OnDestroy {
 
     // Data-driven projection registry: each entry maps a config flag to its runner
     const projections: { enabled: boolean; name: string; run: () => Promise<ProjectionResult> }[] = [
-      { enabled: config.enablePCA,     name: 'PCA',     run: () => this.projectionService.runPCABackground(features, ids) },
-      { enabled: config.enableIsoMap,   name: 'IsoMap',  run: () => this.projectionService.runIsoMap(features, ids, { neighbors: config.isomapNeighbors }) },
-      { enabled: config.enableMDS,      name: 'MDS',     run: () => this.projectionService.runMDS(features, ids) },
-      { enabled: config.enableLLE,      name: 'LLE',     run: () => this.projectionService.runLLE(features, ids, { neighbors: config.lleNeighbors }) },
-      { enabled: config.enableLTSA,     name: 'LTSA',    run: () => this.projectionService.runLTSA(features, ids, { neighbors: config.ltsaNeighbors }) },
-      { enabled: config.enableTSNE,     name: 't-SNE',   run: () => this.projectionService.runTSNE(features, ids, { perplexity: config.tsnePerplexity, iterations: config.tsneIterations }) },
-      { enabled: config.enableUMAP,     name: 'UMAP',    run: () => this.projectionService.runUMAP(features, ids, { neighbors: config.umapNeighbors, minDist: config.umapMinDist }) },
-      { enabled: config.enableTriMap,   name: 'TriMap',  run: () => this.projectionService.runTriMap(features, ids, { weightAdj: config.trimapWeightAdj }) },
-      { enabled: config.enableTopoMap,  name: 'TopoMap', run: () => this.projectionService.runTopoMap(features, ids) },
-      { enabled: config.enableSammon,   name: 'Sammon',  run: () => this.projectionService.runSammon(features, ids) },
+      { enabled: config.enablePCA, name: 'PCA', run: () => this.projectionService.runPCABackground(features, ids) },
+      {
+        enabled: config.enableIsoMap,
+        name: 'IsoMap',
+        run: () => this.projectionService.runIsoMap(features, ids, { neighbors: config.isomapNeighbors }),
+      },
+      { enabled: config.enableMDS, name: 'MDS', run: () => this.projectionService.runMDS(features, ids) },
+      {
+        enabled: config.enableLLE,
+        name: 'LLE',
+        run: () => this.projectionService.runLLE(features, ids, { neighbors: config.lleNeighbors }),
+      },
+      {
+        enabled: config.enableLTSA,
+        name: 'LTSA',
+        run: () => this.projectionService.runLTSA(features, ids, { neighbors: config.ltsaNeighbors }),
+      },
+      {
+        enabled: config.enableTSNE,
+        name: 't-SNE',
+        run: () =>
+          this.projectionService.runTSNE(features, ids, {
+            perplexity: config.tsnePerplexity,
+            iterations: config.tsneIterations,
+          }),
+      },
+      {
+        enabled: config.enableUMAP,
+        name: 'UMAP',
+        run: () =>
+          this.projectionService.runUMAP(features, ids, {
+            neighbors: config.umapNeighbors,
+            minDist: config.umapMinDist,
+          }),
+      },
+      {
+        enabled: config.enableTriMap,
+        name: 'TriMap',
+        run: () => this.projectionService.runTriMap(features, ids, { weightAdj: config.trimapWeightAdj }),
+      },
+      { enabled: config.enableTopoMap, name: 'TopoMap', run: () => this.projectionService.runTopoMap(features, ids) },
+      { enabled: config.enableSammon, name: 'Sammon', run: () => this.projectionService.runSammon(features, ids) },
     ];
 
     for (const proj of projections) {
@@ -242,7 +279,7 @@ export class Step5ReviewProcessingComponent implements OnInit, OnDestroy {
       // Convert positions to the format expected by DataProvider
       const positionsForProvider = result.positions.map(p => ({
         id: p.id,
-        position: { x: p.x, y: p.y }
+        position: { x: p.x, y: p.y },
       }));
 
       // Try to add to wizard state first (if still active)
@@ -252,31 +289,31 @@ export class Step5ReviewProcessingComponent implements OnInit, OnDestroy {
       if (state.processedDataset) {
         // Wizard still active - update via normal flow
         const collection = state.processedDataset as any;
-        const datasetKey = collection.selectedDataset || (collection.datasets ? Object.keys(collection.datasets)[0] : null);
+        const datasetKey =
+          collection.selectedDataset || (collection.datasets ? Object.keys(collection.datasets)[0] : null);
 
         if (datasetKey && collection.datasets) {
           const dataset = collection.datasets[datasetKey];
           if (dataset) {
-            this.dataProvider.addProcessedDatasetToCollection(state.datasetName, state.timestamp, dataset);
-            this.dataProvider.loadProcessedDataset(dataset, state.datasetName, state.timestamp);
+            this.dataLoader.addProcessedDatasetToCollection(state.datasetName, state.timestamp, dataset);
+            this.dataLoader.loadProcessedDataset(dataset, state.datasetName, state.timestamp);
           }
         }
       } else if (this.backgroundDatasetName && this.backgroundTimestamp) {
         // Wizard was reset but dataset is already loaded in dashboard
-        this.dataProvider.addPositionsToLoadedDataset(
+        this.dataLoader.addPositionsToLoadedDataset(
           this.backgroundDatasetName,
           this.backgroundTimestamp,
           result.method,
           positionsForProvider
         );
         // Re-save to IndexedDB with the new projection included
-        this.dataProvider.saveDatasetToStorage(this.backgroundDatasetName, this.backgroundTimestamp);
+        this.dataLoader.saveDatasetToStorage(this.backgroundDatasetName, this.backgroundTimestamp);
       }
 
       this.ngZone.run(() => {
         this.toastService.success(`${name} projection ready! (${(result.computeTime / 1000).toFixed(1)}s)`, 4000);
       });
-
     } catch (error: any) {
       console.error(`${name} projection failed:`, error);
       this.ngZone.run(() => {
@@ -290,7 +327,8 @@ export class Step5ReviewProcessingComponent implements OnInit, OnDestroy {
 
     if (state.processedDataset) {
       const collection = state.processedDataset as any;
-      const datasetKey = collection.selectedDataset || (collection.datasets ? Object.keys(collection.datasets)[0] : null);
+      const datasetKey =
+        collection.selectedDataset || (collection.datasets ? Object.keys(collection.datasets)[0] : null);
 
       if (!datasetKey || !collection.datasets) {
         this.error = 'Invalid dataset structure. Please try processing again.';
@@ -300,10 +338,10 @@ export class Step5ReviewProcessingComponent implements OnInit, OnDestroy {
       const dataset = collection.datasets[datasetKey];
 
       if (dataset) {
-        this.dataProvider.addProcessedDatasetToCollection(state.datasetName, state.timestamp, dataset);
-        this.dataProvider.loadProcessedDataset(dataset, state.datasetName, state.timestamp);
+        this.dataLoader.addProcessedDatasetToCollection(state.datasetName, state.timestamp, dataset);
+        this.dataLoader.loadProcessedDataset(dataset, state.datasetName, state.timestamp);
         // Persist to IndexedDB for cross-session survival
-        this.dataProvider.saveDatasetToStorage(state.datasetName, state.timestamp);
+        this.dataLoader.saveDatasetToStorage(state.datasetName, state.timestamp);
       } else {
         this.error = 'Failed to load processed dataset';
         return;
@@ -336,8 +374,8 @@ export class Step5ReviewProcessingComponent implements OnInit, OnDestroy {
     }
   }
 
-  getBackgroundProjectionsArray(): Array<{ method: string; status: string; progress: number; message: string }> {
-    const result: Array<{ method: string; status: string; progress: number; message: string }> = [];
+  getBackgroundProjectionsArray(): { method: string; status: string; progress: number; message: string }[] {
+    const result: { method: string; status: string; progress: number; message: string }[] = [];
     this.backgroundProjections.forEach((value, key) => {
       result.push({ method: key, ...value });
     });

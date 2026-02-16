@@ -26,7 +26,7 @@ export interface StackedBinConfig {
 export function getEffectiveHistogramType(
   declaredType: string | undefined,
   nonZeroBinCount: number,
-  maxCategoricalBins: number = 40
+  maxCategoricalBins = 40
 ): 'categorical' | 'numeric' {
   // If declared as categorical but has too many non-zero bins, treat as numeric
   if (declaredType === 'categorical' && nonZeroBinCount > maxCategoricalBins) {
@@ -54,10 +54,7 @@ export function getEffectiveHistogramType(
  * @param config - Configuration for bin preparation
  * @returns Array of stacked bins with positions
  */
-export function prepareStackedBinsFromObject(
-  histogramData: Histogram,
-  config: StackedBinConfig
-): StackedBin[] {
+export function prepareStackedBinsFromObject(histogramData: Histogram, config: StackedBinConfig): StackedBin[] {
   const { gap = 1, minWidth = 6, availableWidth } = config;
 
   // Filter non-zero bins and sort
@@ -90,7 +87,7 @@ export function prepareStackedBinsFromArray(
     .map((value, index) => ({
       bin: index,
       value,
-      label: labels && labels[index] ? labels[index] : `Bin ${index}`
+      label: labels && labels[index] ? labels[index] : `Bin ${index}`,
     }))
     .filter(d => d.value > 0)
     .sort((a, b) => a.bin - b.bin);
@@ -121,9 +118,7 @@ function calculateStackedBinPositions<T extends { bin: number; value: number }>(
   const effectiveWidth = availableWidth - totalGapWidth;
 
   // First pass: proportional widths
-  let widths = rawBins.map(d =>
-    Math.max((d.value / totalValue) * effectiveWidth, minWidth)
-  );
+  let widths = rawBins.map(d => Math.max((d.value / totalValue) * effectiveWidth, minWidth));
 
   // Adjust widths if sum exceeds availableWidth
   const totalWidth = widths.reduce((sum, w) => sum + w, 0);
@@ -141,7 +136,7 @@ function calculateStackedBinPositions<T extends { bin: number; value: number }>(
     return {
       ...d,
       x0,
-      x1
+      x1,
     };
   });
 }
@@ -180,7 +175,7 @@ export function rebinHistogramData(originalCounts: number[], targetBins: number)
  * @param amount - Amount to darken (0-1, default: 0.3)
  * @returns Darkened hex color string
  */
-export function darkenColor(color: string, amount: number = 0.3): string {
+export function darkenColor(color: string, amount = 0.3): string {
   const hex = color.replace('#', '');
   const r = parseInt(hex.substring(0, 2), 16);
   const g = parseInt(hex.substring(2, 4), 16);

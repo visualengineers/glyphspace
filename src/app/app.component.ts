@@ -1,22 +1,26 @@
-import { Component, HostListener } from '@angular/core';
+import { Component, HostListener, OnInit } from '@angular/core';
 import { ConfigService } from './services/config.service';
 import { GlyphCanvasComponent } from './canvas/glyph-canvas.component';
-import { DataProviderService } from './services/dataprovider.service';
+import { DataLoaderService } from './services/data-loader.service';
 import { checkTextInput } from './shared/helpers/angular-helper';
-import { MenuBarComponent } from "./menubar/menubar.component";
+import { MenuBarComponent } from './menubar/menubar.component';
 import { ToastComponent } from './shared/components/toast/toast.component';
 import { SidebarComponent } from './sidebar/sidebar.component';
 
-interface GlyphCanvasItem { id: number, row: number, col: number }
+interface GlyphCanvasItem {
+  id: number;
+  row: number;
+  col: number;
+}
 
 @Component({
   standalone: true,
   selector: 'app-root',
   imports: [GlyphCanvasComponent, MenuBarComponent, ToastComponent, SidebarComponent],
   templateUrl: './app.component.html',
-  styleUrl: './app.component.scss'
+  styleUrl: './app.component.scss',
 })
-export class AppComponent {
+export class AppComponent implements OnInit {
   title = 'Glyphboard Royale';
 
   grid: GlyphCanvasItem[] = [];
@@ -25,7 +29,10 @@ export class AppComponent {
   cols = 1;
   readonly minCellSize = 150; // px — change as needed
 
-  constructor(private config: ConfigService, private dataProvider: DataProviderService) { }
+  constructor(
+    private config: ConfigService,
+    private dataLoader: DataLoaderService
+  ) {}
 
   ngOnInit() {
     this.recalculateGrid();
@@ -41,7 +48,6 @@ export class AppComponent {
       }
     });
   }
-
 
   getNextFreeId(grid: GlyphCanvasItem[]): number {
     const usedIds = new Set(grid.map(item => item.id));
@@ -62,7 +68,7 @@ export class AppComponent {
         this.grid.push({
           id: idCounter++,
           row: r,
-          col: c
+          col: c,
         });
       }
     }
@@ -86,12 +92,12 @@ export class AppComponent {
 
       const index = this.grid.length;
       const r = Math.floor(index / this.cols) + 1;
-      const c = index % this.cols + 1;
+      const c = (index % this.cols) + 1;
 
       this.grid.push({
         id: newId,
         row: r,
-        col: c
+        col: c,
       });
 
       this.recalculateGrid();
@@ -107,8 +113,7 @@ export class AppComponent {
   }
 
   @HostListener('window:resize')
-  onResize() {
-  }
+  onResize() {}
 
   @HostListener('document:keyup', ['$event'])
   handleKeyboardEvent(event: KeyboardEvent) {

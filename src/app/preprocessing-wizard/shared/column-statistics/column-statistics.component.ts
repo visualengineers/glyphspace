@@ -7,11 +7,11 @@ import { DataTypeBadgeComponent } from '../../../shared/components/data-type-bad
   standalone: true,
   imports: [DataTypeBadgeComponent],
   templateUrl: './column-statistics.component.html',
-  styleUrl: './column-statistics.component.scss'
+  styleUrl: './column-statistics.component.scss',
 })
 export class ColumnStatisticsComponent {
   @Input() statistics!: ColumnStatistics;
-  @Input() compact: boolean = false;
+  @Input() compact = false;
 
   get completenessPercentage(): number {
     const total = this.statistics.count + this.statistics.missingCount;
@@ -20,8 +20,7 @@ export class ColumnStatisticsComponent {
   }
 
   get hasIssues(): boolean {
-    return this.statistics.missingPercentage > 50 ||
-           this.statistics.uniqueCount === 1;
+    return this.statistics.missingPercentage > 50 || this.statistics.uniqueCount === 1;
   }
 
   get issueDescription(): string {

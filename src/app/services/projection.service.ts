@@ -6,7 +6,7 @@ import {
   ProjectionResult,
   ProjectionComputeConfig,
   ProjectionWorkerRequest,
-  ProjectionWorkerResponse
+  ProjectionWorkerResponse,
 } from '../shared/types/projection.types';
 
 // Re-export types for backward compatibility
@@ -15,7 +15,7 @@ export type {
   ProjectionResult,
   ProjectionComputeConfig,
   ProjectionWorkerRequest,
-  ProjectionWorkerResponse
+  ProjectionWorkerResponse,
 } from '../shared/types/projection.types';
 
 export interface BackgroundStatus {
@@ -27,10 +27,9 @@ export interface BackgroundStatus {
 }
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class ProjectionService {
-
   private backgroundStatus$ = new BehaviorSubject<Map<string, BackgroundStatus>>(new Map());
   private workers = new Map<string, Worker>();
 
@@ -39,24 +38,24 @@ export class ProjectionService {
   /**
    * Run PCA (fast, blocking) - runs synchronously on main thread
    */
-  async runPCA(features: number[][], ids: (string|number)[]): Promise<ProjectionResult> {
+  async runPCA(features: number[][], ids: (string | number)[]): Promise<ProjectionResult> {
     const startTime = Date.now();
 
     try {
       // DruidJS PCA: new druid.PCA(data, components).transform()
-      const pca = new (druid as any).PCA(features, 2);  // 2 components for 2D visualization
+      const pca = new (druid as any).PCA(features, 2); // 2 components for 2D visualization
       const embedding = pca.transform();
 
       const positions = embedding.map((coords: number[], i: number) => ({
         id: ids[i],
         x: coords[0],
-        y: coords[1]
+        y: coords[1],
       }));
 
       return {
         method: 'pca',
         positions,
-        computeTime: Date.now() - startTime
+        computeTime: Date.now() - startTime,
       };
     } catch (error: any) {
       throw new Error(`PCA failed: ${error.message}`);
@@ -68,7 +67,7 @@ export class ProjectionService {
    * Fast distance-preserving projection with O(n) complexity
    * Ideal for large datasets (40K+ items)
    */
-  async runFastMapSync(features: number[][], ids: (string|number)[]): Promise<ProjectionResult> {
+  async runFastMapSync(features: number[][], ids: (string | number)[]): Promise<ProjectionResult> {
     const startTime = Date.now();
 
     try {
@@ -78,13 +77,13 @@ export class ProjectionService {
       const positions = embedding.map((coords: number[], i: number) => ({
         id: ids[i],
         x: coords[0],
-        y: coords[1]
+        y: coords[1],
       }));
 
       return {
         method: 'fastmap',
         positions,
-        computeTime: Date.now() - startTime
+        computeTime: Date.now() - startTime,
       };
     } catch (error: any) {
       throw new Error(`FastMap failed: ${error.message}`);
@@ -95,7 +94,7 @@ export class ProjectionService {
    * Run IsoMap (blocking) - Non-linear manifold learning
    * Preserves geodesic distances - slower than FastMap but better structure preservation
    */
-  async runIsoMapSync(features: number[][], ids: (string|number)[]): Promise<ProjectionResult> {
+  async runIsoMapSync(features: number[][], ids: (string | number)[]): Promise<ProjectionResult> {
     const startTime = Date.now();
 
     try {
@@ -105,13 +104,13 @@ export class ProjectionService {
       const positions = embedding.map((coords: number[], i: number) => ({
         id: ids[i],
         x: coords[0],
-        y: coords[1]
+        y: coords[1],
       }));
 
       return {
         method: 'isomap',
         positions,
-        computeTime: Date.now() - startTime
+        computeTime: Date.now() - startTime,
       };
     } catch (error: any) {
       throw new Error(`IsoMap failed: ${error.message}`);
@@ -121,7 +120,7 @@ export class ProjectionService {
   /**
    * Run FastMap (background) - runs in Web Worker
    */
-  async runFastMap(features: number[][], ids: (string|number)[]): Promise<ProjectionResult> {
+  async runFastMap(features: number[][], ids: (string | number)[]): Promise<ProjectionResult> {
     return this.runProjectionInWorker('fastmap', features, ids);
   }
 
@@ -129,14 +128,23 @@ export class ProjectionService {
    * Run IsoMap (background) - runs in Web Worker
    * Non-linear manifold learning projection
    */
-  async runIsoMap(features: number[][], ids: (string|number)[], config?: { neighbors?: number }): Promise<ProjectionResult> {
-    return this.runProjectionInWorker('isomap', features, ids, config ? { isomapNeighbors: config.neighbors } : undefined);
+  async runIsoMap(
+    features: number[][],
+    ids: (string | number)[],
+    config?: { neighbors?: number }
+  ): Promise<ProjectionResult> {
+    return this.runProjectionInWorker(
+      'isomap',
+      features,
+      ids,
+      config ? { isomapNeighbors: config.neighbors } : undefined
+    );
   }
 
   /**
    * Run PCA in background (Web Worker) - for when IsoMap is primary
    */
-  async runPCABackground(features: number[][], ids: (string|number)[]): Promise<ProjectionResult> {
+  async runPCABackground(features: number[][], ids: (string | number)[]): Promise<ProjectionResult> {
     return this.runProjectionInWorker('pca', features, ids);
   }
 
@@ -146,8 +154,8 @@ export class ProjectionService {
    */
   async runTSNE(
     features: number[][],
-    ids: (string|number)[],
-    config: {perplexity: number; iterations: number}
+    ids: (string | number)[],
+    config: { perplexity: number; iterations: number }
   ): Promise<ProjectionResult> {
     return this.runProjectionInWorker('tsne', features, ids, config);
   }
@@ -158,8 +166,8 @@ export class ProjectionService {
    */
   async runUMAP(
     features: number[][],
-    ids: (string|number)[],
-    config: {neighbors: number; minDist: number}
+    ids: (string | number)[],
+    config: { neighbors: number; minDist: number }
   ): Promise<ProjectionResult> {
     return this.runProjectionInWorker('umap', features, ids, config);
   }
@@ -167,42 +175,59 @@ export class ProjectionService {
   /**
    * Run MDS (background) - Classical Multidimensional Scaling
    */
-  async runMDS(features: number[][], ids: (string|number)[]): Promise<ProjectionResult> {
+  async runMDS(features: number[][], ids: (string | number)[]): Promise<ProjectionResult> {
     return this.runProjectionInWorker('mds', features, ids);
   }
 
   /**
    * Run LLE (background) - Locally Linear Embedding
    */
-  async runLLE(features: number[][], ids: (string|number)[], config?: { neighbors?: number }): Promise<ProjectionResult> {
+  async runLLE(
+    features: number[][],
+    ids: (string | number)[],
+    config?: { neighbors?: number }
+  ): Promise<ProjectionResult> {
     return this.runProjectionInWorker('lle', features, ids, config ? { lleNeighbors: config.neighbors } : undefined);
   }
 
   /**
    * Run LTSA (background) - Local Tangent Space Alignment
    */
-  async runLTSA(features: number[][], ids: (string|number)[], config?: { neighbors?: number }): Promise<ProjectionResult> {
+  async runLTSA(
+    features: number[][],
+    ids: (string | number)[],
+    config?: { neighbors?: number }
+  ): Promise<ProjectionResult> {
     return this.runProjectionInWorker('ltsa', features, ids, config ? { ltsaNeighbors: config.neighbors } : undefined);
   }
 
   /**
    * Run TriMap (background) - Good for large datasets
    */
-  async runTriMap(features: number[][], ids: (string|number)[], config?: { weightAdj?: number }): Promise<ProjectionResult> {
-    return this.runProjectionInWorker('trimap', features, ids, config ? { trimapWeightAdj: config.weightAdj } : undefined);
+  async runTriMap(
+    features: number[][],
+    ids: (string | number)[],
+    config?: { weightAdj?: number }
+  ): Promise<ProjectionResult> {
+    return this.runProjectionInWorker(
+      'trimap',
+      features,
+      ids,
+      config ? { trimapWeightAdj: config.weightAdj } : undefined
+    );
   }
 
   /**
    * Run TopoMap (background) - Topology preserving
    */
-  async runTopoMap(features: number[][], ids: (string|number)[]): Promise<ProjectionResult> {
+  async runTopoMap(features: number[][], ids: (string | number)[]): Promise<ProjectionResult> {
     return this.runProjectionInWorker('topomap', features, ids);
   }
 
   /**
    * Run Sammon (background) - Sammon mapping
    */
-  async runSammon(features: number[][], ids: (string|number)[]): Promise<ProjectionResult> {
+  async runSammon(features: number[][], ids: (string | number)[]): Promise<ProjectionResult> {
     return this.runProjectionInWorker('sammon', features, ids);
   }
 
@@ -218,7 +243,7 @@ export class ProjectionService {
     return new Promise((resolve, reject) => {
       // Create worker for this projection
       const worker = new Worker(new URL('../workers/projection.worker', import.meta.url), {
-        type: 'module'
+        type: 'module',
       });
 
       this.workers.set(method, worker);
@@ -243,7 +268,7 @@ export class ProjectionService {
             resolve({
               method: method as any,
               positions: data.positions!,
-              computeTime: data.computeTime!
+              computeTime: data.computeTime!,
             });
           } else if (data.type === 'error') {
             // Error occurred
@@ -255,7 +280,7 @@ export class ProjectionService {
         });
       };
 
-      worker.onerror = (error) => {
+      worker.onerror = error => {
         this.ngZone.run(() => {
           this.updateBackgroundStatus(method, 'error', 0, `${method} worker error`, error.message);
           worker.terminate();
@@ -270,7 +295,7 @@ export class ProjectionService {
         method,
         features,
         ids,
-        config
+        config,
       };
       worker.postMessage(request);
     });
@@ -295,7 +320,7 @@ export class ProjectionService {
       const features: number[][] = [];
 
       for (const line of dataLines) {
-        if (!line.trim()) continue;  // Skip empty lines
+        if (!line.trim()) continue; // Skip empty lines
 
         const values = line.split(',');
         if (values.length < 2) {
@@ -383,5 +408,4 @@ export class ProjectionService {
     });
     this.workers.clear();
   }
-
 }

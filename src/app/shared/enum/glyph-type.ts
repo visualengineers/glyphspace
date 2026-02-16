@@ -1,8 +1,8 @@
 export enum GlyphType {
-    None,
-    Star,
-    Flower,
-    Whisker,
-    Dot,
-    Thumb
+  None,
+  Star,
+  Flower,
+  Whisker,
+  Dot,
+  Thumb,
 }

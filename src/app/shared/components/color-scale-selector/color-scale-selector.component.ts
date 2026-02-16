@@ -1,16 +1,12 @@
 import { Component, Input, Output, EventEmitter, HostListener } from '@angular/core';
-import {
-  ColorScale,
-  getContinuousGradient,
-  getCategoricalColors
-} from '../../interfaces/color-scale';
+import { ColorScale, getContinuousGradient, getCategoricalColors } from '../../interfaces/color-scale';
 
 @Component({
   selector: 'app-color-scale-selector',
   standalone: true,
   imports: [],
   templateUrl: './color-scale-selector.component.html',
-  styleUrl: './color-scale-selector.component.scss'
+  styleUrl: './color-scale-selector.component.scss',
 })
 export class ColorScaleSelectorComponent {
   @Input() groupedColorScales: { group: string; scales: ColorScale[] }[] = [];

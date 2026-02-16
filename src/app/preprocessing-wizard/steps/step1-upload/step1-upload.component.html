@@ -10,8 +10,8 @@
       <div class="info-box">
         <span class="material-icons">info</span>
         <div>
-          <strong>Supported formats:</strong> CSV files up to 50MB.
-          Your data will be analyzed automatically to detect column types and quality issues.
+          <strong>Supported formats:</strong> CSV files up to 50MB. Your data will be analyzed automatically to detect
+          column types and quality issues.
         </div>
       </div>
 
@@ -22,8 +22,8 @@
         [class.loading]="isLoading"
         (dragover)="onDragOver($event)"
         (dragleave)="onDragLeave($event)"
-        (drop)="onDrop($event)">
-
+        (drop)="onDrop($event)"
+      >
         @if (isLoading) {
           <div class="loading-state">
             <div class="spinner"></div>
@@ -43,11 +43,10 @@
                 type="file"
                 accept=".csv"
                 (change)="onFileSelected($event)"
-                style="display: none">
+                style="display: none"
+              />
             </label>
-            <div class="upload-hint">
-              Maximum file size: 50MB
-            </div>
+            <div class="upload-hint">Maximum file size: 50MB</div>
           </div>
         }
       </div>
@@ -63,17 +62,20 @@
         <h3>
           File Requirements
           <app-help-tooltip
-            helpText="<strong>CSV Format:</strong><br/>• First row = column headers<br/>• Comma-separated values<br/>• Optional ID column"></app-help-tooltip>
+            helpText="<strong>CSV Format:</strong><br/>• First row = column headers<br/>• Comma-separated values<br/>• Optional ID column"
+          ></app-help-tooltip>
         </h3>
         <ul>
           <li><strong>First row</strong> should contain column headers</li>
           <li><strong>ID column</strong> (optional): Unique identifier for each row</li>
-          <li><strong>Pre-computed coordinates</strong> (optional): "&lt;name&gt;-x" and "&lt;name&gt;-y" pairs (e.g., "pca-x", "pca-y")</li>
+          <li>
+            <strong>Pre-computed coordinates</strong> (optional): "&lt;name&gt;-x" and "&lt;name&gt;-y" pairs (e.g.,
+            "pca-x", "pca-y")
+          </li>
           <li><strong>Geographic data</strong> (optional): "latitude" and "longitude" columns</li>
           <li><strong>File too large?</strong> Try filtering rows in Excel or reducing columns before upload</li>
         </ul>
       </div>
-
     } @else {
       <!-- Data Profile Overview -->
       <div class="data-profile">
@@ -83,9 +85,7 @@
             <h3>Data Loaded Successfully</h3>
           </div>
           <div class="profile-actions">
-            <button class="btn-secondary" (click)="profile = null">
-              Upload Different File
-            </button>
+            <button class="btn-secondary" (click)="profile = null">Upload Different File</button>
           </div>
         </div>
 
@@ -129,11 +129,10 @@
                 Data Quality
                 <app-help-tooltip
                   helpText="Quality score measures data completeness and consistency:<br/><br/><strong>90-100%:</strong> Excellent - minimal issues<br/><strong>70-89%:</strong> Good - some missing values<br/><strong>50-69%:</strong> Fair - notable quality issues<br/><strong>&lt;50%:</strong> Poor - significant problems<br/><br/>Based on: missing values, duplicates, column variability"
-                  position="bottom"></app-help-tooltip>
+                  position="bottom"
+                ></app-help-tooltip>
               </div>
-              <div class="stat-value">
-                {{ profile.qualityScore.toFixed(1) }}% ({{ qualityLabel }})
-              </div>
+              <div class="stat-value">{{ profile.qualityScore.toFixed(1) }}% ({{ qualityLabel }})</div>
             </div>
           </div>
 
@@ -150,10 +149,7 @@
 
         <div class="profile-section">
           <h4>Data Preview (First 10 rows)</h4>
-          <app-data-preview-table
-            [data]="profile.previewRows"
-            [maxRows]="10">
-          </app-data-preview-table>
+          <app-data-preview-table [data]="profile.previewRows" [maxRows]="10"> </app-data-preview-table>
         </div>
       </div>
     }

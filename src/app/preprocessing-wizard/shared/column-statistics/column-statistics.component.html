@@ -21,12 +21,13 @@
           [style.width.%]="completenessPercentage"
           [class.good]="completenessPercentage >= 90"
           [class.warning]="completenessPercentage >= 50 && completenessPercentage < 90"
-          [class.poor]="completenessPercentage < 50">
-        </div>
+          [class.poor]="completenessPercentage < 50"
+        ></div>
       </div>
       <div class="stat-value">
-        {{ statistics.count }} / {{ statistics.count + statistics.missingCount }}
-        ({{ completenessPercentage.toFixed(1) }}%)
+        {{ statistics.count }} / {{ statistics.count + statistics.missingCount }} ({{
+          completenessPercentage.toFixed(1)
+        }}%)
       </div>
     </div>
 

@@ -5,7 +5,7 @@ import { FormsModule } from '@angular/forms';
   selector: 'app-overlaycontrols',
   imports: [FormsModule],
   templateUrl: './overlaycontrols.component.html',
-  styleUrls: ['./overlaycontrols.component.scss']
+  styleUrls: ['./overlaycontrols.component.scss'],
 })
 export class OverlayControlsComponent {
   @Input() collisionAvoidance!: boolean;
@@ -45,7 +45,7 @@ export class OverlayControlsComponent {
     this.settingsChanged.emit({
       timestamp: this.selectedTimestamp,
       algorithm: this.selectedAlgorithm,
-      context: this.selectedContext
+      context: this.selectedContext,
     });
     this.paused = false;
   }

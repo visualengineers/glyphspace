@@ -1,8 +1,8 @@
 export enum InteractionCommand {
-    noop,
-    redraw,
-    rerender,
-    fittoscreen,
-    clearselection,
-    exportimage
+  noop,
+  redraw,
+  rerender,
+  fittoscreen,
+  clearselection,
+  exportimage,
 }

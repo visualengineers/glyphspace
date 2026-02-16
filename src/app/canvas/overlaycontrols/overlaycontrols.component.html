@@ -1,92 +1,89 @@
 <!-- Overlay Button Panel -->
 <div class="overlay-controls">
-    <button
-        (click)="fitToView.emit()"
-        data-tooltip="Fit to Screen (F)"
-        title="Fit to Screen">
+  <button (click)="fitToView.emit()" data-tooltip="Fit to Screen (F)" title="Fit to Screen">
     <i class="material-icons">fullscreen</i>
-    </button>
-    <button
-        (click)="toggleCollision.emit()"
-        [class.active]="collisionAvoidance"
-        data-tooltip="Collision Avoidance (C)">
+  </button>
+  <button (click)="toggleCollision.emit()" [class.active]="collisionAvoidance" data-tooltip="Collision Avoidance (C)">
     <i class="material-icons">sync_disabled</i>
-    </button>
-    <button
-        (click)="toggleAggregation.emit()"
-        [class.active]="aggregated"
-        data-tooltip="Toggle Aggregation (A)"
-        title="Toggle Aggregation">
+  </button>
+  <button
+    (click)="toggleAggregation.emit()"
+    [class.active]="aggregated"
+    data-tooltip="Toggle Aggregation (A)"
+    title="Toggle Aggregation"
+  >
     <i class="material-icons">bubble_chart</i>
-    </button>
-    <button
-        (click)="toggleSelection.emit()"
-        [class.active]="selectionMode"
-        data-tooltip="Selection Mode (S)"
-        title="Selection Mode">
+  </button>
+  <button
+    (click)="toggleSelection.emit()"
+    [class.active]="selectionMode"
+    data-tooltip="Selection Mode (S)"
+    title="Selection Mode"
+  >
     <i class="material-icons">select_all</i>
-    </button>
-    <button
-        (click)="toggleLens.emit()"
-        [class.active]="magicLenseStatus"
-        data-tooltip="Magic Lens (L)"
-        title="Magic Lens">
+  </button>
+  <button
+    (click)="toggleLens.emit()"
+    [class.active]="magicLenseStatus"
+    data-tooltip="Magic Lens (L)"
+    title="Magic Lens"
+  >
     <i class="material-icons">travel_explore</i>
-    </button>
-    <!-- Settings Button -->
-    <button
-        class="settings-button"
-        (click)="toggleSettingsPanel.emit()"
-        [class.active]="showSettings"
-        data-tooltip="Data Settings (D)"
-        title="Data Settings">
+  </button>
+  <!-- Settings Button -->
+  <button
+    class="settings-button"
+    (click)="toggleSettingsPanel.emit()"
+    [class.active]="showSettings"
+    data-tooltip="Data Settings (D)"
+    title="Data Settings"
+  >
     <i class="material-icons">tune</i>
-    </button>
+  </button>
 
-    <!-- Dropdown -->
-    @if (showSettings) {
-        <div class="settings-dropdown">
-            <label>
-                <span class="select-label">Timestamp</span>
-                <select [(ngModel)]="selectedTimestamp" (ngModelChange)="emitSettingsChange()">
-                    @for (t of timestamps; track t) {
-                        <option [value]="t">{{ t }}</option>
-                    }
-                </select>
-            </label>
+  <!-- Dropdown -->
+  @if (showSettings) {
+    <div class="settings-dropdown">
+      <label>
+        <span class="select-label">Timestamp</span>
+        <select [(ngModel)]="selectedTimestamp" (ngModelChange)="emitSettingsChange()">
+          @for (t of timestamps; track t) {
+            <option [value]="t">{{ t }}</option>
+          }
+        </select>
+      </label>
 
-            <label>
-                <span class="select-label">Algorithm</span>
-                <select [(ngModel)]="selectedAlgorithm" (ngModelChange)="emitSettingsChange()">
-                    @for (algo of algorithms; track algo) {
-                        <option [value]="algo">{{ algo }}</option>
-                    }
-                </select>
-            </label>
+      <label>
+        <span class="select-label">Algorithm</span>
+        <select [(ngModel)]="selectedAlgorithm" (ngModelChange)="emitSettingsChange()">
+          @for (algo of algorithms; track algo) {
+            <option [value]="algo">{{ algo }}</option>
+          }
+        </select>
+      </label>
 
-            <div class="animation-control-group">
-                <div class="select-label">Playback Controls</div>
-                <div class="animation-controls">
+      <div class="animation-control-group">
+        <div class="select-label">Playback Controls</div>
+        <div class="animation-controls">
+          <button (click)="decreaseSpeed()" data-tooltip="Decrease Speed">
+            <i class="material-icons">remove</i>
+          </button>
 
-                    <button (click)="decreaseSpeed()" data-tooltip="Decrease Speed">
-                        <i class="material-icons">remove</i>
-                    </button>
+          <div class="speed-display">
+            {{ animationSpeed }}
+          </div>
 
-                    <div class="speed-display">
-                        {{ animationSpeed }}
-                    </div>
+          <button (click)="increaseSpeed()" data-tooltip="Increase Speed">
+            <i class="material-icons">add</i>
+          </button>
 
-                    <button (click)="increaseSpeed()" data-tooltip="Increase Speed">
-                        <i class="material-icons">add</i>
-                    </button>
-
-                    <button (click)="togglePaused()" [attr.data-tooltip]="paused ? 'Play Animation' : 'Pause Animation'">
-                    <i class="material-icons">
-                        {{ paused ? 'play_arrow' : 'pause' }}
-                    </i>
-                    </button>
-                </div>
-            </div>
+          <button (click)="togglePaused()" [attr.data-tooltip]="paused ? 'Play Animation' : 'Pause Animation'">
+            <i class="material-icons">
+              {{ paused ? 'play_arrow' : 'pause' }}
+            </i>
+          </button>
         </div>
-    }
+      </div>
+    </div>
+  }
 </div>

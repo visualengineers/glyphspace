@@ -4,26 +4,26 @@ import { Component, Input, OnChanges } from '@angular/core';
   standalone: true,
   imports: [],
   templateUrl: './box-plot.component.html',
-  styleUrl: './box-plot.component.scss'
+  styleUrl: './box-plot.component.scss',
 })
 export class BoxPlotComponent implements OnChanges {
-  @Input() min: number = 0;
-  @Input() q1: number = 0;
-  @Input() median: number = 0;
-  @Input() q3: number = 0;
-  @Input() max: number = 0;
+  @Input() min = 0;
+  @Input() q1 = 0;
+  @Input() median = 0;
+  @Input() q3 = 0;
+  @Input() max = 0;
   @Input() mean?: number;
-  @Input() width: number = 150;
-  @Input() height: number = 40;
-  @Input() color: string = '#00bcd4';
+  @Input() width = 150;
+  @Input() height = 40;
+  @Input() color = '#00bcd4';
 
   // Calculated positions
-  boxLeft: number = 0;
-  boxWidth: number = 0;
-  medianPos: number = 0;
+  boxLeft = 0;
+  boxWidth = 0;
+  medianPos = 0;
   meanPos?: number;
-  whiskerLeftPos: number = 0;
-  whiskerRightPos: number = 0;
+  whiskerLeftPos = 0;
+  whiskerRightPos = 0;
 
   padding = 10;
   plotWidth = 0;
@@ -31,7 +31,7 @@ export class BoxPlotComponent implements OnChanges {
   boxY = 0;
 
   ngOnChanges(): void {
-    this.plotWidth = this.width - (this.padding * 2);
+    this.plotWidth = this.width - this.padding * 2;
     this.boxY = (this.height - this.boxHeight) / 2 - 4; // Leave room for labels
 
     const range = this.max - this.min;

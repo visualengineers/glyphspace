@@ -1,8 +1,4 @@
-<app-menubar
-  [totalCells]="grid.length"
-  (addCanvas)="addCanvas()"
->
-</app-menubar>
+<app-menubar [totalCells]="grid.length" (addCanvas)="addCanvas()"> </app-menubar>
 
 <div class="content-area">
   <div
@@ -12,12 +8,7 @@
     [style.gridTemplateRows]="'repeat(' + rows + ', 1fr)'"
   >
     @for (cell of grid; track cell.id) {
-      <glyph-canvas
-        class="glyph-canvas"
-        [id]="cell.id"
-        [totalCells]="grid.length"
-        >
-      </glyph-canvas>
+      <glyph-canvas class="glyph-canvas" [id]="cell.id" [totalCells]="grid.length"> </glyph-canvas>
     }
   </div>
 

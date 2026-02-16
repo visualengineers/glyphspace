@@ -16,15 +16,15 @@ import { DataTypeBadgeComponent } from '../../../shared/components/data-type-bad
   standalone: true,
   imports: [CommonModule, FormsModule, WizardHistogramComponent, HelpTooltipComponent, DataTypeBadgeComponent],
   templateUrl: './step2-column-selection.component.html',
-  styleUrl: './step2-column-selection.component.scss'
+  styleUrl: './step2-column-selection.component.scss',
 })
 export class Step2ColumnSelectionComponent implements OnInit {
   @Output() continue = new EventEmitter<void>();
 
   columns: ColumnStatistics[] = [];
-  columnConfigs: Map<string, ColumnConfig> = new Map();
-  searchTerm: string = '';
-  columnHistogramCache: Map<string, HistogramData> = new Map();
+  columnConfigs = new Map<string, ColumnConfig>();
+  searchTerm = '';
+  columnHistogramCache = new Map<string, HistogramData>();
 
   // Expose help text and step info to template
   readonly HELP_TEXT = HELP_TEXT;
@@ -51,9 +51,8 @@ export class Step2ColumnSelectionComponent implements OnInit {
       return this.columns;
     }
     const term = this.searchTerm.toLowerCase();
-    return this.columns.filter(col =>
-      col.name.toLowerCase().includes(term) ||
-      col.dataType.toLowerCase().includes(term)
+    return this.columns.filter(
+      col => col.name.toLowerCase().includes(term) || col.dataType.toLowerCase().includes(term)
     );
   }
 
@@ -134,9 +133,7 @@ export class Step2ColumnSelectionComponent implements OnInit {
    */
   getTopValuesLabels(column: ColumnStatistics): string[] {
     if (!column.topValues) return [];
-    return column.topValues.slice(0, 10).map(item =>
-      `${this.truncateText(item.value, 20)}: ${item.count}`
-    );
+    return column.topValues.slice(0, 10).map(item => `${this.truncateText(item.value, 20)}: ${item.count}`);
   }
 
   private truncateText(text: string, maxLength: number): string {
@@ -165,7 +162,7 @@ export class Step2ColumnSelectionComponent implements OnInit {
         bins: [],
         counts: [],
         binEdges: [],
-        labels: []
+        labels: [],
       };
     }
 
@@ -178,7 +175,7 @@ export class Step2ColumnSelectionComponent implements OnInit {
       bins,
       counts,
       binEdges,
-      labels
+      labels,
     };
   }
 }

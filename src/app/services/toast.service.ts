@@ -9,7 +9,7 @@ export interface Toast {
 }
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class ToastService {
   private toastsSubject = new BehaviorSubject<Toast[]>([]);
@@ -18,12 +18,12 @@ export class ToastService {
 
   constructor() {}
 
-  show(message: string, type: Toast['type'] = 'info', duration: number = 5000): void {
+  show(message: string, type: Toast['type'] = 'info', duration = 5000): void {
     const toast: Toast = {
       id: this.nextId++,
       message,
       type,
-      duration
+      duration,
     };
 
     const currentToasts = this.toastsSubject.getValue();

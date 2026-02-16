@@ -1,7 +1,7 @@
 export enum RenderTask {
-    FitAnimation,
-    SceneRender,
-    GlyphAnimation,
-    ForceSimulation,
-    OriginalSimulation
+  FitAnimation,
+  SceneRender,
+  GlyphAnimation,
+  ForceSimulation,
+  OriginalSimulation,
 }

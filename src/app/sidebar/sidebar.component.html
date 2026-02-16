@@ -41,7 +41,6 @@
 
   <!-- Scrollable content -->
   <div class="sidebar-content">
-
     <!-- ENCODING ACCORDION -->
     <div class="accordion-section">
       <button class="accordion-header" (click)="toggleSection('encoding')">
@@ -74,19 +73,20 @@
             <app-color-scale-selector
               [groupedColorScales]="groupedColorScales"
               [selectedScale]="getSelectedScale()"
-              (scaleSelected)="selectColorScale($event)">
+              (scaleSelected)="selectColorScale($event)"
+            >
             </app-color-scale-selector>
           </div>
 
           <!-- Glyph axes -->
           <div class="form-group">
-            <label class="menu-label">GLYPH AXES <span class="feature-count">{{ getActiveFeatureCount() }}</span></label>
+            <label class="menu-label"
+              >GLYPH AXES <span class="feature-count">{{ getActiveFeatureCount() }}</span></label
+            >
             <div class="feature-list">
               @for (featureId of getSortedFeatureIds(); track featureId) {
                 <label class="feature-checkbox" [class.active]="isFeatureActive(featureId)">
-                  <input type="checkbox"
-                    [checked]="isFeatureActive(featureId)"
-                    (change)="toggleFeature(featureId)" />
+                  <input type="checkbox" [checked]="isFeatureActive(featureId)" (change)="toggleFeature(featureId)" />
                   <span class="feature-label">{{ getFeatureName(featureId) }}</span>
                 </label>
               }
@@ -119,18 +119,38 @@
           <div class="form-group">
             <label class="menu-label">GLYPH TYPE</label>
             <div class="control-cell">
-              <button class="glyph-btn" [class.active]="glyphConfig.glyphType === GlyphType.Star"
-                (click)="setGlyphType(GlyphType.Star)" title="Star Shape">
+              <button
+                class="glyph-btn"
+                [class.active]="glyphConfig.glyphType === GlyphType.Star"
+                (click)="setGlyphType(GlyphType.Star)"
+                title="Star Shape"
+              >
                 <i class="material-icons">star</i>
               </button>
-              <button class="glyph-btn" [class.active]="glyphConfig.glyphType === GlyphType.Flower"
-                (click)="setGlyphType(GlyphType.Flower)" title="Flower Shape">
+              <button
+                class="glyph-btn"
+                [class.active]="glyphConfig.glyphType === GlyphType.Flower"
+                (click)="setGlyphType(GlyphType.Flower)"
+                title="Flower Shape"
+              >
                 <i class="material-icons">local_florist</i>
               </button>
-              <button class="glyph-btn" [class.active]="glyphConfig.glyphType === GlyphType.Whisker"
-                (click)="setGlyphType(GlyphType.Whisker)" title="Whisker Shape">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                  stroke-linecap="round" stroke-linejoin="round">
+              <button
+                class="glyph-btn"
+                [class.active]="glyphConfig.glyphType === GlyphType.Whisker"
+                (click)="setGlyphType(GlyphType.Whisker)"
+                title="Whisker Shape"
+              >
+                <svg
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
                   <line x1="12" y1="12" x2="12" y2="2" />
                   <line x1="12" y1="12" x2="17" y2="5" />
                   <line x1="12" y1="12" x2="22" y2="10" />
@@ -141,8 +161,12 @@
                   <line x1="12" y1="12" x2="4" y2="7" />
                 </svg>
               </button>
-              <button class="glyph-btn" [class.active]="glyphConfig.glyphType === GlyphType.Thumb"
-                (click)="setGlyphType(GlyphType.Thumb)" title="Thumbnails">
+              <button
+                class="glyph-btn"
+                [class.active]="glyphConfig.glyphType === GlyphType.Thumb"
+                (click)="setGlyphType(GlyphType.Thumb)"
+                title="Thumbnails"
+              >
                 <i class="material-icons">collections</i>
               </button>
             </div>
@@ -153,8 +177,11 @@
             <label class="menu-label">GLYPH OPTIONS</label>
             <div class="control-cell config-toggle-group">
               @for (opt of glyphConfig.glyphOptions; track opt.property) {
-                <button class="config-toggle"
-                  [class.active]="isOptionEnabled(opt.property)" (click)="toggleOption(opt.property)">
+                <button
+                  class="config-toggle"
+                  [class.active]="isOptionEnabled(opt.property)"
+                  (click)="toggleOption(opt.property)"
+                >
                   {{ opt.label }}
                 </button>
               }
@@ -169,13 +196,17 @@
       <button class="accordion-header" (click)="toggleSection('filters')">
         <span class="material-icons accordion-icon">{{ filtersOpen ? 'expand_more' : 'chevron_right' }}</span>
         <span class="accordion-title">Filters</span>
-        @if (dataProvider.filteredItems !== dataProvider.totalItems) {
+        @if (filterService.filteredItems !== filterService.totalItems) {
           <span class="accordion-badge">
-            {{ dataProvider.filteredItems }}
+            {{ filterService.filteredItems }}
           </span>
         }
-        <button class="clear-filters-btn" (click)="clearFilters(); $event.stopPropagation()" type="button"
-          title="Clear selection and filters">
+        <button
+          class="clear-filters-btn"
+          (click)="clearFilters(); $event.stopPropagation()"
+          type="button"
+          title="Clear selection and filters"
+        >
           <span class="material-icons">filter_alt_off</span>
         </button>
       </button>
@@ -206,8 +237,15 @@
 
           <!-- Search -->
           <div class="dashboard-search">
-            <input #searchInput type="text" [(ngModel)]="searchTerm" (keydown.enter)="onSearchEnter()" (focus)="onFocus()"
-              (blur)="onBlur()" placeholder="Text search in features..." />
+            <input
+              #searchInput
+              type="text"
+              [(ngModel)]="searchTerm"
+              (keydown.enter)="onSearchEnter()"
+              (focus)="onFocus()"
+              (blur)="onBlur()"
+              placeholder="Text search in features..."
+            />
             @if (searchTerms.length > 0 || searchTerm) {
               <button class="clear-btn" (click)="clearSearch(searchInput)">
                 <i class="material-icons">close</i>
@@ -228,21 +266,32 @@
           </div>
 
           <!-- Data info -->
-          <div class="dashboard-infos" [hidden]="dataProvider.totalItems == 0">
+          <div class="dashboard-infos" [hidden]="filterService.totalItems == 0">
             <span>Total items&nbsp;</span>
-            <span>{{ dataProvider.totalItems }}</span>
-            <span class="right" [hidden]="dataProvider.filteredItems == dataProvider.totalItems">{{ dataProvider.filteredItems }}</span>
-            <span class="right" [hidden]="dataProvider.filteredItems == dataProvider.totalItems">Filtered Items&nbsp;</span>
+            <span>{{ filterService.totalItems }}</span>
+            <span class="right" [hidden]="filterService.filteredItems == filterService.totalItems">{{
+              filterService.filteredItems
+            }}</span>
+            <span class="right" [hidden]="filterService.filteredItems == filterService.totalItems"
+              >Filtered Items&nbsp;</span
+            >
           </div>
 
           <!-- Histogram filters -->
           <div class="filter-container">
             @for (featureId of featureIds; track featureId) {
               <div class="filter-item-wrapper">
-                <app-histogram [configuration]="config" [dataProvider]="dataProvider"
-                  [histogramData]="features[featureId].histogram" [categories]="features[featureId].categories"
-                  [featureMin]="features[featureId].min" [featureMax]="features[featureId].max"
-                  [label]="getFeatureName(featureId)" [type]="getFeatureType(featureId)" [property]="featureId">
+                <app-histogram
+                  [configuration]="config"
+                  [dataProvider]="filterService"
+                  [histogramData]="features[featureId].histogram"
+                  [categories]="features[featureId].categories"
+                  [featureMin]="features[featureId].min"
+                  [featureMax]="features[featureId].max"
+                  [label]="getFeatureName(featureId)"
+                  [type]="getFeatureType(featureId)"
+                  [property]="featureId"
+                >
                 </app-histogram>
               </div>
             }
@@ -250,6 +299,5 @@
         </div>
       }
     </div>
-
   </div>
 }

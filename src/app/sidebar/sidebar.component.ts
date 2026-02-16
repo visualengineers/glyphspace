@@ -3,7 +3,8 @@ import { FormsModule } from '@angular/forms';
 import { Subscription } from 'rxjs';
 
 import { ConfigService } from '../services/config.service';
-import { DataProviderService } from '../services/dataprovider.service';
+import { DataLoaderService } from '../services/data-loader.service';
+import { FilterService } from '../services/filter.service';
 import { LoggerService } from '../services/logger-service';
 
 import { GlyphObject } from '../glyph/glyph-object';
@@ -21,9 +22,11 @@ import { CategoryFilter } from '../shared/filter/category-filter';
 import { FeaturesData } from '../shared/interfaces/glyph-meta';
 import { GlyphSchema } from '../shared/interfaces/glyph-schema';
 import {
-  COLOR_SCALES, ColorScale, buildGroupedColorScales,
+  COLOR_SCALES,
+  ColorScale,
+  buildGroupedColorScales,
   getContinuousGradient as continuousGradientFn,
-  getCategoricalColors as categoricalColorsFn
+  getCategoricalColors as categoricalColorsFn,
 } from '../shared/interfaces/color-scale';
 
 import { HistogramComponent } from '../menubar/histogram/histogram.component';
@@ -36,7 +39,7 @@ export type AccordionSection = 'encoding' | 'style' | 'filters';
   standalone: true,
   imports: [FormsModule, HistogramComponent, ColorScaleSelectorComponent],
   templateUrl: './sidebar.component.html',
-  styleUrls: ['./sidebar.component.scss']
+  styleUrls: ['./sidebar.component.scss'],
 })
 export class SidebarComponent implements OnInit, OnDestroy {
   @HostBinding('class.collapsed') collapsed = false;
@@ -93,7 +96,8 @@ export class SidebarComponent implements OnInit, OnDestroy {
 
   constructor(
     public config: ConfigService,
-    public dataProvider: DataProviderService,
+    public dataLoader: DataLoaderService,
+    public filterService: FilterService,
     private logger: LoggerService
   ) {}
 
@@ -104,8 +108,8 @@ export class SidebarComponent implements OnInit, OnDestroy {
       this.config.loadedDataSubject$.subscribe(async data => {
         if (data === '') return;
 
-        const metaData = await this.dataProvider.getMetaData();
-        this.schema = await this.dataProvider.getSchema();
+        const metaData = await this.dataLoader.getMetaData();
+        this.schema = await this.dataLoader.getSchema();
         if (metaData?.features) {
           this.ngZone.run(() => {
             this.features = metaData.features;
@@ -115,12 +119,12 @@ export class SidebarComponent implements OnInit, OnDestroy {
           });
         }
 
-        const schema = await this.dataProvider.getSchema();
+        const schema = await this.dataLoader.getSchema();
         this.ngZone.run(() => {
           if (schema) this.colorFeature = schema.label[this.config.colorFeature];
         });
 
-        const glyphData = await this.dataProvider.getGlyphData();
+        const glyphData = await this.dataLoader.getGlyphData();
         if (glyphData?.length) {
           this.currentGlyph = glyphData[Math.floor(Math.random() * glyphData.length)];
           this.drawGlyphPreview();
@@ -242,11 +246,35 @@ export class SidebarComponent implements OnInit, OnDestroy {
     this.glyphContext.translate(-glyphCX, -glyphCY);
 
     if (cfg.glyphType === GlyphType.Star) {
-      drawRadarChart(this.glyphContext, 50, color, this.currentGlyph, this.config.activeFeatures, this.config.featureLabels, cfg);
+      drawRadarChart(
+        this.glyphContext,
+        50,
+        color,
+        this.currentGlyph,
+        this.config.activeFeatures,
+        this.config.featureLabels,
+        cfg
+      );
     } else if (cfg.glyphType === GlyphType.Whisker) {
-      drawWhiskerGlyph(this.glyphContext, 50, color, this.currentGlyph, this.config.activeFeatures, this.config.featureLabels, cfg);
+      drawWhiskerGlyph(
+        this.glyphContext,
+        50,
+        color,
+        this.currentGlyph,
+        this.config.activeFeatures,
+        this.config.featureLabels,
+        cfg
+      );
     } else {
-      drawFlowerGlyph(this.glyphContext, 50, color, this.currentGlyph, this.config.activeFeatures, this.config.featureLabels, cfg);
+      drawFlowerGlyph(
+        this.glyphContext,
+        50,
+        color,
+        this.currentGlyph,
+        this.config.activeFeatures,
+        this.config.featureLabels,
+        cfg
+      );
     }
 
     this.glyphContext.restore();
@@ -280,10 +308,10 @@ export class SidebarComponent implements OnInit, OnDestroy {
   // --- Active filter chips ---
   getActiveFilters(): { filter: ItemFilter; displayName: string }[] {
     const result: { filter: ItemFilter; displayName: string }[] = [];
-    for (const filter of this.dataProvider.getFilters()) {
+    for (const filter of this.filterService.getFilters()) {
       if (filter.empty()) continue;
       if (filter instanceof IdFilter) {
-        const count = filter.accaptableIds.length;
+        const count = filter.acceptableIds.length;
         result.push({ filter, displayName: `${count} selected` });
       } else if (filter instanceof FeatureFilter) {
         result.push({ filter, displayName: this.getFeatureName(filter.featureName) || filter.featureName });
@@ -296,7 +324,7 @@ export class SidebarComponent implements OnInit, OnDestroy {
 
   removeFilter(filter: ItemFilter): void {
     filter.clear();
-    this.dataProvider.refreshFilters();
+    this.filterService.refreshFilters();
     if (filter instanceof IdFilter) {
       this.config.clearSelection();
     } else {
@@ -312,7 +340,7 @@ export class SidebarComponent implements OnInit, OnDestroy {
   getStyleSummary(): string {
     const parts = [this.getGlyphName(this.glyphConfig.glyphType)];
     for (const opt of this.glyphConfig.glyphOptions) {
-      if ((this.glyphConfig as any)[opt.property]) parts.push(opt.label);
+      if (this.glyphConfig[opt.property as keyof GlyphConfiguration]) parts.push(opt.label);
     }
     return parts.join(' · ');
   }
@@ -320,12 +348,12 @@ export class SidebarComponent implements OnInit, OnDestroy {
   // --- Search / text filter ---
   updateTextFilter(): void {
     this.textFilter.filterMode = FilterMode.And;
-    this.dataProvider.ensureFilter(this.textFilter);
+    this.filterService.ensureFilter(this.textFilter);
     this.textFilter.clear();
     if (this.searchTerms.length > 0) {
-      this.textFilter.extendacceptableStrings(this.searchTerms);
+      this.textFilter.extendAcceptableStrings(this.searchTerms);
     }
-    this.dataProvider.refreshFilters();
+    this.filterService.refreshFilters();
     this.config.redraw();
   }
 
@@ -355,11 +383,11 @@ export class SidebarComponent implements OnInit, OnDestroy {
   }
 
   onBlur(): void {
-    setTimeout(() => this.inputFocused = false, 150);
+    setTimeout(() => (this.inputFocused = false), 150);
   }
 
   clearFilters(): void {
-    this.dataProvider.clearFilters();
+    this.filterService.clearFilters();
     this.config.clearSelection();
   }
 
@@ -403,12 +431,18 @@ export class SidebarComponent implements OnInit, OnDestroy {
 
   getGlyphName(glyph: GlyphType): string {
     switch (glyph) {
-      case GlyphType.Star: return 'Star';
-      case GlyphType.Flower: return 'Flower';
-      case GlyphType.Whisker: return 'Whisker';
-      case GlyphType.Dot: return 'Dot';
-      case GlyphType.Thumb: return 'Thumbnail';
-      default: return 'Unknown';
+      case GlyphType.Star:
+        return 'Star';
+      case GlyphType.Flower:
+        return 'Flower';
+      case GlyphType.Whisker:
+        return 'Whisker';
+      case GlyphType.Dot:
+        return 'Dot';
+      case GlyphType.Thumb:
+        return 'Thumbnail';
+      default:
+        return 'Unknown';
     }
   }
 

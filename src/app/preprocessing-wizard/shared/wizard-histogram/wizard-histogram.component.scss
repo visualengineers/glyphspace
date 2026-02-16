@@ -2,14 +2,14 @@
 @use '../../../../styles/mixins' as m;
 
 .wizard-histogram {
-  width: 120px;  // Fixed width to match the SVG
+  width: 120px; // Fixed width to match the SVG
   height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
   position: relative;
-  margin: 0 auto;  // Center the histogram in its container
+  margin: 0 auto; // Center the histogram in its container
 }
 
 .chart-container {
@@ -21,7 +21,9 @@
   }
 
   ::ng-deep rect.histogram-bar {
-    transition: fill 0.15s ease, opacity 0.15s ease;
+    transition:
+      fill 0.15s ease,
+      opacity 0.15s ease;
   }
 }
 
@@ -39,7 +41,6 @@
   text-align: center;
   opacity: 0;
   box-sizing: border-box;
-
 
   &.visible {
     opacity: 1;
