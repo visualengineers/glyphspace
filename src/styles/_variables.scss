@@ -35,6 +35,48 @@ $color-scale-low: #198FBD;
 $color-scale-high: #F7295B;
 $color-scale-middle: #F7D529;
 
+// Status Colors
+$status-warning: #FF9800;
+$status-warning-dark: #E65100;
+$status-error: #F44336;
+$status-error-dark: #C62828;
+$status-success: #4CAF50;
+$status-success-dark: #388E3C;
+$status-info: #00838f;
+
+// Projection Status Colors
+$proj-running: #f5a623;
+$proj-complete: #52c41a;
+$proj-error: #ff4d4f;
+$proj-running-bg: #fff8e6;
+$proj-running-border: #ffd666;
+$proj-complete-bg: #e6f7e6;
+$proj-complete-border: #95de95;
+$proj-error-bg: #fee;
+$proj-error-border: #faa;
+
+// UI Accent Colors (settings controls)
+$ui-accent-blue: #6aa9ff;
+$ui-border-light: #d0d0d0;
+$ui-bg-light: #f5f7fa;
+$ui-active-bg: #e6f0ff;
+$ui-active-border: #b3d2ff;
+$ui-hover-bg: #f0f4ff;
+$ui-active-pressed-bg: #dbe9ff;
+
+// App & Layout
+$app-bg: #f9f9f9;
+
+// Delete / Destructive
+$delete-hover-bg: #fee2e2;
+$delete-hover-text: #dc2626;
+
+// Focus
+$focus-outline: #c7d2fe;
+
+// Option Hover
+$option-hover-bg: #f0f5ff;
+
 // Wizard-specific colors
 $wizard-header-bg: #F4F5F7;
 $wizard-content-bg: #FFFFFF;

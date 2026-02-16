@@ -49,12 +49,12 @@
   align-items: center;
   gap: 8px;
   padding: 8px;
-  background: rgba(255, 152, 0, 0.1);
-  border-left: 3px solid #FF9800;
+  background: rgba(v.$status-warning, 0.1);
+  border-left: 3px solid v.$status-warning;
   border-radius: 4px;
   margin-bottom: 12px;
   font-size: 13px;
-  color: #E65100;
+  color: v.$status-warning-dark;
 
   .material-icons {
     font-size: 18px;
@@ -86,7 +86,7 @@
   text-align: right;
 
   &.text-warning {
-    color: #FF9800;
+    color: v.$status-warning;
   }
 }
 
@@ -100,15 +100,15 @@
   @include w.progress-fill;
 
   &.good {
-    background: #4CAF50;
+    background: v.$status-success;
   }
 
   &.warning {
-    background: #FF9800;
+    background: v.$status-warning;
   }
 
   &.poor {
-    background: #F44336;
+    background: v.$status-error;
   }
 }
 

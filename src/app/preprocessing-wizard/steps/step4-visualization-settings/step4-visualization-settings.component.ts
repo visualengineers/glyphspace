@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, HostListener } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PreprocessingService } from '../../services/preprocessing.service';
@@ -9,10 +9,19 @@ import { HelpTooltipComponent } from '../../shared/help-tooltip/help-tooltip.com
 import { HELP_TEXT } from '../../shared/constants/help-text';
 import { STEP_INFO } from '../../shared/constants/step-info';
 import {
-  COLOR_SCALES, ColorScale, buildGroupedColorScales,
-  getContinuousGradient as continuousGradientFn,
-  getCategoricalColors as categoricalColorsFn
+  COLOR_SCALES, ColorScale, buildGroupedColorScales
 } from '../../../shared/interfaces/color-scale';
+import { ColorScaleSelectorComponent } from '../../../shared/components/color-scale-selector/color-scale-selector.component';
+
+/** Describes a tunable parameter for a projection method. */
+interface ProjectionParam {
+  label: string;
+  helpKey: string;
+  configKey: keyof ProjectionConfig;
+  min: number;
+  max: number;
+  step?: number;
+}
 
 /**
  * UI configuration for a projection method.
@@ -28,12 +37,13 @@ interface ProjectionMethodUI {
   sizeHint?: string;
   disabled?: boolean;
   largeDatasetWarning?: boolean;
+  params?: ProjectionParam[];
 }
 
 @Component({
   selector: 'app-step4-visualization-settings',
   standalone: true,
-  imports: [CommonModule, FormsModule, HelpTooltipComponent],
+  imports: [CommonModule, FormsModule, HelpTooltipComponent, ColorScaleSelectorComponent],
   templateUrl: './step4-visualization-settings.component.html',
   styleUrl: './step4-visualization-settings.component.scss'
 })
@@ -42,10 +52,7 @@ export class Step4VisualizationSettingsComponent implements OnInit, OnDestroy {
   columns: ColumnStatistics[] = [];
   colorFeature: string | null = null;
   selectedColorScaleId: number = 0;
-  colorScaleDropdownOpen = false;
   groupedColorScales: { group: string; scales: ColorScale[] }[] = [];
-  getContinuousGradient = continuousGradientFn;
-  getCategoricalColors = categoricalColorsFn;
   getDataTypeBadgeClass = badgeClassFn;
 
   // Glyph feature mapping
@@ -109,7 +116,10 @@ export class Step4VisualizationSettingsComponent implements OnInit, OnDestroy {
       description: 'Global structure preservation',
       icon: 'timeline',
       badge: 'Fast',
-      sizeHint: 'up to 100K rows'
+      sizeHint: 'up to 100K rows',
+      params: [
+        { label: 'Weight Adjustment', helpKey: 'trimapWeightAdj', configKey: 'trimapWeightAdj', min: 100, max: 2000, step: 50 }
+      ]
     },
     {
       key: 'enableMDS',
@@ -127,7 +137,10 @@ export class Step4VisualizationSettingsComponent implements OnInit, OnDestroy {
       icon: 'auto_graph',
       badge: 'Medium',
       sizeHint: 'up to 5K rows',
-      largeDatasetWarning: true
+      largeDatasetWarning: true,
+      params: [
+        { label: 'Neighbors (0 = auto)', helpKey: 'isomapNeighbors', configKey: 'isomapNeighbors', min: 0, max: 200 }
+      ]
     },
     {
       key: 'enableLLE',
@@ -136,7 +149,10 @@ export class Step4VisualizationSettingsComponent implements OnInit, OnDestroy {
       icon: 'blur_on',
       badge: 'Medium',
       sizeHint: 'up to 30K rows',
-      largeDatasetWarning: true
+      largeDatasetWarning: true,
+      params: [
+        { label: 'Neighbors (0 = auto)', helpKey: 'lleNeighbors', configKey: 'lleNeighbors', min: 0, max: 200 }
+      ]
     },
     {
       key: 'enableLTSA',
@@ -145,7 +161,10 @@ export class Step4VisualizationSettingsComponent implements OnInit, OnDestroy {
       icon: 'waves',
       badge: 'Medium',
       sizeHint: 'up to 20K rows',
-      largeDatasetWarning: true
+      largeDatasetWarning: true,
+      params: [
+        { label: 'Neighbors (0 = auto)', helpKey: 'ltsaNeighbors', configKey: 'ltsaNeighbors', min: 0, max: 200 }
+      ]
     },
     {
       key: 'enableTopoMap',
@@ -163,7 +182,11 @@ export class Step4VisualizationSettingsComponent implements OnInit, OnDestroy {
       icon: 'scatter_plot',
       badge: 'Slow',
       sizeHint: 'up to 100K rows',
-      largeDatasetWarning: true
+      largeDatasetWarning: true,
+      params: [
+        { label: 'Number of Neighbors', helpKey: 'umapNeighbors', configKey: 'umapNeighbors', min: 2, max: 200 },
+        { label: 'Minimum Distance', helpKey: 'umapMinDist', configKey: 'umapMinDist', min: 0, max: 0.99, step: 0.01 }
+      ]
     },
     {
       key: 'enableSammon',
@@ -181,7 +204,11 @@ export class Step4VisualizationSettingsComponent implements OnInit, OnDestroy {
       icon: 'bubble_chart',
       badge: 'Very Slow',
       sizeHint: 'up to 15K rows',
-      largeDatasetWarning: true
+      largeDatasetWarning: true,
+      params: [
+        { label: 'Perplexity', helpKey: 'tsnePerplexity', configKey: 'tsnePerplexity', min: 5, max: 50 },
+        { label: 'Iterations', helpKey: 'tsneIterations', configKey: 'tsneIterations', min: 250, max: 5000, step: 250 }
+      ]
     }
   ];
 
@@ -252,17 +279,7 @@ export class Step4VisualizationSettingsComponent implements OnInit, OnDestroy {
 
   selectColorScale(id: number): void {
     this.selectedColorScaleId = id;
-    this.colorScaleDropdownOpen = false;
     this.preprocessingService.setColorScaleId(id);
-  }
-
-  toggleColorScaleDropdown(): void {
-    this.colorScaleDropdownOpen = !this.colorScaleDropdownOpen;
-  }
-
-  @HostListener('document:click')
-  onDocumentClick(): void {
-    this.colorScaleDropdownOpen = false;
   }
 
   // ============================================================================
@@ -426,43 +443,8 @@ export class Step4VisualizationSettingsComponent implements OnInit, OnDestroy {
     this.updateProjectionConfig();
   }
 
-  onTSNEPerplexityChange(value: number): void {
-    this.projectionConfig.tsnePerplexity = Math.max(5, Math.min(50, value));
-    this.updateProjectionConfig();
-  }
-
-  onTSNEIterationsChange(value: number): void {
-    this.projectionConfig.tsneIterations = Math.max(250, Math.min(5000, value));
-    this.updateProjectionConfig();
-  }
-
-  onUMAPNeighborsChange(value: number): void {
-    this.projectionConfig.umapNeighbors = Math.max(2, Math.min(200, value));
-    this.updateProjectionConfig();
-  }
-
-  onUMAPMinDistChange(value: number): void {
-    this.projectionConfig.umapMinDist = Math.max(0.0, Math.min(0.99, value));
-    this.updateProjectionConfig();
-  }
-
-  onIsoMapNeighborsChange(value: number): void {
-    this.projectionConfig.isomapNeighbors = Math.max(0, Math.min(200, value));
-    this.updateProjectionConfig();
-  }
-
-  onLLENeighborsChange(value: number): void {
-    this.projectionConfig.lleNeighbors = Math.max(0, Math.min(200, value));
-    this.updateProjectionConfig();
-  }
-
-  onLTSANeighborsChange(value: number): void {
-    this.projectionConfig.ltsaNeighbors = Math.max(0, Math.min(200, value));
-    this.updateProjectionConfig();
-  }
-
-  onTriMapWeightAdjChange(value: number): void {
-    this.projectionConfig.trimapWeightAdj = Math.max(100, Math.min(2000, value));
+  onParamChange(configKey: keyof ProjectionConfig, value: number, min: number, max: number): void {
+    (this.projectionConfig as any)[configKey] = Math.max(min, Math.min(max, value));
     this.updateProjectionConfig();
   }
 
@@ -621,7 +603,7 @@ export class Step4VisualizationSettingsComponent implements OnInit, OnDestroy {
   }
 
   methodHasParams(method: ProjectionMethodUI): boolean {
-    return ['enableIsoMap', 'enableLLE', 'enableLTSA', 'enableTSNE', 'enableUMAP', 'enableTriMap'].includes(method.key);
+    return (method.params?.length ?? 0) > 0;
   }
 
   // ============================================================================

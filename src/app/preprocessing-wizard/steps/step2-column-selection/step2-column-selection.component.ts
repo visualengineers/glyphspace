@@ -5,15 +5,16 @@ import { PreprocessingService } from '../../services/preprocessing.service';
 import { WizardHistogramComponent } from '../../shared/wizard-histogram/wizard-histogram.component';
 import { ColumnStatistics, HistogramData } from '../../models/column-statistics';
 import { ColumnConfig } from '../../models/column-config';
-import { DataType, getDataTypeBadgeClass as badgeClassFn } from '../../models/data-type.enum';
+import { DataType, getDataTypeColor } from '../../models/data-type.enum';
 import { HelpTooltipComponent } from '../../shared/help-tooltip/help-tooltip.component';
 import { HELP_TEXT } from '../../shared/constants/help-text';
 import { STEP_INFO } from '../../shared/constants/step-info';
+import { DataTypeBadgeComponent } from '../../../shared/components/data-type-badge/data-type-badge.component';
 
 @Component({
   selector: 'app-step2-column-selection',
   standalone: true,
-  imports: [CommonModule, FormsModule, WizardHistogramComponent, HelpTooltipComponent],
+  imports: [CommonModule, FormsModule, WizardHistogramComponent, HelpTooltipComponent, DataTypeBadgeComponent],
   templateUrl: './step2-column-selection.component.html',
   styleUrl: './step2-column-selection.component.scss'
 })
@@ -24,7 +25,6 @@ export class Step2ColumnSelectionComponent implements OnInit {
   columnConfigs: Map<string, ColumnConfig> = new Map();
   searchTerm: string = '';
   columnHistogramCache: Map<string, HistogramData> = new Map();
-  getDataTypeBadgeClass = badgeClassFn;
 
   // Expose help text and step info to template
   readonly HELP_TEXT = HELP_TEXT;
@@ -139,71 +139,12 @@ export class Step2ColumnSelectionComponent implements OnInit {
     );
   }
 
-  /**
-   * Get data type label
-   */
-  getDataTypeLabel(dataType: DataType): string {
-    switch (dataType) {
-      case DataType.Numeric: return 'Numeric';
-      case DataType.Categorical: return 'Categorical';
-      case DataType.Text: return 'Text';
-      case DataType.Date: return 'Date';
-      case DataType.Boolean: return 'Boolean';
-      case DataType.ID: return 'ID';
-      default: return 'Unknown';
-    }
-  }
-
-  /**
-   * Format number with appropriate precision
-   */
-  formatNumber(value: number | undefined): string {
-    if (value === undefined || value === null) return '—';
-    if (Math.abs(value) >= 1000) {
-      return value.toLocaleString('en-US', { maximumFractionDigits: 1 });
-    }
-    return value.toLocaleString('en-US', { maximumFractionDigits: 2 });
-  }
-
-  /**
-   * Truncate text to max length
-   */
-  truncateText(text: string, maxLength: number): string {
+  private truncateText(text: string, maxLength: number): string {
     if (text.length <= maxLength) return text;
     return text.substring(0, maxLength) + '...';
   }
 
-  /**
-   * Format date string for display
-   */
-  formatDate(dateStr: string): string {
-    try {
-      const date = new Date(dateStr);
-      if (isNaN(date.getTime())) return dateStr;
-      return date.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
-      });
-    } catch {
-      return dateStr;
-    }
-  }
-
-  /**
-   * Get color for data type (matching updated _variables.scss)
-   */
-  getDataTypeColor(dataType: DataType): string {
-    switch (dataType) {
-      case DataType.Numeric: return '#16A34A';      // Green
-      case DataType.Categorical: return '#7C3AED';  // Purple
-      case DataType.Text: return '#8BC34A';         // Light Green
-      case DataType.Date: return '#EA580C';         // Orange (Temporal)
-      case DataType.Boolean: return '#00bcd4';      // Cyan
-      case DataType.ID: return '#888888';           // Gray
-      default: return '#888888';
-    }
-  }
+  getDataTypeColor = getDataTypeColor;
 
   /**
    * Get histogram data for a column (either from column.histogram or cached)

@@ -7,7 +7,7 @@
     height: 64px;
     padding: 0 18px;
     background: white;
-    border-bottom: 1px solid #ddd;
+    border-bottom: 1px solid v.$gray-200;
 }
 
 .menu-top-row {
@@ -81,12 +81,12 @@
     background: transparent;
     border-radius: 8px;
     cursor: pointer;
-    color: #999;
+    color: v.$color-gray-border;
     padding: 0;
 
     &:hover {
-        background: #fee2e2;
-        color: #dc2626;
+        background: v.$delete-hover-bg;
+        color: v.$delete-hover-text;
     }
 
     .material-icons {
@@ -112,8 +112,8 @@
         padding: 6px 12px;
         border-radius: 10px;
         border: none;
-        background-color: #f2f2f2;
-        color: #333;
+        background-color: v.$gray-100;
+        color: v.$gray-800;
         font-size: 14px;
         cursor: pointer;
 
@@ -122,12 +122,12 @@
 
         /* subtle hover effect */
         &:hover {
-            background-color: #e6e6e6;
+            background-color: v.$gray-200;
         }
 
         /* focus outline for accessibility */
         &:focus {
-            outline: 2px solid #c7d2fe;
+            outline: 2px solid v.$focus-outline;
             outline-offset: 2px;
         }
     }
@@ -150,7 +150,7 @@
     display: flex;
     gap: 6px;
     padding: 4px;
-    background: #f2f2f2;
+    background: v.$gray-100;
     border-radius: 10px;
 
     button {
@@ -165,10 +165,10 @@
         cursor: pointer;
 
         font-size: 14px;
-        color: #333;
+        color: v.$gray-800;
 
         &:hover {
-            background: #e0e0e0;
+            background: v.$gray-200;
         }
 
         .material-icons {
@@ -194,11 +194,11 @@
         border: none;
         padding: 6px 12px;
         border-radius: 10px;
-        background: #f2f2f2;
+        background: v.$gray-100;
         cursor: pointer;
 
         &:hover {
-            background: #e6e6e6;
+            background: v.$gray-200;
         }
     }
 }

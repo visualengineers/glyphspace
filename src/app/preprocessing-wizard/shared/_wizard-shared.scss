@@ -113,23 +113,23 @@
 
   &.status-yes,
   &.status-complete {
-    background: rgba(76, 175, 80, 0.1);
-    color: #388E3C;
+    background: rgba(v.$status-success, 0.1);
+    color: v.$status-success-dark;
   }
 
   &.status-no {
     background: rgba(158, 158, 158, 0.1);
-    color: #616161;
+    color: v.$gray-600;
   }
 
   &.status-running {
-    background: rgba(0, 188, 212, 0.1);
+    background: rgba(v.$active-color, 0.1);
     color: v.$active-color;
   }
 
   &.status-error {
-    background: rgba(244, 67, 54, 0.1);
-    color: #C62828;
+    background: rgba(v.$status-error, 0.1);
+    color: v.$status-error-dark;
   }
 }
 
@@ -185,23 +185,23 @@
 
 @mixin message-info {
   @include message-base;
-  background: rgba(0, 188, 212, 0.1);
+  background: rgba(v.$active-color, 0.1);
   border-left: 3px solid v.$active-color;
-  color: #00838f;
+  color: v.$status-info;
 }
 
 @mixin message-warning {
   @include message-base;
-  background: rgba(255, 152, 0, 0.1);
-  border-left: 3px solid #FF9800;
-  color: #E65100;
+  background: rgba(v.$status-warning, 0.1);
+  border-left: 3px solid v.$status-warning;
+  color: v.$status-warning-dark;
 }
 
 @mixin message-error {
   @include message-base;
-  background: rgba(244, 67, 54, 0.1);
-  border-left: 3px solid #F44336;
-  color: #C62828;
+  background: rgba(v.$status-error, 0.1);
+  border-left: 3px solid v.$status-error;
+  color: v.$status-error-dark;
 }
 
 // Form elements

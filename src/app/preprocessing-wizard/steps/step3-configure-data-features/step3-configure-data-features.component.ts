@@ -10,12 +10,12 @@ import {
   ScalingMethod,
   MissingValueStrategy,
   OutlierStrategy,
-  OutlierMethod,
-  getDataTypeBadgeClass as badgeClassFn
+  OutlierMethod
 } from '../../models/data-type.enum';
 import { HelpTooltipComponent } from '../../shared/help-tooltip/help-tooltip.component';
 import { HELP_TEXT } from '../../shared/constants/help-text';
 import { STEP_INFO } from '../../shared/constants/step-info';
+import { DataTypeBadgeComponent } from '../../../shared/components/data-type-badge/data-type-badge.component';
 
 interface ColumnConfigState {
   column: ColumnStatistics;
@@ -28,14 +28,13 @@ interface ColumnConfigState {
 @Component({
   selector: 'app-step3-configure-data-features',
   standalone: true,
-  imports: [CommonModule, FormsModule, HelpTooltipComponent],
+  imports: [CommonModule, FormsModule, HelpTooltipComponent, DataTypeBadgeComponent],
   templateUrl: './step3-configure-data-features.component.html',
   styleUrl: './step3-configure-data-features.component.scss'
 })
 export class Step3ConfigureDataFeaturesComponent implements OnInit {
   columns: ColumnConfigState[] = [];
   filteredColumns: ColumnConfigState[] = [];
-  getDataTypeBadgeClass = badgeClassFn;
 
   // Selection state for list+detail panel
   selectedColumnName: string | null = null;

@@ -1080,11 +1080,8 @@ export class GlyphCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private applyFilters() {
-    const filters = this.dataProvider.getFilters();
-    if (!filters.includes(this.selectionFilter)) {
-      this.selectionFilter.filterMode = FilterMode.Or;
-      filters.push(this.selectionFilter);
-    }
+    this.selectionFilter.filterMode = FilterMode.Or;
+    this.dataProvider.ensureFilter(this.selectionFilter);
     this.dataProvider.refreshFilters();
     this.config.redraw();
   }

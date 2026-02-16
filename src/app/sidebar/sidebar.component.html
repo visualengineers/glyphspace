@@ -59,31 +59,11 @@
         <!-- Color scale -->
         <div class="form-group">
           <label class="menu-label">COLOR SCALE</label>
-          <div class="color-scale-select" (click)="$event.stopPropagation(); toggleColorScaleDropdown()">
-            <div class="selected-scale" *ngIf="getSelectedScale() as scale">
-              <div *ngIf="scale.type === 'numeric'" class="color-gradient"
-                [style.background]="getContinuousGradient(scale)"></div>
-              <ng-container *ngIf="scale.type === 'categorical'">
-                <div class="color-box" *ngFor="let c of getCategoricalColors(scale)" [style.background]="c"></div>
-              </ng-container>
-            </div>
-
-            <div class="color-scale-options" *ngIf="colorScaleDropdownOpen">
-              <ng-container *ngFor="let group of groupedColorScales; let gi = index">
-                <div class="color-scale-group-label">{{ group.group }}</div>
-                <div class="color-scale-option" *ngFor="let scale of group.scales"
-                  [class.active]="scale.id === selectedColorScaleId"
-                  (click)="selectColorScale(scale.id); colorScaleDropdownOpen = false; $event.stopPropagation()">
-                  <div *ngIf="scale.type === 'numeric'" class="color-gradient"
-                    [style.background]="getContinuousGradient(scale)"></div>
-                  <ng-container *ngIf="scale.type === 'categorical'">
-                    <div class="color-box" *ngFor="let c of getCategoricalColors(scale)" [style.background]="c"></div>
-                  </ng-container>
-                </div>
-                <div class="color-scale-group-divider" *ngIf="gi < groupedColorScales.length - 1"></div>
-              </ng-container>
-            </div>
-          </div>
+          <app-color-scale-selector
+            [groupedColorScales]="groupedColorScales"
+            [selectedScale]="getSelectedScale()"
+            (scaleSelected)="selectColorScale($event)">
+          </app-color-scale-selector>
         </div>
 
         <!-- Glyph axes -->

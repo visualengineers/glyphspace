@@ -21,43 +21,11 @@
 
         <div class="form-group">
           <label class="menu-label">COLOR SCALE</label>
-          <div class="color-scale-select" (click)="$event.stopPropagation(); toggleColorScaleDropdown()">
-            <div class="selected-scale">
-              @if (getSelectedColorScale(); as scale) {
-                @if (scale.type === 'numeric') {
-                  <div class="color-gradient" [style.background]="getContinuousGradient(scale)"></div>
-                } @else {
-                  @for (c of getCategoricalColors(scale); track c) {
-                    <div class="color-box" [style.background]="c"></div>
-                  }
-                }
-              }
-            </div>
-
-            @if (colorScaleDropdownOpen) {
-              <div class="color-scale-options">
-                @for (group of groupedColorScales; track group.group; let gi = $index) {
-                  <div class="color-scale-group-label">{{ group.group }}</div>
-                  @for (scale of group.scales; track scale.id) {
-                    <div class="color-scale-option"
-                         [class.active]="scale.id === selectedColorScaleId"
-                         (click)="selectColorScale(scale.id); $event.stopPropagation()">
-                      @if (scale.type === 'numeric') {
-                        <div class="color-gradient" [style.background]="getContinuousGradient(scale)"></div>
-                      } @else {
-                        @for (c of getCategoricalColors(scale); track c) {
-                          <div class="color-box" [style.background]="c"></div>
-                        }
-                      }
-                    </div>
-                  }
-                  @if (gi < groupedColorScales.length - 1) {
-                    <div class="color-scale-group-divider"></div>
-                  }
-                }
-              </div>
-            }
-          </div>
+          <app-color-scale-selector
+            [groupedColorScales]="groupedColorScales"
+            [selectedScale]="getSelectedColorScale()"
+            (scaleSelected)="selectColorScale($event)">
+          </app-color-scale-selector>
         </div>
       </div>
     </div>
@@ -296,152 +264,30 @@
         @if (projectionConfig[method.key] && isMethodParamsExpanded(method.key)) {
           <div class="inline-params">
             <span class="params-label">{{ method.name }} Parameters</span>
-            @if (method.key === 'enableIsoMap') {
+            @for (param of method.params; track param.configKey) {
               <div class="param-field">
                 <label>
-                  Neighbors (0 = auto)
-                  <app-help-tooltip [helpText]="HELP_TEXT.parameters.isomapNeighbors"></app-help-tooltip>
+                  {{ param.label }}
+                  <app-help-tooltip [helpText]="$any(HELP_TEXT.parameters)[param.helpKey]"></app-help-tooltip>
                 </label>
                 <div class="input-group">
-                  <input type="range" min="0" max="200"
-                         [value]="projectionConfig.isomapNeighbors"
-                         (input)="onIsoMapNeighborsChange(+$any($event.target).value)"
+                  <input type="range" [min]="param.min" [max]="param.max" [step]="param.step || 1"
+                         [value]="projectionConfig[param.configKey]"
+                         (input)="onParamChange(param.configKey, +$any($event.target).value, param.min, param.max)"
                          class="range-input">
-                  <input type="number" min="0" max="200"
-                         [value]="projectionConfig.isomapNeighbors"
-                         (input)="onIsoMapNeighborsChange(+$any($event.target).value)"
+                  <input type="number" [min]="param.min" [max]="param.max" [step]="param.step || 1"
+                         [value]="projectionConfig[param.configKey]"
+                         (input)="onParamChange(param.configKey, +$any($event.target).value, param.min, param.max)"
                          class="number-input">
                 </div>
               </div>
             }
-            @if (method.key === 'enableLLE') {
-              <div class="param-field">
-                <label>
-                  Neighbors (0 = auto)
-                  <app-help-tooltip [helpText]="HELP_TEXT.parameters.lleNeighbors"></app-help-tooltip>
-                </label>
-                <div class="input-group">
-                  <input type="range" min="0" max="200"
-                         [value]="projectionConfig.lleNeighbors"
-                         (input)="onLLENeighborsChange(+$any($event.target).value)"
-                         class="range-input">
-                  <input type="number" min="0" max="200"
-                         [value]="projectionConfig.lleNeighbors"
-                         (input)="onLLENeighborsChange(+$any($event.target).value)"
-                         class="number-input">
-                </div>
-              </div>
-            }
-            @if (method.key === 'enableLTSA') {
-              <div class="param-field">
-                <label>
-                  Neighbors (0 = auto)
-                  <app-help-tooltip [helpText]="HELP_TEXT.parameters.ltsaNeighbors"></app-help-tooltip>
-                </label>
-                <div class="input-group">
-                  <input type="range" min="0" max="200"
-                         [value]="projectionConfig.ltsaNeighbors"
-                         (input)="onLTSANeighborsChange(+$any($event.target).value)"
-                         class="range-input">
-                  <input type="number" min="0" max="200"
-                         [value]="projectionConfig.ltsaNeighbors"
-                         (input)="onLTSANeighborsChange(+$any($event.target).value)"
-                         class="number-input">
-                </div>
-              </div>
-            }
-            @if (method.key === 'enableTriMap') {
-              <div class="param-field">
-                <label>
-                  Weight Adjustment
-                  <app-help-tooltip [helpText]="HELP_TEXT.parameters.trimapWeightAdj"></app-help-tooltip>
-                </label>
-                <div class="input-group">
-                  <input type="range" min="100" max="2000" step="50"
-                         [value]="projectionConfig.trimapWeightAdj"
-                         (input)="onTriMapWeightAdjChange(+$any($event.target).value)"
-                         class="range-input">
-                  <input type="number" min="100" max="2000" step="50"
-                         [value]="projectionConfig.trimapWeightAdj"
-                         (input)="onTriMapWeightAdjChange(+$any($event.target).value)"
-                         class="number-input">
-                </div>
-              </div>
-            }
-            @if (method.key === 'enableTSNE') {
-              <div class="param-field">
-                <label>
-                  Perplexity
-                  <app-help-tooltip [helpText]="HELP_TEXT.parameters.tsnePerplexity"></app-help-tooltip>
-                </label>
-                <div class="input-group">
-                  <input type="range" min="5" max="50"
-                         [value]="projectionConfig.tsnePerplexity"
-                         (input)="onTSNEPerplexityChange(+$any($event.target).value)"
-                         class="range-input">
-                  <input type="number" min="5" max="50"
-                         [value]="projectionConfig.tsnePerplexity"
-                         (input)="onTSNEPerplexityChange(+$any($event.target).value)"
-                         class="number-input">
-                </div>
-              </div>
-              <div class="param-field">
-                <label>
-                  Iterations
-                  <app-help-tooltip [helpText]="HELP_TEXT.parameters.tsneIterations"></app-help-tooltip>
-                </label>
-                <div class="input-group">
-                  <input type="range" min="250" max="5000" step="250"
-                         [value]="projectionConfig.tsneIterations"
-                         (input)="onTSNEIterationsChange(+$any($event.target).value)"
-                         class="range-input">
-                  <input type="number" min="250" max="5000" step="250"
-                         [value]="projectionConfig.tsneIterations"
-                         (input)="onTSNEIterationsChange(+$any($event.target).value)"
-                         class="number-input">
-                </div>
-              </div>
-              @if (shouldShowTSNEWarning()) {
-                <div class="warning-box">
-                  <span class="material-icons">warning</span>
-                  <div>
-                    <p><strong>{{ getTSNETimeEstimate() }}</strong></p>
-                    <p>t-SNE will run in the background. Explore with FastMap while waiting.</p>
-                  </div>
-                </div>
-              }
-            }
-            @if (method.key === 'enableUMAP') {
-              <div class="param-field">
-                <label>
-                  Number of Neighbors
-                  <app-help-tooltip [helpText]="HELP_TEXT.parameters.umapNeighbors"></app-help-tooltip>
-                </label>
-                <div class="input-group">
-                  <input type="range" min="2" max="200"
-                         [value]="projectionConfig.umapNeighbors"
-                         (input)="onUMAPNeighborsChange(+$any($event.target).value)"
-                         class="range-input">
-                  <input type="number" min="2" max="200"
-                         [value]="projectionConfig.umapNeighbors"
-                         (input)="onUMAPNeighborsChange(+$any($event.target).value)"
-                         class="number-input">
-                </div>
-              </div>
-              <div class="param-field">
-                <label>
-                  Minimum Distance
-                  <app-help-tooltip [helpText]="HELP_TEXT.parameters.umapMinDist"></app-help-tooltip>
-                </label>
-                <div class="input-group">
-                  <input type="range" min="0" max="0.99" step="0.01"
-                         [value]="projectionConfig.umapMinDist"
-                         (input)="onUMAPMinDistChange(+$any($event.target).value)"
-                         class="range-input">
-                  <input type="number" min="0" max="0.99" step="0.01"
-                         [value]="projectionConfig.umapMinDist"
-                         (input)="onUMAPMinDistChange(+$any($event.target).value)"
-                         class="number-input">
+            @if (method.key === 'enableTSNE' && shouldShowTSNEWarning()) {
+              <div class="warning-box">
+                <span class="material-icons">warning</span>
+                <div>
+                  <p><strong>{{ getTSNETimeEstimate() }}</strong></p>
+                  <p>t-SNE will run in the background. Explore with FastMap while waiting.</p>
                 </div>
               </div>
             }

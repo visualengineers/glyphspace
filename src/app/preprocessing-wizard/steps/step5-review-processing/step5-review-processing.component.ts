@@ -6,19 +6,21 @@ import { DataProviderService } from '../../../services/dataprovider.service';
 import { ProjectionService, ProjectionResult } from '../../../services/projection.service';
 import { ToastService } from '../../../services/toast.service';
 import { ColumnConfig, ProjectionConfig } from '../../models/column-config';
-import { DataType, EncodingMethod, ScalingMethod, getDataTypeBadgeClass as badgeClassFn } from '../../models/data-type.enum';
+import { DataType, EncodingMethod, ScalingMethod, getEncodingLabel as encLabelFn, getScalingLabel as scaleLabelFn } from '../../models/data-type.enum';
 import { STEP_INFO } from '../../shared/constants/step-info';
+import { DataTypeBadgeComponent } from '../../../shared/components/data-type-badge/data-type-badge.component';
 
 @Component({
   selector: 'app-step5-review-processing',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, DataTypeBadgeComponent],
   templateUrl: './step5-review-processing.component.html',
   styleUrl: './step5-review-processing.component.scss'
 })
 export class Step5ReviewProcessingComponent implements OnInit, OnDestroy {
   @Output() finish = new EventEmitter<void>();
-  getDataTypeBadgeClass = badgeClassFn;
+  getEncodingLabel = encLabelFn;
+  getScalingLabel = scaleLabelFn;
 
   // Review/Summary data
   totalColumns = 0;
@@ -115,53 +117,32 @@ export class Step5ReviewProcessingComponent implements OnInit, OnDestroy {
     if (this.projectionConfig.enableSammon) this.enabledMethods.push('Sammon');
   }
 
-  getEncodingLabel(method: EncodingMethod): string {
-    const labels = {
-      [EncodingMethod.None]: 'None',
-      [EncodingMethod.OneHot]: 'One-Hot',
-      [EncodingMethod.Label]: 'Label',
-      [EncodingMethod.Normalize]: 'Normalize',
-      [EncodingMethod.Standardize]: 'Standardize'
-    };
-    return labels[method] || 'Unknown';
-  }
-
-  getScalingLabel(method: ScalingMethod): string {
-    const labels = {
-      [ScalingMethod.None]: 'None',
-      [ScalingMethod.Standard]: 'Standard',
-      [ScalingMethod.MinMax]: 'Min-Max',
-      [ScalingMethod.Robust]: 'Robust'
-    };
-    return labels[method] || 'Unknown';
-  }
-
-  getDataTypeLabel(type: DataType): string {
-    const labels: Record<DataType, string> = {
-      [DataType.Numeric]: 'Numeric',
-      [DataType.Categorical]: 'Categorical',
-      [DataType.Text]: 'Text',
-      [DataType.Date]: 'Date',
-      [DataType.Boolean]: 'Boolean',
-      [DataType.ID]: 'ID',
-      [DataType.Coordinate]: 'Coordinate',
-      [DataType.Unknown]: 'Unknown'
-    };
-    return labels[type] || 'Unknown';
-  }
-
-
-
   // ============================================================================
   // Processing
   // ============================================================================
 
+  private resetProcessingState(): void {
+    this.processingComplete = false;
+    this.isProcessing = false;
+    this.processingProgress = 0;
+    this.processingStep = '';
+    this.error = null;
+    this.showProcessing = false;
+  }
+
+  private updateProcessingUI(step: string, progress: number): void {
+    this.ngZone.run(() => {
+      this.processingStep = step;
+      this.processingProgress = progress;
+      this.cdr.detectChanges();
+    });
+  }
+
   async startProcessing(): Promise<void> {
+    this.resetProcessingState();
     this.showProcessing = true;
     this.isProcessing = true;
-    this.processingProgress = 0;
     this.processingStep = 'Initializing...';
-    this.error = null;
 
     this.progressSubscription = this.preprocessingService.processingProgress.subscribe({
       next: (progress) => {
@@ -174,29 +155,17 @@ export class Step5ReviewProcessingComponent implements OnInit, OnDestroy {
     try {
       await this.preprocessingService.processData();
 
-      this.ngZone.run(() => {
-        this.processingStep = 'Loading features for projections...';
-        this.processingProgress = 70;
-        this.cdr.detectChanges();
-      });
+      this.updateProcessingUI('Loading features for projections...', 70);
 
       const csvText = await this.preprocessingService.getProcessedFeaturesCSV();
       const { features, ids } = this.projectionService.parseCSVFeatures(csvText);
 
-      this.ngZone.run(() => {
-        this.processingStep = 'Computing FastMap projection...';
-        this.processingProgress = 75;
-        this.cdr.detectChanges();
-      });
+      this.updateProcessingUI('Computing FastMap projection...', 75);
 
       // Use FastMap as the primary projection
       const fastmapResult = await this.projectionService.runFastMapSync(features, ids);
 
-      this.ngZone.run(() => {
-        this.processingStep = 'Loading dataset with FastMap...';
-        this.processingProgress = 90;
-        this.cdr.detectChanges();
-      });
+      this.updateProcessingUI('Loading dataset with FastMap...', 90);
 
       await this.preprocessingService.addProjectionPositions('fastmap', fastmapResult.positions);
 
@@ -247,62 +216,24 @@ export class Step5ReviewProcessingComponent implements OnInit, OnDestroy {
       });
     });
 
-    if (config.enablePCA) {
-      this.runBackgroundProjection('PCA', () => this.projectionService.runPCABackground(features, ids));
-    }
+    // Data-driven projection registry: each entry maps a config flag to its runner
+    const projections: { enabled: boolean; name: string; run: () => Promise<ProjectionResult> }[] = [
+      { enabled: config.enablePCA,     name: 'PCA',     run: () => this.projectionService.runPCABackground(features, ids) },
+      { enabled: config.enableIsoMap,   name: 'IsoMap',  run: () => this.projectionService.runIsoMap(features, ids, { neighbors: config.isomapNeighbors }) },
+      { enabled: config.enableMDS,      name: 'MDS',     run: () => this.projectionService.runMDS(features, ids) },
+      { enabled: config.enableLLE,      name: 'LLE',     run: () => this.projectionService.runLLE(features, ids, { neighbors: config.lleNeighbors }) },
+      { enabled: config.enableLTSA,     name: 'LTSA',    run: () => this.projectionService.runLTSA(features, ids, { neighbors: config.ltsaNeighbors }) },
+      { enabled: config.enableTSNE,     name: 't-SNE',   run: () => this.projectionService.runTSNE(features, ids, { perplexity: config.tsnePerplexity, iterations: config.tsneIterations }) },
+      { enabled: config.enableUMAP,     name: 'UMAP',    run: () => this.projectionService.runUMAP(features, ids, { neighbors: config.umapNeighbors, minDist: config.umapMinDist }) },
+      { enabled: config.enableTriMap,   name: 'TriMap',  run: () => this.projectionService.runTriMap(features, ids, { weightAdj: config.trimapWeightAdj }) },
+      { enabled: config.enableTopoMap,  name: 'TopoMap', run: () => this.projectionService.runTopoMap(features, ids) },
+      { enabled: config.enableSammon,   name: 'Sammon',  run: () => this.projectionService.runSammon(features, ids) },
+    ];
 
-    if (config.enableIsoMap) {
-      this.runBackgroundProjection('IsoMap', () => this.projectionService.runIsoMap(features, ids, {
-        neighbors: config.isomapNeighbors
-      }));
-    }
-
-    if (config.enableMDS) {
-      this.runBackgroundProjection('MDS', () => this.projectionService.runMDS(features, ids));
-    }
-
-    if (config.enableLLE) {
-      this.runBackgroundProjection('LLE', () => this.projectionService.runLLE(features, ids, {
-        neighbors: config.lleNeighbors
-      }));
-    }
-
-    if (config.enableLTSA) {
-      this.runBackgroundProjection('LTSA', () => this.projectionService.runLTSA(features, ids, {
-        neighbors: config.ltsaNeighbors
-      }));
-    }
-
-    if (config.enableTSNE) {
-      this.runBackgroundProjection('t-SNE', () =>
-        this.projectionService.runTSNE(features, ids, {
-          perplexity: config.tsnePerplexity,
-          iterations: config.tsneIterations
-        })
-      );
-    }
-
-    if (config.enableUMAP) {
-      this.runBackgroundProjection('UMAP', () =>
-        this.projectionService.runUMAP(features, ids, {
-          neighbors: config.umapNeighbors,
-          minDist: config.umapMinDist
-        })
-      );
-    }
-
-    if (config.enableTriMap) {
-      this.runBackgroundProjection('TriMap', () => this.projectionService.runTriMap(features, ids, {
-        weightAdj: config.trimapWeightAdj
-      }));
-    }
-
-    if (config.enableTopoMap) {
-      this.runBackgroundProjection('TopoMap', () => this.projectionService.runTopoMap(features, ids));
-    }
-
-    if (config.enableSammon) {
-      this.runBackgroundProjection('Sammon', () => this.projectionService.runSammon(features, ids));
+    for (const proj of projections) {
+      if (proj.enabled) {
+        this.runBackgroundProjection(proj.name, proj.run);
+      }
     }
   }
 
@@ -399,12 +330,7 @@ export class Step5ReviewProcessingComponent implements OnInit, OnDestroy {
 
       // Clear local state
       this.backgroundProjections.clear();
-      this.processingComplete = false;
-      this.isProcessing = false;
-      this.processingProgress = 0;
-      this.processingStep = '';
-      this.error = null;
-      this.showProcessing = false;
+      this.resetProcessingState();
 
       // Reset wizard state
       this.preprocessingService.resetState();

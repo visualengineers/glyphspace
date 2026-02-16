@@ -72,9 +72,7 @@
                 <div class="item-content">
                   <div class="item-top">
                     <span class="column-name">{{ colState.column.name }}</span>
-                    <span class="data-type-badge" [ngClass]="getDataTypeBadgeClass(colState.column.dataType)">
-                      {{ colState.column.dataType }}
-                    </span>
+                    <app-data-type-badge [dataType]="colState.column.dataType"></app-data-type-badge>
                   </div>
                   <div class="item-bottom">
                     <span class="config-summary">{{ getConfigSummary(colState) }}</span>
@@ -111,9 +109,7 @@
           @if (selectedColumn) {
             <div class="detail-header">
               <h3>{{ selectedColumn.column.name }}</h3>
-              <span class="data-type-badge" [ngClass]="getDataTypeBadgeClass(selectedColumn.column.dataType)">
-                {{ selectedColumn.column.dataType }}
-              </span>
+              <app-data-type-badge [dataType]="selectedColumn.column.dataType"></app-data-type-badge>
             </div>
 
             <!-- Column Statistics -->

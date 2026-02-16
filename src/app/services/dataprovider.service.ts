@@ -75,16 +75,7 @@ export class DataProviderService {
                     if (!this.totalItems) {
                         this.totalItems = items;
                         this.filteredItems = items;
-                        this.config.colorFeature = schema.color;
-                        this.config.replaceActiveFeatures(schema.glyph);
-                        this.config.featureLabels = schema.label;
-                        // Apply color scale: prefer explicit ID, fall back to boolean mode
-                        if (schema.colorScaleId !== undefined) {
-                            this.config.colorRange = schema.colorScaleId;
-                        } else if (schema.colorRange !== undefined) {
-                            this.config.colorRange = schema.colorRange ? 0 : 4;
-                        }
-                        // Notify subscribers (like histogram) that config has changed
+                        this.applySchemaToConfig(schema);
                         this.config.updateConfiguration();
                         this.config.loadData(datasetId);
                     }
@@ -180,11 +171,10 @@ export class DataProviderService {
             await this.datasetStorage.saveDataset(stored);
 
             // Update source to 'indexeddb' in collection
-            const collection = this.dataSetCollectionSubject.getValue();
-            const entry = collection.find(c => c.dataset === datasetName);
+            const entry = this.getCollectionEntry(datasetName);
             if (entry) {
                 entry.source = 'indexeddb';
-                this.dataSetCollectionSubject.next([...collection]);
+                this.dataSetCollectionSubject.next([...this.dataSetCollectionSubject.getValue()]);
             }
 
             console.log(`[DataProvider] Dataset "${datasetName}" saved to IndexedDB`);
@@ -194,8 +184,7 @@ export class DataProviderService {
     }
 
     public async deleteDataset(datasetName: string): Promise<boolean> {
-        const collection = this.dataSetCollectionSubject.getValue();
-        const entry = collection.find(c => c.dataset === datasetName);
+        const entry = this.getCollectionEntry(datasetName);
 
         if (!entry || entry.source === 'local') {
             return false;
@@ -207,7 +196,7 @@ export class DataProviderService {
         this.schemaCache.delete(datasetName);
         this.metaCache.delete(datasetName);
 
-        const updated = collection.filter(c => c.dataset !== datasetName);
+        const updated = this.dataSetCollectionSubject.getValue().filter(c => c.dataset !== datasetName);
         this.dataSetCollectionSubject.next(updated);
 
         if (this.config.loadedData === datasetName && updated.length > 0) {
@@ -224,6 +213,12 @@ export class DataProviderService {
 
     getFilters(): ItemFilter[] {
         return this.filters;
+    }
+
+    ensureFilter(filter: ItemFilter): void {
+        if (!this.filters.includes(filter)) {
+            this.filters.push(filter);
+        }
     }
 
     getGlyphDataSync(): Map<string, GlyphObject> | undefined {
@@ -348,20 +343,8 @@ export class DataProviderService {
         this.buildDataSet(datasetName, timestamp, schema, meta, features, positions);
 
         // Set as active dataset
-        this.config.colorFeature = schema.color;
-        this.config.replaceActiveFeatures(schema.glyph);
-        this.config.featureLabels = schema.label;
-        // Apply color scale: prefer explicit ID, fall back to boolean mode
-        if (schema.colorScaleId !== undefined) {
-            this.config.colorRange = schema.colorScaleId;
-        } else if (schema.colorRange !== undefined) {
-            this.config.colorRange = schema.colorRange ? 0 : 4;
-        }
-        // CRITICAL: Store feature types from schema (needed for categorical color normalization)
-        if (schema.types) {
-            this.config.featureTypes = schema.types;
-        }
-        // CRITICAL: Extract max values from metadata (needed for categorical color scaling)
+        this.applySchemaToConfig(schema);
+        // Extract max values from metadata (needed for categorical color scaling)
         this.extractFeatureMaxValuesFromMeta(datasetName, timestamp);
 
         // Notify subscribers (like histogram) that config has changed
@@ -451,14 +434,12 @@ export class DataProviderService {
 
         // Update the collection to include this algorithm in the position list
         // This ensures getPositions() returns the new algorithm
-        const collections = this.dataSetCollectionSubject.getValue();
-        const collection = collections.find(c => c.dataset === datasetName);
-        if (collection) {
-            const item = collection.items.find(it => it.time === timestamp);
+        const entry = this.getCollectionEntry(datasetName);
+        if (entry) {
+            const item = entry.items.find(it => it.time === timestamp);
             if (item && !item.algorithms.position[algorithm]) {
                 item.algorithms.position[algorithm] = `memory://${datasetName}/${timestamp}/${algorithm}`;
-                // Notify subscribers about the updated collection
-                this.dataSetCollectionSubject.next([...collections]);
+                this.dataSetCollectionSubject.next([...this.dataSetCollectionSubject.getValue()]);
             }
         }
 
@@ -550,7 +531,7 @@ export class DataProviderService {
         // Clear any existing filters from previous dataset
         this.clearFilters();
 
-        const dataset = this.dataSetCollectionSubject.getValue().find(data => data.dataset == name);
+        const dataset = this.getCollectionEntry(name);
         const item = dataset?.items.find(item => item.time == timestamp);
         if (item && dataset?.source == "wasm") {
             const schema = await this.dataProcessor.fetchJson(item.algorithms.schema) as GlyphSchema;
@@ -562,16 +543,7 @@ export class DataProviderService {
                 positions.set(key, position);
             }
 
-            this.config.colorFeature = schema.color;
-            this.config.replaceActiveFeatures(schema.glyph);
-            this.config.featureLabels = schema.label;
-            // Apply color scale: prefer explicit ID, fall back to boolean mode
-            if (schema.colorScaleId !== undefined) {
-                this.config.colorRange = schema.colorScaleId;
-            } else if (schema.colorRange !== undefined) {
-                this.config.colorRange = schema.colorRange ? 0 : 4;
-            }
-            // Notify subscribers (like histogram) that config has changed
+            this.applySchemaToConfig(schema);
             this.config.updateConfiguration();
 
             this.totalItems = this.buildDataSet(name, timestamp, schema, meta, features, positions);
@@ -583,17 +555,7 @@ export class DataProviderService {
                 for (const [algo, posArr] of Object.entries(saved.positions)) {
                     positionsMap.set(algo, posArr);
                 }
-                this.config.colorFeature = saved.schema.color;
-                this.config.replaceActiveFeatures(saved.schema.glyph);
-                this.config.featureLabels = saved.schema.label;
-                if (saved.schema.colorScaleId !== undefined) {
-                    this.config.colorRange = saved.schema.colorScaleId;
-                } else if (saved.schema.colorRange !== undefined) {
-                    this.config.colorRange = saved.schema.colorRange ? 0 : 4;
-                }
-                if (saved.schema.types) {
-                    this.config.featureTypes = saved.schema.types;
-                }
+                this.applySchemaToConfig(saved.schema);
                 this.config.updateConfiguration();
                 this.totalItems = this.buildDataSet(name, saved.timestamp, saved.schema, saved.meta, saved.features, positionsMap);
                 this.filteredItems = this.totalItems;
@@ -606,22 +568,16 @@ export class DataProviderService {
     public async getGlyphData(name?: string): Promise<GlyphObject[] | undefined>
     public async getGlyphData(name?: string, timestamp?: string): Promise<GlyphObject[] | undefined>
     public async getGlyphData(name?: string, timestamp?: string, algorithm?: string): Promise<GlyphObject[] | undefined> {
-        if (name == undefined) name = this.config.loadedData;
-        console.log(`[DataProvider] getGlyphData called for: ${name}, timestamp: ${timestamp}`);
+        // Treat empty string same as undefined for timestamp
+        const resolved = this.resolveDatasetParams(name, timestamp || undefined);
+        if (!resolved) return undefined;
 
-        const collection = this.dataSetCollectionSubject.getValue().find(collection => collection.dataset == name);
-        if (timestamp == undefined || timestamp == '') {
-            timestamp = collection?.items.at(0)?.time;
-        }
-        if (name == undefined || timestamp == undefined) return undefined;
+        const collection = this.getCollectionEntry(resolved.name);
 
-        let data = this.glyphCache.get(name);
-        console.log(`[DataProvider] Cache lookup for '${name}':`, data ? 'HIT' : 'MISS');
-
+        let data = this.glyphCache.get(resolved.name);
         if (!data) {
-            console.log(`[DataProvider] Loading dataset from source...`);
-            await this.loadDataSet(name, timestamp);
-            data = this.glyphCache.get(name);
+            await this.loadDataSet(resolved.name, resolved.timestamp);
+            data = this.glyphCache.get(resolved.name);
         }
         if (data) this.totalItems = data.size;
         this.filteredItems = this.totalItems;
@@ -631,52 +587,31 @@ export class DataProviderService {
 
     public async getMetaData(): Promise<GlyphMeta | undefined>
     public async getMetaData(name?: string, timestamp?: string): Promise<GlyphMeta | undefined> {
-        if (name == undefined) name = this.config.loadedData;
-        if (timestamp == undefined) {
-            const collection = this.dataSetCollectionSubject.getValue().find(collection => collection.dataset == name);
-            timestamp = collection?.items.at(0)?.time;
-        }
-        if (name == undefined || timestamp == undefined) return undefined;
+        const resolved = this.resolveDatasetParams(name, timestamp);
+        if (!resolved) return undefined;
 
-        let meta = this.metaCache.get(name);
+        let meta = this.metaCache.get(resolved.name);
         if (!meta) {
-            await this.loadDataSet(name, timestamp);
-            meta = this.metaCache.get(name);
+            await this.loadDataSet(resolved.name, resolved.timestamp);
+            meta = this.metaCache.get(resolved.name);
         }
-        return meta?.get(timestamp);
+        return meta?.get(resolved.timestamp);
     }
 
     public async getSchema(): Promise<GlyphSchema | undefined>
     public async getSchema(name?: string, timestamp?: string): Promise<GlyphSchema | undefined> {
-        if (name == undefined) name = this.config.loadedData;
-        if (timestamp == undefined) {
-            const collection = this.dataSetCollectionSubject.getValue().find(collection => collection.dataset == name);
-            timestamp = collection?.items.at(0)?.time;
-        }
-        if (name == undefined || timestamp == undefined) return undefined;
+        const resolved = this.resolveDatasetParams(name, timestamp);
+        if (!resolved) return undefined;
 
-        let schema = this.schemaCache.get(name);
+        let schema = this.schemaCache.get(resolved.name);
         if (!schema) {
-            await this.loadDataSet(name, timestamp);
-            schema = this.schemaCache.get(name);
+            await this.loadDataSet(resolved.name, resolved.timestamp);
+            schema = this.schemaCache.get(resolved.name);
         }
-        const schemaResult = schema?.get(timestamp);
+        const schemaResult = schema?.get(resolved.timestamp);
         if (schemaResult) {
-            this.config.colorFeature = schemaResult.color;
-            this.config.replaceActiveFeatures(schemaResult.glyph);
-            this.config.featureLabels = schemaResult.label;
-            // Apply color scale: prefer explicit ID, fall back to boolean mode
-            if (schemaResult.colorScaleId !== undefined) {
-                this.config.colorRange = schemaResult.colorScaleId;
-            } else if (schemaResult.colorRange !== undefined) {
-                this.config.colorRange = schemaResult.colorRange ? 0 : 4;
-            }
-            // Store feature types from schema
-            if (schemaResult.types) {
-                this.config.featureTypes = schemaResult.types;
-            }
-            // Calculate max values for categorical features
-            this.calculateFeatureMaxValues(name);
+            this.applySchemaToConfig(schemaResult);
+            this.calculateFeatureMaxValues(resolved.name);
         }
 
         return schemaResult;
@@ -684,7 +619,7 @@ export class DataProviderService {
 
     getTimestamps(name: string): string[] {
         const result: string[] = [];
-        const collection = this.dataSetCollectionSubject.getValue().find(collection => collection.dataset == name);
+        const collection = this.getCollectionEntry(name);
         if (collection) {
             collection.items.forEach(it => {
                 result.push(it.time);
@@ -696,7 +631,7 @@ export class DataProviderService {
     getPositions(name: string): string[]
     getPositions(name: string, time?: string): string[] {
         const result: string[] = [];
-        const collection = this.dataSetCollectionSubject.getValue().find(collection => collection.dataset == name);
+        const collection = this.getCollectionEntry(name);
         if (collection) {
             const item = time ? collection.items.find(it => it.time == time) : collection.items.at(0);
 
@@ -710,11 +645,54 @@ export class DataProviderService {
     getContexts(name: string): string[]
     getContexts(name: string, time?: string): string[] {
         const result: string[] = [];
-        const collection = this.dataSetCollectionSubject.getValue().find(collection => collection.dataset == name);
+        const collection = this.getCollectionEntry(name);
 
         // TODO: Get from schema ...
 
         return result;
+    }
+
+    /**
+     * Apply schema settings (color, glyph axes, labels, color scale, feature types) to config.
+     * Centralises the mapping that was previously duplicated across load paths.
+     */
+    private applySchemaToConfig(schema: GlyphSchema): void {
+        this.config.colorFeature = schema.color;
+        this.config.replaceActiveFeatures(schema.glyph);
+        this.config.featureLabels = schema.label;
+
+        // Apply color scale: prefer explicit ID, fall back to boolean mode
+        if (schema.colorScaleId !== undefined) {
+            this.config.colorRange = schema.colorScaleId;
+        } else if (schema.colorRange !== undefined) {
+            this.config.colorRange = schema.colorRange ? 0 : 4;
+        }
+
+        // Store feature types from schema (needed for categorical color normalization)
+        if (schema.types) {
+            this.config.featureTypes = schema.types;
+        }
+    }
+
+    /**
+     * Resolve dataset name and timestamp defaults.
+     * Returns undefined if either cannot be resolved.
+     */
+    private resolveDatasetParams(name?: string, timestamp?: string): { name: string; timestamp: string } | undefined {
+        if (name == undefined) name = this.config.loadedData;
+        if (timestamp == undefined) {
+            timestamp = this.getCollectionEntry(name)?.items.at(0)?.time;
+        }
+        if (name == undefined || timestamp == undefined) return undefined;
+        return { name, timestamp };
+    }
+
+    /**
+     * Look up a dataset entry from the collection by name.
+     */
+    private getCollectionEntry(name: string | undefined): DatasetCollectionEntry | undefined {
+        if (!name) return undefined;
+        return this.dataSetCollectionSubject.getValue().find(c => c.dataset === name);
     }
 
     /**

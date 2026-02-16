@@ -21,8 +21,8 @@
     transition: opacity 0.2s ease;
 
     &.active {
-        background-color: #e6f0ff;
-        border-bottom: 1px solid #b3d2ff;
+        background-color: v.$ui-active-bg;
+        border-bottom: 1px solid v.$ui-active-border;
     }
 
     .settings-overlay {
@@ -71,7 +71,7 @@
     }
 
     &:hover:not(.active) {
-        background: #f0f4ff;
+        background: v.$ui-hover-bg;
     }
 
     &.active {
@@ -135,7 +135,7 @@
     width: 100%;
     padding: 10px 12px;
     border-radius: 10px;
-    border: 1px solid #d0d0d0;
+    border: 1px solid v.$ui-border-light;
     background: white;
     font-size: 13px;
     text-align: left;
@@ -144,12 +144,12 @@
     color: v.$gray-700;
 
     &:hover {
-        border-color: #6aa9ff;
+        border-color: v.$ui-accent-blue;
     }
 
     &.active {
         background: v.$color-blue-highlight;
-        border-color: #6aa9ff;
+        border-color: v.$ui-accent-blue;
         color: white;
     }
 }
@@ -170,7 +170,7 @@
     width: 32px;
     height: 32px;
     border-radius: 8px;
-    border: 1px solid #d0d0d0;
+    border: 1px solid v.$ui-border-light;
     background: white;
     display: flex;
     align-items: center;
@@ -182,16 +182,16 @@
 
     i {
         font-size: 18px;
-        color: #444;
+        color: v.$gray-700;
     }
 
     &:hover {
-        border-color: #6aa9ff;
+        border-color: v.$ui-accent-blue;
     }
 
     &.active {
-        background: #dbe9ff;
-        border-color: #6aa9ff;
+        background: v.$ui-active-pressed-bg;
+        border-color: v.$ui-accent-blue;
 
         i {
             color: v.$color-blue-highlight;
@@ -211,14 +211,14 @@
     height: 32px;
     padding: 0 8px;
     border-radius: 8px;
-    background: #f5f7fa;
-    border: 1px solid #e0e0e0;
+    background: v.$ui-bg-light;
+    border: 1px solid v.$gray-200;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 13px;
     font-weight: 500;
-    color: #444;
+    color: v.$gray-700;
 }
 
 /* Background projection status */
@@ -242,8 +242,8 @@
     gap: 4px;
     padding: 6px 8px;
     border-radius: 6px;
-    background: #f5f7fa;
-    border: 1px solid #e0e0e0;
+    background: v.$ui-bg-light;
+    border: 1px solid v.$gray-200;
     opacity: 1;
     transition: opacity 0.5s ease-out;
 
@@ -252,23 +252,23 @@
     }
 
     &.status-running {
-        background: #fff8e6;
-        border-color: #ffd666;
+        background: v.$proj-running-bg;
+        border-color: v.$proj-running-border;
     }
 
     &.status-complete {
-        background: #e6f7e6;
-        border-color: #95de95;
+        background: v.$proj-complete-bg;
+        border-color: v.$proj-complete-border;
     }
 
     &.status-error {
-        background: #fee;
-        border-color: #faa;
+        background: v.$proj-error-bg;
+        border-color: v.$proj-error-border;
     }
 
     &.status-pending {
-        background: #f5f5f5;
-        border-color: #ddd;
+        background: v.$gray-100;
+        border-color: v.$gray-200;
     }
 }
 
@@ -293,25 +293,25 @@
     }
 
     &.running .material-icons {
-        color: #f5a623;
+        color: v.$proj-running;
     }
 
     &.complete .material-icons {
-        color: #52c41a;
+        color: v.$proj-complete;
     }
 
     &.error .material-icons {
-        color: #ff4d4f;
+        color: v.$proj-error;
     }
 
     &.pending .material-icons {
-        color: #999;
+        color: v.$color-gray-border;
     }
 }
 
 .progress-bar-mini {
     height: 3px;
-    background: #e0e0e0;
+    background: v.$gray-200;
     border-radius: 2px;
     overflow: hidden;
 
@@ -335,7 +335,7 @@
 
 .progress-fill-mini {
     height: 100%;
-    background: #f5a623;
+    background: v.$proj-running;
     border-radius: 2px;
     transition: width 0.3s ease;
 }

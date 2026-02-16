@@ -78,9 +78,7 @@
                       }
                     </td>
                     <td>
-                      <span class="data-type-badge" [ngClass]="getDataTypeBadgeClass(config.targetType)">
-                        {{ getDataTypeLabel(config.targetType) }}
-                      </span>
+                      <app-data-type-badge [dataType]="config.targetType"></app-data-type-badge>
                     </td>
                     <td>{{ getEncodingLabel(config.encodingMethod) }}</td>
                     <td>

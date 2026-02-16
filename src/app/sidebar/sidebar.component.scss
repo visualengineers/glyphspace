@@ -63,11 +63,9 @@
   .color-label {
     font-size: 11px;
     color: v.$gray-600;
-    white-space: nowrap;
     min-width: 50px;
     max-width: 80px;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    @include m.text-truncate;
   }
 
   .color-bar-preview {
@@ -166,9 +164,7 @@
   text-align: right;
   font-size: 11px;
   color: v.$gray-500;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  @include m.text-truncate;
 }
 
 .accordion-badge {
@@ -214,13 +210,13 @@
     align-items: center;
     justify-content: center;
     background: transparent;
-    border: 1px solid #999;
+    border: 1px solid v.$color-gray-border;
     cursor: pointer;
     color: v.$gray-600;
     font-size: 24px;
 
     &:hover {
-      color: #000;
+      color: v.$gray-800;
     }
 
     &.active {
@@ -232,7 +228,7 @@
   .config-toggle {
     padding: 8px 10px;
     font-size: 11px;
-    background-color: #ccc;
+    background-color: v.$gray-300;
     border: none;
     cursor: pointer;
     border-radius: 0;
@@ -384,9 +380,7 @@
   .feature-label {
     font-size: 13px;
     color: v.$gray-600;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    @include m.text-truncate;
   }
 }
 
@@ -420,9 +414,7 @@
   max-width: 160px;
 
   .chip-label {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    @include m.text-truncate;
   }
 
   .chip-remove {

@@ -36,7 +36,7 @@
 
   &.drag-over {
     border-color: v.$active-color;
-    background: rgba(0, 188, 212, 0.05);
+    background: rgba(v.$active-color, 0.05);
   }
 
   &.loading {
@@ -221,15 +221,15 @@
   }
 
   &.quality-fair .material-icons {
-    color: #FF9800;
+    color: v.$status-warning;
   }
 
   &.quality-poor .material-icons {
-    color: #F44336;
+    color: v.$status-error;
   }
 
   &.warning .material-icons {
-    color: #FF9800;
+    color: v.$status-warning;
   }
 }
 

@@ -28,13 +28,14 @@ import {
 } from '../shared/interfaces/color-scale';
 
 import { HistogramComponent } from '../menubar/histogram/histogram.component';
+import { ColorScaleSelectorComponent } from '../shared/components/color-scale-selector/color-scale-selector.component';
 
 export type AccordionSection = 'encoding' | 'style' | 'filters';
 
 @Component({
   selector: 'app-sidebar',
   standalone: true,
-  imports: [CommonModule, FormsModule, HistogramComponent],
+  imports: [CommonModule, FormsModule, HistogramComponent, ColorScaleSelectorComponent],
   templateUrl: './sidebar.component.html',
   styleUrls: ['./sidebar.component.scss']
 })
@@ -82,7 +83,6 @@ export class SidebarComponent implements OnInit, OnDestroy {
   getCategoricalColors = categoricalColorsFn;
   groupedColorScales: { group: string; scales: ColorScale[] }[] = [];
   selectedColorAttribute = '';
-  colorScaleDropdownOpen = false;
   selectedColorScaleId = COLOR_SCALES[0].id;
 
   // --- Glyph ---
@@ -320,11 +320,8 @@ export class SidebarComponent implements OnInit, OnDestroy {
 
   // --- Search / text filter ---
   updateTextFilter(): void {
-    const pos = this.dataProvider.getFilters().indexOf(this.textFilter);
-    if (pos < 0) {
-      this.textFilter.filterMode = FilterMode.And;
-      this.dataProvider.getFilters().push(this.textFilter);
-    }
+    this.textFilter.filterMode = FilterMode.And;
+    this.dataProvider.ensureFilter(this.textFilter);
     this.textFilter.clear();
     if (this.searchTerms.length > 0) {
       this.textFilter.extendacceptableStrings(this.searchTerms);
@@ -378,13 +375,8 @@ export class SidebarComponent implements OnInit, OnDestroy {
 
   selectColorScale(id: number): void {
     this.selectedColorScaleId = id;
-    this.colorScaleDropdownOpen = false;
     this.config.colorRange = id;
     this.config.updateConfiguration();
-  }
-
-  toggleColorScaleDropdown(): void {
-    this.colorScaleDropdownOpen = !this.colorScaleDropdownOpen;
   }
 
   getSelectedScale(): ColorScale {

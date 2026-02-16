@@ -497,21 +497,13 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
     }
 
     private filteringFromBins(selectedBins: number[]): void {
-        const filters = this.dataProvider.getFilters();
-        if (!filters.includes(this.filter)) {
-            this.dataProvider.getFilters().push(this.filter);
-        }
-        if (!filters.includes(this.categoryFilter)) {
-            this.dataProvider.getFilters().push(this.categoryFilter);
-        }
+        this.dataProvider.ensureFilter(this.filter);
+        this.dataProvider.ensureFilter(this.categoryFilter);
 
         if (!selectedBins || selectedBins.length === 0) {
             this.categoryFilter.clear();
             this.filter.clear();
-            this.dataProvider.refreshFilters();
-            this.isOwnRedraw = true;
-            this.configuration.redraw();
-            this.isOwnRedraw = false;
+            this.refreshAndRedraw();
             return;
         }
 
@@ -580,10 +572,7 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
             });
         }
 
-        this.dataProvider.refreshFilters();
-        this.isOwnRedraw = true;
-        this.configuration.redraw();
-        this.isOwnRedraw = false;
+        this.refreshAndRedraw();
     }
 
     private filtering(selection: any): void {
@@ -591,10 +580,7 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
             return;
         }
 
-        const filters = this.dataProvider.getFilters();
-        if (!filters.includes(this.filter)) {
-            this.dataProvider.getFilters().push(this.filter);
-        }
+        this.dataProvider.ensureFilter(this.filter);
 
         const absoluteMinValue: number = +d3.min(selection)!;
         const absoluteMaxValue: number = +d3.max(selection)!;
@@ -611,6 +597,11 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
         (this.filter as FeatureFilter).minValue = minValue;
         (this.filter as FeatureFilter).maxValue = Math.min(maxValue, 1.0);
 
+        this.refreshAndRedraw();
+    }
+
+    /** Refresh filters and trigger a redraw, flagging it as own to prevent cascading. */
+    private refreshAndRedraw(): void {
         this.dataProvider.refreshFilters();
         this.isOwnRedraw = true;
         this.configuration.redraw();
@@ -621,10 +612,7 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
         this.filter.clear();
         const pos = this.dataProvider.getFilters().indexOf(this.filter);
         if (pos >= 0) this.dataProvider.getFilters().splice(pos, 1);
-        this.dataProvider.refreshFilters();
-        this.isOwnRedraw = true;
-        this.configuration.redraw();
-        this.isOwnRedraw = false;
+        this.refreshAndRedraw();
     }
 
     private computeSelectionOverlay(): void {
@@ -651,66 +639,49 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges {
 
         const effectiveType = this.getEffectiveType();
 
+        // Detect value range (shared by both categorical and numeric paths)
+        let vMin = Infinity, vMax = -Infinity;
+        glyphMap.forEach((glyph: any) => {
+            const v = glyph.features?.['1']?.[this.property];
+            if (v != null && !isNaN(v)) {
+                if (v < vMin) vMin = v;
+                if (v > vMax) vMax = v;
+            }
+        });
+        const vRange = (vMax - vMin) || 1;
+
+        // Categorical-only: precompute non-zero bin mapping
+        let nonZeroBins: number[] = [];
+        let numCategories = 0;
         if (effectiveType === 'categorical') {
-            // Categorical: map feature values → category index → histogram bin key
-            const nonZeroBins = Object.entries(this.histogramData)
+            nonZeroBins = Object.entries(this.histogramData)
                 .filter(([, v]) => v !== 0)
                 .map(([k]) => +k)
                 .sort((a, b) => a - b);
-            const numCategories = nonZeroBins.length;
+            numCategories = nonZeroBins.length;
+        }
 
-            // Detect value range
-            let vMin = Infinity, vMax = -Infinity;
-            glyphMap.forEach((glyph: any) => {
-                const v = glyph.features?.['1']?.[this.property];
-                if (v != null && !isNaN(v)) {
-                    if (v < vMin) vMin = v;
-                    if (v > vMax) vMax = v;
-                }
-            });
-            const vRange = (vMax - vMin) || 1;
+        // Single pass: assign each glyph to a bin and tally counts
+        glyphMap.forEach((glyph: any) => {
+            const featureValue = glyph.features?.['1']?.[this.property];
+            if (featureValue == null || isNaN(featureValue)) return;
 
-            glyphMap.forEach((glyph: any) => {
-                const featureValue = glyph.features?.['1']?.[this.property];
-                if (featureValue == null || isNaN(featureValue)) return;
+            const normalized = (featureValue - vMin) / vRange;
+            let bin: number;
 
-                // Normalize to [0,1] then round to nearest category index
-                const normalized = (featureValue - vMin) / vRange;
+            if (effectiveType === 'categorical') {
                 const catIdx = numCategories <= 1 ? 0 : Math.round(normalized * (numCategories - 1));
                 if (catIdx < 0 || catIdx >= nonZeroBins.length) return;
+                bin = nonZeroBins[catIdx];
+            } else {
+                bin = Math.min(Math.floor(normalized * totalBins), totalBins - 1);
+            }
 
-                const bin = nonZeroBins[catIdx];
-                totCounts.set(bin, (totCounts.get(bin) || 0) + 1);
-
-                if (idFilter.inFilter(glyph)) {
-                    selCounts.set(bin, (selCounts.get(bin) || 0) + 1);
-                }
-            });
-        } else {
-            // Numeric: detect value range and use linear binning
-            let vMin = Infinity, vMax = -Infinity;
-            glyphMap.forEach((glyph: any) => {
-                const v = glyph.features?.['1']?.[this.property];
-                if (v != null && !isNaN(v)) {
-                    if (v < vMin) vMin = v;
-                    if (v > vMax) vMax = v;
-                }
-            });
-            const vRange = (vMax - vMin) || 1;
-
-            glyphMap.forEach((glyph: any) => {
-                const featureValue = glyph.features?.['1']?.[this.property];
-                if (featureValue == null || isNaN(featureValue)) return;
-
-                const normalized = (featureValue - vMin) / vRange;
-                const bin = Math.min(Math.floor(normalized * totalBins), totalBins - 1);
-                totCounts.set(bin, (totCounts.get(bin) || 0) + 1);
-
-                if (idFilter.inFilter(glyph)) {
-                    selCounts.set(bin, (selCounts.get(bin) || 0) + 1);
-                }
-            });
-        }
+            totCounts.set(bin, (totCounts.get(bin) || 0) + 1);
+            if (idFilter.inFilter(glyph)) {
+                selCounts.set(bin, (selCounts.get(bin) || 0) + 1);
+            }
+        });
 
         this.selectionCounts = selCounts.size > 0 ? selCounts : null;
         this.totalCounts = totCounts.size > 0 ? totCounts : null;

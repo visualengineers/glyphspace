@@ -18,19 +18,7 @@
 }
 
 .step-header {
-  text-align: center;
-  margin-bottom: 20px;
-
-  h2 {
-    font-size: 18px;
-    color: v.$gray-800;
-    margin-bottom: 8px;
-  }
-
-  p {
-    font-size: 13px;
-    color: v.$gray-600;
-  }
+  @include wizard.step-header;
 }
 
 .column-actions {
@@ -71,7 +59,7 @@
   font-weight: 600;
 
   &.enabled {
-    background: rgba(0, 188, 212, 0.1);
+    background: rgba(v.$active-color, 0.1);
     color: v.$active-color;
   }
 
@@ -141,7 +129,7 @@
     }
 
     &.has-issues {
-      background: rgba(255, 152, 0, 0.05);
+      background: rgba(v.$status-warning, 0.05);
     }
 
     td {
@@ -181,7 +169,7 @@
 
   .issue-icon {
     font-size: 16px;
-    color: #FF9800;
+    color: v.$status-warning;
   }
 }
 
@@ -209,7 +197,7 @@
   color: v.$gray-600;
 
   &.warn {
-    color: #FF9800;
+    color: v.$status-warning;
     font-weight: 600;
   }
 }

@@ -21,14 +21,14 @@ table {
 
   thead th {
     &.highlighted {
-      background: rgba(0, 188, 212, 0.1);
+      background: rgba(v.$active-color, 0.1);
       color: v.$active-color;
     }
   }
 
   tbody td {
     &.highlighted {
-      background: rgba(76, 175, 80, 0.1);
+      background: rgba(v.$status-success, 0.1);
     }
   }
 }

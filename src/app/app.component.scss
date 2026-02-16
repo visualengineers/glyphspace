@@ -1,3 +1,5 @@
+@use '../styles/variables' as v;
+
 :host {
   display: flex;
   flex-direction: column;
@@ -5,7 +7,7 @@
   height: 100vh;
   width: 100vw;
   overflow: hidden;
-  background-color: #f9f9f9;
+  background-color: v.$app-bg;
 }
 
 .content-area {

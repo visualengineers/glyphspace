@@ -135,7 +135,7 @@
     gap: 4px;
     padding: 6px 8px;
     border-radius: 8px;
-    border: 1px solid #d0d0d0;
+    border: 1px solid v.$ui-border-light;
     background: white;
 
     &::after {
@@ -174,7 +174,7 @@
     left: 0;
     width: 95%;
     background: white;
-    border: 1px solid #d0d0d0;
+    border: 1px solid v.$ui-border-light;
     border-radius: 8px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
     z-index: 10;
@@ -191,7 +191,7 @@
 
   .color-scale-group-divider {
     height: 1px;
-    background: #e0e0e0;
+    background: v.$gray-200;
     margin: 6px 0;
   }
 
@@ -203,12 +203,12 @@
     cursor: pointer;
 
     &:hover {
-      background: #f0f5ff;
+      background: v.$option-hover-bg;
     }
 
     &.active {
-      background: rgba(0, 188, 212, 0.08);
-      outline: 1px solid rgba(0, 188, 212, 0.3);
+      background: rgba(v.$active-color, 0.08);
+      outline: 1px solid rgba(v.$active-color, 0.3);
     }
 
     .color-gradient {
@@ -238,6 +238,16 @@
 }
 
 // ============================================================================
+// Text Truncate — single-line ellipsis overflow
+// ============================================================================
+
+@mixin text-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// ============================================================================
 // Form Group — shared between canvas settingscontrols and wizard
 // ============================================================================
 
@@ -250,7 +260,7 @@
     appearance: none;
     padding: 8px 12px;
     border-radius: 8px;
-    border: 1px solid #d0d0d0;
+    border: 1px solid v.$ui-border-light;
     background: white;
     font-size: 13px;
     cursor: pointer;

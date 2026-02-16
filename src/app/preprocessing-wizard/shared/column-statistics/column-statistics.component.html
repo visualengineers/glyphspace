@@ -1,9 +1,7 @@
 <div class="column-statistics" [class.compact]="compact">
   <div class="stats-header">
     <div class="column-name">{{ statistics.name }}</div>
-    <span class="data-type-badge" [ngClass]="dataTypeBadgeClass">
-      {{ dataTypeLabel }}
-    </span>
+    <app-data-type-badge [dataType]="statistics.dataType"></app-data-type-badge>
   </div>
 
   @if (hasIssues) {

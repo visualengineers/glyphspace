@@ -120,11 +120,7 @@
 
                   <!-- Data Type -->
                   <td class="col-type">
-                    <span
-                      class="data-type-badge"
-                      [ngClass]="getDataTypeBadgeClass(column.dataType)">
-                      {{ getDataTypeLabel(column.dataType) }}
-                    </span>
+                    <app-data-type-badge [dataType]="column.dataType"></app-data-type-badge>
                   </td>
 
                   <!-- Count -->

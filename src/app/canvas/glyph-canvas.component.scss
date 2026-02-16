@@ -17,7 +17,7 @@
     0 4px 12px rgba(0,0,0,0.05);
 
   &.active {
-    border: 1px solid #b3d2ff; /* subtle blue border on first click */
+    border: 1px solid v.$ui-active-border;
   }
 
   .canvas-container {
