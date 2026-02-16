@@ -1,5 +1,5 @@
 @use '../../../../styles/variables' as v;
-@use '../../../preprocessing-wizard/shared/wizard-shared' as wizard;
+@use '../wizard-shared' as wizard;
 
 .data-type-badge {
   @include wizard.data-type-badge;

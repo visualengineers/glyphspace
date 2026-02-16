@@ -29,7 +29,7 @@ import {
   getCategoricalColors as categoricalColorsFn,
 } from '../shared/interfaces/color-scale';
 
-import { HistogramComponent } from '../menubar/histogram/histogram.component';
+import { HistogramComponent } from './histogram/histogram.component';
 import { ColorScaleSelectorComponent } from '../shared/components/color-scale-selector/color-scale-selector.component';
 
 export type AccordionSection = 'encoding' | 'style' | 'filters';

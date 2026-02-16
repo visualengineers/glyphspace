@@ -7,7 +7,7 @@ import { ToastService } from '../../../services/toast.service';
 import { ColumnConfig, ProjectionConfig } from '../../models/column-config';
 import { DataType, getEncodingLabel as encLabelFn, getScalingLabel as scaleLabelFn } from '../../models/data-type.enum';
 import { STEP_INFO } from '../../shared/constants/step-info';
-import { DataTypeBadgeComponent } from '../../../shared/components/data-type-badge/data-type-badge.component';
+import { DataTypeBadgeComponent } from '../../shared/data-type-badge/data-type-badge.component';
 
 @Component({
   selector: 'app-step5-review-processing',

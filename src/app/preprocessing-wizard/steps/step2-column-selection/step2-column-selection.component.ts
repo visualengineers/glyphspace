@@ -9,7 +9,7 @@ import { getDataTypeColor } from '../../models/data-type.enum';
 import { HelpTooltipComponent } from '../../shared/help-tooltip/help-tooltip.component';
 import { HELP_TEXT } from '../../shared/constants/help-text';
 import { STEP_INFO } from '../../shared/constants/step-info';
-import { DataTypeBadgeComponent } from '../../../shared/components/data-type-badge/data-type-badge.component';
+import { DataTypeBadgeComponent } from '../../shared/data-type-badge/data-type-badge.component';
 
 @Component({
   selector: 'app-step2-column-selection',

@@ -1,6 +1,6 @@
 import { Component, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { DataType, getDataTypeBadgeClass, getDataTypeLabel } from '../../../preprocessing-wizard/models/data-type.enum';
+import { DataType, getDataTypeBadgeClass, getDataTypeLabel } from '../../models/data-type.enum';
 
 @Component({
   selector: 'app-data-type-badge',
