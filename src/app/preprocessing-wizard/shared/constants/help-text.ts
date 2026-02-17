@@ -373,7 +373,7 @@ export const HELP_TEXT = {
     unique:
       'Number of distinct (different) values in this column.<br/><br/><strong>High uniqueness</strong> in categorical columns can cause performance issues with one-hot encoding.',
     distribution:
-      'Visual representation of value distribution.<br/><br/><strong>Sparkline:</strong> Shows frequency of top categorical values<br/><strong>Box plot:</strong> Shows numeric quartiles and outliers',
+      'Visual representation of value distribution.<br/><br/>Shows a histogram of value frequencies for both numeric and categorical columns.',
     statistics:
       'Summary statistics for numeric columns.<br/><br/>Includes min, max, mean, median, and standard deviation.',
     // Configure Data & Features column headers

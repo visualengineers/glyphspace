@@ -153,6 +153,10 @@
       &.col-distribution {
         text-align: center;
         position: relative;
+
+        app-mini-histogram {
+          display: inline-block;
+        }
       }
     }
   }
