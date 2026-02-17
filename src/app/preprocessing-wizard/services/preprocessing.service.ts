@@ -11,10 +11,10 @@ import { ColumnConfig, CleaningConfig, ProjectionConfig } from '../models/column
 import {
   DataType,
   EncodingMethod,
-  ScalingMethod,
   MissingValueStrategy,
   OutlierStrategy,
   OutlierMethod,
+  DATA_TYPE_CONFIG,
 } from '../models/data-type.enum';
 import { DataProcessorService } from '../../services/data-processor';
 import { DataLoaderService } from '../../services/data-loader.service';
@@ -155,38 +155,15 @@ export class PreprocessingService {
   }
 
   private createDefaultColumnConfig(col: ColumnStatistics): ColumnConfig {
-    let encodingMethod = EncodingMethod.None;
-    let scalingMethod = ScalingMethod.None;
-    let includeInProjection = true;
-
-    // Smart defaults based on data type
-    switch (col.dataType) {
-      case DataType.Numeric:
-        encodingMethod = EncodingMethod.Normalize;
-        scalingMethod = ScalingMethod.MinMax;
-        break;
-      case DataType.Categorical:
-        // Default to Label encoding (simpler, no feature explosion)
-        encodingMethod = EncodingMethod.Label;
-        break;
-      case DataType.Text:
-        includeInProjection = false;
-        break;
-      case DataType.ID:
-        includeInProjection = false;
-        break;
-      case DataType.Date:
-        encodingMethod = EncodingMethod.Normalize;
-        break;
-    }
+    const capabilities = DATA_TYPE_CONFIG[col.dataType] ?? DATA_TYPE_CONFIG[DataType.Unknown];
 
     return {
       name: col.name,
       originalType: col.dataType,
       targetType: col.dataType,
-      encodingMethod,
-      scalingMethod,
-      includeInProjection,
+      encodingMethod: capabilities.defaultEncoding,
+      scalingMethod: capabilities.defaultScaling,
+      includeInProjection: capabilities.defaultIncludeInProjection,
       isColorFeature: false,
       missingValueStrategy: MissingValueStrategy.Keep,
       outlierMethod: OutlierMethod.IQR_1_5,
@@ -360,9 +337,7 @@ export class PreprocessingService {
   }
 
   // Duplicate detection
-  public async detectDuplicates(
-    subsetColumns?: string[]
-  ): Promise<{
+  public async detectDuplicates(subsetColumns?: string[]): Promise<{
     duplicateCount: number;
     duplicateIndices: number[];
     percentage: number;

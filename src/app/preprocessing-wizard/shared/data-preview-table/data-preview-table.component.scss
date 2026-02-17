@@ -19,6 +19,14 @@
 table {
   @include wizard.table;
 
+  thead th,
+  tbody td {
+    max-width: 180px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
   thead th {
     &.highlighted {
       background: rgba(v.$active-color, 0.1);

@@ -13,6 +13,7 @@ export const HELP_TEXT = {
     boolean: 'True/False or Yes/No values',
     id: 'Unique identifiers for each row. Examples: customer ID, transaction number',
     coordinate: 'Geographic coordinates (latitude/longitude)',
+    unknown: 'Data type could not be determined automatically',
   },
 
   // Encoding Methods

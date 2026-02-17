@@ -48,6 +48,95 @@ export enum OutlierMethod {
   ZScore_4 = 'zscore_4',
 }
 
+/**
+ * Per-data-type configuration for Step 3.
+ * Defines which encoding/scaling/outlier/missing-value options are available.
+ */
+export interface DataTypeCapabilities {
+  encodingMethods: EncodingMethod[];
+  hasScaling: boolean;
+  hasOutliers: boolean;
+  missingValueFlags: { numericLike: boolean; categorical: boolean };
+  defaultEncoding: EncodingMethod;
+  defaultScaling: ScalingMethod;
+  defaultIncludeInProjection: boolean;
+}
+
+export const DATA_TYPE_CONFIG: Record<DataType, DataTypeCapabilities> = {
+  [DataType.Numeric]: {
+    encodingMethods: [EncodingMethod.None, EncodingMethod.Normalize, EncodingMethod.Standardize],
+    hasScaling: true,
+    hasOutliers: true,
+    missingValueFlags: { numericLike: true, categorical: false },
+    defaultEncoding: EncodingMethod.Normalize,
+    defaultScaling: ScalingMethod.MinMax,
+    defaultIncludeInProjection: true,
+  },
+  [DataType.Categorical]: {
+    encodingMethods: [EncodingMethod.Label, EncodingMethod.OneHot],
+    hasScaling: false,
+    hasOutliers: false,
+    missingValueFlags: { numericLike: false, categorical: true },
+    defaultEncoding: EncodingMethod.Label,
+    defaultScaling: ScalingMethod.None,
+    defaultIncludeInProjection: true,
+  },
+  [DataType.Text]: {
+    encodingMethods: [EncodingMethod.None, EncodingMethod.Label, EncodingMethod.OneHot],
+    hasScaling: false,
+    hasOutliers: false,
+    missingValueFlags: { numericLike: false, categorical: false },
+    defaultEncoding: EncodingMethod.None,
+    defaultScaling: ScalingMethod.None,
+    defaultIncludeInProjection: false,
+  },
+  [DataType.Date]: {
+    encodingMethods: [],
+    hasScaling: true,
+    hasOutliers: false,
+    missingValueFlags: { numericLike: false, categorical: false },
+    defaultEncoding: EncodingMethod.None,
+    defaultScaling: ScalingMethod.MinMax,
+    defaultIncludeInProjection: true,
+  },
+  [DataType.Boolean]: {
+    encodingMethods: [EncodingMethod.None, EncodingMethod.Label],
+    hasScaling: false,
+    hasOutliers: false,
+    missingValueFlags: { numericLike: false, categorical: false },
+    defaultEncoding: EncodingMethod.None,
+    defaultScaling: ScalingMethod.None,
+    defaultIncludeInProjection: true,
+  },
+  [DataType.ID]: {
+    encodingMethods: [],
+    hasScaling: false,
+    hasOutliers: false,
+    missingValueFlags: { numericLike: false, categorical: false },
+    defaultEncoding: EncodingMethod.None,
+    defaultScaling: ScalingMethod.None,
+    defaultIncludeInProjection: false,
+  },
+  [DataType.Coordinate]: {
+    encodingMethods: [],
+    hasScaling: true,
+    hasOutliers: true,
+    missingValueFlags: { numericLike: true, categorical: false },
+    defaultEncoding: EncodingMethod.None,
+    defaultScaling: ScalingMethod.None,
+    defaultIncludeInProjection: true,
+  },
+  [DataType.Unknown]: {
+    encodingMethods: [EncodingMethod.None, EncodingMethod.Label],
+    hasScaling: false,
+    hasOutliers: false,
+    missingValueFlags: { numericLike: false, categorical: false },
+    defaultEncoding: EncodingMethod.None,
+    defaultScaling: ScalingMethod.None,
+    defaultIncludeInProjection: true,
+  },
+};
+
 export function getDataTypeBadgeClass(dataType: DataType | undefined): string {
   return `badge-${dataType}`;
 }
@@ -101,6 +190,8 @@ export function getDataTypeColor(dataType: DataType): string {
       return '#00bcd4';
     case DataType.ID:
       return '#888888';
+    case DataType.Coordinate:
+      return '#0369a1';
     default:
       return '#888888';
   }
@@ -120,6 +211,8 @@ export function getDataTypeBgColor(dataType: DataType): string {
       return '#80deea';
     case DataType.ID:
       return '#bdbdbd';
+    case DataType.Coordinate:
+      return '#e0f2fe';
     default:
       return '#bdbdbd';
   }

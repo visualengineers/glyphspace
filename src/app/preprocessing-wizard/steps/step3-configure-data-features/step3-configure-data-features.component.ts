@@ -10,6 +10,7 @@ import {
   MissingValueStrategy,
   OutlierStrategy,
   OutlierMethod,
+  DATA_TYPE_CONFIG,
 } from '../../models/data-type.enum';
 import { HelpTooltipComponent } from '../../shared/help-tooltip/help-tooltip.component';
 import { HELP_TEXT } from '../../shared/constants/help-text';
@@ -158,9 +159,9 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit {
   }
 
   private async loadOutlierCounts(): Promise<void> {
-    const numericColumns = this.columns.filter(c => c.column.dataType === DataType.Numeric);
+    const outlierColumns = this.columns.filter(c => DATA_TYPE_CONFIG[c.column.dataType]?.hasOutliers);
 
-    for (const colState of numericColumns) {
+    for (const colState of outlierColumns) {
       if (colState.outlierCount === undefined) {
         await this.detectOutliersForColumn(colState);
       }
@@ -348,42 +349,31 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit {
   // ============================================================================
 
   getAvailableEncodingMethods(colState: ColumnConfigState) {
-    const dataType = colState.column.dataType;
-
-    switch (dataType) {
-      case DataType.Numeric:
-        return this.encodingMethods.filter(m =>
-          [EncodingMethod.None, EncodingMethod.Normalize, EncodingMethod.Standardize].includes(m.value)
-        );
-      case DataType.Categorical:
-        return this.encodingMethods.filter(m => [EncodingMethod.Label, EncodingMethod.OneHot].includes(m.value));
-      case DataType.Text:
-        return this.encodingMethods.filter(m =>
-          [EncodingMethod.None, EncodingMethod.Label, EncodingMethod.OneHot].includes(m.value)
-        );
-      case DataType.Date:
-        return this.encodingMethods.filter(m => [EncodingMethod.None, EncodingMethod.Normalize].includes(m.value));
-      default:
-        return this.encodingMethods.filter(m => [EncodingMethod.None, EncodingMethod.Label].includes(m.value));
-    }
+    const capabilities = DATA_TYPE_CONFIG[colState.column.dataType];
+    if (!capabilities || capabilities.encodingMethods.length === 0) return [];
+    return this.encodingMethods.filter(m => capabilities.encodingMethods.includes(m.value));
   }
 
   getAvailableMissingStrategies(colState: ColumnConfigState) {
-    const dataType = colState.column.dataType;
+    const capabilities = DATA_TYPE_CONFIG[colState.column.dataType];
 
     return this.missingValueStrategies.filter(strategy => {
-      if (strategy.numericOnly && dataType !== DataType.Numeric) return false;
-      if (strategy.categoricalOnly && dataType !== DataType.Categorical) return false;
+      if (strategy.numericOnly && !capabilities?.missingValueFlags.numericLike) return false;
+      if (strategy.categoricalOnly && !capabilities?.missingValueFlags.categorical) return false;
       return true;
     });
   }
 
+  shouldShowEncoding(colState: ColumnConfigState): boolean {
+    return this.getAvailableEncodingMethods(colState).length > 1;
+  }
+
   shouldShowScaling(colState: ColumnConfigState): boolean {
-    return colState.column.dataType === DataType.Numeric || colState.column.dataType === DataType.Date;
+    return DATA_TYPE_CONFIG[colState.column.dataType]?.hasScaling ?? false;
   }
 
   shouldShowOutliers(colState: ColumnConfigState): boolean {
-    return colState.column.dataType === DataType.Numeric;
+    return DATA_TYPE_CONFIG[colState.column.dataType]?.hasOutliers ?? false;
   }
 
   hasMissingValues(colState: ColumnConfigState): boolean {

@@ -307,21 +307,21 @@ export class Step4VisualizationSettingsComponent implements OnInit {
     const featureScores: { name: string; score: number }[] = [];
 
     for (const feature of this.availableFeatures) {
-      const baseColName = feature.split('_')[0];
-      const colStats = profile.columns.find(c => c.name === baseColName);
+      // Try exact match first, then fall back to prefix match for one-hot encoded features (e.g. city_NYC → city)
+      const colStats =
+        profile.columns.find(c => c.name === feature) || profile.columns.find(c => feature.startsWith(c.name + '_'));
       if (!colStats) continue;
 
       let score = 0;
-      if (colStats.dataType === DataType.Numeric && colStats.variance !== undefined) {
-        score = colStats.variance;
-        this.featureVariances.set(feature, score);
-      } else if (colStats.dataType === DataType.Categorical) {
+      if (colStats.stdDev !== undefined && colStats.mean !== undefined && Math.abs(colStats.mean) > 0) {
+        // Coefficient of variation (scale-independent)
+        score = colStats.stdDev / Math.abs(colStats.mean);
+      } else if (colStats.dataType === DataType.Categorical || colStats.dataType === DataType.Boolean) {
         score = colStats.uniqueCount / colStats.count;
-        this.featureVariances.set(feature, score);
       } else {
-        score = colStats.uniqueCount;
-        this.featureVariances.set(feature, score);
+        score = colStats.uniqueCount / colStats.count;
       }
+      this.featureVariances.set(feature, score);
 
       featureScores.push({ name: feature, score });
     }

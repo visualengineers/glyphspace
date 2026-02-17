@@ -127,6 +127,17 @@ def apply_cleaning(df, config):
     return df_clean
 
 
+def _resolve_base_col(col, column_configs):
+    """Resolve a feature column name to its base column config.
+    Tries exact match first, then prefix match for one-hot encoded columns (e.g. city_NYC → city)."""
+    if col in column_configs:
+        return col
+    for name in column_configs:
+        if col.startswith(name + '_'):
+            return name
+    return None
+
+
 def apply_feature_engineering(df, config):
     """Apply encoding and scaling based on configuration
 
@@ -151,18 +162,36 @@ def apply_feature_engineering(df, config):
     for col in enabled_cols:
         col_config = column_configs.get(col, {})
         encoding = col_config.get('encoding', 'none')
+        data_type = col_config.get('dataType', 'unknown')
         col_data = df[col]
 
-        # Apply encoding
-        if encoding == 'onehot' or (encoding == 'none' and not pd.api.types.is_numeric_dtype(col_data)):
-            # One-hot encoding for categorical
+        # Date columns: convert to numeric timestamps regardless of encoding setting
+        if data_type == 'date':
+            date_series = pd.to_datetime(col_data, errors='coerce')
+            # Replace NaT before int64 conversion (NaT becomes -9223372036854775808)
+            mask = date_series.isna()
+            date_series = date_series.fillna(pd.Timestamp('1970-01-01'))
+            col_numeric = date_series.astype('int64').astype(float) / 10**9  # seconds since epoch
+            col_numeric[mask] = 0
+            col_numeric.name = col
+            encoded_dfs.append(col_numeric.to_frame())
+            feature_names.append(col)
+
+        # Boolean columns: convert to 0/1 float
+        elif data_type == 'boolean' or col_data.dtype == 'bool' or col_data.dtype == 'boolean':
+            col_numeric = col_data.astype(float).fillna(0)
+            encoded_dfs.append(col_numeric.to_frame())
+            feature_names.append(col)
+
+        # One-hot encoding
+        elif encoding == 'onehot' or (encoding == 'none' and not pd.api.types.is_numeric_dtype(col_data)):
             col_data_filled = col_data.fillna('missing').astype(str)
             dummies = pd.get_dummies(col_data_filled, prefix=col)
             encoded_dfs.append(dummies.astype(float))
             feature_names.extend(dummies.columns.tolist())
 
+        # Label encoding
         elif encoding == 'label':
-            # Label encoding
             col_data_filled = col_data.fillna('missing').astype(str)
             le = LabelEncoder()
             encoded_series = pd.Series(le.fit_transform(col_data_filled).astype(float), name=col)
@@ -183,8 +212,8 @@ def apply_feature_engineering(df, config):
     # PHASE 2: Scaling - batch by scaling method
     scaling_groups = {}
     for col in encoded_df.columns:
-        orig_col = col.split('_')[0]  # Get base column name (before one-hot suffix)
-        col_config = column_configs.get(orig_col, {})
+        base = _resolve_base_col(col, column_configs)
+        col_config = column_configs.get(base, {}) if base else {}
         scaling = col_config.get('scaling', 'none')
 
         if scaling not in scaling_groups:
@@ -261,7 +290,7 @@ def compute_projections(df, config):
     # Filter to columns marked for projection
     projection_cols = [
         col for col in feature_cols
-        if column_configs.get(col.split('_')[0], {}).get('includeInProjection', True)
+        if column_configs.get(_resolve_base_col(col, column_configs) or col, {}).get('includeInProjection', True)
     ]
 
     if not projection_cols:
@@ -324,9 +353,19 @@ def build_dataset_collection(df_original, df_processed, feature_names, feature_c
         config: Configuration dict
     """
 
+    # Build column config lookup from config dict
+    column_configs = {col['name']: col for col in config.get('columns', [])}
+
     # Extract all needed data as numpy arrays (vectorized)
     id_values = df_processed['ID'].values
     feature_values = df_processed[feature_names].values  # 2D array
+
+    # Normalize all features to [0,1] for glyph rendering
+    feat_min = feature_values.min(axis=0)
+    feat_max = feature_values.max(axis=0)
+    feat_range = feat_max - feat_min
+    feat_range[feat_range == 0] = 1  # Avoid division by zero for constant columns
+    normalized_features = (feature_values - feat_min) / feat_range
 
     # Pre-extract original column values for O(1) access (avoids slow pandas iloc)
     # This optimization provides 40-50% speedup for large datasets
@@ -335,7 +374,7 @@ def build_dataset_collection(df_original, df_processed, feature_names, feature_c
     use_cache = []  # Boolean array indicating if we should use cache for this feature
 
     for col in feature_names:
-        base_col = col.split('_')[0] if '_' in col else col
+        base_col = _resolve_base_col(col, column_configs) or col
         base_col_list.append(base_col)
 
         if base_col in df_original.columns:
@@ -357,8 +396,8 @@ def build_dataset_collection(df_original, df_processed, feature_names, feature_c
         # Always convert ID to string for consistency across the system
         row_id = str(id_values[idx])
 
-        # Feature values (normalized) - single vectorized dict comprehension
-        feature_dict = {str(i + 1): float(feature_values[idx, i]) for i in range(n_features)}
+        # Feature values (min-max normalized to [0,1]) for glyph rendering
+        feature_dict = {str(i + 1): float(normalized_features[idx, i]) for i in range(n_features)}
 
         # Build value_dict - optimized with pre-built arrays
         value_dict = {}
@@ -390,9 +429,6 @@ def build_dataset_collection(df_original, df_processed, feature_names, feature_c
     # Final progress update before metadata
     report_progress('Building dataset', 93, 'Computing metadata statistics')
 
-    # FIX: Build schema with user configuration
-    column_configs = {col['name']: col for col in config.get('columns', [])}
-
     # Find color feature from user configuration
     # First, find which column is marked as color feature
     color_feature_name = None
@@ -405,8 +441,7 @@ def build_dataset_collection(df_original, df_processed, feature_names, feature_c
     color_feature_idx = None
     if color_feature_name:
         for i, col in enumerate(feature_names):
-            # Handle both exact match and one-hot encoded columns (col_value format)
-            base_col = col.split('_')[0] if '_' in col else col
+            base_col = _resolve_base_col(col, column_configs) or col
             if base_col == color_feature_name:
                 color_feature_idx = i + 1
                 break
@@ -465,7 +500,7 @@ def build_dataset_collection(df_original, df_processed, feature_names, feature_c
     # Build types mapping (feature ID -> original data type)
     feature_types = {}
     for i, col in enumerate(feature_names):
-        base_col = col.split('_')[0] if '_' in col else col
+        base_col = _resolve_base_col(col, column_configs) or col
         col_config = column_configs.get(base_col, {})
         # Get original data type (before encoding/processing)
         original_type = col_config.get('dataType', 'unknown')
@@ -479,7 +514,7 @@ def build_dataset_collection(df_original, df_processed, feature_names, feature_c
             'time': 'date',  # Map time to date
             'boolean': 'boolean',
             'id': 'id',
-            'coordinate': 'numeric'  # Coordinates are numeric
+            'coordinate': 'coordinate'
         }
         feature_types[str(i + 1)] = type_map.get(original_type, 'unknown')
 
@@ -514,7 +549,7 @@ def build_dataset_collection(df_original, df_processed, feature_names, feature_c
         col_std = float(np.std(col_values))
 
         # Determine feature type and categories
-        base_col = col.split('_')[0] if '_' in col else col
+        base_col = _resolve_base_col(col, column_configs) or col
         feature_type = feature_types.get(str(i + 1), 'numeric')
         categories = feature_categories.get(col, [])
 
@@ -528,8 +563,8 @@ def build_dataset_collection(df_original, df_processed, feature_names, feature_c
             total = counts.sum()
             histogram = {str(j): float(counts[j] / total) if total > 0 else 0.0 for j in range(num_categories)}
         else:
-            # For numeric: use 20 bins
-            counts, _ = np.histogram(col_values, bins=20, density=True)
+            # For numeric: use 20 bins (cast to float to handle boolean columns)
+            counts, _ = np.histogram(col_values.astype(float), bins=20, density=True)
             histogram = {str(j): float(count) for j, count in enumerate(counts)}
 
         meta_features[str(i + 1)] = {

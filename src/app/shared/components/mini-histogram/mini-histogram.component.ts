@@ -279,14 +279,20 @@ export class MiniHistogramComponent implements OnChanges, AfterViewInit, OnDestr
 
         this.lastHoveredBar = currentBar;
 
-        const binStart =
-          this.data.binEdges && this.data.binEdges[d.bin] !== undefined ? this.data.binEdges[d.bin].toFixed(2) : d.bin;
-        const binEnd =
-          this.data.binEdges && this.data.binEdges[d.bin + 1] !== undefined
-            ? this.data.binEdges[d.bin + 1].toFixed(2)
-            : d.bin + 1;
-
-        this.setHoverText(`${binStart} – ${binEnd}: ${this.formatValue(d.value)}`);
+        // Use pre-formatted labels if available (e.g. date bins)
+        if (this.data.labels && this.data.labels[d.bin]) {
+          this.setHoverText(`${this.data.labels[d.bin]}: ${this.formatValue(d.value)}`);
+        } else {
+          const binStart =
+            this.data.binEdges && this.data.binEdges[d.bin] !== undefined
+              ? this.data.binEdges[d.bin].toFixed(2)
+              : d.bin;
+          const binEnd =
+            this.data.binEdges && this.data.binEdges[d.bin + 1] !== undefined
+              ? this.data.binEdges[d.bin + 1].toFixed(2)
+              : d.bin + 1;
+          this.setHoverText(`${binStart} – ${binEnd}: ${this.formatValue(d.value)}`);
+        }
       });
     }
   }

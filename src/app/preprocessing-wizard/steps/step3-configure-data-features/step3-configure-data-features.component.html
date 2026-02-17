@@ -53,6 +53,8 @@
                 <option [value]="DataType.Text">Text</option>
                 <option [value]="DataType.Date">Date</option>
                 <option [value]="DataType.Boolean">Boolean</option>
+                <option [value]="DataType.Coordinate">Coordinate</option>
+                <option [value]="DataType.ID">ID</option>
               </select>
               <label class="checkbox-label">
                 <input type="checkbox" [(ngModel)]="showIssuesOnly" (ngModelChange)="onFilterChange()" />
@@ -144,7 +146,10 @@
                   >
                 </div>
               }
-              @if (selectedColumn.column.dataType === DataType.Numeric) {
+              @if (
+                selectedColumn.column.dataType === DataType.Numeric ||
+                selectedColumn.column.dataType === DataType.Coordinate
+              ) {
                 <div class="stat">
                   <span class="stat-label">Range</span>
                   <span class="stat-value"
@@ -162,14 +167,13 @@
               }
               @if (
                 selectedColumn.column.dataType === DataType.Date &&
-                selectedColumn.column.min !== null &&
-                selectedColumn.column.max !== null
+                selectedColumn.column.min != null &&
+                selectedColumn.column.max != null
               ) {
                 <div class="stat stat-date">
                   <span class="stat-label">Range</span>
                   <span class="stat-value"
-                    >{{ formatDate(selectedColumn.column.min ?? 0) }} —
-                    {{ formatDate(selectedColumn.column.max ?? 0) }}</span
+                    >{{ formatDate(selectedColumn.column.min!) }} — {{ formatDate(selectedColumn.column.max!) }}</span
                   >
                 </div>
               }
@@ -187,6 +191,16 @@
                   >
                 </div>
               }
+              @if (selectedColumn.column.dataType === DataType.Boolean && selectedColumn.column.topValues) {
+                <div class="stat">
+                  <span class="stat-label">Distribution</span>
+                  <span class="stat-value">
+                    @for (tv of selectedColumn.column.topValues!; track tv.value) {
+                      {{ tv.value }}: {{ tv.count }}{{ $last ? '' : ', ' }}
+                    }
+                  </span>
+                </div>
+              }
               @if (selectedColumn.column.dataType === DataType.Text) {
                 <div class="stat">
                   <span class="stat-label">Avg length</span>
@@ -196,21 +210,23 @@
             </div>
 
             <!-- Encoding -->
-            <div class="config-section">
-              <div class="section-header">
-                <span class="section-label">Encoding</span>
-                <app-help-tooltip [helpText]="HELP_TEXT.tableHeaders.encoding" position="bottom"></app-help-tooltip>
+            @if (shouldShowEncoding(selectedColumn)) {
+              <div class="config-section">
+                <div class="section-header">
+                  <span class="section-label">Encoding</span>
+                  <app-help-tooltip [helpText]="HELP_TEXT.tableHeaders.encoding" position="bottom"></app-help-tooltip>
+                </div>
+                <select
+                  class="config-select"
+                  [value]="selectedColumn.config.encodingMethod"
+                  (change)="onEncodingChange(selectedColumn.column.name, $any($event.target).value)"
+                >
+                  @for (method of getAvailableEncodingMethods(selectedColumn); track method.value) {
+                    <option [value]="method.value">{{ method.label }} — {{ method.description }}</option>
+                  }
+                </select>
               </div>
-              <select
-                class="config-select"
-                [value]="selectedColumn.config.encodingMethod"
-                (change)="onEncodingChange(selectedColumn.column.name, $any($event.target).value)"
-              >
-                @for (method of getAvailableEncodingMethods(selectedColumn); track method.value) {
-                  <option [value]="method.value">{{ method.label }} — {{ method.description }}</option>
-                }
-              </select>
-            </div>
+            }
 
             <!-- Scaling (numeric/date only) -->
             @if (shouldShowScaling(selectedColumn)) {

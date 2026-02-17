@@ -167,6 +167,16 @@
     background: v.$data-type-id-bg;
     color: v.$data-type-id;
   }
+
+  &.badge-coordinate {
+    background: v.$data-type-coordinate-bg;
+    color: v.$data-type-coordinate;
+  }
+
+  &.badge-unknown {
+    background: v.$data-type-unknown-bg;
+    color: v.$data-type-unknown;
+  }
 }
 
 // Messages
