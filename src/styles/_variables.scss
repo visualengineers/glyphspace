@@ -80,9 +80,9 @@ $focus-outline: #c7d2fe;
 $option-hover-bg: #f0f5ff;
 
 // Wizard-specific colors
-$wizard-header-bg: #f4f5f7;
+$wizard-header-bg: #f9fafb;
 $wizard-content-bg: $white;
-$wizard-table-header-bg: #f9fafb;
+$wizard-table-header-bg: $wizard-header-bg;
 $wizard-table-bg: $white;
 
 // Data Type Colors (following design spec)

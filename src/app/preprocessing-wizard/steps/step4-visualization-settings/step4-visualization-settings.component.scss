@@ -156,7 +156,7 @@
       padding: 6px;
       border: 2px dashed v.$gray-300;
       border-radius: 8px;
-      background: v.$gray-100;
+      background: v.$wizard-header-bg;
     }
 
     .empty-hint {
@@ -575,14 +575,14 @@
       padding: 0px 5px;
       flex-shrink: 0;
       white-space: nowrap;
-      background: v.$gray-100;
+      background: v.$wizard-header-bg;
       color: v.$gray-600;
       border: 1px solid v.$gray-300;
     }
 
     .inline-params {
       padding: 6px 10px;
-      background: v.$gray-100;
+      background: v.$wizard-header-bg;
       border: 1px solid v.$gray-200;
       border-radius: 8px;
       margin-top: 4px;
