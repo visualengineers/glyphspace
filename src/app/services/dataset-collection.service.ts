@@ -70,7 +70,7 @@ export class DatasetCollectionService {
     const result: string[] = [];
     const collection = this.getCollectionEntry(name);
     if (collection) {
-      const item = time ? collection.items.find(it => it.time == time) : collection.items.at(0);
+      const item = time ? collection.items.find(it => it.time === time) : collection.items.at(0);
       if (item) {
         result.push(...Object.keys(item.algorithms.position));
       }

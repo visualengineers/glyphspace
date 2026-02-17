@@ -68,7 +68,7 @@ describe('DatasetCollectionService', () => {
 
     const result = service.getCollectionEntry('my-ds');
     expect(result).toBeTruthy();
-    expect(result!.dataset).toBe('my-ds');
+    expect(result?.dataset).toBe('my-ds');
   });
 
   it('should return undefined for unknown dataset', () => {

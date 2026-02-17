@@ -1,4 +1,23 @@
 <div class="scene-container" #sceneContainer [class.active]="canvasActivated">
+  <app-settingscontrols
+    #settingsPanel
+    [parentId]="id"
+    [visible]="mouseInside"
+    [totalCells]="totalCells"
+    [collisionAvoidance]="collisionAvoidance"
+    [aggregated]="aggregated"
+    [algorithms]="algorithms"
+    [selectedAlgorithm]="selectedAlgorithm"
+    [timestamps]="timestamps"
+    [selectedTimestamp]="selectedTimestamp"
+    (fitToView)="fitToView()"
+    (takeScreenshot)="takeScreenshot()"
+    (toggleCollision)="toggleCollisionAvoidance()"
+    (toggleAggregation)="toggleAggregation()"
+    (settingsChanged)="onSettingsChange($event)"
+    (changeAnimationSpeed)="onAnimationSpeedChanged($event)"
+    (togglePlayback)="onTogglePlayback()"
+  ></app-settingscontrols>
   <div
     #canvasContainer
     class="canvas-container"
@@ -7,25 +26,6 @@
     (mouseleave)="onMouseLeave()"
   >
     <app-magiclens [container]="canvasContainer" [glyphGroup]="rendererSvc.glyphGroup" [parentId]="id"></app-magiclens>
-    <app-settingscontrols
-      #settingsPanel
-      [parentId]="id"
-      [visible]="mouseInside"
-      [totalCells]="totalCells"
-      [collisionAvoidance]="collisionAvoidance"
-      [aggregated]="aggregated"
-      [algorithms]="algorithms"
-      [selectedAlgorithm]="selectedAlgorithm"
-      [timestamps]="timestamps"
-      [selectedTimestamp]="selectedTimestamp"
-      (fitToView)="fitToView()"
-      (takeScreenshot)="takeScreenshot()"
-      (toggleCollision)="toggleCollisionAvoidance()"
-      (toggleAggregation)="toggleAggregation()"
-      (settingsChanged)="onSettingsChange($event)"
-      (changeAnimationSpeed)="onAnimationSpeedChanged($event)"
-      (togglePlayback)="onTogglePlayback()"
-    ></app-settingscontrols>
     <app-navigationcontrols
       [visible]="mouseInside"
       [selectionMode]="selectionSvc.selectionMode"

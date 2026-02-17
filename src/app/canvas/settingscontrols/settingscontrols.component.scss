@@ -2,23 +2,17 @@
 @use '../../../styles/mixins' as m;
 
 .settings-panel {
-  position: absolute;
-  top: 0;
-  left: 0;
   width: 100%;
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 12px 14px;
+  gap: 8px;
+  padding: 8px 14px;
   background-color: v.$gray-100;
-  border-top: none;
   border-bottom: 1px solid v.$gray-200;
   z-index: 400;
   box-sizing: border-box;
-
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.2s ease;
+  flex-shrink: 0;
+  position: relative;
 
   &.active {
     background-color: v.$ui-active-bg;
@@ -27,12 +21,12 @@
 
   .settings-overlay {
     position: absolute;
-    top: 90%;
+    top: 100%;
     left: 14px;
     margin-top: 4px;
-    background: white;
+    background: v.$white;
     border-radius: 10px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    box-shadow: v.$shadow-md;
     z-index: 450;
 
     .overlay-content {
@@ -42,64 +36,77 @@
   }
 }
 
-.settings-panel.visible {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-.settings-buttons {
+.header-info {
   display: flex;
-  gap: 4px;
-  background: white;
-  padding: 4px 8px;
-  border-radius: 10px;
+  align-items: center;
+  gap: 16px;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
 }
 
-.setting-btn {
-  border: none;
-  border-radius: 8px;
-  background: white;
-  cursor: pointer;
-  padding: 6px 10px;
-  font-size: 14px;
-  transition: all 0.2s ease;
-  color: v.$gray-600;
+.info-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  font-size: 13px;
 
-  span {
-    color: v.$gray-500;
-    transition: all 0.2s ease;
-  }
+  &.clickable {
+    cursor: pointer;
+    border-radius: 4px;
+    padding: 2px 4px;
+    margin: -2px -4px;
 
-  &:hover:not(.active) {
-    background: v.$ui-hover-bg;
-  }
+    &:hover {
+      background: v.$hover-overlay;
+    }
 
-  &.active {
-    background: v.$color-blue-highlight;
-    color: white;
-
-    span {
-      color: white;
+    &.active {
+      background: v.$color-blue-highlight;
+      .info-label,
+      .info-value {
+        color: v.$white;
+      }
     }
   }
+}
+
+.info-label {
+  color: v.$gray-500;
+}
+
+.info-value {
+  color: v.$gray-800;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.color-swatch {
+  display: inline-block;
+  width: 48px;
+  height: 10px;
+  border-radius: 2px;
+  flex-shrink: 0;
+  vertical-align: middle;
 }
 
 .settings-actions {
   display: flex;
   gap: 2px;
-  margin-right: 0;
   flex-shrink: 0;
 
   .action-btn {
     background: transparent;
     border: none;
     cursor: pointer;
-    color: v.$gray-600;
-    font-size: 20px;
+    color: v.$gray-500;
+    font-size: 18px;
     padding: 4px;
 
     &:hover {
-      color: v.$color-blue-highlight;
+      color: v.$gray-800;
     }
 
     &:disabled {
@@ -136,7 +143,7 @@
   padding: 10px 12px;
   border-radius: 10px;
   border: 1px solid v.$ui-border-light;
-  background: white;
+  background: v.$white;
   font-size: 13px;
   text-align: left;
   cursor: pointer;
@@ -152,7 +159,7 @@
   &.active {
     background: v.$color-blue-highlight;
     border-color: v.$ui-accent-blue;
-    color: white;
+    color: v.$white;
   }
 }
 
@@ -173,7 +180,7 @@
   height: 32px;
   border-radius: 8px;
   border: 1px solid v.$ui-border-light;
-  background: white;
+  background: v.$white;
   display: flex;
   align-items: center;
   justify-content: center;

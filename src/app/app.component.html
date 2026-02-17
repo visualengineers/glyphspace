@@ -4,8 +4,8 @@
   <div
     #canvasGrid
     class="grid"
-    [style.gridTemplateColumns]="'repeat(' + cols + ', 1fr)'"
-    [style.gridTemplateRows]="'repeat(' + rows + ', 1fr)'"
+    [style.gridTemplateColumns]="'repeat(' + cols + ', minmax(0, 1fr))'"
+    [style.gridTemplateRows]="'repeat(' + rows + ', minmax(0, 1fr))'"
   >
     @for (cell of grid; track cell.id) {
       <glyph-canvas class="glyph-canvas" [id]="cell.id" [totalCells]="grid.length"> </glyph-canvas>

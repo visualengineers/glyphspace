@@ -46,7 +46,7 @@ export function getCachedRingGeometry(innerRadius: number, outerRadius: number, 
 }
 
 export function addBackgroundCircle(group: THREE.Group, sizeInfo: GlyphSizeInfo, ctx: GlyphRenderContext): void {
-  const background = sizeInfo.currentZoomLevel == ZoomLevel.high && ctx.useBackground;
+  const background = sizeInfo.currentZoomLevel === ZoomLevel.high && ctx.useBackground;
   if (!background) return;
 
   const geom = getCachedCircleGeometry(sizeInfo.radius, 32);
@@ -78,7 +78,7 @@ export function addCoordinateAxes(
   sizeInfo: GlyphSizeInfo,
   ctx: GlyphRenderContext
 ): void {
-  const axes = sizeInfo.currentZoomLevel == ZoomLevel.high && ctx.useCoordinateSystem;
+  const axes = sizeInfo.currentZoomLevel === ZoomLevel.high && ctx.useCoordinateSystem;
   if (!axes) return;
 
   const axesColor = 0xa0a0a0;

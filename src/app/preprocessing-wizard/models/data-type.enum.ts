@@ -105,3 +105,22 @@ export function getDataTypeColor(dataType: DataType): string {
       return '#888888';
   }
 }
+
+export function getDataTypeBgColor(dataType: DataType): string {
+  switch (dataType) {
+    case DataType.Numeric:
+      return '#86efac';
+    case DataType.Categorical:
+      return '#c4b5fd';
+    case DataType.Text:
+      return '#c5e1a5';
+    case DataType.Date:
+      return '#fdba74';
+    case DataType.Boolean:
+      return '#80deea';
+    case DataType.ID:
+      return '#bdbdbd';
+    default:
+      return '#bdbdbd';
+  }
+}

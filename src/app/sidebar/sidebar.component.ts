@@ -8,7 +8,7 @@ import { FilterService } from '../services/filter.service';
 import { LoggerService } from '../services/logger-service';
 
 import { GlyphObject } from '../glyph/glyph-object';
-import { GlyphType } from '../shared/enum/glyph-type';
+import { GlyphType, getGlyphTypeName } from '../shared/enum/glyph-type';
 import { GlyphConfiguration } from '../glyph/glyph-configuration';
 import { drawFlowerGlyph, drawRadarChart, drawWhiskerGlyph } from '../shared/helpers/d3-helper';
 
@@ -21,13 +21,7 @@ import { CategoryFilter } from '../shared/filter/category-filter';
 
 import { FeaturesData } from '../shared/interfaces/glyph-meta';
 import { GlyphSchema } from '../shared/interfaces/glyph-schema';
-import {
-  COLOR_SCALES,
-  ColorScale,
-  buildGroupedColorScales,
-  getContinuousGradient as continuousGradientFn,
-  getCategoricalColors as categoricalColorsFn,
-} from '../shared/interfaces/color-scale';
+import { COLOR_SCALES, ColorScale, buildGroupedColorScales } from '../shared/interfaces/color-scale';
 
 import { HistogramComponent } from './histogram/histogram.component';
 import { ColorScaleSelectorComponent } from '../shared/components/color-scale-selector/color-scale-selector.component';
@@ -69,7 +63,6 @@ export class SidebarComponent implements OnInit, OnDestroy {
   }
 
   // --- Data ---
-  colorFeature = '';
   searchTerm = '';
   searchTerms: string[] = [];
   inputFocused = false;
@@ -81,8 +74,6 @@ export class SidebarComponent implements OnInit, OnDestroy {
 
   // --- Color ---
   colorScales: ColorScale[] = COLOR_SCALES;
-  getContinuousGradient = continuousGradientFn;
-  getCategoricalColors = categoricalColorsFn;
   groupedColorScales: { group: string; scales: ColorScale[] }[] = [];
   selectedColorAttribute = '';
   selectedColorScaleId = COLOR_SCALES[0].id;
@@ -119,11 +110,6 @@ export class SidebarComponent implements OnInit, OnDestroy {
           });
         }
 
-        const schema = await this.dataLoader.getSchema();
-        this.ngZone.run(() => {
-          if (schema) this.colorFeature = schema.label[this.config.colorFeature];
-        });
-
         const glyphData = await this.dataLoader.getGlyphData();
         if (glyphData?.length) {
           this.currentGlyph = glyphData[Math.floor(Math.random() * glyphData.length)];
@@ -137,9 +123,6 @@ export class SidebarComponent implements OnInit, OnDestroy {
         this.glyphConfig = cfg;
 
         this.ngZone.run(() => {
-          const newFeature = this.config.featureLabels[this.config.colorFeature];
-          if (newFeature) this.colorFeature = newFeature;
-
           if (this.selectedColorScaleId !== this.config.colorRange) {
             this.selectedColorScaleId = this.config.colorRange;
           }
@@ -434,20 +417,7 @@ export class SidebarComponent implements OnInit, OnDestroy {
   }
 
   getGlyphName(glyph: GlyphType): string {
-    switch (glyph) {
-      case GlyphType.Star:
-        return 'Star';
-      case GlyphType.Flower:
-        return 'Flower';
-      case GlyphType.Whisker:
-        return 'Whisker';
-      case GlyphType.Dot:
-        return 'Dot';
-      case GlyphType.Thumb:
-        return 'Thumbnail';
-      default:
-        return 'Unknown';
-    }
+    return getGlyphTypeName(glyph);
   }
 
   isOptionEnabled(prop: string): boolean {

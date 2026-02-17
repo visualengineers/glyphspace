@@ -37,7 +37,7 @@ export class MenuBarComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.dataSub.add(
       this.dataLoader.dataSetCollectionSubject$.subscribe(collection => {
-        this.hasData = !!collection && collection.length > 0 && collection.at(0)?.dataset != '';
+        this.hasData = !!collection && collection.length > 0 && collection.at(0)?.dataset !== '';
         this.datasetNames = collection.map(entry => entry.dataset);
         this.datasetEntries = collection.map(entry => ({
           name: entry.dataset,
@@ -47,7 +47,7 @@ export class MenuBarComponent implements OnInit, OnDestroy {
     );
     this.dataSub.add(
       this.configService.loadedDataSubject$.subscribe(loaded => {
-        if (loaded != '') this.selectedDataset = loaded;
+        if (loaded !== '') this.selectedDataset = loaded;
       })
     );
   }

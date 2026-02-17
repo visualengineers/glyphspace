@@ -157,15 +157,16 @@
                 <!-- Distribution -->
                 <td class="col-distribution">
                   @if (getColumnHistogramData(column); as histogramData) {
-                    <app-wizard-histogram
+                    <app-mini-histogram
                       [data]="histogramData"
                       [dataType]="column.dataType"
-                      [color]="getDataTypeColor(column.dataType)"
+                      [color]="getDataTypeBgColor(column.dataType)"
+                      [hoverColor]="getDataTypeColor(column.dataType)"
                       [width]="112"
                       [height]="25"
                       [enabled]="isColumnEnabled(column.name)"
                     >
-                    </app-wizard-histogram>
+                    </app-mini-histogram>
                   } @else {
                     <span class="text-muted">—</span>
                   }

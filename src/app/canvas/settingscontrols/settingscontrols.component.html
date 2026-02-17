@@ -1,25 +1,45 @@
-<div class="settings-panel" [class.active]="panelActive" [class.visible]="visible || panelActive">
-  <!-- Left-aligned white button group -->
-  <div class="settings-buttons">
-    <button class="setting-btn" [class.active]="activeSetting === 'position'" (click)="toggleSetting('position')">
-      Position:
-      <span>{{ this.selectedAlgorithm }}</span>
-    </button>
+<div class="settings-panel" [class.active]="panelActive">
+  <div class="header-info">
+    <span
+      class="info-item clickable"
+      tabindex="0"
+      role="button"
+      [class.active]="activeSetting === 'position'"
+      (click)="toggleSetting('position')"
+      (keydown.enter)="toggleSetting('position')"
+      (keydown.space)="toggleSetting('position')"
+    >
+      <span class="info-label">Pos:</span>
+      <span class="info-value">{{ selectedAlgorithm }}</span>
+    </span>
+
+    @if (colorFeatureLabel) {
+      <span class="info-item">
+        <span class="info-label">Color:</span>
+        <span class="info-value">{{ colorFeatureLabel }}</span>
+        <span class="color-swatch" [style.background]="colorGradientStyle"></span>
+      </span>
+    }
+
+    <span class="info-item">
+      <span class="info-label">Glyph:</span>
+      <span class="info-value">{{ glyphTypeName }}</span>
+    </span>
+
+    @if (selectedTimestamp) {
+      <span class="info-item">
+        <span class="info-label">Time:</span>
+        <span class="info-value">{{ selectedTimestamp }}</span>
+      </span>
+    }
   </div>
 
-  <!-- Right-aligned action buttons -->
   <div class="settings-actions">
-    <button class="action-btn" (click)="takeScreenshot.emit()" title="Screenshot of canvas">
-      <span class="material-icons">photo_camera</span>
-    </button>
-    <button class="action-btn" (click)="clearSelection()" title="Clear selection and filters">
-      <span class="material-icons">filter_alt_off</span>
+    <button class="action-btn" (click)="triggerDelete()" [disabled]="totalCells <= 1" title="Remove canvas">
+      <span class="material-icons">delete_outline</span>
     </button>
     <button class="action-btn" (click)="fitToView.emit()" title="Fit to screen">
-      <span class="material-icons">fullscreen</span>
-    </button>
-    <button class="action-btn" (click)="triggerDelete()" [disabled]="totalCells <= 1" title="Remove canvas">
-      <span class="material-icons">close</span>
+      <span class="material-icons">open_in_full</span>
     </button>
   </div>
 

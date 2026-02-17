@@ -24,10 +24,10 @@ describe('SpatialGrid', () => {
     grid.insert('b', 100, -30);
     const bounds = grid.getBounds();
     expect(bounds).toBeTruthy();
-    expect(bounds!.minX).toBe(10);
-    expect(bounds!.maxX).toBe(100);
-    expect(bounds!.minY).toBe(-30);
-    expect(bounds!.maxY).toBe(20);
+    expect(bounds?.minX).toBe(10);
+    expect(bounds?.maxX).toBe(100);
+    expect(bounds?.minY).toBe(-30);
+    expect(bounds?.maxY).toBe(20);
   });
 
   it('should query items within a rectangle', () => {

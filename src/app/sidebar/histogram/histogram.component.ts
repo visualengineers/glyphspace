@@ -119,12 +119,12 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges, OnD
     );
     this.configSub.add(
       this.configuration.commandSubject$.subscribe((command: InteractionCommand) => {
-        if (command == InteractionCommand.clearselection) {
+        if (command === InteractionCommand.clearselection) {
           this.brushSelection = null;
           this.selectedBins.clear();
           this.selectionCounts = null;
           this.updateChart();
-        } else if (command == InteractionCommand.redraw && !this.isOwnRedraw) {
+        } else if (command === InteractionCommand.redraw && !this.isOwnRedraw) {
           // Clear brush/selection visuals if filter was externally cleared
           if (this.filter.empty() && this.brushSelection) {
             this.brushSelection = null;

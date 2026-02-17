@@ -84,9 +84,9 @@ describe('FilterService', () => {
     service.ensureFilter(filter);
     service.refreshFilters();
 
-    expect(glyphMap.get('1')!.passive).toBeFalse();
-    expect(glyphMap.get('2')!.passive).toBeFalse();
-    expect(glyphMap.get('3')!.passive).toBeTrue();
+    expect(glyphMap.get('1')?.passive).toBeFalse();
+    expect(glyphMap.get('2')?.passive).toBeFalse();
+    expect(glyphMap.get('3')?.passive).toBeTrue();
     expect(service.filteredItems).toBe(2);
   });
 
@@ -101,9 +101,9 @@ describe('FilterService', () => {
     service.ensureFilter(filter);
     service.refreshFilters();
 
-    expect(glyphMap.get('1')!.passive).toBeFalse();
-    expect(glyphMap.get('2')!.passive).toBeTrue();
-    expect(glyphMap.get('3')!.passive).toBeTrue();
+    expect(glyphMap.get('1')?.passive).toBeFalse();
+    expect(glyphMap.get('2')?.passive).toBeTrue();
+    expect(glyphMap.get('3')?.passive).toBeTrue();
     expect(service.filteredItems).toBe(1);
   });
 

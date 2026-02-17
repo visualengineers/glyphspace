@@ -161,7 +161,7 @@ export class CanvasRendererService {
     renderConfig: GlyphRenderConfig
   ): void {
     const mesh = glyph.getMesh(selectedTimestamp, selectedAlgorithm, canvasId);
-    if (mesh != undefined) this.glyphGroup.remove(mesh);
+    if (mesh !== undefined) this.glyphGroup.remove(mesh);
 
     const newMesh = glyph.render(
       this.sizeInfo,
@@ -256,7 +256,7 @@ export class CanvasRendererService {
     canvasHeight: number
   ): void {
     glyphData.forEach(glyph => {
-      if (this.positionBounds == undefined) return;
+      if (this.positionBounds === undefined) return;
 
       const cacheObject = glyph.getCacheObject(canvasId, selectedTimestamp, selectedAlgorithm);
       const originalX = glyph.getPosition(selectedTimestamp, selectedAlgorithm).x ?? 0;
@@ -302,7 +302,7 @@ export class CanvasRendererService {
   }
 
   updatePositionBounds(glyphData: GlyphObject[], selectedTimestamp: string, selectedAlgorithm: string): void {
-    if (this.positionBounds == undefined && glyphData.length > 0) {
+    if (this.positionBounds === undefined && glyphData.length > 0) {
       let minX = Infinity,
         maxX = -Infinity;
       let minY = Infinity,
@@ -349,6 +349,14 @@ export class CanvasRendererService {
     }
 
     this.spatialGridDirty = false;
+  }
+
+  hideLensGlyphs(glyphs: GlyphObject[], canvasId: number, selectedTimestamp: string, selectedAlgorithm: string): void {
+    for (const glyph of glyphs) {
+      const mesh = glyph.getMesh(selectedTimestamp, selectedAlgorithm, canvasId);
+      if (mesh) mesh.visible = false;
+    }
+    this.requestRender(RenderTask.SceneRender);
   }
 
   renderMagicLensGlyphs(
@@ -415,7 +423,7 @@ export class CanvasRendererService {
       lensSize.radius = lensSize.radius * LENS_ENLARGEMENT_FACTOR;
 
       const mesh = glyph.getMesh(selectedTimestamp, selectedAlgorithm, canvasId);
-      if (mesh != undefined) this.glyphGroup.remove(mesh);
+      if (mesh !== undefined) this.glyphGroup.remove(mesh);
       const newMesh = glyph.render(lensSize, selectedTimestamp, selectedAlgorithm, canvasId, aggregated, renderConfig);
       if (newMesh) this.glyphGroup.add(newMesh);
     });

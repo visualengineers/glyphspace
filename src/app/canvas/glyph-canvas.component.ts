@@ -216,15 +216,21 @@ export class GlyphCanvasComponent implements AfterViewInit, OnDestroy, OnChanges
     this.configSub.add(
       this.config.drawMagicLensGlyphsSubject$.subscribe(glyphs => {
         if (glyphs != null) {
-          this.rendererSvc.renderMagicLensGlyphs(
-            glyphs,
-            this.glyphData,
-            this.id,
-            this.selectedTimestamp,
-            this.selectedAlgorithm,
-            this.aggregated,
-            this.buildRenderConfig()
-          );
+          if (this.magicLenseStatus) {
+            // This canvas owns the lens — hide glyphs at their original positions
+            this.rendererSvc.hideLensGlyphs(glyphs, this.id, this.selectedTimestamp, this.selectedAlgorithm);
+          } else {
+            // Other canvases — show enlarged/highlighted glyphs
+            this.rendererSvc.renderMagicLensGlyphs(
+              glyphs,
+              this.glyphData,
+              this.id,
+              this.selectedTimestamp,
+              this.selectedAlgorithm,
+              this.aggregated,
+              this.buildRenderConfig()
+            );
+          }
         }
       })
     );
@@ -884,7 +890,7 @@ export class GlyphCanvasComponent implements AfterViewInit, OnDestroy, OnChanges
       const closestObject: THREE.Object3D | null = this.magicLensComponent.doHitTest(event);
       if (closestObject != null) {
         const hoveredGlyph = getGlyphFromObject(closestObject);
-        if (hoveredGlyph != null && this.currentHoveredObject != hoveredGlyph) {
+        if (hoveredGlyph != null && this.currentHoveredObject !== hoveredGlyph) {
           this.currentHoveredObject = hoveredGlyph;
           this.tooltipComponent.cancelHoverPopup();
           this.tooltipComponent.scheduleHoverPopup(event.clientX, event.clientY, closestObject as THREE.Object3D);
@@ -935,7 +941,7 @@ export class GlyphCanvasComponent implements AfterViewInit, OnDestroy, OnChanges
 
       if (closestObject != null) {
         const hoveredGlyph = getGlyphFromObject(closestObject);
-        if (this.currentHoveredObject != hoveredGlyph) {
+        if (this.currentHoveredObject !== hoveredGlyph) {
           this.clearHoveredGlyph();
           if (hoveredGlyph != null && !hoveredGlyph.highlighted) {
             hoveredGlyph?.setHighlighted(true);

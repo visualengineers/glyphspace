@@ -2,10 +2,10 @@ import { Component, OnInit, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PreprocessingService } from '../../services/preprocessing.service';
-import { WizardHistogramComponent } from '../../shared/wizard-histogram/wizard-histogram.component';
+import { MiniHistogramComponent } from '../../../shared/components/mini-histogram/mini-histogram.component';
 import { ColumnStatistics, HistogramData } from '../../models/column-statistics';
 import { ColumnConfig } from '../../models/column-config';
-import { getDataTypeColor } from '../../models/data-type.enum';
+import { getDataTypeColor, getDataTypeBgColor } from '../../models/data-type.enum';
 import { HelpTooltipComponent } from '../../shared/help-tooltip/help-tooltip.component';
 import { HELP_TEXT } from '../../shared/constants/help-text';
 import { STEP_INFO } from '../../shared/constants/step-info';
@@ -14,7 +14,7 @@ import { DataTypeBadgeComponent } from '../../shared/data-type-badge/data-type-b
 @Component({
   selector: 'app-step2-column-selection',
   standalone: true,
-  imports: [CommonModule, FormsModule, WizardHistogramComponent, HelpTooltipComponent, DataTypeBadgeComponent],
+  imports: [CommonModule, FormsModule, MiniHistogramComponent, HelpTooltipComponent, DataTypeBadgeComponent],
   templateUrl: './step2-column-selection.component.html',
   styleUrl: './step2-column-selection.component.scss',
 })
@@ -142,6 +142,7 @@ export class Step2ColumnSelectionComponent implements OnInit {
   }
 
   getDataTypeColor = getDataTypeColor;
+  getDataTypeBgColor = getDataTypeBgColor;
 
   /**
    * Get histogram data for a column (either from column.histogram or cached)

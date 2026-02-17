@@ -19,25 +19,47 @@
 
 <!-- Expanded sidebar -->
 @if (!collapsed) {
-  <!-- Color scale bar + collapse button -->
-  @if (getSelectedScale(); as scale) {
-    <div class="sidebar-header">
-      <span class="color-label">{{ colorFeature }}</span>
-      <div class="color-bar-preview">
-        @if (scale.type === 'numeric') {
-          <div class="color-gradient" [style.background]="getContinuousGradient(scale)"></div>
-        }
-        @if (scale.type === 'categorical') {
-          @for (c of getCategoricalColors(scale); track c) {
-            <div class="color-box" [style.background]="c"></div>
+  <div class="sidebar-header">
+    <div class="status-row">
+      <span class="item-count">
+        @if (filterService.totalItems > 0) {
+          @if (filterService.filteredItems !== filterService.totalItems) {
+            <strong>{{ filterService.filteredItems }}</strong> of {{ filterService.totalItems }}
+          } @else {
+            {{ filterService.totalItems }} items
           }
         }
-      </div>
+      </span>
+      @if (hasActiveFilters()) {
+        <button class="status-clear-btn" (click)="clearFilters()" title="Clear all filters">
+          <span class="material-icons">filter_alt_off</span>
+        </button>
+      }
       <button class="collapse-btn" (click)="toggleCollapse()" title="Collapse sidebar">
         <span class="material-icons">chevron_right</span>
       </button>
     </div>
-  }
+    @if (hasActiveFilters()) {
+      <div class="active-filters">
+        @for (term of searchTerms; track $index) {
+          <div class="filter-chip">
+            <span class="chip-label">"{{ term }}"</span>
+            <button class="chip-remove" (click)="removeTerm($index)">
+              <i class="material-icons">close</i>
+            </button>
+          </div>
+        }
+        @for (item of getActiveFilters(); track item.displayName) {
+          <div class="filter-chip">
+            <span class="chip-label">{{ item.displayName }}</span>
+            <button class="chip-remove" (click)="removeFilter(item.filter)">
+              <i class="material-icons">close</i>
+            </button>
+          </div>
+        }
+      </div>
+    }
+  </div>
 
   <!-- Scrollable content -->
   <div class="sidebar-content">
@@ -202,40 +224,10 @@
             {{ filterService.filteredItems }}
           </span>
         }
-        <button
-          class="clear-filters-btn"
-          (click)="clearFilters(); $event.stopPropagation()"
-          type="button"
-          title="Clear selection and filters"
-        >
-          <span class="material-icons">filter_alt_off</span>
-        </button>
       </button>
 
       @if (filtersOpen) {
         <div class="accordion-body">
-          <!-- Active filter chips -->
-          @if (hasActiveFilters()) {
-            <div class="active-filters">
-              @for (term of searchTerms; track $index) {
-                <div class="filter-chip">
-                  <span class="chip-label">"{{ term }}"</span>
-                  <button class="chip-remove" (click)="removeTerm($index)">
-                    <i class="material-icons">close</i>
-                  </button>
-                </div>
-              }
-              @for (item of getActiveFilters(); track item.displayName) {
-                <div class="filter-chip">
-                  <span class="chip-label">{{ item.displayName }}</span>
-                  <button class="chip-remove" (click)="removeFilter(item.filter)">
-                    <i class="material-icons">close</i>
-                  </button>
-                </div>
-              }
-            </div>
-          }
-
           <!-- Search -->
           <div class="dashboard-search">
             <input
@@ -264,18 +256,6 @@
                 }
               </ul>
             }
-          </div>
-
-          <!-- Data info -->
-          <div class="dashboard-infos" [hidden]="filterService.totalItems === 0">
-            <span>Total items&nbsp;</span>
-            <span>{{ filterService.totalItems }}</span>
-            <span class="right" [hidden]="filterService.filteredItems === filterService.totalItems">{{
-              filterService.filteredItems
-            }}</span>
-            <span class="right" [hidden]="filterService.filteredItems === filterService.totalItems"
-              >Filtered Items&nbsp;</span
-            >
           </div>
 
           <!-- Histogram filters -->

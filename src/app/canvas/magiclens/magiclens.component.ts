@@ -30,16 +30,33 @@ export class MagiclensComponent implements AfterViewInit, OnDestroy {
   relativePosition = new THREE.Vector2();
   magicLensActive = false;
   isLensFixed = false;
-  lensRadius = 250; // in pixels
-  lensZoomFactor = 12; // how much magnification to apply
   lensGlyphs: GlyphObject[] = [];
   private sizeInfo = new GlyphSizeInfo();
 
-  // Adaptive performance settings
-  private maxLensGlyphs = 30; // Starting value, will adapt
+  // Lens geometry
+  readonly lensRadius = 250; // Lens canvas diameter in pixels
+  private readonly LENS_ZOOM_FACTOR = 12; // Magnification multiplier
+  private readonly DETECTION_RADIUS_PX = 30; // Screen-space radius for glyph detection
+  private readonly LENS_MOUSE_OFFSET_PX = 10; // Spacing between cursor and lens popup
+  private readonly CIRCULAR_LAYOUT_PADDING = 1.2; // Radius multiplier for 2-3 glyph layout
+
+  // Force simulation
+  private readonly MAX_SIMULATION_TICKS = 50;
+  private readonly BASE_SIMULATION_TICKS = 20;
+  private readonly TICKS_PER_GLYPH = 2;
+  private readonly BOUNDARY_CHECK_INTERVAL = 5;
+  private readonly SIMULATION_VELOCITY_DECAY = 0.3;
+
+  // Adaptive performance
+  private maxLensGlyphs = 30;
   private readonly MIN_LENS_GLYPHS = 10;
   private readonly MAX_LENS_GLYPHS = 30;
-  private readonly TARGET_FRAME_TIME = 12; // ms (target ~80fps to leave headroom)
+  private readonly TARGET_FRAME_TIME_MS = 12; // ~83fps to leave headroom
+  private readonly SLOW_THRESHOLD = 1.5; // Frame time multiplier for slowdown
+  private readonly FAST_THRESHOLD = 0.5; // Frame time multiplier for speedup
+  private readonly SCALE_DOWN_FACTOR = 0.8;
+  private readonly SCALE_UP_FACTOR = 1.2;
+  private readonly ADAPT_THRESHOLD = 0.8; // Only adapt when near the limit
   private lastRenderTime = 0;
 
   constructor(
@@ -47,7 +64,7 @@ export class MagiclensComponent implements AfterViewInit, OnDestroy {
     private dataProcessor: DataProcessorService
   ) {
     this.sizeInfo.currentZoomLevel = ZoomLevel.high;
-    this.sizeInfo.radius = this.sizeInfo.radius * this.lensZoomFactor;
+    this.sizeInfo.radius = this.sizeInfo.radius * this.LENS_ZOOM_FACTOR;
     this.sizeInfo.hitTolerance = this.sizeInfo.radius;
   }
 
@@ -128,10 +145,9 @@ export class MagiclensComponent implements AfterViewInit, OnDestroy {
     const mouseEvent = { clientX: lastMousePosition.x, clientY: lastMousePosition.y } as MouseEvent;
     const mouseWorld = screenToWorld(mouseEvent, renderer, camera);
 
-    // Calculate world-space radius based on screen pixel radius (30px) and camera zoom
+    // Calculate world-space radius based on screen pixel radius and camera zoom
     // This avoids converting every glyph to screen space
-    const screenRadius = 30; // pixels - slightly larger tolerance for better UX
-    const worldRadius = screenRadius / camera.zoom;
+    const worldRadius = this.DETECTION_RADIUS_PX / camera.zoom;
 
     // Check glyphs within world-space radius (O(n) but with cheaper distance calc)
     this.glyphGroup.children.forEach(obj => {
@@ -206,7 +222,7 @@ export class MagiclensComponent implements AfterViewInit, OnDestroy {
     // For 2-3 glyphs, use simple circular positions (no simulation needed)
     if (count <= 3) {
       const angleStep = (2 * Math.PI) / count;
-      const radius = this.sizeInfo.radius * 1.2;
+      const radius = this.sizeInfo.radius * this.CIRCULAR_LAYOUT_PADDING;
       nodes.forEach((node, i) => {
         node.threeObj.position.x = Math.cos(angleStep * i) * radius;
         node.threeObj.position.y = Math.sin(angleStep * i) * radius;
@@ -226,14 +242,14 @@ export class MagiclensComponent implements AfterViewInit, OnDestroy {
 
     const simulation = forceSimulation(nodes)
       .force('collide', forceCollide().radius(this.sizeInfo.radius).strength(1))
-      .velocityDecay(0.3)
+      .velocityDecay(this.SIMULATION_VELOCITY_DECAY)
       .stop();
 
-    const totalTicks = Math.min(50, 20 + count * 2);
+    const totalTicks = Math.min(this.MAX_SIMULATION_TICKS, this.BASE_SIMULATION_TICKS + count * this.TICKS_PER_GLYPH);
 
     for (let i = 0; i < totalTicks; i++) {
       simulation.tick(1);
-      if (i % 5 === 0) this.enforceBoundary(nodes, maxRadius, maxRadiusSq);
+      if (i % this.BOUNDARY_CHECK_INTERVAL === 0) this.enforceBoundary(nodes, maxRadius, maxRadiusSq);
     }
 
     // Final boundary enforcement and apply positions
@@ -272,14 +288,12 @@ export class MagiclensComponent implements AfterViewInit, OnDestroy {
 
   private adaptGlyphLimit(renderedCount: number): void {
     // Only adapt if we rendered near the limit (otherwise we can't measure properly)
-    if (renderedCount < this.maxLensGlyphs * 0.8) return;
+    if (renderedCount < this.maxLensGlyphs * this.ADAPT_THRESHOLD) return;
 
-    if (this.lastRenderTime > this.TARGET_FRAME_TIME * 1.5) {
-      // Too slow - decrease limit
-      this.maxLensGlyphs = Math.max(this.MIN_LENS_GLYPHS, Math.floor(this.maxLensGlyphs * 0.8));
-    } else if (this.lastRenderTime < this.TARGET_FRAME_TIME * 0.5) {
-      // Fast enough - can increase limit
-      this.maxLensGlyphs = Math.min(this.MAX_LENS_GLYPHS, Math.floor(this.maxLensGlyphs * 1.2));
+    if (this.lastRenderTime > this.TARGET_FRAME_TIME_MS * this.SLOW_THRESHOLD) {
+      this.maxLensGlyphs = Math.max(this.MIN_LENS_GLYPHS, Math.floor(this.maxLensGlyphs * this.SCALE_DOWN_FACTOR));
+    } else if (this.lastRenderTime < this.TARGET_FRAME_TIME_MS * this.FAST_THRESHOLD) {
+      this.maxLensGlyphs = Math.min(this.MAX_LENS_GLYPHS, Math.floor(this.maxLensGlyphs * this.SCALE_UP_FACTOR));
     }
   }
 
@@ -297,7 +311,7 @@ export class MagiclensComponent implements AfterViewInit, OnDestroy {
     const lensWidth = lensElem.offsetWidth;
     const lensHeight = lensElem.offsetHeight;
 
-    const padding = 10; // spacing from mouse
+    const padding = this.LENS_MOUSE_OFFSET_PX;
     const viewportWidth = canvasRect.width;
     const viewportHeight = canvasRect.height;
 

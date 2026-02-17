@@ -5,7 +5,7 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: white;
+  background: v.$white;
   border-left: 1px solid v.$gray-200;
   width: 340px;
   transition: width 0.25s ease;
@@ -52,41 +52,53 @@
   }
 }
 
-// --- Header: color scale bar + collapse ---
+// --- Header: status bar ---
 .sidebar-header {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
   padding: 8px 12px;
   border-bottom: 1px solid v.$gray-200;
   background: v.$gray-100;
   flex-shrink: 0;
+  gap: 6px;
+}
 
-  .color-label {
-    font-size: 11px;
-    color: v.$gray-600;
-    min-width: 50px;
-    max-width: 80px;
-    @include m.text-truncate;
+.status-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.item-count {
+  flex: 1;
+  font-size: 12px;
+  color: v.$gray-600;
+
+  strong {
+    font-weight: 600;
+    color: v.$gray-800;
+  }
+}
+
+.status-clear-btn {
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: v.$gray-500;
+
+  .material-icons {
+    font-size: 18px;
   }
 
-  .color-bar-preview {
-    flex: 1;
-    display: flex;
-    height: 14px;
-    border-radius: 4px;
-    overflow: hidden;
-  }
-
-  .color-gradient {
-    flex: 1;
-    height: 100%;
-    border-radius: 4px;
-  }
-
-  .color-box {
-    flex: 1;
-    height: 100%;
+  &:hover {
+    background: v.$gray-200;
+    color: v.$gray-800;
   }
 }
 
@@ -173,7 +185,7 @@
   font-size: 11px;
   font-weight: 600;
   background: v.$color-blue-highlight;
-  color: white;
+  color: v.$white;
   border-radius: 10px;
   padding: 1px 7px;
   margin-left: auto;
@@ -238,18 +250,8 @@
 
     &.active {
       background-color: v.$color-blue-highlight;
-      color: white;
+      color: v.$white;
     }
-  }
-}
-
-// --- Data info ---
-.dashboard-infos {
-  font-size: 14px;
-  margin-bottom: 12px;
-
-  .right {
-    float: right;
   }
 }
 
@@ -265,7 +267,7 @@
     font-size: 14px;
     border: 1px solid v.$gray-500;
     border-radius: 8px;
-    background-color: white;
+    background-color: v.$white;
     color: v.$gray-800;
     outline: none;
 
@@ -303,10 +305,10 @@
     margin: 0;
     margin-top: -1px;
     padding: 4px;
-    background: white;
+    background: v.$white;
     border: 1px solid v.$gray-400;
     border-radius: 8px;
-    box-shadow: 0 2px 3px rgba(0, 0, 0, 0.1);
+    box-shadow: v.$shadow-dropdown;
     z-index: 100;
     list-style: none;
 
@@ -398,22 +400,19 @@
 .active-filters {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  padding-bottom: 10px;
-  margin-bottom: 10px;
-  border-bottom: 1px solid v.$gray-200;
+  gap: 4px;
 }
 
 .filter-chip {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px 4px 2px 8px;
+  gap: 2px;
+  padding: 1px 3px 1px 7px;
   background: v.$color-blue-highlight;
-  color: white;
-  border-radius: 12px;
-  font-size: 12px;
-  max-width: 160px;
+  color: v.$white;
+  border-radius: 10px;
+  font-size: 11px;
+  max-width: 140px;
 
   .chip-label {
     @include m.text-truncate;
@@ -433,32 +432,11 @@
 
     i.material-icons {
       font-size: 14px;
-      color: white;
+      color: v.$white;
     }
 
     &:hover {
       background: rgba(255, 255, 255, 0.25);
     }
-  }
-}
-
-// --- Clear filters ---
-.clear-filters-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: 0.85rem;
-  opacity: 0.7;
-  padding: 0;
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-
-  .material-icons {
-    font-size: 18px;
-  }
-
-  &:hover {
-    opacity: 1;
   }
 }

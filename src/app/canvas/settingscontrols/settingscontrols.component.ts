@@ -5,6 +5,8 @@ import { FormsModule } from '@angular/forms';
 import { FilterService } from '../../services/filter.service';
 import { ProjectionService } from '../../services/projection.service';
 import { Subscription } from 'rxjs';
+import { COLOR_SCALES, getContinuousGradient, getCategoricalColors } from '../../shared/interfaces/color-scale';
+import { getGlyphTypeName } from '../../shared/enum/glyph-type';
 
 export type SettingMode = 'position' | null;
 
@@ -18,10 +20,22 @@ export type SettingMode = 'position' | null;
 export class SettingsControlPanelComponent implements OnDestroy, OnInit {
   @Input() visible = false;
 
+  private readonly MAX_ANIMATION_SPEED = 10;
+  private readonly MIN_ANIMATION_SPEED = 1;
+  private readonly PROJECTION_FADE_DELAY_MS = 4500;
+  private readonly PROJECTION_REMOVE_DELAY_MS = 5000;
+
   panelActive = false;
   activeSetting: SettingMode = null;
-  animationSpeed = 10;
+  animationSpeed = this.MAX_ANIMATION_SPEED;
   paused = true;
+
+  // Color info
+  colorFeatureLabel = '';
+  colorGradientStyle = '';
+
+  // Glyph type
+  glyphTypeName = '';
 
   // Background projection status
   backgroundProjections: {
@@ -37,6 +51,7 @@ export class SettingsControlPanelComponent implements OnDestroy, OnInit {
   private dismissedProjections = new Set<string>();
 
   private ngZone!: NgZone;
+  private subs = new Subscription();
 
   @Input() parentId!: number;
   @Input() totalCells = 0;
@@ -76,6 +91,21 @@ export class SettingsControlPanelComponent implements OnDestroy, OnInit {
   }
 
   ngOnInit(): void {
+    // Color info: update when data loads or config changes
+    this.subs.add(
+      this.config.loadedDataSubject$.subscribe(data => {
+        if (data === '') return;
+        this.updateColorInfo();
+      })
+    );
+
+    this.subs.add(
+      this.config.glyphConfigSubject$.subscribe(() => {
+        this.updateColorInfo();
+        this.updateGlyphTypeName();
+      })
+    );
+
     // Subscribe to background projection status updates
     this.backgroundStatusSubscription = this.projectionService.backgroundStatusObservable.subscribe(statusMap => {
       this.ngZone.run(() => {
@@ -113,7 +143,7 @@ export class SettingsControlPanelComponent implements OnDestroy, OnInit {
                     proj.fading = true;
                   }
                 });
-              }, 4500);
+              }, this.PROJECTION_FADE_DELAY_MS);
 
               const removeTimer = setTimeout(() => {
                 this.ngZone.run(() => {
@@ -122,7 +152,7 @@ export class SettingsControlPanelComponent implements OnDestroy, OnInit {
                   this.dismissedProjections.add(method);
                   this.backgroundProjections = this.backgroundProjections.filter(p => p.method !== method);
                 });
-              }, 5000);
+              }, this.PROJECTION_REMOVE_DELAY_MS);
 
               this.completedProjectionTimers.set(method, removeTimer);
               this.fadingTimers.set(method, fadeTimer);
@@ -145,6 +175,7 @@ export class SettingsControlPanelComponent implements OnDestroy, OnInit {
   }
 
   ngOnDestroy(): void {
+    this.subs.unsubscribe();
     if (this.backgroundStatusSubscription) {
       this.backgroundStatusSubscription.unsubscribe();
     }
@@ -152,6 +183,35 @@ export class SettingsControlPanelComponent implements OnDestroy, OnInit {
     this.completedProjectionTimers.clear();
     this.fadingTimers.forEach(timer => clearTimeout(timer));
     this.fadingTimers.clear();
+  }
+
+  private updateColorInfo(): void {
+    const colorFeature = this.config.colorFeature;
+    const colorRange = this.config.colorRange;
+    const featureLabels = this.config.featureLabels;
+
+    if (!colorFeature) {
+      this.colorFeatureLabel = '';
+      this.colorGradientStyle = '';
+      return;
+    }
+
+    const colorScale = COLOR_SCALES.find(cs => cs.id === colorRange) || COLOR_SCALES[0];
+
+    let gradient: string;
+    if (colorScale.type === 'categorical') {
+      const colors = getCategoricalColors(colorScale);
+      gradient = `linear-gradient(to right, ${colors.map((c, i) => `${c} ${(i / colors.length) * 100}%, ${c} ${((i + 1) / colors.length) * 100}%`).join(', ')})`;
+    } else {
+      gradient = getContinuousGradient(colorScale);
+    }
+
+    this.colorFeatureLabel = featureLabels[colorFeature] || colorFeature;
+    this.colorGradientStyle = gradient;
+  }
+
+  private updateGlyphTypeName(): void {
+    this.glyphTypeName = getGlyphTypeName(this.config.getConfiguration().glyphType);
   }
 
   hideMenus() {
@@ -194,14 +254,14 @@ export class SettingsControlPanelComponent implements OnDestroy, OnInit {
   }
 
   increaseSpeed() {
-    if (this.animationSpeed < 10) {
+    if (this.animationSpeed < this.MAX_ANIMATION_SPEED) {
       this.animationSpeed++;
       this.changeAnimationSpeed.emit(this.animationSpeed / 1000);
     }
   }
 
   decreaseSpeed() {
-    if (this.animationSpeed > 1) {
+    if (this.animationSpeed > this.MIN_ANIMATION_SPEED) {
       this.animationSpeed--;
       this.changeAnimationSpeed.emit(this.animationSpeed / 1000);
     }

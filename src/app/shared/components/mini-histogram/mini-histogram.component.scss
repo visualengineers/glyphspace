@@ -1,15 +1,14 @@
 @use '../../../../styles/variables' as v;
 @use '../../../../styles/mixins' as m;
 
-.wizard-histogram {
-  width: 120px; // Fixed width to match the SVG
+.mini-histogram {
+  width: 100%;
   height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
   position: relative;
-  margin: 0 auto; // Center the histogram in its container
 }
 
 .chart-container {

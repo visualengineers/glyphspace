@@ -430,8 +430,8 @@ export class DataLoaderService {
     this.filterService.clearFilters();
 
     const dataset = this.collectionSvc.getCollectionEntry(name);
-    const item = dataset?.items.find(item => item.time == timestamp);
-    if (item && dataset?.source == 'wasm') {
+    const item = dataset?.items.find(item => item.time === timestamp);
+    if (item && dataset?.source === 'wasm') {
       const schema = (await this.dataProcessor.fetchJson(item.algorithms.schema)) as GlyphSchema;
       const meta = (await this.dataProcessor.fetchJson(item.algorithms.meta)) as GlyphMeta;
       const features = (await this.dataProcessor.fetchJson(item.algorithms.feature)) as GlyphFeature[];
@@ -474,11 +474,11 @@ export class DataLoaderService {
   }
 
   private resolveDatasetParams(name?: string, timestamp?: string): { name: string; timestamp: string } | undefined {
-    if (name == undefined) name = this.config.loadedData;
-    if (timestamp == undefined) {
+    if (name === undefined) name = this.config.loadedData;
+    if (timestamp === undefined) {
       timestamp = this.collectionSvc.getCollectionEntry(name)?.items.at(0)?.time;
     }
-    if (name == undefined || timestamp == undefined) return undefined;
+    if (name === undefined || timestamp === undefined) return undefined;
     return { name, timestamp };
   }
 }
