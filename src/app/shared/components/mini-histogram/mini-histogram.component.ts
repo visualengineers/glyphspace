@@ -181,10 +181,6 @@ export class MiniHistogramComponent implements OnChanges, AfterViewInit, OnDestr
     }
   }
 
-  private formatValue(value: number): string {
-    return Number.isInteger(value) ? String(value) : value.toFixed(1);
-  }
-
   private drawCategoricalHistogram(width: number, height: number): void {
     if (!this.data || !this.svg) return;
 
@@ -281,7 +277,7 @@ export class MiniHistogramComponent implements OnChanges, AfterViewInit, OnDestr
 
         // Use pre-formatted labels if available (e.g. date bins)
         if (this.data.labels && this.data.labels[d.bin]) {
-          this.setHoverText(`${this.data.labels[d.bin]}: ${this.formatValue(d.value)}`);
+          this.setHoverText(this.data.labels[d.bin]);
         } else {
           const binStart =
             this.data.binEdges && this.data.binEdges[d.bin] !== undefined
@@ -291,7 +287,7 @@ export class MiniHistogramComponent implements OnChanges, AfterViewInit, OnDestr
             this.data.binEdges && this.data.binEdges[d.bin + 1] !== undefined
               ? this.data.binEdges[d.bin + 1].toFixed(2)
               : d.bin + 1;
-          this.setHoverText(`${binStart} – ${binEnd}: ${this.formatValue(d.value)}`);
+          this.setHoverText(`${binStart} – ${binEnd}`);
         }
       });
     }

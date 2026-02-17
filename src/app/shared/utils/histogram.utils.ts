@@ -28,8 +28,8 @@ export function getEffectiveHistogramType(
   nonZeroBinCount: number,
   maxCategoricalBins = 40
 ): 'categorical' | 'numeric' {
-  // If declared as categorical but has too many non-zero bins, treat as numeric
-  if (declaredType === 'categorical' && nonZeroBinCount > maxCategoricalBins) {
+  // If declared as categorical/text but has too many non-zero bins, render as numeric histogram
+  if ((declaredType === 'categorical' || declaredType === 'text') && nonZeroBinCount > maxCategoricalBins) {
     return 'numeric';
   }
 
@@ -166,6 +166,58 @@ export function rebinHistogramData(originalCounts: number[], targetBins: number)
   }
 
   return newCounts;
+}
+
+// Epoch range heuristic: 1970-01-01 to 2100-01-01 in seconds
+const EPOCH_MIN = 0;
+const EPOCH_MAX = 4_102_444_800;
+
+function isEpochSeconds(value: number): boolean {
+  return value > EPOCH_MIN && value < EPOCH_MAX;
+}
+
+function formatEpochDate(epochSeconds: number): string {
+  const date = new Date(epochSeconds * 1000);
+  return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+}
+
+function formatCompact(value: number): string {
+  if (Number.isInteger(value) && Math.abs(value) < 10_000) {
+    return value.toString();
+  }
+  if (Math.abs(value) >= 1000) {
+    return value.toLocaleString('en-US', { maximumFractionDigits: 1 });
+  }
+  return value.toFixed(2);
+}
+
+/**
+ * Format a numeric histogram bin tooltip from feature min/max.
+ * Computes evenly-spaced bin edges and formats based on data type.
+ *
+ * @param bin - Bin index
+ * @param totalBins - Total number of bins
+ * @param featureMin - Minimum feature value
+ * @param featureMax - Maximum feature value
+ * @param dataType - Data type string (e.g. 'numeric', 'date', 'coordinate')
+ * @returns Formatted tooltip string showing the bin's value range
+ */
+export function formatBinTooltip(
+  bin: number,
+  totalBins: number,
+  featureMin: number,
+  featureMax: number,
+  dataType?: string
+): string {
+  const binWidth = (featureMax - featureMin) / totalBins;
+  const start = featureMin + bin * binWidth;
+  const end = featureMin + (bin + 1) * binWidth;
+
+  if (dataType === 'date' && isEpochSeconds(start)) {
+    return `${formatEpochDate(start)} – ${formatEpochDate(end)}`;
+  }
+
+  return `${formatCompact(start)} – ${formatCompact(end)}`;
 }
 
 /**

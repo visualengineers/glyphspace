@@ -21,7 +21,11 @@ import { COLOR_SCALES, ColorScale } from '../../shared/interfaces/color-scale';
 import { CategoryFilter } from '../../shared/filter/category-filter';
 import { InteractionCommand } from '../../shared/enum/interaction-command';
 import { Histogram, StackedBin } from '../../shared/types/histogram.types';
-import { prepareStackedBinsFromObject, getEffectiveHistogramType } from '../../shared/utils/histogram.utils';
+import {
+  prepareStackedBinsFromObject,
+  getEffectiveHistogramType,
+  formatBinTooltip,
+} from '../../shared/utils/histogram.utils';
 
 @Component({
   selector: 'app-histogram',
@@ -36,6 +40,8 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges, OnD
   @Input() property!: string;
   @Input() featureMin = 0;
   @Input() featureMax = 1;
+  @Input() originalMin?: number;
+  @Input() originalMax?: number;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   @Input() configuration: any;
@@ -268,7 +274,7 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges, OnD
 
         tooltip
           .style('opacity', 1)
-          .text(`${this.getCategoricalValue(d.bin, d.value)}`)
+          .text(this.getCategoricalValue(d.bin))
           .style('left', `${x + 10}px`)
           .style('top', `${y - 8}px`);
       })
@@ -340,8 +346,8 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges, OnD
     });
   }
 
-  private getCategoricalValue(bin: number, value: number) {
-    return this.binToCategory.get(bin) ?? value;
+  private getCategoricalValue(bin: number): string {
+    return this.binToCategory.get(bin) ?? `Category ${bin}`;
   }
 
   private drawNumericHistogram(): void {
@@ -349,6 +355,9 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges, OnD
 
     // Clear categorical selection when switching to numeric mode
     this.selectedBins.clear();
+
+    // Build category map for categorical columns that fell back to numeric rendering (>40 categories)
+    this.buildBinCategoryMap();
 
     const bins = Object.keys(this.histogramData).map(k => ({ bin: +k, value: this.histogramData[k] }));
 
@@ -452,9 +461,21 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges, OnD
         const binData = bins.find(b => b.bin === bin);
         if (!binData) return;
 
+        // Use category name if available (categorical column rendered as numeric due to >40 categories)
+        const label =
+          this.binToCategory.size > 0
+            ? this.getCategoricalValue(binData.bin)
+            : formatBinTooltip(
+                binData.bin,
+                bins.length,
+                this.originalMin ?? this.featureMin,
+                this.originalMax ?? this.featureMax,
+                this.type
+              );
+
         tooltip
           .style('opacity', 1)
-          .text(`Bin ${binData.bin}: ${binData.value.toPrecision(4)}`)
+          .text(label)
           .style('left', `${x + this.margin.left + 10}px`)
           .style('top', `${y + this.margin.top - 10}px`);
       })

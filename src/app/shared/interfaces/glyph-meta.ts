@@ -9,6 +9,8 @@ export interface FeatureStats {
   categories?: string[]; // add optional categorical values for this feature
   max: number;
   min: number;
+  originalMin?: number; // Pre-scaling min for human-readable tooltips
+  originalMax?: number; // Pre-scaling max for human-readable tooltips
   median: number;
   variance: number;
   deviation: number;

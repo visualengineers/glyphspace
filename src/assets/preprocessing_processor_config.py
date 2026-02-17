@@ -182,6 +182,9 @@ def apply_feature_engineering(df, config):
             col_numeric = col_data.astype(float).fillna(0)
             encoded_dfs.append(col_numeric.to_frame())
             feature_names.append(col)
+            # Store boolean categories so sidebar shows names instead of 0/1
+            unique_vals = sorted(col_data.dropna().unique(), key=lambda v: float(v) if str(v).replace('.','',1).isdigit() else 0)
+            feature_categories[col] = [str(v) for v in unique_vals]
 
         # One-hot encoding
         elif encoding == 'onehot' or (encoding == 'none' and not pd.api.types.is_numeric_dtype(col_data)):
@@ -553,8 +556,28 @@ def build_dataset_collection(df_original, df_processed, feature_names, feature_c
         feature_type = feature_types.get(str(i + 1), 'numeric')
         categories = feature_categories.get(col, [])
 
+        # Compute original min/max from pre-encoding data for human-readable tooltips
+        original_min = col_min
+        original_max = col_max
+        if base_col in df_original.columns:
+            orig_series = df_original[base_col]
+            if pd.api.types.is_numeric_dtype(orig_series):
+                orig_clean = orig_series.dropna()
+                if len(orig_clean) > 0:
+                    original_min = float(orig_clean.min())
+                    original_max = float(orig_clean.max())
+            elif feature_type == 'date':
+                try:
+                    date_series = pd.to_datetime(orig_series, errors='coerce', format='mixed').dropna()
+                    if len(date_series) > 0:
+                        # Store as epoch seconds for JS date formatting
+                        original_min = float(date_series.min().timestamp())
+                        original_max = float(date_series.max().timestamp())
+                except Exception:
+                    pass
+
         # Build histogram - different approach for categorical vs numeric
-        if feature_type == 'categorical' and len(categories) > 0:
+        if feature_type in ('categorical', 'boolean', 'text') and len(categories) > 0:
             # For categorical: one bin per category, count occurrences
             num_categories = len(categories)
             # Values are integers 0 to num_categories-1
@@ -573,6 +596,8 @@ def build_dataset_collection(df_original, df_processed, feature_names, feature_c
             'categories': categories,  # Empty list for numeric features
             'min': col_min,
             'max': col_max,
+            'originalMin': original_min,
+            'originalMax': original_max,
             'median': col_median,
             'variance': col_variance,
             'deviation': col_std
