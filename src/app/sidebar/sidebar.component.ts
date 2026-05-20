@@ -38,10 +38,10 @@ export type AccordionSection = 'encoding' | 'style' | 'filters';
 export class SidebarComponent implements OnInit, OnDestroy {
   @HostBinding('class.collapsed') collapsed = false;
 
-  // --- Accordion state ---
+  // --- Accordion state (only one open at a time) ---
   encodingOpen = true;
   styleOpen = false;
-  filtersOpen = true;
+  filtersOpen = false;
 
   // --- Glyph preview ---
   private glyphCanvas?: HTMLCanvasElement;
@@ -166,15 +166,28 @@ export class SidebarComponent implements OnInit, OnDestroy {
 
   expandTo(section: AccordionSection): void {
     this.collapsed = false;
-    if (section === 'encoding') this.encodingOpen = true;
-    else if (section === 'style') this.styleOpen = true;
-    else this.filtersOpen = true;
+    this.openSectionExclusive(section);
   }
 
   toggleSection(section: AccordionSection): void {
-    if (section === 'encoding') this.encodingOpen = !this.encodingOpen;
-    else if (section === 'style') this.styleOpen = !this.styleOpen;
-    else this.filtersOpen = !this.filtersOpen;
+    const isOpen =
+      (section === 'encoding' && this.encodingOpen) ||
+      (section === 'style' && this.styleOpen) ||
+      (section === 'filters' && this.filtersOpen);
+
+    if (isOpen) {
+      this.encodingOpen = false;
+      this.styleOpen = false;
+      this.filtersOpen = false;
+    } else {
+      this.openSectionExclusive(section);
+    }
+  }
+
+  private openSectionExclusive(section: AccordionSection): void {
+    this.encodingOpen = section === 'encoding';
+    this.styleOpen = section === 'style';
+    this.filtersOpen = section === 'filters';
   }
 
   // --- Glyph preview canvas ---

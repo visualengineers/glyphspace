@@ -66,13 +66,16 @@
 .status-row {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
+  flex-wrap: nowrap;
+  min-width: 0;
 }
 
 .item-count {
-  flex: 1;
+  flex: 0 0 auto;
   font-size: 12px;
   color: v.$gray-600;
+  white-space: nowrap;
 
   strong {
     font-weight: 600;
@@ -399,8 +402,11 @@
 // --- Active filter chips ---
 .active-filters {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 4px;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .filter-chip {
@@ -413,6 +419,8 @@
   border-radius: 10px;
   font-size: 11px;
   max-width: 140px;
+  flex-shrink: 1;
+  min-width: 0;
 
   .chip-label {
     @include m.text-truncate;

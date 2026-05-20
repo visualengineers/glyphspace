@@ -351,14 +351,6 @@ export class CanvasRendererService {
     this.spatialGridDirty = false;
   }
 
-  hideLensGlyphs(glyphs: GlyphObject[], canvasId: number, selectedTimestamp: string, selectedAlgorithm: string): void {
-    for (const glyph of glyphs) {
-      const mesh = glyph.getMesh(selectedTimestamp, selectedAlgorithm, canvasId);
-      if (mesh) mesh.visible = false;
-    }
-    this.requestRender(RenderTask.SceneRender);
-  }
-
   renderMagicLensGlyphs(
     glyphs: GlyphObject[],
     glyphData: GlyphObject[],

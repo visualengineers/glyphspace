@@ -104,6 +104,10 @@ export class ConfigService {
     this.commandSubject.next(InteractionCommand.fittoscreen);
   }
 
+  exportImage() {
+    this.commandSubject.next(InteractionCommand.exportimage);
+  }
+
   clearSelection() {
     this.commandSubject.next(InteractionCommand.clearselection);
   }

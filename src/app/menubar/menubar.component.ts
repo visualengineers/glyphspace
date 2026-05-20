@@ -85,6 +85,10 @@ export class MenuBarComponent implements OnInit, OnDestroy {
     this.configService.toggleFitToScreen();
   }
 
+  screenshot() {
+    this.configService.exportImage();
+  }
+
   isUserDataset(name: string | null): boolean {
     if (!name) return false;
     const entry = this.datasetEntries.find(e => e.name === name);

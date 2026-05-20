@@ -47,6 +47,11 @@
           <span class="material-icons">download</span>
           <span class="btn-label">Export</span>
         </button>
+
+        <button (click)="screenshot()" title="Save canvas as PNG">
+          <span class="material-icons">photo_camera</span>
+          <span class="btn-label">Screenshot</span>
+        </button>
       </div>
 
       <!-- CANVAS -->
@@ -54,11 +59,11 @@
         <span class="label">Canvas</span>
         <button class="add-btn" (click)="addCanvas.emit()" [disabled]="totalCells >= 4">
           <span class="material-icons">add</span>
-          Add
+          <span class="btn-label">Add</span>
         </button>
-        <button class="add-btn" (click)="fitAll()">
+        <button class="add-btn fit-btn" (click)="fitAll()" title="Fit all">
           <span class="material-icons">fullscreen</span>
-          Fit all
+          <span class="btn-label">Fit all</span>
         </button>
       </div>
     </div>

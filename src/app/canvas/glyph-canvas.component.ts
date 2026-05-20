@@ -216,10 +216,7 @@ export class GlyphCanvasComponent implements AfterViewInit, OnDestroy, OnChanges
     this.configSub.add(
       this.config.drawMagicLensGlyphsSubject$.subscribe(glyphs => {
         if (glyphs != null) {
-          if (this.magicLenseStatus) {
-            // This canvas owns the lens — hide glyphs at their original positions
-            this.rendererSvc.hideLensGlyphs(glyphs, this.id, this.selectedTimestamp, this.selectedAlgorithm);
-          } else {
+          if (!this.magicLenseStatus) {
             // Other canvases — show enlarged/highlighted glyphs
             this.rendererSvc.renderMagicLensGlyphs(
               glyphs,

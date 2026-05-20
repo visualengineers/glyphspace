@@ -13,23 +13,18 @@
       <span class="info-value">{{ selectedAlgorithm }}</span>
     </span>
 
-    @if (colorFeatureLabel) {
-      <span class="info-item">
-        <span class="info-label">Color:</span>
-        <span class="info-value">{{ colorFeatureLabel }}</span>
-        <span class="color-swatch" [style.background]="colorGradientStyle"></span>
+    @if (selectedTimestamp) {
+      <span class="info-item secondary-info">
+        <span class="info-label">Time:</span>
+        <span class="info-value">{{ selectedTimestamp }}</span>
       </span>
     }
 
-    <span class="info-item">
-      <span class="info-label">Glyph:</span>
-      <span class="info-value">{{ glyphTypeName }}</span>
-    </span>
-
-    @if (selectedTimestamp) {
-      <span class="info-item">
-        <span class="info-label">Time:</span>
-        <span class="info-value">{{ selectedTimestamp }}</span>
+    @if (colorFeatureLabel) {
+      <span class="info-item secondary-info">
+        <span class="info-label">Color:</span>
+        <span class="info-value">{{ colorFeatureLabel }}</span>
+        <span class="color-swatch" [style.background]="colorGradientStyle"></span>
       </span>
     }
   </div>
