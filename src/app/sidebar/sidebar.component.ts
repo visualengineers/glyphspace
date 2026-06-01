@@ -26,7 +26,7 @@ import { COLOR_SCALES, ColorScale, buildGroupedColorScales } from '../shared/int
 import { HistogramComponent } from './histogram/histogram.component';
 import { ColorScaleSelectorComponent } from '../shared/components/color-scale-selector/color-scale-selector.component';
 
-export type AccordionSection = 'encoding' | 'style' | 'filters';
+export type SidebarPane = 'encoding' | 'style' | 'filters';
 
 @Component({
   selector: 'app-sidebar',
@@ -38,10 +38,8 @@ export type AccordionSection = 'encoding' | 'style' | 'filters';
 export class SidebarComponent implements OnInit, OnDestroy {
   @HostBinding('class.collapsed') collapsed = false;
 
-  // --- Accordion state (only one open at a time) ---
-  encodingOpen = true;
-  styleOpen = false;
-  filtersOpen = false;
+  // --- Active pane (VS Code-style activity bar) ---
+  activePane: SidebarPane = 'encoding';
 
   // --- Glyph preview ---
   private glyphCanvas?: HTMLCanvasElement;
@@ -159,35 +157,25 @@ export class SidebarComponent implements OnInit, OnDestroy {
     this.subs.unsubscribe();
   }
 
-  // --- Collapse/expand ---
-  toggleCollapse(): void {
-    this.collapsed = !this.collapsed;
-  }
-
-  expandTo(section: AccordionSection): void {
-    this.collapsed = false;
-    this.openSectionExclusive(section);
-  }
-
-  toggleSection(section: AccordionSection): void {
-    const isOpen =
-      (section === 'encoding' && this.encodingOpen) ||
-      (section === 'style' && this.styleOpen) ||
-      (section === 'filters' && this.filtersOpen);
-
-    if (isOpen) {
-      this.encodingOpen = false;
-      this.styleOpen = false;
-      this.filtersOpen = false;
+  // --- VS Code-style pane switching ---
+  selectPane(pane: SidebarPane): void {
+    if (!this.collapsed && this.activePane === pane) {
+      this.collapsed = true;
     } else {
-      this.openSectionExclusive(section);
+      this.collapsed = false;
+      this.activePane = pane;
     }
   }
 
-  private openSectionExclusive(section: AccordionSection): void {
-    this.encodingOpen = section === 'encoding';
-    this.styleOpen = section === 'style';
-    this.filtersOpen = section === 'filters';
+  paneTitle(): string {
+    switch (this.activePane) {
+      case 'encoding':
+        return 'Encoding';
+      case 'style':
+        return 'Style';
+      case 'filters':
+        return 'Filters';
+    }
   }
 
   // --- Glyph preview canvas ---

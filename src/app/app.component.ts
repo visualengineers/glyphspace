@@ -27,6 +27,7 @@ export class AppComponent implements OnInit {
   totalCells = 1;
   rows = 1;
   cols = 1;
+  maximizedId: number | null = null;
   readonly minCellSize = 150; // px — change as needed
 
   constructor(
@@ -112,6 +113,10 @@ export class AppComponent implements OnInit {
       this.recalculateGrid();
       this.updateGrid();
     }
+  }
+
+  toggleMaximize(id: number) {
+    this.maximizedId = this.maximizedId === id ? null : id;
   }
 
   @HostListener('document:keyup', ['$event'])

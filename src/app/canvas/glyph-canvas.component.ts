@@ -6,6 +6,8 @@ import {
   AfterViewInit,
   OnDestroy,
   Input,
+  Output,
+  EventEmitter,
   NgZone,
   ChangeDetectorRef,
   OnChanges,
@@ -66,6 +68,8 @@ export class GlyphCanvasComponent implements AfterViewInit, OnDestroy, OnChanges
 
   @Input() id = 0;
   @Input() totalCells = 0;
+  @Input() maximized = false;
+  @Output() toggleMaximize = new EventEmitter<void>();
   private glyphData: GlyphObject[] = [];
 
   // Infrastructure

@@ -38,3 +38,14 @@
   /* Make children fill their grid cell */
   box-sizing: border-box;
 }
+
+.glyph-canvas {
+  &.hidden {
+    display: none;
+  }
+
+  &.maximized {
+    grid-column: 1 / -1;
+    grid-row: 1 / -1;
+  }
+}

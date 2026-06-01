@@ -1,35 +1,36 @@
-<!-- Collapsed icon strip -->
-@if (collapsed) {
-  <div class="collapsed-strip">
-    <button class="strip-btn" (click)="expandTo('encoding')" title="Encoding">
-      <span class="material-icons">tune</span>
-    </button>
-    <button class="strip-btn" (click)="expandTo('style')" title="Style">
-      <span class="material-icons">palette</span>
-    </button>
-    <button class="strip-btn" (click)="expandTo('filters')" title="Filters">
-      <span class="material-icons">bar_chart</span>
-    </button>
-    <div class="strip-spacer"></div>
-    <button class="strip-btn" (click)="toggleCollapse()" title="Expand sidebar">
-      <span class="material-icons">chevron_left</span>
-    </button>
-  </div>
-}
+<!-- Activity strip (always visible, VS Code style) -->
+<div class="activity-strip">
+  <button
+    class="strip-btn"
+    [class.active]="!collapsed && activePane === 'encoding'"
+    (click)="selectPane('encoding')"
+    title="Encoding"
+  >
+    <span class="material-icons">tune</span>
+  </button>
+  <button
+    class="strip-btn"
+    [class.active]="!collapsed && activePane === 'style'"
+    (click)="selectPane('style')"
+    title="Style"
+  >
+    <span class="material-icons">palette</span>
+  </button>
+  <button
+    class="strip-btn"
+    [class.active]="!collapsed && activePane === 'filters'"
+    (click)="selectPane('filters')"
+    title="Filters"
+  >
+    <span class="material-icons">bar_chart</span>
+  </button>
+</div>
 
-<!-- Expanded sidebar -->
-@if (!collapsed) {
+<!-- Pane body (hidden when collapsed; not removed so component state survives) -->
+<div class="pane-body" [hidden]="collapsed">
   <div class="sidebar-header">
     <div class="status-row">
-      <span class="item-count">
-        @if (filterService.totalItems > 0) {
-          @if (filterService.filteredItems !== filterService.totalItems) {
-            <strong>{{ filterService.filteredItems }}</strong> of {{ filterService.totalItems }}
-          } @else {
-            {{ filterService.totalItems }} items
-          }
-        }
-      </span>
+      <span class="pane-title">{{ paneTitle() }}</span>
       @if (hasActiveFilters()) {
         <div class="active-filters">
           @for (term of searchTerms; track $index) {
@@ -53,232 +54,196 @@
           <span class="material-icons">filter_alt_off</span>
         </button>
       }
-      <button class="collapse-btn" (click)="toggleCollapse()" title="Collapse sidebar">
-        <span class="material-icons">chevron_right</span>
-      </button>
+      <span class="item-count">
+        @if (filterService.totalItems > 0) {
+          @if (filterService.filteredItems !== filterService.totalItems) {
+            <strong>{{ filterService.filteredItems }}</strong> / {{ filterService.totalItems }}
+          } @else {
+            {{ filterService.totalItems }} items
+          }
+        }
+      </span>
     </div>
   </div>
 
   <!-- Scrollable content -->
   <div class="sidebar-content">
-    <!-- ENCODING ACCORDION -->
-    <div class="accordion-section">
-      <button class="accordion-header" (click)="toggleSection('encoding')">
-        <span class="material-icons accordion-icon">{{ encodingOpen ? 'expand_more' : 'chevron_right' }}</span>
-        <span class="accordion-title">Encoding</span>
-        @if (!encodingOpen) {
-          <span class="accordion-summary">
-            {{ getActiveFeatureCount() }}
-          </span>
-        }
-      </button>
+    <!-- ENCODING PANE -->
+    <div class="pane-content" [hidden]="activePane !== 'encoding'">
+      <!-- Glyph preview -->
+      <div class="glyph-preview">
+        <canvas #glyphCanvas></canvas>
+      </div>
 
-      @if (encodingOpen) {
-        <div class="accordion-body">
-          <!-- Glyph preview -->
-          <div class="glyph-preview">
-            <canvas #glyphCanvas></canvas>
-          </div>
+      <!-- Color attribute -->
+      <div class="form-group">
+        <label class="menu-label" for="sidebar-color-attribute">COLOR ATTRIBUTE</label>
+        <select id="sidebar-color-attribute" [(ngModel)]="selectedColorAttribute" (ngModelChange)="selectColor()">
+          @for (featureId of featureIds; track featureId) {
+            <option [value]="featureId">
+              {{ getFeatureName(featureId) }}
+            </option>
+          }
+        </select>
+      </div>
 
-          <!-- Color attribute -->
-          <div class="form-group">
-            <label class="menu-label" for="sidebar-color-attribute">COLOR ATTRIBUTE</label>
-            <select id="sidebar-color-attribute" [(ngModel)]="selectedColorAttribute" (ngModelChange)="selectColor()">
-              @for (featureId of featureIds; track featureId) {
-                <option [value]="featureId">
-                  {{ getFeatureName(featureId) }}
-                </option>
-              }
-            </select>
-          </div>
+      <!-- Color scale -->
+      <div class="form-group">
+        <label class="menu-label" for="sidebar-color-scale">COLOR SCALE</label>
+        <app-color-scale-selector
+          id="sidebar-color-scale"
+          [groupedColorScales]="groupedColorScales"
+          [selectedScale]="getSelectedScale()"
+          (scaleSelected)="selectColorScale($event)"
+        >
+        </app-color-scale-selector>
+      </div>
 
-          <!-- Color scale -->
-          <div class="form-group">
-            <label class="menu-label" for="sidebar-color-scale">COLOR SCALE</label>
-            <app-color-scale-selector
-              id="sidebar-color-scale"
-              [groupedColorScales]="groupedColorScales"
-              [selectedScale]="getSelectedScale()"
-              (scaleSelected)="selectColorScale($event)"
-            >
-            </app-color-scale-selector>
-          </div>
-
-          <!-- Glyph axes -->
-          <div class="form-group">
-            <label class="menu-label" for="sidebar-glyph-axes"
-              >GLYPH AXES <span class="feature-count">{{ getActiveFeatureCount() }}</span></label
-            >
-            <div id="sidebar-glyph-axes" class="feature-list">
-              @for (featureId of getSortedFeatureIds(); track featureId) {
-                <label class="feature-checkbox" [class.active]="isFeatureActive(featureId)">
-                  <input type="checkbox" [checked]="isFeatureActive(featureId)" (change)="toggleFeature(featureId)" />
-                  <span class="feature-label">{{ getFeatureName(featureId) }}</span>
-                </label>
-              }
-            </div>
-          </div>
+      <!-- Glyph axes -->
+      <div class="form-group">
+        <label class="menu-label" for="sidebar-glyph-axes"
+          >GLYPH AXES <span class="feature-count">{{ getActiveFeatureCount() }}</span></label
+        >
+        <div id="sidebar-glyph-axes" class="feature-list">
+          @for (featureId of getSortedFeatureIds(); track featureId) {
+            <label class="feature-checkbox" [class.active]="isFeatureActive(featureId)">
+              <input type="checkbox" [checked]="isFeatureActive(featureId)" (change)="toggleFeature(featureId)" />
+              <span class="feature-label">{{ getFeatureName(featureId) }}</span>
+            </label>
+          }
         </div>
-      }
+      </div>
     </div>
 
-    <!-- STYLE ACCORDION -->
-    <div class="accordion-section">
-      <button class="accordion-header" (click)="toggleSection('style')">
-        <span class="material-icons accordion-icon">{{ styleOpen ? 'expand_more' : 'chevron_right' }}</span>
-        <span class="accordion-title">Style</span>
-        @if (!styleOpen) {
-          <span class="accordion-summary">
-            {{ getStyleSummary() }}
-          </span>
+    <!-- STYLE PANE -->
+    <div class="pane-content" [hidden]="activePane !== 'style'">
+      <!-- Glyph type -->
+      <div class="form-group">
+        <label class="menu-label" for="sidebar-glyph-type">GLYPH TYPE</label>
+        <div id="sidebar-glyph-type" class="control-cell">
+          <button
+            class="glyph-btn"
+            [class.active]="glyphConfig.glyphType === GlyphType.Star"
+            (click)="setGlyphType(GlyphType.Star)"
+            title="Star Shape"
+          >
+            <i class="material-icons">star</i>
+          </button>
+          <button
+            class="glyph-btn"
+            [class.active]="glyphConfig.glyphType === GlyphType.Flower"
+            (click)="setGlyphType(GlyphType.Flower)"
+            title="Flower Shape"
+          >
+            <i class="material-icons">local_florist</i>
+          </button>
+          <button
+            class="glyph-btn"
+            [class.active]="glyphConfig.glyphType === GlyphType.Whisker"
+            (click)="setGlyphType(GlyphType.Whisker)"
+            title="Whisker Shape"
+          >
+            <svg
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <line x1="12" y1="12" x2="12" y2="2" />
+              <line x1="12" y1="12" x2="17" y2="5" />
+              <line x1="12" y1="12" x2="22" y2="10" />
+              <line x1="12" y1="12" x2="20" y2="17" />
+              <line x1="12" y1="12" x2="12" y2="22" />
+              <line x1="12" y1="12" x2="7" y2="19" />
+              <line x1="12" y1="12" x2="2" y2="14" />
+              <line x1="12" y1="12" x2="4" y2="7" />
+            </svg>
+          </button>
+          <button
+            class="glyph-btn"
+            [class.active]="glyphConfig.glyphType === GlyphType.Thumb"
+            (click)="setGlyphType(GlyphType.Thumb)"
+            title="Thumbnails"
+          >
+            <i class="material-icons">collections</i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Glyph options -->
+      <div class="form-group">
+        <label class="menu-label" for="sidebar-glyph-options">GLYPH OPTIONS</label>
+        <div id="sidebar-glyph-options" class="control-cell config-toggle-group">
+          @for (opt of glyphConfig.glyphOptions; track opt.property) {
+            <button
+              class="config-toggle"
+              [class.active]="isOptionEnabled(opt.property)"
+              (click)="toggleOption(opt.property)"
+            >
+              {{ opt.label }}
+            </button>
+          }
+        </div>
+      </div>
+    </div>
+
+    <!-- FILTERS PANE -->
+    <div class="pane-content" [hidden]="activePane !== 'filters'">
+      <!-- Search -->
+      <div class="dashboard-search">
+        <input
+          #searchInput
+          type="text"
+          [(ngModel)]="searchTerm"
+          (keydown.enter)="onSearchEnter()"
+          (focus)="onFocus()"
+          (blur)="onBlur()"
+          placeholder="Text search in features..."
+        />
+        @if (searchTerms.length > 0 || searchTerm) {
+          <button class="clear-btn" (click)="clearSearch(searchInput)">
+            <i class="material-icons">close</i>
+          </button>
         }
-      </button>
-
-      @if (styleOpen) {
-        <div class="accordion-body">
-          <!-- Glyph type -->
-          <div class="form-group">
-            <label class="menu-label" for="sidebar-glyph-type">GLYPH TYPE</label>
-            <div id="sidebar-glyph-type" class="control-cell">
-              <button
-                class="glyph-btn"
-                [class.active]="glyphConfig.glyphType === GlyphType.Star"
-                (click)="setGlyphType(GlyphType.Star)"
-                title="Star Shape"
-              >
-                <i class="material-icons">star</i>
-              </button>
-              <button
-                class="glyph-btn"
-                [class.active]="glyphConfig.glyphType === GlyphType.Flower"
-                (click)="setGlyphType(GlyphType.Flower)"
-                title="Flower Shape"
-              >
-                <i class="material-icons">local_florist</i>
-              </button>
-              <button
-                class="glyph-btn"
-                [class.active]="glyphConfig.glyphType === GlyphType.Whisker"
-                (click)="setGlyphType(GlyphType.Whisker)"
-                title="Whisker Shape"
-              >
-                <svg
-                  width="24"
-                  height="24"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <line x1="12" y1="12" x2="12" y2="2" />
-                  <line x1="12" y1="12" x2="17" y2="5" />
-                  <line x1="12" y1="12" x2="22" y2="10" />
-                  <line x1="12" y1="12" x2="20" y2="17" />
-                  <line x1="12" y1="12" x2="12" y2="22" />
-                  <line x1="12" y1="12" x2="7" y2="19" />
-                  <line x1="12" y1="12" x2="2" y2="14" />
-                  <line x1="12" y1="12" x2="4" y2="7" />
-                </svg>
-              </button>
-              <button
-                class="glyph-btn"
-                [class.active]="glyphConfig.glyphType === GlyphType.Thumb"
-                (click)="setGlyphType(GlyphType.Thumb)"
-                title="Thumbnails"
-              >
-                <i class="material-icons">collections</i>
-              </button>
-            </div>
-          </div>
-
-          <!-- Glyph options -->
-          <div class="form-group">
-            <label class="menu-label" for="sidebar-glyph-options">GLYPH OPTIONS</label>
-            <div id="sidebar-glyph-options" class="control-cell config-toggle-group">
-              @for (opt of glyphConfig.glyphOptions; track opt.property) {
-                <button
-                  class="config-toggle"
-                  [class.active]="isOptionEnabled(opt.property)"
-                  (click)="toggleOption(opt.property)"
-                >
-                  {{ opt.label }}
+        @if (inputFocused && searchTerms.length > 0) {
+          <ul class="search-term-list">
+            @for (term of searchTerms; track $index) {
+              <li>
+                <span>{{ term }}</span>
+                <button class="remove-btn" (click)="removeTerm($index)">
+                  <i class="material-icons">close</i>
                 </button>
-              }
-            </div>
-          </div>
-        </div>
-      }
-    </div>
-
-    <!-- FILTERS ACCORDION -->
-    <div class="accordion-section">
-      <button class="accordion-header" (click)="toggleSection('filters')">
-        <span class="material-icons accordion-icon">{{ filtersOpen ? 'expand_more' : 'chevron_right' }}</span>
-        <span class="accordion-title">Filters</span>
-        @if (filterService.filteredItems !== filterService.totalItems) {
-          <span class="accordion-badge">
-            {{ filterService.filteredItems }}
-          </span>
+              </li>
+            }
+          </ul>
         }
-      </button>
+      </div>
 
-      @if (filtersOpen) {
-        <div class="accordion-body">
-          <!-- Search -->
-          <div class="dashboard-search">
-            <input
-              #searchInput
-              type="text"
-              [(ngModel)]="searchTerm"
-              (keydown.enter)="onSearchEnter()"
-              (focus)="onFocus()"
-              (blur)="onBlur()"
-              placeholder="Text search in features..."
-            />
-            @if (searchTerms.length > 0 || searchTerm) {
-              <button class="clear-btn" (click)="clearSearch(searchInput)">
-                <i class="material-icons">close</i>
-              </button>
-            }
-            @if (inputFocused && searchTerms.length > 0) {
-              <ul class="search-term-list">
-                @for (term of searchTerms; track $index) {
-                  <li>
-                    <span>{{ term }}</span>
-                    <button class="remove-btn" (click)="removeTerm($index)">
-                      <i class="material-icons">close</i>
-                    </button>
-                  </li>
-                }
-              </ul>
-            }
+      <!-- Histogram filters -->
+      <div class="filter-container">
+        @for (featureId of featureIds; track featureId) {
+          <div class="filter-item-wrapper">
+            <app-histogram
+              [configuration]="config"
+              [dataProvider]="filterService"
+              [histogramData]="features[featureId].histogram"
+              [categories]="features[featureId].categories"
+              [featureMin]="features[featureId].min"
+              [featureMax]="features[featureId].max"
+              [originalMin]="features[featureId].originalMin"
+              [originalMax]="features[featureId].originalMax"
+              [label]="getFeatureName(featureId)"
+              [type]="getFeatureType(featureId)"
+              [property]="featureId"
+            >
+            </app-histogram>
           </div>
-
-          <!-- Histogram filters -->
-          <div class="filter-container">
-            @for (featureId of featureIds; track featureId) {
-              <div class="filter-item-wrapper">
-                <app-histogram
-                  [configuration]="config"
-                  [dataProvider]="filterService"
-                  [histogramData]="features[featureId].histogram"
-                  [categories]="features[featureId].categories"
-                  [featureMin]="features[featureId].min"
-                  [featureMax]="features[featureId].max"
-                  [originalMin]="features[featureId].originalMin"
-                  [originalMax]="features[featureId].originalMax"
-                  [label]="getFeatureName(featureId)"
-                  [type]="getFeatureType(featureId)"
-                  [property]="featureId"
-                >
-                </app-histogram>
-              </div>
-            }
-          </div>
-        </div>
-      }
+        }
+      </div>
     </div>
   </div>
-}
+</div>

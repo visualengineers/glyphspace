@@ -8,7 +8,16 @@
     [style.gridTemplateRows]="'repeat(' + rows + ', minmax(0, 1fr))'"
   >
     @for (cell of grid; track cell.id) {
-      <glyph-canvas class="glyph-canvas" [id]="cell.id" [totalCells]="grid.length"> </glyph-canvas>
+      <glyph-canvas
+        class="glyph-canvas"
+        [class.maximized]="maximizedId === cell.id"
+        [class.hidden]="maximizedId !== null && maximizedId !== cell.id"
+        [id]="cell.id"
+        [totalCells]="grid.length"
+        [maximized]="maximizedId === cell.id"
+        (toggleMaximize)="toggleMaximize(cell.id)"
+      >
+      </glyph-canvas>
     }
   </div>
 

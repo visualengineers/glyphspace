@@ -68,6 +68,8 @@ export class SettingsControlPanelComponent implements OnDestroy, OnInit {
   @Input() contexts: string[] = [];
   @Input() selectedContext!: string;
 
+  @Input() maximized = false;
+
   @Output() fitToView = new EventEmitter<void>();
   @Output() takeScreenshot = new EventEmitter<void>();
   @Output() delete = new EventEmitter<void>();
@@ -75,6 +77,7 @@ export class SettingsControlPanelComponent implements OnDestroy, OnInit {
   @Output() toggleAggregation = new EventEmitter<void>();
   @Output() changeAnimationSpeed = new EventEmitter<number>();
   @Output() togglePlayback = new EventEmitter<void>();
+  @Output() toggleMaximize = new EventEmitter<void>();
 
   @Output() settingsChanged = new EventEmitter<{
     timestamp: string;
