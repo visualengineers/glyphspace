@@ -19,6 +19,7 @@
   <button
     class="strip-btn"
     [class.active]="!collapsed && activePane === 'filters'"
+    [class.has-active-filters]="hasActiveFilters()"
     (click)="selectPane('filters')"
     title="Filters"
   >
@@ -26,8 +27,8 @@
   </button>
 </div>
 
-<!-- Pane body (hidden when collapsed; not removed so component state survives) -->
-<div class="pane-body" [hidden]="collapsed">
+<!-- Pane body (visually hidden when collapsed; kept mounted so component state survives) -->
+<div class="pane-body">
   <div class="sidebar-header">
     <div class="status-row">
       <span class="pane-title">{{ paneTitle() }}</span>
