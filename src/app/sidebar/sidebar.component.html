@@ -32,27 +32,46 @@
     <div class="status-row">
       <span class="pane-title">{{ paneTitle() }}</span>
       @if (hasActiveFilters()) {
-        <div class="active-filters">
-          @for (term of searchTerms; track $index) {
-            <div class="filter-chip">
-              <span class="chip-label">"{{ term }}"</span>
-              <button class="chip-remove" (click)="removeTerm($index)">
-                <i class="material-icons">close</i>
-              </button>
-            </div>
-          }
-          @for (item of getActiveFilters(); track item.displayName) {
-            <div class="filter-chip">
-              <span class="chip-label">{{ item.displayName }}</span>
-              <button class="chip-remove" (click)="removeFilter(item.filter)">
-                <i class="material-icons">close</i>
-              </button>
+        <div class="filter-summary">
+          <button
+            type="button"
+            class="filter-counter"
+            (click)="toggleFiltersPopover($event)"
+            [class.open]="filtersPopoverOpen"
+            [title]="getActiveFilterCount() + ' active filter' + (getActiveFilterCount() === 1 ? '' : 's')"
+          >
+            <span class="material-icons">filter_alt</span>
+            <span class="counter-label">{{ getActiveFilterCount() }} active</span>
+            <span class="material-icons caret">{{ filtersPopoverOpen ? 'expand_less' : 'expand_more' }}</span>
+          </button>
+
+          @if (filtersPopoverOpen) {
+            <div class="filters-popover" (click)="$event.stopPropagation()">
+              <div class="popover-header">
+                <span>Active filters</span>
+                <button class="popover-clear" (click)="clearFilters(); filtersPopoverOpen = false">Clear all</button>
+              </div>
+              <ul class="popover-list">
+                @for (term of searchTerms; track $index) {
+                  <li class="popover-item">
+                    <span class="popover-label">"{{ term }}"</span>
+                    <button class="chip-remove" (click)="removeTerm($index)" title="Remove">
+                      <i class="material-icons">close</i>
+                    </button>
+                  </li>
+                }
+                @for (item of getActiveFilters(); track item.displayName) {
+                  <li class="popover-item">
+                    <span class="popover-label">{{ item.displayName }}</span>
+                    <button class="chip-remove" (click)="removeFilter(item.filter)" title="Remove">
+                      <i class="material-icons">close</i>
+                    </button>
+                  </li>
+                }
+              </ul>
             </div>
           }
         </div>
-        <button class="status-clear-btn" (click)="clearFilters()" title="Clear all filters">
-          <span class="material-icons">filter_alt_off</span>
-        </button>
       }
       <span class="item-count">
         @if (filterService.totalItems > 0) {

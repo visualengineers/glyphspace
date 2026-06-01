@@ -1,4 +1,14 @@
-import { Component, ElementRef, HostBinding, inject, NgZone, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import {
+  Component,
+  ElementRef,
+  HostBinding,
+  HostListener,
+  inject,
+  NgZone,
+  OnDestroy,
+  OnInit,
+  ViewChild,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Subscription } from 'rxjs';
 
@@ -40,6 +50,9 @@ export class SidebarComponent implements OnInit, OnDestroy {
 
   // --- Active pane (VS Code-style activity bar) ---
   activePane: SidebarPane = 'encoding';
+
+  // --- Filter chip popover ---
+  filtersPopoverOpen = false;
 
   // --- Glyph preview ---
   private glyphCanvas?: HTMLCanvasElement;
@@ -321,6 +334,25 @@ export class SidebarComponent implements OnInit, OnDestroy {
 
   hasActiveFilters(): boolean {
     return this.searchTerms.length > 0 || this.getActiveFilters().length > 0;
+  }
+
+  getActiveFilterCount(): number {
+    return this.searchTerms.length + this.getActiveFilters().length;
+  }
+
+  toggleFiltersPopover(event: MouseEvent): void {
+    event.stopPropagation();
+    this.filtersPopoverOpen = !this.filtersPopoverOpen;
+  }
+
+  @HostListener('document:click')
+  onDocumentClick(): void {
+    if (this.filtersPopoverOpen) this.filtersPopoverOpen = false;
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscape(): void {
+    if (this.filtersPopoverOpen) this.filtersPopoverOpen = false;
   }
 
   // --- Style summary ---

@@ -488,6 +488,18 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges, OnD
       this.suppressBrushEvent = true;
       brushG.call(this.brush.move, this.brushSelection);
       this.suppressBrushEvent = false;
+
+      // Re-apply outside-range greying since the brush 'end' handler was suppressed
+      const [x0, x1] = this.brushSelection;
+      const minBin = Math.round(this.xScale.invert(x0));
+      const maxBin = Math.round(this.xScale.invert(x1));
+      bars.attr('fill', (d: { bin: number }) =>
+        d.bin >= minBin && d.bin <= maxBin
+          ? hasSelection
+            ? '#d4d4d4'
+            : this.getBarColor(d.bin, bins.length)
+          : '#bdbdbd'
+      );
     }
   }
 
