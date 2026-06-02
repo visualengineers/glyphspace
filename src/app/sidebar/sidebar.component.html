@@ -14,7 +14,7 @@
     (click)="selectPane('style')"
     title="Style"
   >
-    <span class="material-icons">palette</span>
+    <span class="material-icons">auto_awesome</span>
   </button>
   <button
     class="strip-btn"
@@ -95,6 +95,21 @@
         <canvas #glyphCanvas></canvas>
       </div>
 
+      <!-- Glyph axes -->
+      <div class="form-group">
+        <label class="menu-label" for="sidebar-glyph-axes"
+          >GLYPH AXES <span class="feature-count">{{ getActiveFeatureCount() }}</span></label
+        >
+        <div id="sidebar-glyph-axes" class="feature-list">
+          @for (featureId of getSortedFeatureIds(); track featureId) {
+            <label class="feature-checkbox" [class.active]="isFeatureActive(featureId)">
+              <input type="checkbox" [checked]="isFeatureActive(featureId)" (change)="toggleFeature(featureId)" />
+              <span class="feature-label">{{ getFeatureName(featureId) }}</span>
+            </label>
+          }
+        </div>
+      </div>
+
       <!-- Color attribute -->
       <div class="form-group">
         <label class="menu-label" for="sidebar-color-attribute">COLOR ATTRIBUTE</label>
@@ -117,21 +132,6 @@
           (scaleSelected)="selectColorScale($event)"
         >
         </app-color-scale-selector>
-      </div>
-
-      <!-- Glyph axes -->
-      <div class="form-group">
-        <label class="menu-label" for="sidebar-glyph-axes"
-          >GLYPH AXES <span class="feature-count">{{ getActiveFeatureCount() }}</span></label
-        >
-        <div id="sidebar-glyph-axes" class="feature-list">
-          @for (featureId of getSortedFeatureIds(); track featureId) {
-            <label class="feature-checkbox" [class.active]="isFeatureActive(featureId)">
-              <input type="checkbox" [checked]="isFeatureActive(featureId)" (change)="toggleFeature(featureId)" />
-              <span class="feature-label">{{ getFeatureName(featureId) }}</span>
-            </label>
-          }
-        </div>
       </div>
     </div>
 

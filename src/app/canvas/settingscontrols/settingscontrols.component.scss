@@ -112,8 +112,14 @@
     border: none;
     cursor: pointer;
     color: v.$gray-500;
-    font-size: 18px;
-    padding: 4px;
+    padding: 2px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    .material-icons {
+      font-size: 15px;
+    }
 
     &:hover {
       color: v.$gray-800;

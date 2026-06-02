@@ -120,10 +120,8 @@
       background-color: v.$gray-200;
     }
 
-    /* focus outline for accessibility */
     &:focus {
-      outline: 2px solid v.$focus-outline;
-      outline-offset: 2px;
+      outline: none;
     }
   }
 
