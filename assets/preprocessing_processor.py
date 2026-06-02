@@ -13,6 +13,11 @@ def detect_data_type(series):
     if series.name and str(series.name).lower() == 'id':
         return 'id'
 
+    # Check for coordinate columns by name (before numeric check, since coordinates are numeric)
+    col_name_lower = str(series.name).lower()
+    if col_name_lower in ['latitude', 'longitude', 'lat', 'lon', 'lng', 'long']:
+        return 'coordinate'
+
     # Check if numeric
     if pd.api.types.is_numeric_dtype(series):
         # Check if boolean (0/1 only)
@@ -24,19 +29,12 @@ def detect_data_type(series):
     # Try parsing as datetime
     if series.dtype == 'object':
         try:
-            pd.to_datetime(series.dropna().head(100), errors='coerce')
-            # If more than 50% can be parsed as dates
             sample = series.dropna().head(100)
-            parsed = pd.to_datetime(sample, errors='coerce')
+            parsed = pd.to_datetime(sample, errors='coerce', format='mixed')
             if parsed.notna().sum() / len(sample) > 0.5:
                 return 'date'
         except:
             pass
-
-    # Check for coordinate columns
-    col_name_lower = str(series.name).lower()
-    if col_name_lower in ['latitude', 'longitude', 'lat', 'lon', 'lng']:
-        return 'coordinate'
 
     # Check cardinality for categorical vs text
     unique_count = series.nunique()
@@ -44,6 +42,11 @@ def detect_data_type(series):
 
     if unique_count == 1:
         return 'categorical'
+
+    # If average string length is long, treat as text regardless of cardinality
+    avg_length = series.dropna().astype(str).str.len().mean()
+    if avg_length > 50:
+        return 'text'
 
     if unique_count / total_count < 0.5:  # Less than 50% unique
         return 'categorical'
@@ -70,8 +73,8 @@ def profile_column(series):
         'uniqueCount': int(unique_count)
     }
 
-    # Numeric statistics
-    if data_type == 'numeric':
+    # Numeric statistics (coordinates are numeric values too)
+    if data_type in ['numeric', 'coordinate']:
         numeric_series = pd.to_numeric(series, errors='coerce')
         stats.update({
             'min': float(numeric_series.min()) if not numeric_series.empty else 0,
@@ -100,6 +103,9 @@ def profile_column(series):
             # Sort dates for earliest/latest
             sorted_dates = date_series.sort_values()
             stats['sampleValues'] = [str(sorted_dates.iloc[0]), str(sorted_dates.iloc[-1])]
+            # Store min/max as epoch milliseconds for JS Date compatibility
+            stats['min'] = int(sorted_dates.iloc[0].timestamp() * 1000)
+            stats['max'] = int(sorted_dates.iloc[-1].timestamp() * 1000)
 
             # Create histogram by binning dates into time periods
             # Use 20 bins across the date range
@@ -111,9 +117,9 @@ def profile_column(series):
                 # Create labels showing date ranges for each bin
                 bin_labels = []
                 for i in range(len(counts)):
-                    start_date = pd.Timestamp(bin_edges[i], unit='s').strftime('%Y-%m-%d')
-                    end_date = pd.Timestamp(bin_edges[i + 1], unit='s').strftime('%Y-%m-%d')
-                    bin_labels.append(f"{start_date} to {end_date}: {int(counts[i])}")
+                    start_date = pd.Timestamp(bin_edges[i], unit='s').strftime('%d/%m/%y')
+                    end_date = pd.Timestamp(bin_edges[i + 1], unit='s').strftime('%d/%m/%y')
+                    bin_labels.append(f"{start_date}–{end_date}")
 
                 stats['histogram'] = {
                     'bins': list(range(len(counts))),
@@ -121,6 +127,14 @@ def profile_column(series):
                     'binEdges': [float(e) for e in bin_edges],
                     'labels': bin_labels
                 }
+
+    # Boolean statistics
+    elif data_type == 'boolean':
+        value_counts = series.value_counts()
+        stats['topValues'] = [
+            {'value': str(val), 'count': int(count)}
+            for val, count in value_counts.items()
+        ]
 
     # Categorical statistics
     elif data_type in ['categorical', 'text']:
@@ -130,6 +144,10 @@ def profile_column(series):
             {'value': str(val), 'count': int(count)}
             for val, count in value_counts.items()
         ]
+        # For text, compute average string length
+        if data_type == 'text':
+            str_lengths = series.dropna().astype(str).str.len()
+            stats['mean'] = float(str_lengths.mean()) if not str_lengths.empty else 0
 
     # Sample values (if not already set)
     if 'sampleValues' not in stats:
@@ -163,8 +181,8 @@ def profile_data(file_name):
                 print(f"Error profiling column {col}: {str(e)}")
                 continue
 
-        # Preview rows (first 5)
-        preview_rows = df.head(5).fillna('').to_dict('records')
+        # Preview rows (first 10)
+        preview_rows = df.head(10).fillna('').to_dict('records')
 
         profile = {
             'fileName': file_name,
