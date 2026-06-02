@@ -1,57 +1,50 @@
-<div class="scene-container"
-  #sceneContainer
-  [class.active]="canvasActivated"
->
+<div class="scene-container" #sceneContainer [class.active]="canvasActivated">
+  <app-settingscontrols
+    #settingsPanel
+    [parentId]="id"
+    [visible]="mouseInside"
+    [totalCells]="totalCells"
+    [maximized]="maximized"
+    [collisionAvoidance]="collisionAvoidance"
+    [aggregated]="aggregated"
+    [algorithms]="algorithms"
+    [selectedAlgorithm]="selectedAlgorithm"
+    [timestamps]="timestamps"
+    [selectedTimestamp]="selectedTimestamp"
+    (fitToView)="fitToView()"
+    (takeScreenshot)="takeScreenshot()"
+    (toggleCollision)="toggleCollisionAvoidance()"
+    (toggleAggregation)="toggleAggregation()"
+    (toggleMaximize)="toggleMaximize.emit()"
+    (settingsChanged)="onSettingsChange($event)"
+    (changeAnimationSpeed)="onAnimationSpeedChanged($event)"
+    (togglePlayback)="onTogglePlayback()"
+  ></app-settingscontrols>
   <div
-    #canvasContainer class="canvas-container"
+    #canvasContainer
+    class="canvas-container"
     id="canvas-container"
     (mouseenter)="onMouseEnter()"
     (mouseleave)="onMouseLeave()"
   >
-    <app-magiclens [container]="canvasContainer"
-      [glyphGroup]="glyphGroup"
-      [parentId]="id"
-    ></app-magiclens>
-  <app-settingscontrols #settingsPanel
-      [parentId]="id"
-      [visible]="mouseInside"
-      [totalCells]="totalCells"
-
-      [collisionAvoidance]="collisionAvoidance"
-      [aggregated]="aggregated"
-
-      [algorithms]="algorithms"
-      [selectedAlgorithm]="selectedAlgorithm"
-
-      [timestamps]="timestamps"
-      [selectedTimestamp]="selectedTimestamp"
-
-      (fitToView)="fitToView()"
-      (takeScreenshot)="takeScreenshot()"
-      (toggleCollision)="toggleCollisionAvoidance()"
-      (toggleAggregation)="toggleAggregation()"
-      (settingsChanged)="onSettingsChange($event)"
-      (changeAnimationSpeed)="onAnimationSpeedChanged($event)"
-      (togglePlayback)="onTogglePlayback()"
-  ></app-settingscontrols>
+    <app-magiclens [container]="canvasContainer" [glyphGroup]="rendererSvc.glyphGroup" [parentId]="id"></app-magiclens>
     <app-navigationcontrols
       [visible]="mouseInside"
-      [selectionMode]="selectionMode"
+      [selectionMode]="selectionSvc.selectionMode"
       [magicLenseStatus]="magicLenseStatus"
-
       (toggleNavigation)="toggleNavigationMode()"
       (toggleSelection)="toggleSelectionMode()"
-      (toggleLens)="toggleMagicLens()"      
-      >
+      (toggleLens)="toggleMagicLens()"
+    >
     </app-navigationcontrols>
   </div>
 </div>
 <app-tooltip [container]="canvasContainer"></app-tooltip>
 <div
-  class="selection-rectangle"  
-  [style.left.px]="selectionBox.left"
-  [style.top.px]="selectionBox.top"
-  [style.width.px]="selectionBox.width"
-  [style.height.px]="selectionBox.height"
-  [hidden]="!isSelecting"
+  class="selection-rectangle"
+  [style.left.px]="selectionSvc.selectionBox.left"
+  [style.top.px]="selectionSvc.selectionBox.top"
+  [style.width.px]="selectionSvc.selectionBox.width"
+  [style.height.px]="selectionSvc.selectionBox.height"
+  [hidden]="!selectionSvc.isSelecting"
 ></div>

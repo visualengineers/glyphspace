@@ -1,67 +1,67 @@
-import { GlyphObject } from "../../glyph/glyph-object";
-import { ItemFilter } from "./item-filter";
+import { GlyphObject } from '../../glyph/glyph-object';
+import { ItemFilter } from './item-filter';
 
 export class IdFilter extends ItemFilter {
-  private _accaptableIds: string[];
+  private _acceptableIds: string[];
 
   constructor(acceptableIds?: string[]) {
     super();
-    this._accaptableIds = acceptableIds === undefined ? [] : acceptableIds;
+    this._acceptableIds = acceptableIds === undefined ? [] : acceptableIds;
   }
 
   public override info() {
-    return "Id Filter Length " + this._accaptableIds.length + " FilterMode: " + this.filterMode;
+    return 'Id Filter Length ' + this._acceptableIds.length + ' FilterMode: ' + this.filterMode;
   }
 
   public override empty() {
-    return this._accaptableIds.length <= 0;
+    return this._acceptableIds.length <= 0;
   }
 
   public override inFilter(item: GlyphObject): boolean {
-    return this._accaptableIds.indexOf(item.id) >= 0;
+    return this._acceptableIds.indexOf(item.id) >= 0;
   }
 
   public add(id: string) {
-    const pos = this._accaptableIds.indexOf(id);
+    const pos = this._acceptableIds.indexOf(id);
     if (pos < 0) {
-        this._accaptableIds.push(id);
+      this._acceptableIds.push(id);
     }
   }
 
   public remove(id: string) {
-    const pos = this._accaptableIds.indexOf(id);
+    const pos = this._acceptableIds.indexOf(id);
     if (pos >= 0) {
-        this._accaptableIds.splice(pos, 1);
+      this._acceptableIds.splice(pos, 1);
     }
   }
 
   public toggle(id: string) {
-    const pos = this._accaptableIds.indexOf(id);
+    const pos = this._acceptableIds.indexOf(id);
     if (pos >= 0) {
-        this._accaptableIds.splice(pos, 1);
+      this._acceptableIds.splice(pos, 1);
     } else {
-      this._accaptableIds.push(id);
+      this._acceptableIds.push(id);
     }
   }
 
-  public get accaptableIds(): string[] {
-    return this._accaptableIds;
+  public get acceptableIds(): string[] {
+    return this._acceptableIds;
   }
 
-  public set accaptableIds(ids: string[]) {
-    this._accaptableIds = ids.sort();
+  public set acceptableIds(ids: string[]) {
+    this._acceptableIds = ids.sort();
   }
 
   public override clear() {
-    this._accaptableIds.splice(0, this._accaptableIds.length);
+    this._acceptableIds.splice(0, this._acceptableIds.length);
   }
 
   public addMultiple(newIds: string[]) {
     newIds.forEach((id: string) => {
-      if (this._accaptableIds.indexOf(id) < 0) {
-        this._accaptableIds.push(id);
+      if (this._acceptableIds.indexOf(id) < 0) {
+        this._acceptableIds.push(id);
       }
     });
-    this._accaptableIds.sort();
+    this._acceptableIds.sort();
   }
 }

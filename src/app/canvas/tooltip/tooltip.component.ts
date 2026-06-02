@@ -9,13 +9,13 @@ import { Subscription } from 'rxjs';
   selector: 'app-tooltip',
   imports: [],
   templateUrl: './tooltip.component.html',
-  styleUrl: './tooltip.component.scss'
+  styleUrl: './tooltip.component.scss',
 })
 export class TooltipComponent implements OnInit, OnDestroy {
   @Input() container!: HTMLElement;
   @ViewChild('tooltip') tooltipRef!: ElementRef<HTMLDivElement>;
 
-  private hoverTimeout: any = null;
+  private hoverTimeout: ReturnType<typeof setTimeout> | undefined;
   private subscription = new Subscription();
   tooltipVisible = false;
   tooltipFixed = false;
@@ -23,7 +23,10 @@ export class TooltipComponent implements OnInit, OnDestroy {
   tooltipX = 0;
   tooltipY = 0;
 
-  constructor(private config: ConfigService, private sanitizer: DomSanitizer) { }
+  constructor(
+    private config: ConfigService,
+    private sanitizer: DomSanitizer
+  ) {}
 
   ngOnInit(): void {
     // Subscribe to modal state changes to hide fixed tooltips when modal opens
@@ -111,7 +114,7 @@ export class TooltipComponent implements OnInit, OnDestroy {
       return;
     }
     this.hoverTimeout = setTimeout(() => {
-      const info = this.getObjectInfo(object)
+      const info = this.getObjectInfo(object);
       this.showTooltip(x, y, info);
     }, 750); // Delay in ms
   }
@@ -124,9 +127,9 @@ export class TooltipComponent implements OnInit, OnDestroy {
   toggleFixation(doToggle = true) {
     this.tooltipFixed = !this.tooltipFixed && doToggle;
     if (this.tooltipFixed) {
-      this.tooltipRef.nativeElement.classList.add("fixed");
+      this.tooltipRef.nativeElement.classList.add('fixed');
     } else {
-      this.tooltipRef.nativeElement.classList.remove("fixed");
+      this.tooltipRef.nativeElement.classList.remove('fixed');
     }
   }
 
@@ -171,5 +174,4 @@ export class TooltipComponent implements OnInit, OnDestroy {
 
     return 'Unnamed object';
   }
-
 }

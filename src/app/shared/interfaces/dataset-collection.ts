@@ -1,6 +1,4 @@
-export interface PositionMap {
-  [algorithm: string]: string; // e.g., "pca": "...", "tsne": "..."
-}
+export type PositionMap = Record<string, string>;
 
 export interface AlgorithmData {
   feature: string;

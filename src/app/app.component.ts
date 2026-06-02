@@ -1,32 +1,39 @@
-import { Component, ElementRef, HostListener, NgZone, OnChanges, ViewChild, ViewContainerRef } from '@angular/core';
+import { Component, HostListener, OnInit } from '@angular/core';
 import { ConfigService } from './services/config.service';
 import { GlyphCanvasComponent } from './canvas/glyph-canvas.component';
-import { CommonModule } from '@angular/common';
-import { DataProviderService } from './services/dataprovider.service';
+import { DataLoaderService } from './services/data-loader.service';
 import { checkTextInput } from './shared/helpers/angular-helper';
-import { MenuBarComponent } from "./menubar/menubar.component";
+import { MenuBarComponent } from './menubar/menubar.component';
 import { ToastComponent } from './shared/components/toast/toast.component';
+import { SidebarComponent } from './sidebar/sidebar.component';
 
-interface GlyphCanvasItem { id: number, row: number, col: number }
+interface GlyphCanvasItem {
+  id: number;
+  row: number;
+  col: number;
+}
 
 @Component({
   standalone: true,
   selector: 'app-root',
-  imports: [CommonModule, GlyphCanvasComponent, MenuBarComponent, ToastComponent],
+  imports: [GlyphCanvasComponent, MenuBarComponent, ToastComponent, SidebarComponent],
   templateUrl: './app.component.html',
-  styleUrl: './app.component.scss'
+  styleUrl: './app.component.scss',
 })
-export class AppComponent implements OnChanges {
+export class AppComponent implements OnInit {
   title = 'Glyphboard Royale';
-  @ViewChild('canvasGrid', { static: true }) canvasContainer!: ElementRef;
 
   grid: GlyphCanvasItem[] = [];
   totalCells = 1;
   rows = 1;
   cols = 1;
+  maximizedId: number | null = null;
   readonly minCellSize = 150; // px — change as needed
 
-  constructor(private config: ConfigService, private dataProvider: DataProviderService) { }
+  constructor(
+    private config: ConfigService,
+    private dataLoader: DataLoaderService
+  ) {}
 
   ngOnInit() {
     this.recalculateGrid();
@@ -36,15 +43,13 @@ export class AppComponent implements OnChanges {
       if (this.totalCells > 1) {
         this.totalCells--;
 
-        console.log("Received remove canvas command: ", change);
         const canvas = this.grid.find(c => c.id === change);
-        this.grid.splice(this.grid.indexOf(canvas!), 1);
-        this.recalculateGrid();
+        if (canvas) {
+          this.grid.splice(this.grid.indexOf(canvas), 1);
+          this.recalculateGrid();
+        }
       }
     });
-  }
-
-  ngOnChanges(): void {
   }
 
   getNextFreeId(grid: GlyphCanvasItem[]): number {
@@ -66,7 +71,7 @@ export class AppComponent implements OnChanges {
         this.grid.push({
           id: idCounter++,
           row: r,
-          col: c
+          col: c,
         });
       }
     }
@@ -90,12 +95,12 @@ export class AppComponent implements OnChanges {
 
       const index = this.grid.length;
       const r = Math.floor(index / this.cols) + 1;
-      const c = index % this.cols + 1;
+      const c = (index % this.cols) + 1;
 
       this.grid.push({
         id: newId,
         row: r,
-        col: c
+        col: c,
       });
 
       this.recalculateGrid();
@@ -110,8 +115,8 @@ export class AppComponent implements OnChanges {
     }
   }
 
-  @HostListener('window:resize')
-  onResize() {
+  toggleMaximize(id: number) {
+    this.maximizedId = this.maximizedId === id ? null : id;
   }
 
   @HostListener('document:keyup', ['$event'])

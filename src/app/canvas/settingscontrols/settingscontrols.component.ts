@@ -1,17 +1,14 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, inject, Input, NgZone, OnDestroy, Output } from '@angular/core';
+import { Component, EventEmitter, inject, Input, NgZone, OnDestroy, Output, OnInit } from '@angular/core';
 import { ConfigService } from '../../services/config.service';
 import { FormsModule } from '@angular/forms';
-import { FeaturesData } from '../../shared/interfaces/glyph-meta';
-import { GlyphSchema } from '../../shared/interfaces/glyph-schema';
-import { DataProviderService } from '../../services/dataprovider.service';
+import { FilterService } from '../../services/filter.service';
 import { ProjectionService } from '../../services/projection.service';
-import { COLOR_SCALES, ColorScale } from '../../shared/interfaces/color-scale';
-import { GlyphConfiguration } from '../../glyph/glyph-configuration';
-import { GlyphType } from '../../shared/enum/glyph-type';
 import { Subscription } from 'rxjs';
+import { COLOR_SCALES, getContinuousGradient, getCategoricalColors } from '../../shared/interfaces/color-scale';
+import { getGlyphTypeName } from '../../shared/enum/glyph-type';
 
-export type SettingMode = 'position' | 'color' | 'glyph' | null;
+export type SettingMode = 'position' | null;
 
 @Component({
   selector: 'app-settingscontrols',
@@ -20,44 +17,44 @@ export type SettingMode = 'position' | 'color' | 'glyph' | null;
   templateUrl: './settingscontrols.component.html',
   styleUrls: ['./settingscontrols.component.scss'],
 })
-export class SettingsControlPanelComponent implements OnDestroy {
-  @Input() visible = false; // controls fade in/out
+export class SettingsControlPanelComponent implements OnDestroy, OnInit {
+  @Input() visible = false;
 
-  colorScales: ColorScale[] = COLOR_SCALES;
-
-  groupedColorScales: {
-    group: string;
-    scales: any[];
-  }[] = [];
+  private readonly MAX_ANIMATION_SPEED = 10;
+  private readonly MIN_ANIMATION_SPEED = 1;
+  private readonly PROJECTION_FADE_DELAY_MS = 4500;
+  private readonly PROJECTION_REMOVE_DELAY_MS = 5000;
 
   panelActive = false;
   activeSetting: SettingMode = null;
-  animationSpeed = 10;
+  animationSpeed = this.MAX_ANIMATION_SPEED;
   paused = true;
-  applyColorToAll = true;
 
-  features: FeaturesData = {};
-  featureIds: string[] = [];
-  schema?: GlyphSchema;
-  selectedColorAttribute: string = '';
-  colorScaleDropdownOpen = false;
-  selectedColorScaleId = COLOR_SCALES[0].id;
+  // Color info
+  colorFeatureLabel = '';
+  colorGradientStyle = '';
 
-  glyphConfig = new GlyphConfiguration();
-  GlyphType = GlyphType;
-  applyGlyphSettingsToAll = true;
+  // Glyph type
+  glyphTypeName = '';
 
   // Background projection status
-  backgroundProjections: Array<{ method: string; status: string; progress: number; message: string; fading?: boolean }> = [];
+  backgroundProjections: {
+    method: string;
+    status: string;
+    progress: number;
+    message: string;
+    fading?: boolean;
+  }[] = [];
   private backgroundStatusSubscription?: Subscription;
   private completedProjectionTimers = new Map<string, ReturnType<typeof setTimeout>>();
-  private fadingTimers = new Map<string, ReturnType<typeof setTimeout>>();  // Timers for fade-out animation
-  private dismissedProjections = new Set<string>();  // Track projections that have been dismissed after completion
+  private fadingTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  private dismissedProjections = new Set<string>();
 
   private ngZone!: NgZone;
+  private subs = new Subscription();
 
   @Input() parentId!: number;
-  @Input() totalCells: number = 0;
+  @Input() totalCells = 0;
 
   @Input() collisionAvoidance!: boolean;
   @Input() aggregated!: boolean;
@@ -71,6 +68,8 @@ export class SettingsControlPanelComponent implements OnDestroy {
   @Input() contexts: string[] = [];
   @Input() selectedContext!: string;
 
+  @Input() maximized = false;
+
   @Output() fitToView = new EventEmitter<void>();
   @Output() takeScreenshot = new EventEmitter<void>();
   @Output() delete = new EventEmitter<void>();
@@ -78,6 +77,7 @@ export class SettingsControlPanelComponent implements OnDestroy {
   @Output() toggleAggregation = new EventEmitter<void>();
   @Output() changeAnimationSpeed = new EventEmitter<number>();
   @Output() togglePlayback = new EventEmitter<void>();
+  @Output() toggleMaximize = new EventEmitter<void>();
 
   @Output() settingsChanged = new EventEmitter<{
     timestamp: string;
@@ -87,25 +87,41 @@ export class SettingsControlPanelComponent implements OnDestroy {
 
   constructor(
     private config: ConfigService,
-    private dataProvider: DataProviderService,
+    private filterService: FilterService,
     private projectionService: ProjectionService
   ) {
     this.ngZone = inject(NgZone);
   }
 
   ngOnInit(): void {
-    this.groupedColorScales = this.groupColorScales(this.colorScales);
+    // Color info: update when data loads or config changes
+    this.subs.add(
+      this.config.loadedDataSubject$.subscribe(data => {
+        if (data === '') return;
+        this.updateColorInfo();
+      })
+    );
+
+    this.subs.add(
+      this.config.glyphConfigSubject$.subscribe(() => {
+        this.updateColorInfo();
+        this.updateGlyphTypeName();
+      })
+    );
 
     // Subscribe to background projection status updates
-    // Show running/pending projections, and completed ones for 5 seconds before fading out
     this.backgroundStatusSubscription = this.projectionService.backgroundStatusObservable.subscribe(statusMap => {
       this.ngZone.run(() => {
-        const newProjections: Array<{ method: string; status: string; progress: number; message: string; fading?: boolean }> = [];
+        const newProjections: {
+          method: string;
+          status: string;
+          progress: number;
+          message: string;
+          fading?: boolean;
+        }[] = [];
 
         statusMap.forEach((status, method) => {
-          // Show running, pending, or complete projections
           if (status.status === 'running' || status.status === 'pending') {
-            // Clear any existing timers for this method (it's running again)
             if (this.completedProjectionTimers.has(method)) {
               clearTimeout(this.completedProjectionTimers.get(method));
               this.completedProjectionTimers.delete(method);
@@ -114,97 +130,91 @@ export class SettingsControlPanelComponent implements OnDestroy {
               clearTimeout(this.fadingTimers.get(method));
               this.fadingTimers.delete(method);
             }
-            // Clear dismissed status if projection is running again
             this.dismissedProjections.delete(method);
             newProjections.push({
               method,
               status: status.status,
               progress: status.progress,
-              message: status.message
+              message: status.message,
             });
           } else if (status.status === 'complete') {
-            // Check if we already have a timer for this completed projection
             if (!this.completedProjectionTimers.has(method)) {
-              // Start fade-out after 4.5 seconds, then remove after 5 seconds
               const fadeTimer = setTimeout(() => {
                 this.ngZone.run(() => {
-                  // Set fading flag to trigger CSS transition
                   const proj = this.backgroundProjections.find(p => p.method === method);
                   if (proj) {
                     proj.fading = true;
                   }
                 });
-              }, 4500);
+              }, this.PROJECTION_FADE_DELAY_MS);
 
               const removeTimer = setTimeout(() => {
                 this.ngZone.run(() => {
                   this.completedProjectionTimers.delete(method);
                   this.fadingTimers.delete(method);
-                  // Mark this method as dismissed so we don't show it again
                   this.dismissedProjections.add(method);
-                  // Trigger a re-render by filtering out this method
                   this.backgroundProjections = this.backgroundProjections.filter(p => p.method !== method);
                 });
-              }, 5000);
+              }, this.PROJECTION_REMOVE_DELAY_MS);
 
               this.completedProjectionTimers.set(method, removeTimer);
               this.fadingTimers.set(method, fadeTimer);
             }
-            // Only show completed projection if it hasn't been dismissed
             if (!this.dismissedProjections.has(method)) {
               newProjections.push({
                 method,
                 status: status.status,
                 progress: 100,
                 message: status.message,
-                fading: false
+                fading: false,
               });
             }
           }
-          // Don't show error projections (they disappear immediately)
         });
 
         this.backgroundProjections = newProjections;
       });
     });
-
-    this.config.loadedDataSubject$.subscribe(async data => {
-      if (data == "") return;
-
-      const metaData = await this.dataProvider.getMetaData();
-      this.schema = await this.dataProvider.getSchema();
-      if (metaData?.features) {
-        this.ngZone.run(() => {
-          this.features = metaData.features;
-          this.featureIds = Object.keys(this.features);
-          this.selectedColorAttribute = this.config.colorFeature;
-          // Sync color scale selection with config
-          this.selectedColorScaleId = this.config.colorRange;
-        });
-      }
-    });
-
-    this.config.glyphConfigSubject$.subscribe(cfg => {
-      this.glyphConfig = cfg;
-      // Sync color scale and color feature selection when config changes (e.g., from another canvas)
-      if (this.selectedColorScaleId !== this.config.colorRange) {
-        this.selectedColorScaleId = this.config.colorRange;
-      }
-      if (this.selectedColorAttribute !== this.config.colorFeature) {
-        this.selectedColorAttribute = this.config.colorFeature;
-      }
-    });
   }
 
   ngOnDestroy(): void {
+    this.subs.unsubscribe();
     if (this.backgroundStatusSubscription) {
       this.backgroundStatusSubscription.unsubscribe();
     }
-    // Clear all timers
     this.completedProjectionTimers.forEach(timer => clearTimeout(timer));
     this.completedProjectionTimers.clear();
     this.fadingTimers.forEach(timer => clearTimeout(timer));
     this.fadingTimers.clear();
+  }
+
+  private updateColorInfo(): void {
+    const colorFeature = this.config.colorFeature;
+    const colorRange = this.config.colorRange;
+    const featureLabels = this.config.featureLabels;
+
+    if (!colorFeature) {
+      this.colorFeatureLabel = '';
+      this.colorGradientStyle = '';
+      return;
+    }
+
+    const colorScale = COLOR_SCALES.find(cs => cs.id === colorRange) || COLOR_SCALES[0];
+
+    let gradient: string;
+    if (colorScale.type === 'categorical') {
+      const colors = getCategoricalColors(colorScale);
+      gradient = `linear-gradient(to right, ${colors.map((c, i) => `${c} ${(i / colors.length) * 100}%, ${c} ${((i + 1) / colors.length) * 100}%`).join(', ')})`;
+    } else {
+      gradient = getContinuousGradient(colorScale);
+    }
+
+    this.colorFeatureLabel = featureLabels[colorFeature] || colorFeature;
+    this.colorGradientStyle = gradient;
+  }
+
+  private updateGlyphTypeName(): void {
+    this.glyphTypeName = getGlyphTypeName(this.config.getConfiguration().glyphType);
   }
 
   hideMenus() {
@@ -233,7 +243,7 @@ export class SettingsControlPanelComponent implements OnDestroy {
   }
 
   clearSelection() {
-    this.dataProvider.clearFilters();
+    this.filterService.clearFilters();
     this.config.clearSelection();
   }
 
@@ -241,20 +251,20 @@ export class SettingsControlPanelComponent implements OnDestroy {
     this.settingsChanged.emit({
       timestamp: this.selectedTimestamp,
       algorithm: this.selectedAlgorithm,
-      context: this.selectedContext
+      context: this.selectedContext,
     });
     this.paused = false;
   }
 
   increaseSpeed() {
-    if (this.animationSpeed < 10) {
+    if (this.animationSpeed < this.MAX_ANIMATION_SPEED) {
       this.animationSpeed++;
       this.changeAnimationSpeed.emit(this.animationSpeed / 1000);
     }
   }
 
   decreaseSpeed() {
-    if (this.animationSpeed > 1) {
+    if (this.animationSpeed > this.MIN_ANIMATION_SPEED) {
       this.animationSpeed--;
       this.changeAnimationSpeed.emit(this.animationSpeed / 1000);
     }
@@ -263,106 +273,5 @@ export class SettingsControlPanelComponent implements OnDestroy {
   togglePaused() {
     this.paused = !this.paused;
     this.togglePlayback.emit();
-  }
-
-  getFeatureName(id: string) {
-    return this.schema?.label[id] || "";
-  }
-
-  getGlyphName(glyph: GlyphType): string {
-    switch (glyph) {
-      case GlyphType.Star: return "Star";
-      case GlyphType.Flower: return "Flower";
-      case GlyphType.Whisker: return "Whisker";
-      case GlyphType.Dot: return "Dot";
-      case GlyphType.Thumb: return "Thumbnail";
-      default: return "Unknown";
-    }
-  }
-
-  private groupColorScales(scales: any[]) {
-    const map = new Map<string, any[]>();
-
-    for (const scale of scales) {
-      const group = scale.group ?? 'Other';
-      if (!map.has(group)) {
-        map.set(group, []);
-      }
-      map.get(group)!.push(scale);
-    }
-
-    return Array.from(map.entries()).map(([group, scales]) => ({
-      group,
-      scales
-    }));
-  }
-
-  getContinuousGradient(scale: any, steps = 10): string {
-    const domain = scale.scale.domain();
-    const min = domain[0];
-    const max = domain[domain.length - 1];
-
-    const colors: string[] = [];
-
-    for (let i = 0; i < steps; i++) {
-      const t = i / (steps - 1);
-      const value = min + t * (max - min);
-      colors.push(scale.scale(value));
-    }
-
-    return `linear-gradient(to right, ${colors.join(', ')})`;
-  }
-
-  getCategoricalColors(scaleDef: any): string[] {
-    const scale = scaleDef.scale;
-
-    // Ordinal / Quantize / Quantile scales
-    if (typeof scale.range === 'function') {
-      return scale.range();
-    }
-
-    return [];
-  }
-
-  selectColorScale(id: number) {
-    this.selectedColorScaleId = id;
-    this.colorScaleDropdownOpen = false;
-    this.config.colorRange = id;
-    this.config.updateConfiguration();
-  }
-
-  toggleColorScaleDropdown() {
-    this.colorScaleDropdownOpen = !this.colorScaleDropdownOpen;
-  }
-
-  getSelectedScale(): ColorScale {
-    return this.colorScales.find(s => s.id === this.selectedColorScaleId)!;
-  }
-
-  selectColor(): void {
-    this.config.colorFeature = this.selectedColorAttribute;
-
-    const featureType = this.schema?.types[this.selectedColorAttribute];
-    const colorScaleType = this.getSelectedScale().type;
-    
-    if ( featureType != colorScaleType ) {
-      const matchingScale = this.colorScales.find(s => s.type == featureType)?.id;
-      if (matchingScale != undefined) this.selectColorScale(matchingScale);
-    }
-    this.config.updateConfiguration();
-  }
-
-  setGlyphType(type: GlyphType) {
-    this.glyphConfig.glyphType = type;
-    this.config.updateConfiguration();
-  }
-
-  isOptionEnabled(prop: string): boolean {
-    return (this.glyphConfig as any)[prop] === true;
-  }
-
-  toggleOption(property: string): void {
-    (this.glyphConfig as any)[property] = !(this.glyphConfig as any)[property];
-    this.config.updateConfiguration(); // emit change
   }
 }

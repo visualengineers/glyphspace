@@ -1,20 +1,18 @@
 import { Component, Input } from '@angular/core';
-import { CommonModule } from '@angular/common';
-
 @Component({
   selector: 'app-data-preview-table',
   standalone: true,
-  imports: [CommonModule],
+  imports: [],
   templateUrl: './data-preview-table.component.html',
-  styleUrl: './data-preview-table.component.scss'
+  styleUrl: './data-preview-table.component.scss',
 })
 export class DataPreviewTableComponent {
-  @Input() data: any[] = [];
+  @Input() data: Record<string, unknown>[] = [];
   @Input() columns: string[] = [];
-  @Input() highlightColumns: Set<string> = new Set();
-  @Input() maxRows: number = 10;
+  @Input() highlightColumns = new Set<string>();
+  @Input() maxRows = 10;
 
-  get displayData(): any[] {
+  get displayData(): Record<string, unknown>[] {
     return this.data.slice(0, this.maxRows);
   }
 
@@ -32,7 +30,7 @@ export class DataPreviewTableComponent {
     return this.highlightColumns.has(column);
   }
 
-  getCellValue(row: any, column: string): string {
+  getCellValue(row: Record<string, unknown>, column: string): string {
     const value = row[column];
     if (value === null || value === undefined) {
       return '-';

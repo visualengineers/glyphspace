@@ -6,18 +6,14 @@
  * to prevent blocking the main UI thread.
  */
 
-import {
-  ProjectionMethod,
-  ProjectionComputeConfig,
-  ProjectionWorkerRequest,
-  ProjectionWorkerResponse
-} from '../shared/types/projection.types';
+import { ProjectionWorkerRequest, ProjectionWorkerResponse } from '../shared/types/projection.types';
 
 // Local type aliases for cleaner code within this worker
 type ProjectionRequest = ProjectionWorkerRequest;
 type ProjectionResponse = ProjectionWorkerResponse;
 
 // Import DruidJS dynamically
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- DruidJS module is dynamically imported and has incomplete type definitions
 let druid: any = null;
 
 async function loadDruidJS() {
@@ -33,7 +29,7 @@ async function loadDruidJS() {
 async function runPCA(
   features: number[][],
   ids: (string | number)[]
-): Promise<{ positions: Array<{ id: string | number; x: number; y: number }>; computeTime: number }> {
+): Promise<{ positions: { id: string | number; x: number; y: number }[]; computeTime: number }> {
   const startTime = performance.now();
   const druidModule = await loadDruidJS();
 
@@ -43,7 +39,7 @@ async function runPCA(
   const positions = embedding.map((point: number[], idx: number) => ({
     id: ids[idx],
     x: point[0],
-    y: point[1]
+    y: point[1],
   }));
 
   const computeTime = performance.now() - startTime;
@@ -57,7 +53,7 @@ async function runPCA(
 async function runFastMap(
   features: number[][],
   ids: (string | number)[]
-): Promise<{ positions: Array<{ id: string | number; x: number; y: number }>; computeTime: number }> {
+): Promise<{ positions: { id: string | number; x: number; y: number }[]; computeTime: number }> {
   const startTime = performance.now();
   const druidModule = await loadDruidJS();
 
@@ -67,7 +63,7 @@ async function runFastMap(
   const positions = embedding.map((point: number[], idx: number) => ({
     id: ids[idx],
     x: point[0],
-    y: point[1]
+    y: point[1],
   }));
 
   const computeTime = performance.now() - startTime;
@@ -82,11 +78,12 @@ async function runIsoMap(
   features: number[][],
   ids: (string | number)[],
   neighbors?: number
-): Promise<{ positions: Array<{ id: string | number; x: number; y: number }>; computeTime: number }> {
+): Promise<{ positions: { id: string | number; x: number; y: number }[]; computeTime: number }> {
   const startTime = performance.now();
   const druidModule = await loadDruidJS();
 
   // neighbors = 0 or undefined means auto (let DruidJS decide)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- DruidJS constructor options are not fully typed
   const options: any = { d: 2 };
   if (neighbors && neighbors > 0) {
     options.neighbors = neighbors;
@@ -97,7 +94,7 @@ async function runIsoMap(
   const positions = embedding.map((point: number[], idx: number) => ({
     id: ids[idx],
     x: point[0],
-    y: point[1]
+    y: point[1],
   }));
 
   const computeTime = performance.now() - startTime;
@@ -111,14 +108,14 @@ async function runTSNE(
   features: number[][],
   ids: (string | number)[],
   config: { perplexity: number; iterations: number }
-): Promise<{ positions: Array<{ id: string | number; x: number; y: number }>; computeTime: number }> {
+): Promise<{ positions: { id: string | number; x: number; y: number }[]; computeTime: number }> {
   const startTime = performance.now();
   const druidModule = await loadDruidJS();
 
   const tsne = new druidModule.TSNE(features, {
     d: 2,
     perplexity: config.perplexity,
-    epsilon: 10
+    epsilon: 10,
   });
 
   // Run iterations in chunks to allow progress updates
@@ -136,14 +133,14 @@ async function runTSNE(
       type: 'progress',
       method: 'tsne',
       progress,
-      message: `t-SNE: ${i + iterations}/${totalIterations} iterations`
+      message: `t-SNE: ${i + iterations}/${totalIterations} iterations`,
     } as ProjectionResponse);
   }
 
   const positions = embedding.map((point: number[], idx: number) => ({
     id: ids[idx],
     x: point[0],
-    y: point[1]
+    y: point[1],
   }));
 
   const computeTime = performance.now() - startTime;
@@ -157,7 +154,7 @@ async function runUMAP(
   features: number[][],
   ids: (string | number)[],
   config: { neighbors: number; minDist: number }
-): Promise<{ positions: Array<{ id: string | number; x: number; y: number }>; computeTime: number }> {
+): Promise<{ positions: { id: string | number; x: number; y: number }[]; computeTime: number }> {
   const startTime = performance.now();
   const druidModule = await loadDruidJS();
 
@@ -165,7 +162,7 @@ async function runUMAP(
     d: 2,
     n_neighbors: config.neighbors,
     min_dist: config.minDist,
-    local_connectivity: 1
+    local_connectivity: 1,
   });
 
   const embedding = umap.transform();
@@ -173,7 +170,7 @@ async function runUMAP(
   const positions = embedding.map((point: number[], idx: number) => ({
     id: ids[idx],
     x: point[0],
-    y: point[1]
+    y: point[1],
   }));
 
   const computeTime = performance.now() - startTime;
@@ -186,7 +183,7 @@ async function runUMAP(
 async function runMDS(
   features: number[][],
   ids: (string | number)[]
-): Promise<{ positions: Array<{ id: string | number; x: number; y: number }>; computeTime: number }> {
+): Promise<{ positions: { id: string | number; x: number; y: number }[]; computeTime: number }> {
   const startTime = performance.now();
   const druidModule = await loadDruidJS();
 
@@ -196,7 +193,7 @@ async function runMDS(
   const positions = embedding.map((point: number[], idx: number) => ({
     id: ids[idx],
     x: point[0],
-    y: point[1]
+    y: point[1],
   }));
 
   const computeTime = performance.now() - startTime;
@@ -210,11 +207,12 @@ async function runLLE(
   features: number[][],
   ids: (string | number)[],
   neighbors?: number
-): Promise<{ positions: Array<{ id: string | number; x: number; y: number }>; computeTime: number }> {
+): Promise<{ positions: { id: string | number; x: number; y: number }[]; computeTime: number }> {
   const startTime = performance.now();
   const druidModule = await loadDruidJS();
 
   // neighbors = 0 or undefined means auto (let DruidJS decide)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- DruidJS constructor options are not fully typed
   const options: any = { d: 2 };
   if (neighbors && neighbors > 0) {
     options.neighbors = neighbors;
@@ -225,7 +223,7 @@ async function runLLE(
   const positions = embedding.map((point: number[], idx: number) => ({
     id: ids[idx],
     x: point[0],
-    y: point[1]
+    y: point[1],
   }));
 
   const computeTime = performance.now() - startTime;
@@ -239,11 +237,12 @@ async function runLTSA(
   features: number[][],
   ids: (string | number)[],
   neighbors?: number
-): Promise<{ positions: Array<{ id: string | number; x: number; y: number }>; computeTime: number }> {
+): Promise<{ positions: { id: string | number; x: number; y: number }[]; computeTime: number }> {
   const startTime = performance.now();
   const druidModule = await loadDruidJS();
 
   // neighbors = 0 or undefined means auto (let DruidJS decide)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- DruidJS constructor options are not fully typed
   const options: any = { d: 2 };
   if (neighbors && neighbors > 0) {
     options.neighbors = neighbors;
@@ -254,7 +253,7 @@ async function runLTSA(
   const positions = embedding.map((point: number[], idx: number) => ({
     id: ids[idx],
     x: point[0],
-    y: point[1]
+    y: point[1],
   }));
 
   const computeTime = performance.now() - startTime;
@@ -268,10 +267,11 @@ async function runTriMap(
   features: number[][],
   ids: (string | number)[],
   weightAdj?: number
-): Promise<{ positions: Array<{ id: string | number; x: number; y: number }>; computeTime: number }> {
+): Promise<{ positions: { id: string | number; x: number; y: number }[]; computeTime: number }> {
   const startTime = performance.now();
   const druidModule = await loadDruidJS();
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- DruidJS constructor options are not fully typed
   const options: any = { d: 2 };
   if (weightAdj && weightAdj > 0) {
     options.weight_adj = weightAdj;
@@ -282,7 +282,7 @@ async function runTriMap(
   const positions = embedding.map((point: number[], idx: number) => ({
     id: ids[idx],
     x: point[0],
-    y: point[1]
+    y: point[1],
   }));
 
   const computeTime = performance.now() - startTime;
@@ -295,7 +295,7 @@ async function runTriMap(
 async function runTopoMap(
   features: number[][],
   ids: (string | number)[]
-): Promise<{ positions: Array<{ id: string | number; x: number; y: number }>; computeTime: number }> {
+): Promise<{ positions: { id: string | number; x: number; y: number }[]; computeTime: number }> {
   const startTime = performance.now();
   const druidModule = await loadDruidJS();
 
@@ -305,7 +305,7 @@ async function runTopoMap(
   const positions = embedding.map((point: number[], idx: number) => ({
     id: ids[idx],
     x: point[0],
-    y: point[1]
+    y: point[1],
   }));
 
   const computeTime = performance.now() - startTime;
@@ -318,7 +318,7 @@ async function runTopoMap(
 async function runSammon(
   features: number[][],
   ids: (string | number)[]
-): Promise<{ positions: Array<{ id: string | number; x: number; y: number }>; computeTime: number }> {
+): Promise<{ positions: { id: string | number; x: number; y: number }[]; computeTime: number }> {
   const startTime = performance.now();
   const druidModule = await loadDruidJS();
 
@@ -328,7 +328,7 @@ async function runSammon(
   const positions = embedding.map((point: number[], idx: number) => ({
     id: ids[idx],
     x: point[0],
-    y: point[1]
+    y: point[1],
   }));
 
   const computeTime = performance.now() - startTime;
@@ -341,7 +341,7 @@ async function runSammon(
 addEventListener('message', async ({ data }: MessageEvent<ProjectionRequest>) => {
   try {
     if (data.type === 'compute') {
-      let result: { positions: Array<{ id: string | number; x: number; y: number }>; computeTime: number };
+      let result: { positions: { id: string | number; x: number; y: number }[]; computeTime: number };
 
       switch (data.method) {
         case 'pca':
@@ -362,7 +362,7 @@ addEventListener('message', async ({ data }: MessageEvent<ProjectionRequest>) =>
           }
           result = await runTSNE(data.features, data.ids, {
             perplexity: data.config.perplexity || 30,
-            iterations: data.config.iterations || 1000
+            iterations: data.config.iterations || 1000,
           });
           break;
 
@@ -372,7 +372,7 @@ addEventListener('message', async ({ data }: MessageEvent<ProjectionRequest>) =>
           }
           result = await runUMAP(data.features, data.ids, {
             neighbors: data.config.neighbors || 15,
-            minDist: data.config.minDist || 0.1
+            minDist: data.config.minDist || 0.1,
           });
           break;
 
@@ -408,14 +408,14 @@ addEventListener('message', async ({ data }: MessageEvent<ProjectionRequest>) =>
         type: 'result',
         method: data.method,
         positions: result.positions,
-        computeTime: result.computeTime
+        computeTime: result.computeTime,
       } as ProjectionResponse);
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     postMessage({
       type: 'error',
       method: data.method,
-      error: error.message || 'Unknown error'
+      error: error instanceof Error ? error.message : 'Unknown error',
     } as ProjectionResponse);
   }
 });

@@ -1,200 +1,136 @@
 @use 'sass:color';
 @use '../../shared/wizard-shared' as w;
 @use '../../../../styles/variables' as v;
+@use '../../../../styles/mixins' as m;
 
 .step4-visualization-settings {
-  @include w.step-container;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+
+  .step-content {
+    @include w.step-content;
+  }
 
   .step-header {
     @include w.step-header;
   }
 
-  // Section Tabs
-  .section-tabs {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 16px;
-    border-bottom: 2px solid v.$gray-300;
+  // ============================================================================
+  // Config Panel (shared base)
+  // ============================================================================
 
-    .tab-button {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      padding: 10px 16px;
-      background: white;
-      border: 1px solid v.$gray-300;
-      border-bottom: none;
-      border-radius: 4px 4px 0 0;
-      font-size: 13px;
-      font-weight: 500;
-      color: v.$gray-700;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      position: relative;
-      top: 2px;
-
-      .material-icons {
-        font-size: 18px;
-      }
-
-      .warning-icon {
-        font-size: 16px;
-        color: #E65100;
-      }
-
-      &:hover:not(:disabled) {
-        background: v.$gray-100;
-        border-color: v.$gray-400;
-      }
-
-      &.active {
-        background: white;
-        border-color: v.$gray-300;
-        border-bottom-color: white;
-        color: v.$active-color;
-        font-weight: 600;
-      }
-
-      &:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-      }
-
-      &.can-proceed:not(.active) {
-        border-color: #4CAF50;
-        color: #388E3C;
-      }
-    }
-  }
-
-  // Config Panels
   .config-panel {
     background: white;
     border: 1px solid v.$gray-300;
-    border-radius: 4px;
-    padding: 16px;
+    border-radius: 8px;
+    padding: 14px 16px;
     margin-bottom: 16px;
 
     h3 {
       display: flex;
       align-items: center;
       gap: 8px;
-      font-size: 15px;
+      font-size: 14px;
       font-weight: 600;
       color: v.$gray-800;
-      margin-bottom: 8px;
+      margin: 0 0 8px;
 
       .material-icons {
-        font-size: 20px;
+        font-size: 18px;
         color: v.$active-color;
       }
     }
 
-    h4 {
-      font-size: 14px;
-      font-weight: 600;
-      color: v.$gray-800;
-      margin: 12px 0 8px;
-    }
-
-    h5 {
-      font-size: 13px;
-      font-weight: 600;
-      color: v.$gray-700;
-      margin: 0;
-    }
-
     .panel-description {
-      font-size: 13px;
-      color: v.$gray-600;
-      margin-bottom: 12px;
-    }
-
-    .help-text {
       font-size: 12px;
       color: v.$gray-600;
-      margin-bottom: 8px;
+      margin-bottom: 10px;
     }
   }
 
-  // Color Feature Selection
-  .color-feature-grid {
+  .data-type-badge {
+    @include w.data-type-badge;
+  }
+
+  // ============================================================================
+  // Color Feature Panel (compact dropdown)
+  // ============================================================================
+
+  .menu-label {
+    @include m.menu-label;
+  }
+
+  .color-feature-panel {
+    .panel-header-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+    }
+
+    .form-group {
+      @include m.form-group;
+
+      select,
+      app-color-scale-selector {
+        width: 200px;
+        display: block;
+      }
+    }
+
+    .color-scale-select {
+      @include m.color-scale-select;
+    }
+  }
+
+  // ============================================================================
+  // Two-Column: Glyph Features + Preview
+  // ============================================================================
+
+  .glyph-section-two-col {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 10px;
-
-    .color-option {
-      position: relative;
-      padding: 10px;
-      border: 2px solid v.$gray-300;
-      border-radius: 4px;
-      cursor: pointer;
-      transition: all 0.2s ease;
-
-      &:hover {
-        border-color: v.$gray-400;
-        background: v.$gray-100;
-      }
-
-      &.selected {
-        border-color: v.$active-color;
-        background: rgba(0, 188, 212, 0.05);
-      }
-
-      input[type="radio"] {
-        position: absolute;
-        opacity: 0;
-        pointer-events: none;
-      }
-
-      label {
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-        cursor: pointer;
-
-        .column-name {
-          font-size: 13px;
-          font-weight: 500;
-          color: v.$gray-800;
-        }
-
-        .data-type-badge {
-          @include w.badge;
-          align-self: flex-start;
-        }
-      }
-    }
+    grid-template-columns: 3fr 2fr;
+    gap: 16px;
+    margin-bottom: 16px;
   }
 
-  // Glyph Features
-  .feature-progress {
-    @include w.feature-progress;
-    margin-bottom: 12px;
+  // ── Left: Glyph Features Panel ─────────────────────────────────────────────
 
-    .progress-fill {
-      &.complete {
-        background: #4CAF50;
-      }
-    }
-  }
-
-  .suggestions-container {
+  .glyph-features-panel {
     display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 12px;
+    flex-direction: column;
+    max-height: 480px;
+    overflow: hidden;
 
-    .btn-suggestion {
+    .glyph-panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 8px;
+
+      h3 {
+        margin-bottom: 0;
+      }
+    }
+
+    .btn-suggestion-compact {
       @include w.btn-base;
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: white;
+      font-size: 11px;
       font-weight: 600;
-      padding: 8px 14px;
+      padding: 4px 10px;
+      white-space: nowrap;
+      flex-shrink: 0;
+
+      .material-icons {
+        font-size: 14px;
+      }
 
       &:hover:not(:disabled) {
         opacity: 0.9;
-        transform: translateY(-1px);
       }
 
       &:disabled {
@@ -202,86 +138,169 @@
         cursor: not-allowed;
       }
     }
-  }
 
-  .glyph-features-selected {
-    margin-bottom: 16px;
+    .feature-progress {
+      @include w.feature-progress;
+      margin-bottom: 8px;
 
-    .empty-state {
-      @include w.no-content;
-      padding: 30px 20px;
+      .progress-fill.complete {
+        background: v.$status-success;
+      }
     }
 
-    .feature-list-selected {
+    .feature-list-unified {
       display: flex;
       flex-direction: column;
-      gap: 6px;
-      min-height: 100px;
-      padding: 10px;
+      gap: 3px;
+      min-height: 50px;
+      padding: 6px;
       border: 2px dashed v.$gray-300;
-      border-radius: 4px;
-      background: v.$gray-100;
+      border-radius: 8px;
+      background: v.$wizard-header-bg;
+    }
 
-      .feature-chip {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 8px 10px;
+    .empty-hint {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 8px;
+      color: v.$gray-500;
+      font-size: 12px;
+
+      .material-icons {
+        font-size: 16px;
+      }
+    }
+
+    .feature-separator {
+      height: 1px;
+      background: v.$gray-300;
+      margin: 8px 0;
+    }
+
+    .available-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+      font-weight: 600;
+      color: v.$gray-500;
+      letter-spacing: 0.3px;
+      margin-bottom: 4px;
+      padding: 0 8px;
+
+      .variance-label {
+        font-size: 10px;
+        font-weight: 500;
+        color: v.$gray-400;
+      }
+    }
+
+    .available-features-list {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      overflow-y: auto;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .feature-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 8px;
+      border-radius: 6px;
+      font-size: 12px;
+      transition: background 0.15s ease;
+
+      &.selected {
         background: white;
         border: 1px solid v.$gray-300;
-        border-radius: 3px;
         cursor: grab;
-        transition: all 0.2s ease;
-
-        &:hover {
-          border-color: v.$active-color;
-          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
 
         &:active {
           cursor: grabbing;
+        }
+
+        &:hover {
+          border-color: v.$active-color;
         }
 
         .feature-order {
           display: flex;
           align-items: center;
           justify-content: center;
-          width: 24px;
-          height: 24px;
+          width: 20px;
+          height: 20px;
           background: v.$active-color;
           color: white;
-          font-size: 11px;
+          font-size: 10px;
           font-weight: 700;
           border-radius: 50%;
+          flex-shrink: 0;
+        }
+      }
+
+      &.available {
+        cursor: pointer;
+        color: v.$gray-700;
+
+        &:hover {
+          background: v.$gray-100;
         }
 
-        .feature-name {
-          flex: 1;
-          font-size: 13px;
-          font-weight: 500;
-          color: v.$gray-800;
+        .add-icon {
+          font-size: 16px;
+          color: v.$gray-400;
+          flex-shrink: 0;
+        }
+      }
+
+      .feature-name {
+        flex: 1;
+        font-weight: 500;
+        color: v.$gray-800;
+        @include m.text-truncate;
+      }
+
+      .variance-bar {
+        width: 40px;
+        height: 4px;
+        background: v.$gray-200;
+        border-radius: 2px;
+        flex-shrink: 0;
+        overflow: hidden;
+
+        .variance-fill {
+          display: block;
+          height: 100%;
+          background: v.$active-color;
+          border-radius: 2px;
+          min-width: 2px;
+        }
+      }
+
+      .btn-remove {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 20px;
+        height: 20px;
+        background: transparent;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        color: v.$gray-500;
+        flex-shrink: 0;
+
+        &:hover {
+          background: v.$status-error;
+          color: white;
         }
 
-        .btn-remove {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          width: 24px;
-          height: 24px;
-          background: transparent;
-          border: none;
-          border-radius: 3px;
-          cursor: pointer;
-          color: v.$gray-600;
-
-          &:hover {
-            background: #F44336;
-            color: white;
-          }
-
-          .material-icons {
-            font-size: 16px;
-          }
+        .material-icons {
+          font-size: 14px;
         }
       }
     }
@@ -290,766 +309,349 @@
       display: flex;
       align-items: center;
       gap: 6px;
-      padding: 8px 10px;
-      background: rgba(255, 152, 0, 0.1);
-      border-left: 3px solid #FF9800;
-      border-radius: 2px;
+      padding: 6px 8px;
+      background: rgba(v.$status-warning, 0.1);
+      border-left: 3px solid v.$status-warning;
+      border-radius: 8px;
       font-size: 12px;
-      color: #E65100;
-      margin-top: 8px;
+      color: v.$status-warning-dark;
+      margin-top: 6px;
 
       .material-icons {
-        font-size: 16px;
+        font-size: 14px;
       }
     }
   }
 
-  .available-features-pool {
-    .feature-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-      gap: 8px;
+  // ── Right: Glyph Preview Panel ─────────────────────────────────────────────
 
-      .feature-chip {
-        position: relative;
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-        padding: 8px 10px;
-        background: white;
-        border: 1px solid v.$gray-300;
-        border-radius: 3px;
-        cursor: pointer;
-        transition: all 0.2s ease;
-
-        &:hover:not(.disabled) {
-          border-color: v.$active-color;
-          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-
-        &.disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-          background: v.$gray-100;
-        }
-
-        .feature-name {
-          font-size: 12px;
-          font-weight: 500;
-          color: v.$gray-800;
-        }
-
-        .feature-variance {
-          font-size: 10px;
-          color: v.$gray-600;
-          font-family: 'Courier New', monospace;
-        }
-
-        .selected-icon {
-          position: absolute;
-          top: 4px;
-          right: 4px;
-          font-size: 16px;
-          color: #4CAF50;
-        }
-      }
-    }
-  }
-
-  // Primary Projection Card (always enabled)
-  .primary-projection-card {
+  .glyph-preview-panel {
     display: flex;
-    gap: 12px;
-    padding: 14px;
-    border: 2px solid v.$active-color;
-    border-radius: 4px;
-    background: rgba(0, 188, 212, 0.08);
-    margin-bottom: 16px;
+    flex-direction: column;
+    align-items: center;
 
-    .card-icon {
+    h3 {
+      align-self: flex-start;
+    }
+
+    .preview-svg-container {
+      width: 100%;
+      max-width: 260px;
+      aspect-ratio: 1;
       display: flex;
       align-items: center;
       justify-content: center;
-      width: 40px;
-      height: 40px;
-      background: rgba(0, 188, 212, 0.15);
-      border-radius: 50%;
+      margin: 8px 0;
 
-      .material-icons {
-        font-size: 24px;
-        color: v.$active-color;
+      .glyph-preview-svg {
+        width: 100%;
+        height: 100%;
+      }
+
+      .axis-label {
+        font-size: 8px;
+        fill: v.$gray-700;
+        font-family: 'Lucida Sans', 'Lucida Sans Regular', Geneva, Verdana, sans-serif;
       }
     }
 
-    .card-content {
-      flex: 1;
-
-      .card-header-row {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 4px;
-
-        .header-with-badge {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-
-          h4 {
-            font-size: 14px;
-            font-weight: 600;
-            color: v.$gray-800;
-            margin: 0;
-          }
-
-          .speed-badge.badge-primary {
-            background: rgba(0, 188, 212, 0.15);
-            color: color.adjust(v.$active-color, $lightness: -10%);
-            font-size: 10px;
-            padding: 2px 6px;
-            border-radius: 3px;
-            font-weight: 600;
-          }
-        }
-
-        .check-icon {
-          font-size: 22px;
-          color: v.$active-color;
-        }
-      }
-
-      .card-description {
-        font-size: 12px;
-        color: v.$gray-600;
-        margin: 0;
-        line-height: 1.4;
-      }
-    }
-  }
-
-  .subsection-title {
-    font-size: 13px;
-    font-weight: 600;
-    color: v.$gray-700;
-    margin: 0 0 12px 0;
-  }
-
-  // Projection Methods
-  .methods-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: 12px;
-    margin-bottom: 16px;
-
-    .method-card {
-      display: flex;
-      gap: 12px;
-      padding: 14px;
-      border: 2px solid v.$gray-300;
-      border-radius: 4px;
-      cursor: pointer;
-      transition: all 0.2s ease;
-
-      &:hover:not(.disabled) {
-        border-color: v.$gray-400;
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-      }
-
-      &.enabled {
-        border-color: v.$active-color;
-        background: rgba(0, 188, 212, 0.05);
-      }
-
-      &.disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-      }
-
-      .card-icon {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 40px;
-        height: 40px;
-        background: v.$gray-100;
-        border-radius: 50%;
-
-        .material-icons {
-          font-size: 24px;
-          color: v.$active-color;
-        }
-      }
-
-      .card-content {
-        flex: 1;
-
-        .card-header-row {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          margin-bottom: 4px;
-
-          .header-with-badge {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-
-            h4 {
-              font-size: 14px;
-              font-weight: 600;
-              color: v.$gray-800;
-              margin: 0;
-            }
-
-            .speed-badge {
-              @include w.badge;
-              font-size: 10px;
-              padding: 2px 6px;
-
-              &.badge-very-fast {
-                background: rgba(0, 150, 136, 0.1);
-                color: #00796B;
-              }
-
-              &.badge-fast {
-                background: rgba(76, 175, 80, 0.1);
-                color: #388E3C;
-              }
-
-              &.badge-medium {
-                background: rgba(255, 152, 0, 0.1);
-                color: #E65100;
-              }
-
-              &.badge-slow {
-                background: rgba(244, 67, 54, 0.1);
-                color: #C62828;
-              }
-            }
-
-            .warning-badge {
-              display: inline-flex;
-              align-items: center;
-              justify-content: center;
-              margin-left: 2px;
-
-              .material-icons {
-                font-size: 16px;
-                color: #E65100;
-              }
-            }
-          }
-
-          input[type="checkbox"] {
-            @include w.checkbox;
-          }
-        }
-
-        .card-description {
-          font-size: 12px;
-          color: v.$gray-600;
-          margin: 0;
-          line-height: 1.4;
-        }
-
-        .warning-text {
-          font-size: 11px;
-          color: #E65100;
-          margin: 6px 0 0 0;
-          padding: 4px 8px;
-          background: rgba(255, 152, 0, 0.1);
-          border-radius: 4px;
-          line-height: 1.3;
-        }
-      }
-
-      &.has-warning {
-        border-color: #FFB74D;
-
-        &.enabled {
-          border-color: #E65100;
-          background: rgba(255, 152, 0, 0.05);
-        }
-      }
-    }
-  }
-
-  // Parameters Section
-  .parameters-section {
-    padding-top: 16px;
-    border-top: 1px solid v.$gray-300;
-
-    .parameter-card {
-      margin-bottom: 16px;
-      padding: 12px;
-      background: v.$gray-100;
-      border-radius: 4px;
-
-      &:last-child {
-        margin-bottom: 0;
-      }
-
-      .parameter-header {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        margin-bottom: 10px;
-
-        .material-icons {
-          font-size: 18px;
-          color: v.$active-color;
-        }
-      }
-
-      .parameter-body {
-        .parameter-row {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-          gap: 16px;
-        }
-
-        .parameter-field {
-          display: flex;
-          flex-direction: column;
-          gap: 6px;
-
-          label {
-            display: flex;
-            align-items: center;
-            gap: 4px;
-            font-size: 12px;
-            font-weight: 600;
-            color: v.$gray-700;
-          }
-
-          .input-group {
-            display: flex;
-            gap: 8px;
-
-            .range-input {
-              flex: 1;
-              accent-color: v.$active-color;
-            }
-
-            .number-input {
-              @include w.input-base;
-              width: 70px;
-              padding: 6px 8px;
-              font-size: 13px;
-              text-align: center;
-            }
-          }
-        }
-
-        .warning-box {
-          @include w.warning-box;
-          margin-top: 10px;
-        }
-      }
-    }
-  }
-
-  // Review Section
-  .review-section {
-    .summary-cards {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 12px;
-      margin-bottom: 16px;
-
-      .summary-card {
-        display: flex;
-        gap: 12px;
-        padding: 14px;
-        background: white;
-        border: 1px solid v.$gray-300;
-        border-radius: 4px;
-
-        .card-icon {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          width: 40px;
-          height: 40px;
-          background: rgba(0, 188, 212, 0.1);
-          border-radius: 50%;
-
-          .material-icons {
-            font-size: 22px;
-            color: v.$active-color;
-          }
-        }
-
-        .card-content {
-          display: flex;
-          flex-direction: column;
-          gap: 2px;
-
-          .card-label {
-            font-size: 11px;
-            font-weight: 600;
-            color: v.$gray-600;
-            text-transform: uppercase;
-          }
-
-          .card-value {
-            font-size: 16px;
-            font-weight: 700;
-            color: v.$gray-800;
-          }
-        }
-      }
-    }
-
-    .details-section {
-      background: white;
-      border: 1px solid v.$gray-300;
-      border-radius: 4px;
-      padding: 16px;
-      margin-bottom: 16px;
-
-      h3 {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        font-size: 15px;
-        font-weight: 600;
-        color: v.$gray-800;
-        margin-bottom: 12px;
-
-        .material-icons {
-          font-size: 20px;
-          color: v.$active-color;
-        }
-      }
-
-      .columns-table {
-        display: flex;
-        flex-direction: column;
-        border: 1px solid v.$gray-300;
-        border-radius: 4px;
-        max-height: 40vh;  // Limit table height to enable scrolling with sticky header
-        overflow-y: auto;
-        overflow-x: hidden;
-        scrollbar-gutter: stable;  // Reserve space for scrollbar to prevent content overlap
-
-        .table-header,
-        .table-row {
-          display: grid;
-          grid-template-columns: 2fr 1fr 1.2fr 1fr 1fr;
-          gap: 10px;
-          padding: 10px 12px;
-          font-size: 13px;
-          align-items: center;
-        }
-
-        .table-header {
-          background: v.$wizard-table-header-bg;
-          border-bottom: 2px solid v.$gray-300;
-          font-weight: 600;
-          color: v.$gray-700;
-          position: sticky;
-          top: 0;
-          z-index: 10;
-        }
-
-        .table-row {
-          border-bottom: 1px solid v.$gray-200;
-
-          &:last-child {
-            border-bottom: none;
-          }
-
-          &:hover {
-            background: v.$gray-100;
-          }
-
-          .column-name-text {
-            font-weight: 500;
-            color: v.$gray-800;
-          }
-
-          .color-badge {
-            display: inline-flex;
-            align-items: center;
-            margin-left: 6px;
-
-            .material-icons {
-              font-size: 14px;
-              color: v.$active-color;
-            }
-          }
-
-          .data-type-badge {
-            @include w.badge;
-          }
-
-          .text-muted {
-            font-size: 12px;
-            color: v.$gray-500;
-            font-style: italic;
-          }
-
-          .status-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            padding: 4px 8px;
-            border-radius: 3px;
-            font-size: 11px;
-            font-weight: 600;
-
-            .material-icons {
-              font-size: 14px;
-            }
-
-            &.status-yes {
-              background: rgba(76, 175, 80, 0.1);
-              color: #388E3C;
-            }
-
-            &.status-no {
-              background: rgba(158, 158, 158, 0.1);
-              color: #616161;
-            }
-          }
-        }
-      }
-    }
-
-    .warning-box {
-      @include w.warning-box;
-    }
-
-    .info-box {
-      @include w.info-box;
-    }
-  }
-
-  // Processing Section
-  .processing-view,
-  .success-view {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 400px;
-
-    .processing-card,
-    .success-card {
+    .preview-placeholder {
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 16px;
-      padding: 40px;
-      background: white;
-      border: 1px solid v.$gray-300;
-      border-radius: 8px;
-      max-width: 600px;
+      justify-content: center;
+      width: 100%;
+      max-width: 260px;
+      aspect-ratio: 1;
+      color: v.$gray-500;
       text-align: center;
 
-      .processing-icon,
-      .success-icon {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 80px;
-        height: 80px;
-        background: rgba(0, 188, 212, 0.1);
-        border-radius: 50%;
-
-        .material-icons {
-          font-size: 48px;
-
-          &.spinning {
-            color: v.$active-color;
-            animation: spin 1s linear infinite;
-          }
-        }
+      .material-icons {
+        font-size: 40px;
+        color: v.$gray-400;
+        margin-bottom: 8px;
       }
 
-      .success-icon {
-        background: rgba(76, 175, 80, 0.1);
-
-        .material-icons {
-          color: #4CAF50;
-        }
-      }
-
-      h3 {
-        font-size: 20px;
-        font-weight: 700;
-        color: v.$gray-800;
+      p {
+        font-size: 12px;
         margin: 0;
       }
+    }
 
-      .processing-message,
-      .success-message {
-        font-size: 14px;
+    .glyph-type-tabs {
+      display: flex;
+      gap: 4px;
+
+      button {
+        @include w.btn-base;
+        background: white;
+        border: 1px solid v.$gray-300;
         color: v.$gray-600;
-      }
+        padding: 5px 12px;
+        font-size: 12px;
+        gap: 4px;
 
-      .progress-bar {
-        @include w.progress-bar;
-        width: 100%;
-        max-width: 400px;
-        height: 8px;
-      }
-
-      .progress-fill {
-        @include w.progress-fill;
-      }
-
-      .progress-text {
-        font-size: 16px;
-        font-weight: 700;
-        color: v.$active-color;
-      }
-
-      .success-stats {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        width: 100%;
-
-        .stat-item {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 8px;
-          font-size: 14px;
-          color: v.$gray-700;
-
-          .material-icons {
-            font-size: 18px;
-            color: #4CAF50;
-          }
+        &:hover {
+          background: v.$gray-100;
         }
-      }
 
-      .background-status-section {
-        width: 100%;
-        padding-top: 16px;
-        border-top: 1px solid v.$gray-300;
-
-        h4 {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 6px;
-          font-size: 14px;
+        &.active {
+          border-color: v.$active-color;
+          background: rgba(v.$active-color, 0.08);
+          color: v.$active-color;
           font-weight: 600;
-          color: v.$gray-700;
-          margin-bottom: 12px;
-
-          .material-icons {
-            font-size: 18px;
-          }
         }
 
-        .projection-status-list {
-          display: flex;
-          flex-direction: column;
-          gap: 10px;
-
-          .projection-status-item {
-            padding: 10px;
-            background: v.$gray-100;
-            border-radius: 4px;
-
-            .status-header {
-              display: flex;
-              align-items: center;
-              justify-content: space-between;
-              margin-bottom: 6px;
-
-              .method-name {
-                font-size: 13px;
-                font-weight: 600;
-                color: v.$gray-800;
-              }
-
-              .status-badge {
-                display: inline-flex;
-                align-items: center;
-                gap: 4px;
-                padding: 4px 8px;
-                border-radius: 3px;
-                font-size: 11px;
-                font-weight: 600;
-
-                .material-icons {
-                  font-size: 14px;
-
-                  &.spinning {
-                    animation: spin 1s linear infinite;
-                  }
-                }
-
-                &.status-running {
-                  background: rgba(0, 188, 212, 0.1);
-                  color: v.$active-color;
-                }
-
-                &.status-complete {
-                  background: rgba(76, 175, 80, 0.1);
-                  color: #388E3C;
-                }
-
-                &.status-error {
-                  background: rgba(244, 67, 54, 0.1);
-                  color: #C62828;
-                }
-              }
-            }
-
-            .progress-bar-small {
-              height: 4px;
-              background: v.$gray-200;
-              border-radius: 2px;
-              overflow: hidden;
-              margin-bottom: 4px;
-
-              .progress-fill-small {
-                height: 100%;
-                background: v.$active-color;
-                transition: width 0.3s ease;
-              }
-            }
-
-            .status-message {
-              font-size: 12px;
-              color: v.$gray-600;
-              margin: 0;
-            }
-          }
-        }
-      }
-
-      .success-actions {
-        display: flex;
-        gap: 12px;
-        margin-top: 16px;
-
-        .btn-secondary {
-          @include w.btn-secondary;
-        }
-
-        .btn-primary {
-          @include w.btn-primary;
+        .material-icons {
+          font-size: 16px;
         }
       }
     }
   }
 
-  .error-message {
-    @include w.message-error;
+  // ============================================================================
+  // Projection Methods (two-column card grid)
+  // ============================================================================
+
+  .projection-panel {
+    padding-bottom: 8px;
+
+    .projection-panel-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 8px;
+
+      h3 {
+        margin-bottom: 0;
+      }
+
+      .primary-badge {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 12px;
+        font-weight: 600;
+        color: v.$active-color;
+        background: rgba(v.$active-color, 0.06);
+        padding: 3px 10px;
+        border-radius: 6px;
+        border: 1px solid rgba(v.$active-color, 0.2);
+
+        .material-icons {
+          font-size: 14px;
+        }
+      }
+    }
+
+    .projection-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px;
+    }
+
+    .projection-card {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding: 5px 8px;
+      border: 1px solid v.$gray-200;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      user-select: none;
+
+      &:hover {
+        border-color: v.$gray-400;
+      }
+
+      &.enabled {
+        background: rgba(v.$active-color, 0.04);
+        border-color: rgba(v.$active-color, 0.3);
+      }
+
+      &.has-warning.enabled {
+        background: rgba(v.$status-warning, 0.04);
+        border-color: rgba(v.$status-warning, 0.3);
+      }
+
+      .card-row {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+      }
+
+      .card-desc {
+        font-size: 10px;
+        color: v.$gray-500;
+        padding-left: 19px;
+        line-height: 1.3;
+      }
+
+      input[type='checkbox'] {
+        @include w.checkbox;
+        width: 14px;
+        height: 14px;
+        flex-shrink: 0;
+      }
+
+      .method-name {
+        font-size: 12px;
+        font-weight: 600;
+        color: v.$gray-800;
+        white-space: nowrap;
+      }
+
+      .warning-icon {
+        font-size: 13px;
+        color: v.$status-warning-dark;
+        flex-shrink: 0;
+      }
+
+      .btn-expand-params {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 20px;
+        height: 20px;
+        background: transparent;
+        border: 1px solid v.$gray-300;
+        border-radius: 6px;
+        cursor: pointer;
+        color: v.$gray-600;
+        margin-left: auto;
+        flex-shrink: 0;
+
+        &:hover {
+          background: v.$gray-100;
+        }
+
+        .material-icons {
+          font-size: 13px;
+        }
+      }
+    }
+
+    .speed-badge {
+      @include w.badge;
+      font-size: 9px;
+      padding: 0px 5px;
+      flex-shrink: 0;
+
+      &.badge-primary {
+        background: rgba(v.$active-color, 0.15);
+        color: color.adjust(v.$active-color, $lightness: -10%);
+      }
+
+      &.badge-very-fast {
+        background: rgba(0, 150, 136, 0.1);
+        color: #00796b;
+      }
+
+      &.badge-fast {
+        background: rgba(v.$status-success, 0.1);
+        color: v.$status-success-dark;
+      }
+
+      &.badge-medium {
+        background: rgba(v.$status-warning, 0.1);
+        color: v.$status-warning-dark;
+      }
+
+      &.badge-slow {
+        background: rgba(v.$status-error, 0.08);
+        color: #d32f2f;
+      }
+
+      &.badge-very-slow {
+        background: rgba(183, 28, 28, 0.1);
+        color: #b71c1c;
+      }
+    }
+
+    .size-hint {
+      @include w.badge;
+      font-size: 9px;
+      padding: 0px 5px;
+      flex-shrink: 0;
+      white-space: nowrap;
+      background: v.$wizard-header-bg;
+      color: v.$gray-600;
+      border: 1px solid v.$gray-300;
+    }
+
+    .inline-params {
+      padding: 6px 10px;
+      background: v.$wizard-header-bg;
+      border: 1px solid v.$gray-200;
+      border-radius: 8px;
+      margin-top: 4px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: flex-end;
+
+      .params-label {
+        font-size: 11px;
+        font-weight: 600;
+        color: v.$gray-600;
+        width: 100%;
+      }
+
+      .param-field {
+        flex: 1;
+        min-width: 180px;
+
+        label {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          font-size: 11px;
+          font-weight: 600;
+          color: v.$gray-700;
+          margin-bottom: 2px;
+        }
+
+        .input-group {
+          display: flex;
+          gap: 8px;
+
+          .range-input {
+            flex: 1;
+            accent-color: v.$active-color;
+          }
+
+          .number-input {
+            @include w.input-base;
+            width: 60px;
+            padding: 2px 4px;
+            font-size: 11px;
+            text-align: center;
+          }
+        }
+      }
+
+      .warning-box {
+        @include w.warning-box;
+        width: 100%;
+        margin-top: 2px;
+        font-size: 11px;
+
+        p {
+          margin: 0 0 2px;
+
+          &:last-child {
+            margin-bottom: 0;
+          }
+        }
+      }
+    }
   }
 
-  .warning-box {
-    @include w.warning-box;
-  }
-
+  // ============================================================================
   // Action Buttons
+  // ============================================================================
+
   .action-buttons {
     @include w.action-buttons-footer;
 
@@ -1073,14 +675,5 @@
     .btn-primary {
       @include w.btn-primary;
     }
-  }
-}
-
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
   }
 }

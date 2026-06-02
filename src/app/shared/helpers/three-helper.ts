@@ -3,6 +3,7 @@ import { GlyphSizeInfo } from '../../glyph/glyph-size-info';
 
 export function createGrayPlaceholderTexture(size = 16, gray = 136): THREE.Texture {
   const canvas = new OffscreenCanvas(size, size);
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- getContext('2d') on a freshly created OffscreenCanvas never returns null
   const ctx = canvas.getContext('2d')!;
   ctx.fillStyle = `rgb(${gray}, ${gray}, ${gray})`;
   ctx.fillRect(0, 0, size, size);
@@ -16,32 +17,38 @@ export function createGrayPlaceholderTexture(size = 16, gray = 136): THREE.Textu
   return texture;
 }
 
-export function hitTest(event: MouseEvent, renderer: THREE.WebGLRenderer, scene: THREE.Group, camera: THREE.Camera, sizeInfo: GlyphSizeInfo) {
-    const rect = renderer.domElement.getBoundingClientRect();
+export function hitTest(
+  event: MouseEvent,
+  renderer: THREE.WebGLRenderer,
+  scene: THREE.Group,
+  camera: THREE.Camera,
+  sizeInfo: GlyphSizeInfo
+) {
+  const rect = renderer.domElement.getBoundingClientRect();
 
-    const mouseNDC = {
-        x: ((event.clientX - rect.left) / rect.width) * 2 - 1,
-        y: -((event.clientY - rect.top) / rect.height) * 2 + 1,
-    };
+  const mouseNDC = {
+    x: ((event.clientX - rect.left) / rect.width) * 2 - 1,
+    y: -((event.clientY - rect.top) / rect.height) * 2 + 1,
+  };
 
-    let closestObject: THREE.Object3D | null = null;
-    let closestDist = Infinity;
-    let tolerancePx = sizeInfo.hitTolerance;
+  let closestObject: THREE.Object3D | null = null;
+  let closestDist = Infinity;
+  const tolerancePx = sizeInfo.hitTolerance;
 
-    for (const object of scene.children) {
-        // Use object's world position projected to screen
-        const screenPos = object.getWorldPosition(new THREE.Vector3()).project(camera);
+  for (const object of scene.children) {
+    // Use object's world position projected to screen
+    const screenPos = object.getWorldPosition(new THREE.Vector3()).project(camera);
 
-        const dx = (mouseNDC.x - screenPos.x) * rect.width / 2;
-        const dy = (mouseNDC.y - screenPos.y) * rect.height / 2;
-        const dist = Math.sqrt(dx * dx + dy * dy);
+    const dx = ((mouseNDC.x - screenPos.x) * rect.width) / 2;
+    const dy = ((mouseNDC.y - screenPos.y) * rect.height) / 2;
+    const dist = Math.sqrt(dx * dx + dy * dy);
 
-        if (dist < tolerancePx && dist < closestDist) {
-            closestObject = object;
-            closestDist = dist;
-        }
+    if (dist < tolerancePx && dist < closestDist) {
+      closestObject = object;
+      closestDist = dist;
     }
-    return closestObject;
+  }
+  return closestObject;
 }
 
 /**
@@ -49,140 +56,147 @@ export function hitTest(event: MouseEvent, renderer: THREE.WebGLRenderer, scene:
  * Use this with spatial grid queries for O(k) instead of O(n) complexity.
  */
 export function hitTestCandidates(
-    event: MouseEvent,
-    renderer: THREE.WebGLRenderer,
-    candidates: THREE.Object3D[],
-    camera: THREE.Camera,
-    sizeInfo: GlyphSizeInfo
+  event: MouseEvent,
+  renderer: THREE.WebGLRenderer,
+  candidates: THREE.Object3D[],
+  camera: THREE.Camera,
+  sizeInfo: GlyphSizeInfo
 ): THREE.Object3D | null {
-    if (candidates.length === 0) return null;
+  if (candidates.length === 0) return null;
 
-    const rect = renderer.domElement.getBoundingClientRect();
+  const rect = renderer.domElement.getBoundingClientRect();
 
-    const mouseNDC = {
-        x: ((event.clientX - rect.left) / rect.width) * 2 - 1,
-        y: -((event.clientY - rect.top) / rect.height) * 2 + 1,
-    };
+  const mouseNDC = {
+    x: ((event.clientX - rect.left) / rect.width) * 2 - 1,
+    y: -((event.clientY - rect.top) / rect.height) * 2 + 1,
+  };
 
-    let closestObject: THREE.Object3D | null = null;
-    let closestDist = Infinity;
-    const tolerancePx = sizeInfo.hitTolerance;
+  let closestObject: THREE.Object3D | null = null;
+  let closestDist = Infinity;
+  const tolerancePx = sizeInfo.hitTolerance;
 
-    // Reuse vector to avoid allocations
-    const worldPos = new THREE.Vector3();
+  // Reuse vector to avoid allocations
+  const worldPos = new THREE.Vector3();
 
-    for (const object of candidates) {
-        object.getWorldPosition(worldPos);
-        const screenPos = worldPos.project(camera);
+  for (const object of candidates) {
+    object.getWorldPosition(worldPos);
+    const screenPos = worldPos.project(camera);
 
-        const dx = (mouseNDC.x - screenPos.x) * rect.width / 2;
-        const dy = (mouseNDC.y - screenPos.y) * rect.height / 2;
-        const dist = Math.sqrt(dx * dx + dy * dy);
+    const dx = ((mouseNDC.x - screenPos.x) * rect.width) / 2;
+    const dy = ((mouseNDC.y - screenPos.y) * rect.height) / 2;
+    const dist = Math.sqrt(dx * dx + dy * dy);
 
-        if (dist < tolerancePx && dist < closestDist) {
-            closestObject = object;
-            closestDist = dist;
-        }
+    if (dist < tolerancePx && dist < closestDist) {
+      closestObject = object;
+      closestDist = dist;
     }
-    return closestObject;
+  }
+  return closestObject;
 }
 
 /**
  * Convert screen coordinates to world coordinates for spatial grid queries.
  */
 export function screenToWorld(
-    event: MouseEvent,
-    renderer: THREE.WebGLRenderer,
-    camera: THREE.OrthographicCamera
+  event: MouseEvent,
+  renderer: THREE.WebGLRenderer,
+  camera: THREE.OrthographicCamera
 ): { x: number; y: number } {
-    const rect = renderer.domElement.getBoundingClientRect();
+  const rect = renderer.domElement.getBoundingClientRect();
 
-    // Convert to NDC
-    const mouseNDC = {
-        x: ((event.clientX - rect.left) / rect.width) * 2 - 1,
-        y: -((event.clientY - rect.top) / rect.height) * 2 + 1,
-    };
+  // Convert to NDC
+  const mouseNDC = {
+    x: ((event.clientX - rect.left) / rect.width) * 2 - 1,
+    y: -((event.clientY - rect.top) / rect.height) * 2 + 1,
+  };
 
-    // Convert NDC to world coordinates for orthographic camera
-    const worldX = camera.position.x + (mouseNDC.x * (camera.right - camera.left) / 2) / camera.zoom;
-    const worldY = camera.position.y + (mouseNDC.y * (camera.top - camera.bottom) / 2) / camera.zoom;
+  // Convert NDC to world coordinates for orthographic camera
+  const worldX = camera.position.x + (mouseNDC.x * (camera.right - camera.left)) / 2 / camera.zoom;
+  const worldY = camera.position.y + (mouseNDC.y * (camera.top - camera.bottom)) / 2 / camera.zoom;
 
-    return { x: worldX, y: worldY };
+  return { x: worldX, y: worldY };
 }
 
-export function panCamera(camera: THREE.OrthographicCamera, from: THREE.Vector2, to: MouseEvent, target: THREE.Vector3) {
-    const dx = to.clientX - from.x;
-    const dy = to.clientY - from.y;
-    const panFactor = 0.8;
+export function panCamera(
+  camera: THREE.OrthographicCamera,
+  from: THREE.Vector2,
+  to: MouseEvent,
+  target: THREE.Vector3
+) {
+  const dx = to.clientX - from.x;
+  const dy = to.clientY - from.y;
+  const panFactor = 0.8;
 
-    const distance = 1 / camera.zoom;
-    const panX = -dx * distance * panFactor;
-    const panY = dy * distance * panFactor;
+  const distance = 1 / camera.zoom;
+  const panX = -dx * distance * panFactor;
+  const panY = dy * distance * panFactor;
 
-    const pan = new THREE.Vector3();
-    const right = new THREE.Vector3(1, 0, 0);
-    const up = new THREE.Vector3(0, 1, 0);
+  const pan = new THREE.Vector3();
+  const right = new THREE.Vector3(1, 0, 0);
+  const up = new THREE.Vector3(0, 1, 0);
 
-    pan.add(right.multiplyScalar(panX));
-    pan.add(up.multiplyScalar(panY));
+  pan.add(right.multiplyScalar(panX));
+  pan.add(up.multiplyScalar(panY));
 
-    camera.position.add(pan);
-    target.add(pan);
-    camera.lookAt(target);
+  camera.position.add(pan);
+  target.add(pan);
+  camera.lookAt(target);
 
-    camera.updateProjectionMatrix();
+  camera.updateProjectionMatrix();
 }
 
-export function convertToScreenSpace(obj: THREE.Object3D, camera: THREE.OrthographicCamera, domElement: HTMLCanvasElement): THREE.Vector2 {
-    const pos = new THREE.Vector3();
-    obj.getWorldPosition(pos);
-    const rect = domElement.getBoundingClientRect();
-    const ndc = pos.clone().project(camera);
-    const screenX = ((ndc.x + 1) / 2) * rect.width + rect.left;
-    const screenY = ((-ndc.y + 1) / 2) * rect.height + rect.top;
+export function convertToScreenSpace(
+  obj: THREE.Object3D,
+  camera: THREE.OrthographicCamera,
+  domElement: HTMLCanvasElement
+): THREE.Vector2 {
+  const pos = new THREE.Vector3();
+  obj.getWorldPosition(pos);
+  const rect = domElement.getBoundingClientRect();
+  const ndc = pos.clone().project(camera);
+  const screenX = ((ndc.x + 1) / 2) * rect.width + rect.left;
+  const screenY = ((-ndc.y + 1) / 2) * rect.height + rect.top;
 
-    return new THREE.Vector2(screenX, screenY);
+  return new THREE.Vector2(screenX, screenY);
 }
 
-export function jitterFromVector(vec: THREE.Vector3, amount = 5) {
-    const seed = vec.x * 73856093 ^ vec.y * 19349663 ^ vec.z * 83492791;
-    const rng = Math.sin(seed) * 10000;
-    return (rng - Math.floor(rng)) * 2 - 1; // in [-1, 1]
+export function jitterFromVector(vec: THREE.Vector3) {
+  const seed = (vec.x * 73856093) ^ (vec.y * 19349663) ^ (vec.z * 83492791);
+  const rng = Math.sin(seed) * 10000;
+  return (rng - Math.floor(rng)) * 2 - 1; // in [-1, 1]
 }
 
 export function scalePosition(
-    x: number,
-    y: number,
-    bounds: { minX: number, maxX: number, minY: number, maxY: number },
-    canvasWidth: number,
-    canvasHeight: number,
-    maxNormWidth: number = 50
-): { x: number, y: number } {
-    const dataWidth = bounds.maxX - bounds.minX;
-    const dataHeight = bounds.maxY - bounds.minY;
+  x: number,
+  y: number,
+  bounds: { minX: number; maxX: number; minY: number; maxY: number },
+  canvasWidth: number,
+  canvasHeight: number,
+  maxNormWidth = 50
+): { x: number; y: number } {
+  const dataWidth = bounds.maxX - bounds.minX;
+  const dataHeight = bounds.maxY - bounds.minY;
 
-    if (dataWidth === 0 || dataHeight === 0) {
-        return { x: 0, y: 0 };
-    }
+  if (dataWidth === 0 || dataHeight === 0) {
+    return { x: 0, y: 0 };
+  }
 
-    // Normalize to [0, 1]
-    const normX = (x - bounds.minX) / dataWidth;
-    const normY = (y - bounds.minY) / dataHeight;
+  // Normalize to [0, 1]
+  const normX = (x - bounds.minX) / dataWidth;
+  // Scale X to [0, maxNormWidth], and scale Y proportionally
+  const xInWorld = normX * maxNormWidth;
+  const scale = maxNormWidth / dataWidth;
+  const yInWorld = (y - bounds.minY) * scale;
 
-    // Scale X to [0, maxNormWidth], and scale Y proportionally
-    const xInWorld = normX * maxNormWidth;
-    const scale = maxNormWidth / dataWidth;
-    const yInWorld = (y - bounds.minY) * scale;
+  // Center both coordinates in canvas
+  const scaledX = (xInWorld - maxNormWidth / 2) * (canvasWidth / maxNormWidth);
+  const scaledY = (yInWorld - (dataHeight * scale) / 2) * (canvasHeight / (dataHeight * scale));
 
-    // Center both coordinates in canvas
-    const scaledX = (xInWorld - maxNormWidth / 2) * (canvasWidth / maxNormWidth);
-    const scaledY = (yInWorld - (dataHeight * scale) / 2) * (canvasHeight / (dataHeight * scale));
-
-    return { x: scaledX, y: scaledY };
+  return { x: scaledX, y: scaledY };
 }
 
-export function nearlyEqual(a: number, b: number, epsilon: number = 0.01): boolean {
-    return Math.abs(a - b) < epsilon;
+export function nearlyEqual(a: number, b: number, epsilon = 0.01): boolean {
+  return Math.abs(a - b) < epsilon;
 }
 
 export function exportThreeSceneAsPNG(
@@ -202,7 +216,7 @@ export function exportThreeSceneAsPNG(
     filename = 'three-scene.png',
     scaleFactor = 1,
     restoreAfterExport = true,
-    canvasElement = renderer.domElement
+    canvasElement = renderer.domElement,
   } = options || {};
 
   // Get actual display size of the canvas in the DOM

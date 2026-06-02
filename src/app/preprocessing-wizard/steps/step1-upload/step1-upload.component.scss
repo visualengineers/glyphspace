@@ -4,10 +4,17 @@
 .step1-upload {
   display: flex;
   flex-direction: column;
-  height: 100%;
-  max-width: 1000px;
+  flex: 1;
+  min-height: 0;
+}
+
+.step-content {
+  flex: 1;
+  max-width: 1150px;
   margin: 0 auto;
-  padding: 16px;
+  padding: 16px 32px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .step-header {
@@ -29,7 +36,7 @@
 
   &.drag-over {
     border-color: v.$active-color;
-    background: rgba(0, 188, 212, 0.05);
+    background: rgba(v.$active-color, 0.05);
   }
 
   &.loading {
@@ -91,11 +98,6 @@
   border-top: 3px solid v.$active-color;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
 }
 
 .loading-text {
@@ -219,15 +221,15 @@
   }
 
   &.quality-fair .material-icons {
-    color: #FF9800;
+    color: v.$status-warning;
   }
 
   &.quality-poor .material-icons {
-    color: #F44336;
+    color: v.$status-error;
   }
 
   &.warning .material-icons {
-    color: #FF9800;
+    color: v.$status-warning;
   }
 }
 
@@ -253,69 +255,6 @@
     font-weight: bold;
     color: v.$gray-800;
     margin-bottom: 10px;
-  }
-}
-
-.columns-summary {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.column-chip {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  background: white;
-  border: 1px solid v.$gray-300;
-  border-radius: 3px;
-  font-size: 12px;
-
-  &[data-type="numeric"] {
-    border-left: 3px solid v.$active-color;
-  }
-
-  &[data-type="categorical"] {
-    border-left: 3px solid v.$gray-600;
-  }
-
-  &[data-type="text"] {
-    border-left: 3px solid #FF9800;
-  }
-
-  &[data-type="date"] {
-    border-left: 3px solid v.$gray-500;
-  }
-
-  &[data-type="id"] {
-    border-left: 3px solid v.$gray-400;
-  }
-}
-
-.column-name {
-  font-weight: 600;
-  color: v.$gray-800;
-}
-
-.column-type {
-  padding: 2px 6px;
-  background: v.$gray-100;
-  border-radius: 2px;
-  font-size: 11px;
-  color: v.$gray-600;
-  text-transform: uppercase;
-}
-
-.column-badge {
-  padding: 2px 6px;
-  border-radius: 2px;
-  font-size: 11px;
-  font-weight: 600;
-
-  &.warning {
-    background: rgba(255, 152, 0, 0.1);
-    color: #E65100;
   }
 }
 

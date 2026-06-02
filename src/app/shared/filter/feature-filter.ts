@@ -1,8 +1,7 @@
-import { GlyphObject } from "../../glyph/glyph-object";
-import { ItemFilter } from "./item-filter";
+import { GlyphObject } from '../../glyph/glyph-object';
+import { ItemFilter } from './item-filter';
 
 export class FeatureFilter extends ItemFilter {
-
   private _featureName: string;
   private _minValue: number | undefined;
   private _maxValue: number | undefined;
@@ -11,22 +10,31 @@ export class FeatureFilter extends ItemFilter {
   constructor(featureName?: string);
   constructor(featureName?: string, minValue?: number, maxValue?: number) {
     super();
-    this._featureName = featureName === undefined ? "" : featureName;
+    this._featureName = featureName === undefined ? '' : featureName;
     this._minValue = minValue === undefined ? 0 : minValue;
     this._maxValue = maxValue === undefined ? 0 : maxValue;
   }
 
-  public override clear() {    
+  public override clear() {
     this._minValue = undefined;
     this._maxValue = undefined;
   }
 
   public override empty() {
-    return this._minValue === undefined || this._maxValue === undefined
+    return this._minValue === undefined || this._maxValue === undefined;
   }
 
   public override info() {
-    return "Feature Filter for " + this.featureName + " with " + this._minValue + " : " + this._maxValue + " FilterMode: " + this.filterMode;
+    return (
+      'Feature Filter for ' +
+      this.featureName +
+      ' with ' +
+      this._minValue +
+      ' : ' +
+      this._maxValue +
+      ' FilterMode: ' +
+      this.filterMode
+    );
   }
 
   public override inFilter(item: GlyphObject): boolean {
@@ -36,12 +44,18 @@ export class FeatureFilter extends ItemFilter {
     return value >= this._minValue && value <= this._maxValue;
   }
 
-  public get featureName(): string { return this._featureName }
-  public set featureName(newFeatureName: string) { this._featureName = newFeatureName }
+  public get featureName(): string {
+    return this._featureName;
+  }
+  public set featureName(newFeatureName: string) {
+    this._featureName = newFeatureName;
+  }
 
-  public get minValue(): number | undefined { return this._minValue }
+  public get minValue(): number | undefined {
+    return this._minValue;
+  }
   public set minValue(newMinValue: number) {
-    if(newMinValue === undefined) throw new RangeError("value undefined in feature filter");
+    if (newMinValue === undefined) throw new RangeError('value undefined in feature filter');
     if (newMinValue < 0.0 || newMinValue > 1.0) {
       throw new RangeError('supplied parameter must be in interval [0,1]');
     }
@@ -49,9 +63,11 @@ export class FeatureFilter extends ItemFilter {
     this._minValue = newMinValue;
   }
 
-  public get maxValue(): number | undefined { return this._maxValue }
+  public get maxValue(): number | undefined {
+    return this._maxValue;
+  }
   public set maxValue(newMaxValue: number | undefined) {
-    if(newMaxValue === undefined) throw new RangeError("value undefined in feature filter");
+    if (newMaxValue === undefined) throw new RangeError('value undefined in feature filter');
     if (newMaxValue < 0.0 || newMaxValue > 1.0) {
       throw new RangeError('supplied parameter must be in interval [0,1]');
     }

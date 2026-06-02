@@ -1,0 +1,264 @@
+<div class="step5-review-processing">
+  <div class="step-content">
+    <div class="step-header">
+      <h2>{{ stepInfo.title }}</h2>
+      <p class="step-purpose">{{ stepInfo.purpose }}</p>
+    </div>
+
+    <!-- ========================================================================== -->
+    <!-- REVIEW SECTION -->
+    <!-- ========================================================================== -->
+    @if (!showProcessing) {
+      <div class="review-section">
+        <!-- Configuration Summary -->
+        <div class="summary-cards">
+          <div class="summary-card">
+            <div class="card-icon"><span class="material-icons">view_column</span></div>
+            <div class="card-content">
+              <span class="card-label">Columns Selected</span>
+              <span class="card-value">{{ enabledColumns }} / {{ totalColumns }}</span>
+            </div>
+          </div>
+
+          <div class="summary-card">
+            <div class="card-icon"><span class="material-icons">tune</span></div>
+            <div class="card-content">
+              <span class="card-label">Projection Features</span>
+              <span class="card-value">{{ projectionColumns }}</span>
+            </div>
+          </div>
+
+          <div class="summary-card">
+            <div class="card-icon"><span class="material-icons">palette</span></div>
+            <div class="card-content">
+              <span class="card-label">Color Feature</span>
+              <span class="card-value">{{ colorFeature || 'None' }}</span>
+            </div>
+          </div>
+
+          <div class="summary-card">
+            <div class="card-icon"><span class="material-icons">star_outline</span></div>
+            <div class="card-content">
+              <span class="card-label">Glyph Features</span>
+              <span class="card-value">{{ selectedGlyphFeatures.length }}</span>
+            </div>
+          </div>
+
+          <div class="summary-card">
+            <div class="card-icon"><span class="material-icons">settings</span></div>
+            <div class="card-content">
+              <span class="card-label">Projection Methods</span>
+              <span class="card-value">{{ enabledMethods.join(', ') }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Column Details Table -->
+        <div class="columns-table">
+          <table>
+            <thead>
+              <tr>
+                <th>Column</th>
+                <th>Type</th>
+                <th>Encoding</th>
+                <th>Scaling</th>
+                <th>In Projection</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (config of columnConfigs; track config.name) {
+                @if (config.enabled) {
+                  <tr>
+                    <td>
+                      <span class="column-name-text">{{ config.name }}</span>
+                      @if (config.isColorFeature) {
+                        <span class="color-badge" title="Color Feature">
+                          <span class="material-icons">palette</span>
+                        </span>
+                      }
+                    </td>
+                    <td>
+                      <app-data-type-badge [dataType]="config.targetType"></app-data-type-badge>
+                    </td>
+                    <td>{{ getEncodingLabel(config.encodingMethod) }}</td>
+                    <td>
+                      @if (config.targetType === DataType.Numeric || config.targetType === DataType.Date) {
+                        {{ getScalingLabel(config.scalingMethod) }}
+                      } @else {
+                        <span class="text-muted">N/A</span>
+                      }
+                    </td>
+                    <td>
+                      @if (config.includeInProjection) {
+                        <span class="status-badge status-yes">
+                          <span class="material-icons">check_circle</span>
+                          Yes
+                        </span>
+                      } @else {
+                        <span class="status-badge status-no">
+                          <span class="material-icons">cancel</span>
+                          No
+                        </span>
+                      }
+                    </td>
+                  </tr>
+                }
+              }
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Info Box -->
+        <div class="info-box">
+          <span class="material-icons">info</span>
+          <div>
+            <strong>Processing Info:</strong> Processing time depends on your dataset size and enabled projection
+            methods. FastMap loads immediately, allowing you to explore your data right away. Additional projections
+            compute in the background.
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- ========================================================================== -->
+    <!-- PROCESSING SECTION -->
+    <!-- ========================================================================== -->
+    @if (showProcessing) {
+      @if (isProcessing) {
+        <!-- Processing View -->
+        <div class="processing-view">
+          <div class="processing-card">
+            <div class="processing-icon">
+              <span class="material-icons spinning">sync</span>
+            </div>
+
+            <h3>Processing Your Data</h3>
+            <p class="processing-message">{{ processingStep || 'Applying your preprocessing configuration...' }}</p>
+
+            <div class="progress-bar">
+              <div class="progress-fill" [style.width.%]="processingProgress"></div>
+            </div>
+
+            <div class="progress-text">{{ processingProgress }}%</div>
+          </div>
+        </div>
+      }
+
+      @if (processingComplete && !isProcessing) {
+        <!-- Success View -->
+        <div class="success-view">
+          <div class="success-card">
+            <div class="success-icon">
+              <span class="material-icons">check_circle</span>
+            </div>
+
+            <h3>Processing Complete!</h3>
+            <p class="success-message">Your dataset has been successfully processed and is ready for visualization.</p>
+
+            <div class="success-stats">
+              <div class="stat-item">
+                <span class="material-icons">check</span>
+                <span>{{ enabledColumns }} columns processed</span>
+              </div>
+              <div class="stat-item">
+                <span class="material-icons">check</span>
+                <span>FastMap projection ready</span>
+              </div>
+              <div class="stat-item">
+                <span class="material-icons">check</span>
+                <span>Data cleaning applied</span>
+              </div>
+            </div>
+
+            <!-- Background Projection Status -->
+            @if (getBackgroundProjectionsArray().length > 0) {
+              <div class="background-status-section">
+                <h4>
+                  <span class="material-icons">schedule</span>
+                  Background Projections
+                </h4>
+                <div class="projection-status-list">
+                  @for (proj of getBackgroundProjectionsArray(); track proj.method) {
+                    <div class="projection-status-item" [class]="'status-' + proj.status">
+                      <div class="status-header">
+                        <span class="method-name">{{ proj.method.toUpperCase() }}</span>
+                        @if (proj.status === 'running') {
+                          <span class="status-badge status-running">
+                            <span class="material-icons spinning">sync</span>
+                            Running
+                          </span>
+                        }
+                        @if (proj.status === 'complete') {
+                          <span class="status-badge status-complete">
+                            <span class="material-icons">check_circle</span>
+                            Complete
+                          </span>
+                        }
+                        @if (proj.status === 'error') {
+                          <span class="status-badge status-error">
+                            <span class="material-icons">error</span>
+                            Error
+                          </span>
+                        }
+                      </div>
+                      @if (proj.status === 'running') {
+                        <div class="progress-bar-small">
+                          <div class="progress-fill-small" [style.width.%]="proj.progress"></div>
+                        </div>
+                        <p class="status-message">{{ proj.message }}</p>
+                      }
+                      @if (proj.status === 'complete') {
+                        <p class="status-message">Available in Glyphspace dropdown</p>
+                      }
+                    </div>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+      }
+
+      @if (error) {
+        <!-- Error Message -->
+        <div class="error-message">
+          <span class="material-icons">error</span>
+          <div class="message-content"><strong>Error:</strong> {{ error }}</div>
+        </div>
+      }
+    }
+  </div>
+
+  <!-- Action Buttons -->
+  @if (!showProcessing) {
+    <div class="action-buttons">
+      <button class="btn-secondary" (click)="goBack()">
+        <span class="material-icons">arrow_back</span>
+        <span>Back</span>
+      </button>
+
+      <div class="buttons-right">
+        <button class="btn-primary" (click)="startProcessing()">
+          <span class="material-icons">play_arrow</span>
+          <span>Start Processing</span>
+        </button>
+      </div>
+    </div>
+  }
+
+  @if (processingComplete && !isProcessing) {
+    <div class="action-buttons">
+      <button class="btn-secondary" (click)="startOver()">
+        <span class="material-icons">refresh</span>
+        <span>Process Another Dataset</span>
+      </button>
+
+      <div class="buttons-right">
+        <button class="btn-primary" (click)="goToDashboard()">
+          <span class="material-icons">dashboard</span>
+          <span>Open in Glyphspace</span>
+        </button>
+      </div>
+    </div>
+  }
+</div>

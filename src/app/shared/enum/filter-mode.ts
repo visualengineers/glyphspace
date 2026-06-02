@@ -1,4 +1,4 @@
 export enum FilterMode {
-    And,
-    Or
+  And,
+  Or,
 }

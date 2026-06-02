@@ -13,7 +13,7 @@ import { STEP_INFO } from '../../shared/constants/step-info';
   standalone: true,
   imports: [CommonModule, FormsModule, DataPreviewTableComponent, HelpTooltipComponent],
   templateUrl: './step1-upload.component.html',
-  styleUrl: './step1-upload.component.scss'
+  styleUrl: './step1-upload.component.scss',
 })
 export class Step1UploadComponent implements OnInit, OnDestroy {
   @Output() dataLoaded = new EventEmitter<DataProfile>();
@@ -95,8 +95,8 @@ export class Step1UploadComponent implements OnInit, OnDestroy {
       this.profile = await this.preprocessingService.loadCSV(file);
       // Don't emit here - let user review the data first
       // User will click "Continue to Column Selection" button to emit and proceed
-    } catch (err: any) {
-      this.error = err.message || 'Failed to load data file';
+    } catch (err: unknown) {
+      this.error = err instanceof Error ? err.message : 'Failed to load data file';
       this.profile = null;
     } finally {
       this.isLoading = false;
@@ -124,5 +124,4 @@ export class Step1UploadComponent implements OnInit, OnDestroy {
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
   }
-
 }

@@ -19,7 +19,7 @@ export interface ColumnStatistics {
   variance?: number;
 
   // Categorical statistics
-  topValues?: Array<{ value: string; count: number }>;
+  topValues?: { value: string; count: number }[];
 
   // Histogram data
   histogram?: HistogramData;
@@ -43,5 +43,5 @@ export interface DataProfile {
   columns: ColumnStatistics[];
   qualityScore: number;
   duplicateCount: number;
-  previewRows: any[];
+  previewRows: Record<string, unknown>[];
 }

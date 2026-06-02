@@ -1,8 +1,0 @@
-<div class="wizard-histogram">
-  @if (data && data.counts.length > 0) {
-    <div class="chart-container" #chartContainer></div>
-  } @else {
-    <div class="no-data">—</div>
-  }
-  <div class="hover-label" [class.visible]="showHoverLabel">{{ hoverLabel || '&nbsp;' }}</div>
-</div>

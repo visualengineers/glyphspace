@@ -1,0 +1,305 @@
+@use 'sass:color';
+@use '../../shared/wizard-shared' as w;
+@use '../../../../styles/variables' as v;
+
+.step5-review-processing {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+
+  .step-content {
+    @include w.step-content;
+  }
+
+  .step-header {
+    @include w.step-header;
+  }
+
+  // Review Section
+  .review-section {
+    .summary-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+
+      .summary-card {
+        display: flex;
+        gap: 12px;
+        padding: 14px;
+        background: white;
+        border: 1px solid v.$gray-300;
+        border-radius: 4px;
+
+        .card-icon {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 40px;
+          height: 40px;
+          background: rgba(v.$active-color, 0.1);
+          border-radius: 50%;
+
+          .material-icons {
+            font-size: 22px;
+            color: v.$active-color;
+          }
+        }
+
+        .card-content {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+
+          .card-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: v.$gray-600;
+            text-transform: uppercase;
+          }
+
+          .card-value {
+            font-size: 16px;
+            font-weight: 700;
+            color: v.$gray-800;
+          }
+        }
+      }
+    }
+
+    .columns-table {
+      @include w.table-container;
+      margin-bottom: 16px;
+
+      table {
+        @include w.table;
+      }
+
+      .column-name-text {
+        @include w.column-name-text;
+      }
+
+      .color-badge {
+        display: inline-flex;
+        align-items: center;
+        margin-left: 6px;
+
+        .material-icons {
+          font-size: 14px;
+          color: v.$active-color;
+        }
+      }
+
+      .data-type-badge {
+        @include w.badge;
+      }
+
+      .text-muted {
+        font-size: 12px;
+        color: v.$gray-500;
+        font-style: italic;
+      }
+
+      .status-badge {
+        @include w.status-badge;
+      }
+    }
+
+    .info-box {
+      @include w.info-box;
+    }
+  }
+
+  // Processing Section
+  .processing-view,
+  .success-view {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 400px;
+
+    .processing-card,
+    .success-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      padding: 40px;
+      background: white;
+      border: 1px solid v.$gray-300;
+      border-radius: 8px;
+      max-width: 600px;
+      text-align: center;
+
+      .processing-icon,
+      .success-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 80px;
+        height: 80px;
+        background: rgba(v.$active-color, 0.1);
+        border-radius: 50%;
+
+        .material-icons {
+          font-size: 48px;
+
+          &.spinning {
+            color: v.$active-color;
+            animation: spin 1s linear infinite;
+          }
+        }
+      }
+
+      .success-icon {
+        background: rgba(v.$status-success, 0.1);
+
+        .material-icons {
+          color: v.$status-success;
+        }
+      }
+
+      h3 {
+        font-size: 20px;
+        font-weight: 700;
+        color: v.$gray-800;
+        margin: 0;
+      }
+
+      .processing-message,
+      .success-message {
+        font-size: 14px;
+        color: v.$gray-600;
+      }
+
+      .progress-bar {
+        @include w.progress-bar;
+        width: 100%;
+        max-width: 400px;
+        height: 8px;
+      }
+
+      .progress-fill {
+        @include w.progress-fill;
+      }
+
+      .progress-text {
+        font-size: 16px;
+        font-weight: 700;
+        color: v.$active-color;
+      }
+
+      .success-stats {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        width: 100%;
+
+        .stat-item {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          font-size: 14px;
+          color: v.$gray-700;
+
+          .material-icons {
+            font-size: 18px;
+            color: v.$status-success;
+          }
+        }
+      }
+
+      .background-status-section {
+        width: 100%;
+        padding-top: 16px;
+        border-top: 1px solid v.$gray-300;
+
+        h4 {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          font-size: 14px;
+          font-weight: 600;
+          color: v.$gray-700;
+          margin-bottom: 12px;
+
+          .material-icons {
+            font-size: 18px;
+          }
+        }
+
+        .projection-status-list {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+
+          .projection-status-item {
+            padding: 10px;
+            background: v.$gray-100;
+            border-radius: 4px;
+
+            .status-header {
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              margin-bottom: 6px;
+
+              .method-name {
+                font-size: 13px;
+                font-weight: 600;
+                color: v.$gray-800;
+              }
+
+              .status-badge {
+                @include w.status-badge;
+              }
+            }
+
+            .progress-bar-small {
+              @include w.progress-bar;
+              height: 4px;
+              margin-bottom: 4px;
+
+              .progress-fill-small {
+                @include w.progress-fill;
+              }
+            }
+
+            .status-message {
+              font-size: 12px;
+              color: v.$gray-600;
+              margin: 0;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  .error-message {
+    @include w.message-error;
+  }
+
+  // Action Buttons
+  .action-buttons {
+    @include w.action-buttons-footer;
+
+    .btn-secondary {
+      @include w.btn-secondary;
+    }
+
+    .buttons-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-left: auto;
+    }
+
+    .btn-primary {
+      @include w.btn-primary;
+    }
+  }
+}

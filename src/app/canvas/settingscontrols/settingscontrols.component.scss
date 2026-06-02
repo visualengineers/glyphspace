@@ -2,634 +2,358 @@
 @use '../../../styles/mixins' as m;
 
 .settings-panel {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px;
+  background-color: v.$gray-100;
+  border-bottom: 1px solid v.$gray-200;
+  z-index: 400;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  position: relative;
+  height: 34px;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease;
+
+  &.active {
+    background-color: v.$ui-active-bg;
+    border-bottom: 1px solid v.$ui-active-border;
+  }
+
+  .settings-overlay {
     position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    display: flex;
-    justify-content: space-between;
-    /* left and right aligned */
-    align-items: center;
-    padding: 12px 14px;
-    /* extra horizontal padding to avoid clipping */
-    background-color: v.$gray-100;
-    border-top: none;
-    border-bottom: 1px solid v.$gray-200;
-    /* dark blue bottom line */
-    z-index: 400;
-
-    box-sizing: border-box;
-    /* ensures padding is counted inside width */
-
-    /* Initially hidden */
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.2s ease;
-
-    &.active {
-        background-color: #e6f0ff;
-        border-bottom: 1px solid #b3d2ff;
-    }
-
-    .settings-overlay {
-        position: absolute;
-        top: 90%;
-        left: 14px;
-        /* align with left edge of white button group */
-        margin-top: 4px;
-        background: white;
-        border-radius: 10px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        z-index: 450;
-
-        .overlay-content {
-            padding: 12px;
-            min-width: 200px;
-        }
-    }
-}
-
-.settings-panel.visible {
-    opacity: 1;
-    pointer-events: auto;
-    /* enable interaction */
-}
-
-/* White button group on left */
-.settings-buttons {
-    display: flex;
-    gap: 4px;
-    background: white;
-    padding: 4px 8px;
+    top: 100%;
+    left: 12px;
+    margin-top: 4px;
+    background: v.$white;
     border-radius: 10px;
+    box-shadow: v.$shadow-md;
+    z-index: 450;
+
+    .overlay-content {
+      padding: 12px;
+      min-width: 200px;
+    }
+  }
 }
 
-.setting-btn {
-    border: none;
-    border-radius: 8px;
-    background: white;
+.header-info {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.info-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  font-size: 12px;
+  line-height: 1.2;
+
+  &.clickable {
     cursor: pointer;
-    padding: 6px 10px;
-    font-size: 14px;
-    transition: all 0.2s ease;
-    color: v.$gray-600;
+    border-radius: 4px;
+    padding: 3px 8px;
+    border: 1px solid v.$ui-border-light;
+    background: v.$white;
 
-    span {
-        color: v.$gray-500;
-        transition: all 0.2s ease;
-    }
-
-    &:hover:not(.active) {
-        background: #f0f4ff;
+    &:hover {
+      border-color: v.$ui-accent-blue;
+      background: v.$ui-hover-bg;
     }
 
     &.active {
-        background: v.$color-blue-highlight;
-        color: white;
-
-        span {
-            color: white;
-        }
-    }
-}
-
-/* Right-aligned action buttons */
-.settings-actions {
-    display: flex;
-    gap: 2px;
-
-    /* make sure buttons stay inside the panel */
-    margin-right: 0;
-    /* remove any negative or large margin */
-    flex-shrink: 0;
-    /* prevent shrinking when panel width is constrained */
-
-    .action-btn {
-        background: transparent;
-        border: none;
-        cursor: pointer;
+      border-color: v.$ui-accent-blue;
+      background: v.$ui-active-pressed-bg;
+      .info-label {
         color: v.$gray-600;
-        font-size: 20px;
-        padding: 4px;
-
-        &:hover {
-            color: v.$color-blue-highlight;
-        }
-
-        &:disabled {
-            opacity: 0.3;
-            cursor: auto;
-            pointer-events: none;
-        }
+      }
+      .info-value {
+        color: v.$gray-800;
+      }
     }
+  }
 }
 
-.position-menu {
-    display: flex;
-    flex-direction: column;
-    gap: 24px;
-    min-width: 260px;
+.info-label {
+  color: v.$gray-500;
+}
+
+.info-value {
+  color: v.$gray-800;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.color-swatch {
+  display: inline-block;
+  width: 48px;
+  height: 10px;
+  border-radius: 2px;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
+.settings-actions {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+
+  .action-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: v.$gray-500;
+    font-size: 18px;
+    padding: 4px;
+
+    &:hover {
+      color: v.$gray-800;
+    }
+
+    &:disabled {
+      opacity: 0.3;
+      cursor: auto;
+      pointer-events: none;
+    }
+  }
 }
 
 .form-group {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    margin-bottom: 12px;
-
-    select {
-        appearance: none;
-        padding: 8px 12px;
-        border-radius: 8px;
-        border: 1px solid #d0d0d0;
-        background: white;
-        font-size: 13px;
-        cursor: pointer;
-        color: v.$gray-700;
-
-        &:focus {
-            outline: none;
-            border-color: v.$color-blue-highlight;
-        }
-    }
+  @include m.form-group;
+  margin-bottom: 12px;
 }
 
 .menu-label {
-    font-size: 10px;
-    font-weight: 500;
-    color: v.$gray-600;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
+  @include m.menu-label;
 }
 
-/* Toggle buttons */
 .toggle-group.horizontal {
-    display: flex;
-    gap: 8px;
-    margin-top: 12px;
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
 
-    .toggle-btn {
-        flex: 1;
-        /* equal width buttons */
-        text-align: center;
-        /* better balance side-by-side */
-        padding: 10px 8px;
-    }
+  .toggle-btn {
+    flex: 1;
+    text-align: center;
+    padding: 10px 8px;
+  }
 }
 
 .toggle-btn {
-    width: 100%;
-    padding: 10px 12px;
-    border-radius: 10px;
-    border: 1px solid #d0d0d0;
-    background: white;
-    font-size: 13px;
-    text-align: left;
-    cursor: pointer;
-    transition: background-color 0.15s ease, border-color 0.15s ease;
-    color: v.$gray-700;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid v.$ui-border-light;
+  background: v.$white;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease;
+  color: v.$gray-700;
 
-    &:hover {
-        border-color: #6aa9ff;
-    }
+  &:hover {
+    border-color: v.$ui-accent-blue;
+  }
 
-    &.active {
-        background: v.$color-blue-highlight;
-        border-color: #6aa9ff;
-        color: white;
-    }
+  &.active {
+    background: v.$color-blue-highlight;
+    border-color: v.$ui-accent-blue;
+    color: v.$white;
+  }
 }
 
 .animation-control-group {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .animation-controls {
-    display: flex;
-    align-items: center;
-    gap: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
-/* Reusable icon button */
 .icon-btn {
-    width: 32px;
-    height: 32px;
-    border-radius: 8px;
-    border: 1px solid #d0d0d0;
-    background: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition:
-        background-color 0.15s ease,
-        border-color 0.15s ease;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid v.$ui-border-light;
+  background: v.$white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease;
+
+  i {
+    font-size: 18px;
+    color: v.$gray-700;
+  }
+
+  &:hover {
+    border-color: v.$ui-accent-blue;
+  }
+
+  &.active {
+    background: v.$ui-active-pressed-bg;
+    border-color: v.$ui-accent-blue;
 
     i {
-        font-size: 18px;
-        color: #444;
+      color: v.$color-blue-highlight;
     }
-
-    &:hover {
-        border-color: #6aa9ff;
-    }
-
-    &.active {
-        background: #dbe9ff;
-        border-color: #6aa9ff;
-
-        i {
-            color: v.$color-blue-highlight;
-        }
-    }
+  }
 }
 
 .play-btn {
-    flex: 1;
-    /* ← fills remaining horizontal space */
-    justify-content: center;
-    border-radius: 10px;
-    min-width: 56px;
+  flex: 1;
+  justify-content: center;
+  border-radius: 10px;
+  min-width: 56px;
 }
 
-/* Speed display */
 .speed-display {
-    min-width: 36px;
-    height: 32px;
-    padding: 0 8px;
-    border-radius: 8px;
-    background: #f5f7fa;
-    border: 1px solid #e0e0e0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 13px;
-    font-weight: 500;
-    color: #444;
-}
-
-/* Checkbox row */
-.checkbox-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 13px;
-    color: v.$gray-600;
-    cursor: pointer;
-    user-select: none;
-    margin-bottom: 14px;
-
-    input[type="checkbox"] {
-        display: none; // hide native checkbox
-    }
-
-    .custom-checkbox {
-        width: 14px;
-        height: 14px;
-        border-radius: 6px;
-        border: 1px solid #d0d0d0;
-        background: white;
-        display: inline-block;
-        position: relative;
-        transition: all 0.2s ease;
-
-        /* center dot */
-        &::after {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 6px;
-            height: 6px;
-            background-color: white;
-            /* default invisible */
-            border-radius: 50%;
-            transform: translate(-50%, -50%) scale(0);
-            transition: transform 0.2s ease, background-color 0.2s ease;
-        }
-    }
-
-    input[type="checkbox"]:checked+.custom-checkbox {
-        background-color: v.$color-blue-highlight;
-        /* $color-blue-highlight */
-        border-color: #1e88e5;
-
-        &::after {
-            background-color: white;
-            /* the dot is white on blue */
-            transform: translate(-50%, -50%) scale(1);
-        }
-    }
-
-    .label-text {
-        user-select: none;
-    }
-}
-
-/* Color scale selector */
-.color-scale-select {
-    position: relative;
-    cursor: pointer;
-    user-select: none;
-
-    .selected-scale {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-        padding: 6px 8px;
-        border-radius: 8px;
-        border: 1px solid #d0d0d0;
-        background: white;
-
-        /* Custom arrow */
-        &::after {
-            content: "";
-            display: inline-block;
-            width: 16px;
-            height: 16px;
-            margin-left: auto;
-            background-image: url("data:image/svg+xml;utf8,<svg fill='none' stroke='%23333' stroke-width='2' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'><path d='M6 9l6 6 6-6'/></svg>");
-            background-repeat: no-repeat;
-            background-position: center;
-            background-size: 16px 16px;
-        }
-    }
-
-    .dropdown-icon {
-        margin-left: auto;
-        font-size: 20px;
-        color: #666;
-    }
-
-    .color-scale-group-label {
-        font-size: 11px;
-        font-weight: 500;
-        color: #888;
-        padding: 4px 6px 2px;
-        text-transform: uppercase;
-    }
-
-    .color-scale-group-divider {
-        height: 1px;
-        background: #e0e0e0;
-        margin: 6px 0;
-    }
-
-    .color-scale-options {
-        position: absolute;
-        top: 100%;
-        left: 0;
-        width: 95%;
-        background: white;
-        border: 1px solid #d0d0d0;
-        border-radius: 8px;
-        margin-top: 4px;
-        z-index: 10;
-        display: flex;
-        flex-direction: column;
-        padding: 4px;
-    }
-
-    .color-scale-option {
-        display: flex;
-        gap: 4px;
-        padding: 4px;
-        border-radius: 6px;
-
-        &:hover {
-            background: #f0f5ff;
-        }
-
-        .color-box {
-            flex: 1;
-            /* ← each box fills equal space */
-            height: 20px;
-            /* adjust as needed */
-            border-radius: 4px;
-        }
-
-        .color-gradient {
-            width: 100%;
-            height: 20px;
-            border-radius: 4px;
-        }
-    }
-
-    .selected-scale .color-box {
-        flex: 1;
-        height: 20px;
-        border-radius: 4px;
-    }
-
-    .selected-scale .color-gradient {
-        width: 100%;
-        height: 20px;
-        border-radius: 4px;
-    }
+  min-width: 36px;
+  height: 32px;
+  padding: 0 8px;
+  border-radius: 8px;
+  background: v.$ui-bg-light;
+  border: 1px solid v.$gray-200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 500;
+  color: v.$gray-700;
 }
 
 /* Background projection status */
 .projection-status-list {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    max-height: 150px;
-    overflow-y: scroll;  // Always show scrollbar area
-    overflow-x: hidden;
-    overscroll-behavior: contain;  // Prevent scroll chaining to parent
-    -webkit-overflow-scrolling: touch;  // Smooth scrolling on iOS
-    touch-action: pan-y;  // Allow vertical touch/wheel scrolling
-    pointer-events: auto;  // Ensure this element captures pointer events
-
-    // Scrollbar styling
-    &::-webkit-scrollbar {
-        width: 6px;
-    }
-
-    &::-webkit-scrollbar-track {
-        background: #f0f0f0;
-        border-radius: 3px;
-    }
-
-    &::-webkit-scrollbar-thumb {
-        background: #ccc;
-        border-radius: 3px;
-
-        &:hover {
-            background: #aaa;
-        }
-    }
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 150px;
+  overflow-y: scroll;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  pointer-events: auto;
+  @include m.styled-scrollbar-thin;
 }
 
 .projection-status-item {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    padding: 6px 8px;
-    border-radius: 6px;
-    background: #f5f7fa;
-    border: 1px solid #e0e0e0;
-    opacity: 1;
-    transition: opacity 0.5s ease-out;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: v.$ui-bg-light;
+  border: 1px solid v.$gray-200;
+  opacity: 1;
+  transition: opacity 0.5s ease-out;
 
-    &.fading {
-        opacity: 0;
-    }
+  &.fading {
+    opacity: 0;
+  }
 
-    &.status-running {
-        background: #fff8e6;
-        border-color: #ffd666;
-    }
+  &.status-running {
+    background: v.$proj-running-bg;
+    border-color: v.$proj-running-border;
+  }
 
-    &.status-complete {
-        background: #e6f7e6;
-        border-color: #95de95;
-    }
+  &.status-complete {
+    background: v.$proj-complete-bg;
+    border-color: v.$proj-complete-border;
+  }
 
-    &.status-error {
-        background: #fee;
-        border-color: #faa;
-    }
+  &.status-error {
+    background: v.$proj-error-bg;
+    border-color: v.$proj-error-border;
+  }
 
-    &.status-pending {
-        background: #f5f5f5;
-        border-color: #ddd;
-    }
+  &.status-pending {
+    background: v.$gray-100;
+    border-color: v.$gray-200;
+  }
 }
 
 .status-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .method-name {
-    font-size: 12px;
-    font-weight: 500;
-    color: v.$gray-700;
+  font-size: 12px;
+  font-weight: 500;
+  color: v.$gray-700;
 }
 
 .status-indicator {
-    display: flex;
-    align-items: center;
+  display: flex;
+  align-items: center;
 
-    .material-icons {
-        font-size: 16px;
-    }
+  .material-icons {
+    font-size: 16px;
+  }
 
-    &.running .material-icons {
-        color: #f5a623;
-    }
+  &.running .material-icons {
+    color: v.$proj-running;
+  }
 
-    &.complete .material-icons {
-        color: #52c41a;
-    }
+  &.complete .material-icons {
+    color: v.$proj-complete;
+  }
 
-    &.error .material-icons {
-        color: #ff4d4f;
-    }
+  &.error .material-icons {
+    color: v.$proj-error;
+  }
 
-    &.pending .material-icons {
-        color: #999;
-    }
-}
-
-.spinning {
-    animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-    from {
-        transform: rotate(0deg);
-    }
-    to {
-        transform: rotate(360deg);
-    }
+  &.pending .material-icons {
+    color: v.$color-gray-border;
+  }
 }
 
 .progress-bar-mini {
-    height: 3px;
-    background: #e0e0e0;
-    border-radius: 2px;
-    overflow: hidden;
+  height: 3px;
+  background: v.$gray-200;
+  border-radius: 2px;
+  overflow: hidden;
 
-    // Indeterminate progress animation
-    &.indeterminate .progress-fill-mini {
-        width: 30% !important;
-        animation: indeterminate-progress 1.5s ease-in-out infinite;
-    }
+  &.indeterminate .progress-fill-mini {
+    width: 30% !important;
+    animation: indeterminate-progress 1.5s ease-in-out infinite;
+  }
 }
 
 @keyframes indeterminate-progress {
-    0% {
-        transform: translateX(-100%);
-    }
-    50% {
-        transform: translateX(200%);
-    }
-    100% {
-        transform: translateX(-100%);
-    }
+  0% {
+    transform: translateX(-100%);
+  }
+  50% {
+    transform: translateX(200%);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
 }
 
 .progress-fill-mini {
-    height: 100%;
-    background: #f5a623;
-    border-radius: 2px;
-    transition: width 0.3s ease;
-}
-
-.control-cell {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    position: relative;
-    max-width: 260px;
-
-    .dashboard-button {
-        width: 41px;
-        height: 41px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        background: transparent;
-        border: 1px solid #999;
-        cursor: pointer;
-        color: v.$gray-600;
-        font-size: 24px;
-        position: relative;
-
-        &:focus-visible {
-            outline: none;
-            box-shadow: none;
-        }
-
-        &:hover {
-            color: #000;
-        }
-
-        &.active {
-            border-color: v.$color-blue-highlight;
-            color: v.$color-blue-highlight;
-        }
-
-        @include m.tooltip-below(28px);
-    }
-
-    .config-toggle {
-        padding: 8px 10px;
-        font-size: 11px;
-        background-color: #ccc;
-        border: none;
-        cursor: pointer;
-        border-radius: 0px;
-        transition: background-color 0.2s;
-
-        &.active {
-            background-color: v.$color-blue-highlight;
-            color: white;
-        }
-    }
+  height: 100%;
+  background: v.$proj-running;
+  border-radius: 2px;
+  transition: width 0.3s ease;
 }

@@ -1,57 +1,59 @@
 <div class="step2-column-selection">
-  <div class="step-header">
-    <h2>{{ stepInfo.title }}</h2>
-    <p class="step-purpose">{{ stepInfo.purpose }}</p>
-  </div>
-
-  <!-- Info Box -->
-  <div class="info-box">
-    <span class="material-icons">info</span>
-    <div>
-      <strong>Tip:</strong> Start by deselecting ID columns and text fields unless needed for tooltips.
-      You can search by column name or type (e.g., "numeric").
+  <div class="step-content">
+    <div class="step-header">
+      <h2>{{ stepInfo.title }}</h2>
+      <p class="step-purpose">{{ stepInfo.purpose }}</p>
     </div>
-  </div>
 
-  <div class="column-actions">
-    <div class="search-box">
-      <span class="material-icons">search</span>
-      <input
-        type="text"
-        [(ngModel)]="searchTerm"
-        placeholder="Search by name or type (e.g., 'numeric')..."
-        class="search-input">
-      @if (searchTerm) {
-        <button class="clear-search" (click)="searchTerm = ''">
-          <span class="material-icons">close</span>
+    <!-- Info Box -->
+    <div class="info-box">
+      <span class="material-icons">info</span>
+      <div>
+        <strong>Tip:</strong> Start by deselecting ID columns and text fields unless needed for tooltips. You can search
+        by column name or type (e.g., "numeric").
+      </div>
+    </div>
+
+    <div class="column-actions">
+      <div class="search-box">
+        <span class="material-icons">search</span>
+        <input
+          type="text"
+          [(ngModel)]="searchTerm"
+          placeholder="Search by name or type (e.g., 'numeric')..."
+          class="search-input"
+        />
+        @if (searchTerm) {
+          <button class="clear-search" (click)="searchTerm = ''">
+            <span class="material-icons">close</span>
+          </button>
+        }
+      </div>
+
+      <div class="selection-controls">
+        <button class="btn-text" (click)="selectAll()">
+          <span class="material-icons">check_box</span>
+          Select All
         </button>
-      }
-    </div>
-
-    <div class="selection-controls">
-      <button class="btn-text" (click)="selectAll()">
-        <span class="material-icons">check_box</span>
-        Select All
-      </button>
-      <button class="btn-text" (click)="deselectAll()">
-        <span class="material-icons">check_box_outline_blank</span>
-        Deselect All
-      </button>
-      <div class="selection-summary">
-        <span class="count-badge enabled">{{ enabledCount }} selected</span>
-        <span class="count-badge disabled">{{ disabledCount }} excluded</span>
+        <button class="btn-text" (click)="deselectAll()">
+          <span class="material-icons">check_box_outline_blank</span>
+          Deselect All
+        </button>
+        <div class="selection-summary">
+          <span class="count-badge enabled">{{ enabledCount }} selected</span>
+          <span class="count-badge disabled">{{ disabledCount }} excluded</span>
+        </div>
       </div>
     </div>
-  </div>
 
-  <!-- Columns Table -->
-  <div class="columns-table-container">
-    @if (filteredColumns.length === 0) {
-      <div class="no-results">
-        <span class="material-icons">search_off</span>
-        <p>No columns match your search</p>
-      </div>
-    } @else {
+    <!-- Columns Table -->
+    <div class="columns-table-container">
+      @if (filteredColumns.length === 0) {
+        <div class="no-results">
+          <span class="material-icons">search_off</span>
+          <p>No columns match your search</p>
+        </div>
+      } @else {
         <table class="columns-table">
           <thead>
             <tr>
@@ -61,7 +63,8 @@
                   [checked]="enabledCount === columns.length"
                   [indeterminate]="enabledCount > 0 && enabledCount < columns.length"
                   (change)="toggleAllColumns()"
-                  title="Toggle all columns">
+                  title="Toggle all columns"
+                />
               </th>
               <th class="col-name">Column Name</th>
               <th class="col-type">
@@ -86,7 +89,10 @@
               <th class="col-distribution">
                 <span class="header-with-tooltip">
                   Distribution
-                  <app-help-tooltip [helpText]="HELP_TEXT.tableHeaders.distribution" position="bottom"></app-help-tooltip>
+                  <app-help-tooltip
+                    [helpText]="HELP_TEXT.tableHeaders.distribution"
+                    position="bottom"
+                  ></app-help-tooltip>
                 </span>
               </th>
             </tr>
@@ -96,15 +102,16 @@
               <tr
                 class="column-row"
                 [class.disabled]="!isColumnEnabled(column.name)"
-                [class.has-issues]="hasIssues(column)">
-
+                [class.has-issues]="hasIssues(column)"
+              >
                 <!-- Checkbox -->
                 <td class="col-checkbox">
                   <input
                     type="checkbox"
                     [checked]="isColumnEnabled(column.name)"
                     (change)="toggleColumn(column.name)"
-                    [id]="'col-' + column.name">
+                    [id]="'col-' + column.name"
+                  />
                 </td>
 
                 <!-- Column Name -->
@@ -119,11 +126,7 @@
 
                 <!-- Data Type -->
                 <td class="col-type">
-                  <span
-                    class="data-type-badge"
-                    [ngClass]="getDataTypeBadgeClass(column.dataType)">
-                    {{ getDataTypeLabel(column.dataType) }}
-                  </span>
+                  <app-data-type-badge [dataType]="column.dataType"></app-data-type-badge>
                 </td>
 
                 <!-- Count -->
@@ -154,14 +157,16 @@
                 <!-- Distribution -->
                 <td class="col-distribution">
                   @if (getColumnHistogramData(column); as histogramData) {
-                    <app-wizard-histogram
+                    <app-mini-histogram
                       [data]="histogramData"
                       [dataType]="column.dataType"
-                      [color]="getDataTypeColor(column.dataType)"
+                      [color]="getDataTypeBgColor(column.dataType)"
+                      [hoverColor]="getDataTypeColor(column.dataType)"
                       [width]="112"
-                      [height]="50"
-                      [enabled]="isColumnEnabled(column.name)">
-                    </app-wizard-histogram>
+                      [height]="25"
+                      [enabled]="isColumnEnabled(column.name)"
+                    >
+                    </app-mini-histogram>
                   } @else {
                     <span class="text-muted">—</span>
                   }
@@ -170,7 +175,8 @@
             }
           </tbody>
         </table>
-    }
+      }
+    </div>
   </div>
 
   <div class="action-buttons">
@@ -187,10 +193,7 @@
         </div>
       }
 
-      <button
-        class="btn-primary"
-        (click)="onContinue()"
-        [disabled]="enabledCount === 0">
+      <button class="btn-primary" (click)="onContinue()" [disabled]="enabledCount === 0">
         Continue to Configure Data & Features
         <span class="material-icons">arrow_forward</span>
       </button>

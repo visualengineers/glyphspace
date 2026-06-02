@@ -1,96 +1,130 @@
-<div class="settings-panel" [class.active]="panelActive" [class.visible]="visible || panelActive">
-  <!-- Left-aligned white button group -->
-  <div class="settings-buttons">
-    <button class="setting-btn" [class.active]="activeSetting==='position'" (click)="toggleSetting('position')">
-      Position:
-      <span>{{ this.selectedAlgorithm }}</span>
-    </button>
+<div class="settings-panel" [class.active]="panelActive">
+  <div class="header-info">
+    <span
+      class="info-item clickable"
+      tabindex="0"
+      role="button"
+      [class.active]="activeSetting === 'position'"
+      (click)="toggleSetting('position')"
+      (keydown.enter)="toggleSetting('position')"
+      (keydown.space)="toggleSetting('position')"
+    >
+      <span class="info-label">Pos:</span>
+      <span class="info-value">{{ selectedAlgorithm }}</span>
+    </span>
 
-    <button class="setting-btn" [class.active]="activeSetting==='color'" (click)="toggleSetting('color')">
-      Color:
-      <span>{{ getFeatureName(this.selectedColorAttribute) }}</span>
-    </button>
+    @if (selectedTimestamp) {
+      <span class="info-item">
+        <span class="info-label">Time:</span>
+        <span class="info-value">{{ selectedTimestamp }}</span>
+      </span>
+    }
 
-    <button class="setting-btn" [class.active]="activeSetting==='glyph'" (click)="toggleSetting('glyph')">
-      Glyph:
-      <span>{{ getGlyphName(this.glyphConfig.glyphType) }}</span>
-    </button>
+    @if (colorFeatureLabel) {
+      <span class="info-item">
+        <span class="info-label">Color:</span>
+        <span class="info-value">{{ colorFeatureLabel }}</span>
+        <span class="color-swatch" [style.background]="colorGradientStyle"></span>
+      </span>
+    }
   </div>
 
-  <!-- Right-aligned action buttons -->
   <div class="settings-actions">
-    <button class="action-btn" (click)="takeScreenshot.emit()" title="Screenshot of canvas">
-      <span class="material-icons">photo_camera</span>
-    </button>
-    <button class="action-btn" (click)="clearSelection()" title="Clear selection and filters">
-      <span class="material-icons">filter_alt_off</span>
-    </button>
     <button class="action-btn" (click)="fitToView.emit()" title="Fit to screen">
-      <span class="material-icons">fullscreen</span>
+      <span class="material-icons">crop_free</span>
+    </button>
+    <button
+      class="action-btn"
+      (click)="toggleMaximize.emit()"
+      [class.active]="maximized"
+      [title]="maximized ? 'Restore canvas' : 'Maximize canvas'"
+    >
+      <span class="material-icons">{{ maximized ? 'close_fullscreen' : 'open_in_full' }}</span>
     </button>
     <button class="action-btn" (click)="triggerDelete()" [disabled]="totalCells <= 1" title="Remove canvas">
-      <span class="material-icons">close</span>
+      <span class="material-icons">delete_outline</span>
     </button>
   </div>
 
-  <!-- Pop-up overlay menus -->
-  <div class="settings-overlay" *ngIf="activeSetting">
-    <ng-container [ngSwitch]="activeSetting">
-
-      <div *ngSwitchCase="'position'" class="overlay-content">
+  <!-- Pop-up overlay menu -->
+  @if (activeSetting === 'position') {
+    <div class="settings-overlay">
+      <div class="overlay-content">
         <!-- TIME STAMP -->
         <div class="form-group">
-          <label class="menu-label">TIME STAMP</label>
-          <select [(ngModel)]="selectedTimestamp" (ngModelChange)="emitSettingsChange()">
-            <option *ngFor="let t of timestamps" [value]="t">{{ t }}</option>
+          <label class="menu-label" for="settings-timestamp">TIME STAMP</label>
+          <select id="settings-timestamp" [(ngModel)]="selectedTimestamp" (ngModelChange)="emitSettingsChange()">
+            @for (t of timestamps; track t) {
+              <option [value]="t">{{ t }}</option>
+            }
           </select>
         </div>
 
         <!-- DIMENSIONALITY REDUCTION -->
         <div class="form-group">
-          <label class="menu-label">DIMENSIONALITY REDUCTION</label>
-          <select [(ngModel)]="selectedAlgorithm" (ngModelChange)="emitSettingsChange()">
-            <option *ngFor="let algo of algorithms" [value]="algo">{{ algo }}</option>
+          <label class="menu-label" for="settings-algorithm">DIMENSIONALITY REDUCTION</label>
+          <select id="settings-algorithm" [(ngModel)]="selectedAlgorithm" (ngModelChange)="emitSettingsChange()">
+            @for (algo of algorithms; track algo) {
+              <option [value]="algo">{{ algo }}</option>
+            }
           </select>
         </div>
 
         <!-- BACKGROUND PROJECTION STATUS -->
-        <div class="form-group" *ngIf="backgroundProjections.length > 0">
-          <label class="menu-label">BACKGROUND PROJECTIONS</label>
-          <div class="projection-status-list" (wheel)="$event.stopPropagation()">
-            <div *ngFor="let proj of backgroundProjections" class="projection-status-item" [ngClass]="'status-' + proj.status" [class.fading]="proj.fading">
-              <div class="status-row">
-                <span class="method-name">{{ proj.method }}</span>
-                <span class="status-indicator" [ngClass]="proj.status">
-                  <ng-container [ngSwitch]="proj.status">
-                    <span *ngSwitchCase="'running'" class="material-icons spinning">sync</span>
-                    <span *ngSwitchCase="'complete'" class="material-icons">check_circle</span>
-                    <span *ngSwitchCase="'error'" class="material-icons">error</span>
-                    <span *ngSwitchCase="'pending'" class="material-icons">schedule</span>
-                  </ng-container>
-                </span>
-              </div>
-              <div *ngIf="proj.status === 'running'" class="progress-bar-mini" [class.indeterminate]="proj.progress === 0">
-                <div class="progress-fill-mini" [style.width.%]="proj.progress > 0 ? proj.progress : 100"></div>
-              </div>
+        @if (backgroundProjections.length > 0) {
+          <div class="form-group">
+            <label class="menu-label" for="settings-bg-projections">BACKGROUND PROJECTIONS</label>
+            <div id="settings-bg-projections" class="projection-status-list" (wheel)="$event.stopPropagation()">
+              @for (proj of backgroundProjections; track proj.method) {
+                <div class="projection-status-item" [ngClass]="'status-' + proj.status" [class.fading]="proj.fading">
+                  <div class="status-row">
+                    <span class="method-name">{{ proj.method }}</span>
+                    <span class="status-indicator" [ngClass]="proj.status">
+                      @switch (proj.status) {
+                        @case ('running') {
+                          <span class="material-icons spinning">sync</span>
+                        }
+                        @case ('complete') {
+                          <span class="material-icons">check_circle</span>
+                        }
+                        @case ('error') {
+                          <span class="material-icons">error</span>
+                        }
+                        @case ('pending') {
+                          <span class="material-icons">schedule</span>
+                        }
+                      }
+                    </span>
+                  </div>
+                  @if (proj.status === 'running') {
+                    <div class="progress-bar-mini" [class.indeterminate]="proj.progress === 0">
+                      <div class="progress-fill-mini" [style.width.%]="proj.progress > 0 ? proj.progress : 100"></div>
+                    </div>
+                  }
+                </div>
+              }
             </div>
           </div>
-        </div>
+        }
 
         <div class="animation-control-group">
-          <label class="menu-label">TRANSITION SPEED AND PLAYBACK</label>
+          <label class="menu-label" for="settings-speed-display">TRANSITION SPEED AND PLAYBACK</label>
           <div class="animation-controls">
             <button class="icon-btn" (click)="decreaseSpeed()" data-tooltip="Decrease speed">
               <i class="material-icons">remove</i>
             </button>
-            <div class="speed-display">
+            <div id="settings-speed-display" class="speed-display">
               {{ animationSpeed }}
             </div>
             <button class="icon-btn" (click)="increaseSpeed()" data-tooltip="Increase speed">
               <i class="material-icons">add</i>
             </button>
-            <button class="icon-btn play-btn" (click)="togglePaused()" [class.active]="!paused"
-              [attr.data-tooltip]="paused ? 'Play animation' : 'Pause animation'">
+            <button
+              class="icon-btn play-btn"
+              (click)="togglePaused()"
+              [class.active]="!paused"
+              [attr.data-tooltip]="paused ? 'Play animation' : 'Pause animation'"
+            >
               <i class="material-icons">
                 {{ paused ? 'play_arrow' : 'pause' }}
               </i>
@@ -109,137 +143,6 @@
           </button>
         </div>
       </div>
-
-      <div *ngSwitchCase="'color'" class="overlay-content">
-
-        <!-- Apply to all -->
-        <!-- <label class="checkbox-row">
-          <input type="checkbox" [(ngModel)]="applyColorToAll" (click)="$event.stopPropagation()" />
-          <span class="custom-checkbox"></span>
-          <span class="label-text">Color settings applied to all canvases</span>
-        </label> -->
-
-        <!-- Color attribute -->
-        <div class="form-group">
-          <label class="menu-label">COLOR ATTRIBUTE</label>
-          <select [(ngModel)]="selectedColorAttribute" (ngModelChange)="selectColor()" (click)="$event.stopPropagation()">
-            <option *ngFor="let featureId of featureIds" [value]="featureId">
-              {{ getFeatureName(featureId) }}
-            </option>
-          </select>
-        </div>
-
-        <!-- Color scale -->
-        <div class="form-group">
-          <label class="menu-label">COLOR SCALE</label>
-
-          <div class="color-scale-select" (click)="$event.stopPropagation(); toggleColorScaleDropdown()">
-            <div class="selected-scale" *ngIf="getSelectedScale() as scale">
-
-              <!-- NUMERIC -->
-              <div *ngIf="scale.type === 'numeric'" class="color-gradient"
-                [style.background]="getContinuousGradient(scale)"></div>
-
-              <!-- CATEGORICAL -->
-              <ng-container *ngIf="scale.type === 'categorical'">
-                <div class="color-box" *ngFor="let c of getCategoricalColors(scale)" [style.background]="c"></div>
-              </ng-container>
-
-            </div>
-
-            <div class="color-scale-options" *ngIf="colorScaleDropdownOpen">
-
-              <ng-container *ngFor="let group of groupedColorScales; let gi = index">
-
-                <!-- Group header -->
-                <div class="color-scale-group-label">
-                  {{ group.group }}
-                </div>
-
-                <!-- Group items -->
-                <div class="color-scale-option" *ngFor="let scale of group.scales"
-                  [class.active]="scale.id === selectedColorScaleId"
-                  (click)="selectColorScale(scale.id); colorScaleDropdownOpen = false; $event.stopPropagation()">
-
-                  <!-- NUMERIC -->
-                  <div *ngIf="scale.type === 'numeric'" class="color-gradient"
-                    [style.background]="getContinuousGradient(scale)"></div>
-
-                  <!-- CATEGORICAL -->
-                  <ng-container *ngIf="scale.type === 'categorical'">
-                    <div class="color-box" *ngFor="let c of getCategoricalColors(scale)" [style.background]="c"></div>
-                  </ng-container>
-
-                </div>
-
-                <!-- Divider (not after last group) -->
-                <div class="color-scale-group-divider" *ngIf="gi < groupedColorScales.length - 1"></div>
-
-              </ng-container>
-
-            </div>
-
-          </div>
-        </div>
-
-      </div>
-
-      <div *ngSwitchCase="'glyph'" class="overlay-content">
-
-        <!-- Apply to all -->
-        <!-- <label class="checkbox-row">
-          <input type="checkbox" [(ngModel)]="applyGlyphSettingsToAll" (click)="$event.stopPropagation()" />
-          <span class="custom-checkbox"></span>
-          <span class="label-text">Glyph settings applied to all canvases</span>
-        </label> -->
-
-        <div class="form-group">
-          <label class="menu-label">GLYPH TYPE</label>
-
-          <div class="control-cell">
-            <button class="dashboard-button" [class.active]="glyphConfig.glyphType === GlyphType.Star"
-              (click)="setGlyphType(GlyphType.Star)" data-tooltip="Star Shape">
-              <i class="material-icons">star</i>
-            </button>
-            <button class="dashboard-button" [class.active]="glyphConfig.glyphType === GlyphType.Flower"
-              (click)="setGlyphType(GlyphType.Flower)" data-tooltip="Flower Shape">
-              <i class="material-icons">local_florist</i>
-            </button>
-            <button class="dashboard-button" [class.active]="glyphConfig.glyphType === GlyphType.Whisker"
-              (click)="setGlyphType(GlyphType.Whisker)" data-tooltip="Whisker Shape">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                stroke-linecap="round" stroke-linejoin="round">
-                <!-- Spikes radiating from center (12,12) with varying lengths -->
-                <line x1="12" y1="12" x2="12" y2="2" /> <!-- Up, length 10 -->
-                <line x1="12" y1="12" x2="17" y2="5" /> <!-- Up-right, length ~7 -->
-                <line x1="12" y1="12" x2="22" y2="10" /> <!-- Right-up, length ~10 -->
-                <line x1="12" y1="12" x2="20" y2="17" /> <!-- Right-down, length ~8 -->
-                <line x1="12" y1="12" x2="12" y2="22" /> <!-- Down, length 10 -->
-                <line x1="12" y1="12" x2="7" y2="19" /> <!-- Down-left, length ~7 -->
-                <line x1="12" y1="12" x2="2" y2="14" /> <!-- Left-down, length ~10 -->
-                <line x1="12" y1="12" x2="4" y2="7" /> <!-- Left-up, length ~8 -->
-              </svg>
-            </button>
-            <button class="dashboard-button" [class.active]="glyphConfig.glyphType === GlyphType.Thumb"
-              (click)="setGlyphType(GlyphType.Thumb)" data-tooltip="Thumbnails">
-              <i class="material-icons">collections</i>
-            </button>
-          </div>
-
-        </div>
-
-        <div class="form-group">
-          <label class="menu-label">GLYPH SETTINGS</label>
-          <div class="control-cell config-toggle-group">
-            <button *ngFor="let opt of glyphConfig.glyphOptions" class="config-toggle"
-              [class.active]="isOptionEnabled(opt.property)" (click)="toggleOption(opt.property)">
-              {{ opt.label }}
-            </button>
-          </div>
-        </div>
-
-      </div>
-
-    </ng-container>
-  </div>
+    </div>
+  }
 </div>

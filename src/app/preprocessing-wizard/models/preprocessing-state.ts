@@ -24,9 +24,10 @@ export interface PreprocessingState {
   timestamp: string;
 
   // Glyph property mapping
-  glyphFeatures: string[];      // Array of 5 feature names for glyph rays (ordered)
-  tooltipFeatures: string[];    // Array of feature names for tooltips
-  colorScaleMode: 'continuous' | 'categorical';  // Auto-detected based on color feature data type
+  glyphFeatures: string[]; // Array of 5 feature names for glyph rays (ordered)
+  tooltipFeatures: string[]; // Array of feature names for tooltips
+  colorScaleMode: 'continuous' | 'categorical'; // Auto-detected based on color feature data type
+  colorScaleId: number; // ID of selected color scale from COLOR_SCALES
 
   // UI state
   isProcessing: boolean;
@@ -42,22 +43,22 @@ export interface ProcessingProgress {
 }
 
 export const DEFAULT_CLEANING_CONFIG: CleaningConfig = {
-  removeDuplicates: false
+  removeDuplicates: false,
 };
 
 export const DEFAULT_PROJECTION_CONFIG: ProjectionConfig = {
   // FastMap is always enabled as primary (runs immediately, O(n) complexity)
   // These are optional background projections:
-  enablePCA: true,        // PCA runs in background - very fast
-  enableIsoMap: true,     // IsoMap runs in background - fast, preserves geodesic distances
-  enableMDS: false,       // MDS runs in background - fast
-  enableLLE: false,       // LLE runs in background - medium
-  enableLTSA: false,      // LTSA runs in background - medium
-  enableTSNE: false,      // t-SNE runs in background (slow)
-  enableUMAP: false,      // UMAP runs in background (slow)
-  enableTriMap: false,    // TriMap runs in background - medium
-  enableTopoMap: false,   // TopoMap runs in background - medium
-  enableSammon: false,    // Sammon runs in background - medium
+  enablePCA: true, // PCA runs in background - very fast
+  enableIsoMap: true, // IsoMap runs in background - fast, preserves geodesic distances
+  enableMDS: false, // MDS runs in background - fast
+  enableLLE: false, // LLE runs in background - medium
+  enableLTSA: false, // LTSA runs in background - medium
+  enableTSNE: false, // t-SNE runs in background (slow)
+  enableUMAP: false, // UMAP runs in background (slow)
+  enableTriMap: false, // TriMap runs in background - medium
+  enableTopoMap: false, // TopoMap runs in background - medium
+  enableSammon: false, // Sammon runs in background - medium
 
   // IsoMap parameters (0 = auto based on dataset size)
   isomapNeighbors: 0,
@@ -77,5 +78,5 @@ export const DEFAULT_PROJECTION_CONFIG: ProjectionConfig = {
   umapMinDist: 0.1,
 
   // TriMap parameters
-  trimapWeightAdj: 500
+  trimapWeightAdj: 500,
 };

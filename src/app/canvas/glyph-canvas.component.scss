@@ -1,31 +1,29 @@
 @use '../../styles/variables' as v;
 
 .scene-container {
-  position: relative; // Needed for overlay to anchor properly
+  position: relative;
   width: 100%;
   height: 100%;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 
   border-radius: 12px;
   border: 1px solid v.$gray-200;
-  background: white;
+  background: v.$white;
 
-  overflow: hidden; /* important for canvas clipping */
-
-  box-shadow:
-    0 1px 3px rgba(0,0,0,0.08),
-    0 4px 12px rgba(0,0,0,0.05);
+  box-shadow: v.$shadow-sm;
 
   &.active {
-    border: 1px solid #b3d2ff; /* subtle blue border on first click */
+    border: 1px solid v.$ui-active-border;
   }
 
   .canvas-container {
     position: relative;
     width: 100%;
-    height: 100%;
+    flex: 1;
+    min-height: 0;
     display: block;
-    /* position: relative; */
     cursor: default;
 
     &.selecting {

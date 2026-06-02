@@ -3,7 +3,7 @@
 .progress-stepper {
   width: 100%;
   padding: 16px 0;
-  background: v.$gray-200;
+  background: v.$wizard-header-bg;
   border-bottom: 1px solid v.$gray-300;
 
   &.vertical {
@@ -73,20 +73,19 @@
 
 .stepper-container {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  align-items: flex-start;
   max-width: 900px;
   margin: 0 auto;
-  padding: 0 16px;
+  padding: 0 24px;
 }
 
 .step-wrapper {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   flex: 1;
 
   &:last-child {
-    flex: 0;
+    flex: 0 0 auto;
 
     .step-connector {
       display: none;
@@ -100,6 +99,8 @@
   align-items: center;
   gap: 6px;
   cursor: default;
+  width: 110px;
+  flex-shrink: 0;
 
   &.clickable {
     cursor: pointer;
@@ -111,13 +112,13 @@
 
   &.active .step-circle {
     background: v.$active-color;
-    color: white;
+    color: v.$white;
     border-color: v.$active-color;
   }
 
   &.completed .step-circle {
     background: v.$gray-600;
-    color: white;
+    color: v.$white;
     border-color: v.$gray-600;
   }
 }
@@ -127,7 +128,7 @@
   height: 32px;
   border-radius: 50%;
   border: 2px solid v.$gray-400;
-  background: white;
+  background: v.$white;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -148,7 +149,7 @@
   font-size: 12px;
   color: v.$gray-600;
   text-align: center;
-  white-space: nowrap;
+  line-height: 1.3;
 
   .active & {
     color: v.$active-color;
@@ -164,7 +165,7 @@
   flex: 1;
   height: 2px;
   background: v.$gray-300;
-  margin: 0 12px;
+  margin: 15px 0 0;
   transition: background 0.2s ease;
 
   &.completed {
@@ -194,8 +195,12 @@
     font-size: 12px;
   }
 
+  .step {
+    width: 80px;
+  }
+
   .step-connector {
-    margin: 0 8px;
+    margin: 13px 0 0;
   }
 
   .progress-stepper.vertical {

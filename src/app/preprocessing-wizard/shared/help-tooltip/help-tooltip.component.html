@@ -9,7 +9,8 @@
     [attr.aria-label]="'Help: ' + helpText"
     [attr.aria-expanded]="isVisible"
     type="button"
-    tabindex="0">
+    tabindex="0"
+  >
     <span class="material-icons">help_outline</span>
   </button>
 
@@ -19,7 +20,8 @@
     [class.visible]="isVisible"
     [ngStyle]="tooltipStyle"
     role="tooltip"
-    [attr.aria-hidden]="!isVisible">
+    [attr.aria-hidden]="!isVisible"
+  >
     <div class="tooltip-text" [innerHTML]="helpText"></div>
   </div>
 </div>

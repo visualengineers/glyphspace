@@ -1,22 +1,27 @@
-<app-menubar
-  [totalCells]="grid.length"
-  (addCanvas)="addCanvas()"
->
-</app-menubar>
+<app-menubar [totalCells]="grid.length" (addCanvas)="addCanvas()"> </app-menubar>
 
-<div
-  #canvasGrid
-  class="grid"
-  [style.gridTemplateColumns]="'repeat(' + cols + ', 1fr)'"
-  [style.gridTemplateRows]="'repeat(' + rows + ', 1fr)'"
->
-  <glyph-canvas
-    class="glyph-canvas"
-    *ngFor="let cell of grid; trackBy: trackById"
-    [id]="cell.id"
-    [totalCells]="grid.length"
-    >
-  </glyph-canvas>
+<div class="content-area">
+  <div
+    #canvasGrid
+    class="grid"
+    [style.gridTemplateColumns]="'repeat(' + cols + ', minmax(0, 1fr))'"
+    [style.gridTemplateRows]="'repeat(' + rows + ', minmax(0, 1fr))'"
+  >
+    @for (cell of grid; track cell.id) {
+      <glyph-canvas
+        class="glyph-canvas"
+        [class.maximized]="maximizedId === cell.id"
+        [class.hidden]="maximizedId !== null && maximizedId !== cell.id"
+        [id]="cell.id"
+        [totalCells]="grid.length"
+        [maximized]="maximizedId === cell.id"
+        (toggleMaximize)="toggleMaximize(cell.id)"
+      >
+      </glyph-canvas>
+    }
+  </div>
+
+  <app-sidebar></app-sidebar>
 </div>
 
 <!-- Global toast notifications -->

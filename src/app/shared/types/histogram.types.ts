@@ -7,9 +7,7 @@
  * Histogram data structure - maps bin indices to counts.
  * Used by both the menubar histogram and wizard histogram components.
  */
-export type Histogram = {
-  [binIndex: string]: number;  // binIndex: "0" to "49"
-};
+export type Histogram = Record<string, number>;
 
 /**
  * Processed bin data for rendering stacked/bar histograms.
@@ -19,5 +17,5 @@ export interface StackedBin {
   value: number;
   x0: number;
   x1: number;
-  label?: string;  // Optional label for categorical data
+  label?: string; // Optional label for categorical data
 }

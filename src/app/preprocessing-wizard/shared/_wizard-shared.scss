@@ -2,16 +2,6 @@
 
 // Shared wizard styles following GlyphSpace design system
 
-// Step containers
-@mixin step-container {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  padding: 16px 32px;
-  max-width: 1150px;
-  margin: 0 auto;
-}
-
 @mixin step-header {
   text-align: center;
   margin-bottom: 16px;
@@ -33,25 +23,8 @@
 @mixin card {
   background: white;
   border: 1px solid v.$gray-300;
-  border-radius: 4px;
+  border-radius: 8px;
   overflow: hidden;
-}
-
-@mixin card-header {
-  padding: 12px;
-  border-bottom: 1px solid v.$gray-300;
-  background: v.$gray-100;
-
-  h3, h4 {
-    margin: 0;
-    font-size: 13px;
-    color: v.$gray-800;
-    font-weight: 600;
-  }
-}
-
-@mixin card-body {
-  padding: 12px;
 }
 
 // Buttons
@@ -61,7 +34,7 @@
   gap: 6px;
   padding: 6px 12px;
   font-size: 13px;
-  border-radius: 4px;
+  border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s ease;
   border: none;
@@ -118,68 +91,91 @@
 // Badges
 @mixin badge {
   padding: 2px 8px;
-  border-radius: 3px;
+  border-radius: 4px;
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
 }
 
-@mixin badge-info {
-  @include badge;
-  background: rgba(0, 188, 212, 0.1);
-  color: v.$active-color;
+// Status badge — used in review/processing steps
+@mixin status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+
+  .material-icons {
+    font-size: 14px;
+  }
+
+  &.status-yes,
+  &.status-complete {
+    background: rgba(v.$status-success, 0.1);
+    color: v.$status-success-dark;
+  }
+
+  &.status-no {
+    background: rgba(158, 158, 158, 0.1);
+    color: v.$gray-600;
+  }
+
+  &.status-running {
+    background: rgba(v.$active-color, 0.1);
+    color: v.$active-color;
+  }
+
+  &.status-error {
+    background: rgba(v.$status-error, 0.1);
+    color: v.$status-error-dark;
+  }
 }
 
-@mixin badge-warning {
-  @include badge;
-  background: rgba(255, 152, 0, 0.1);
-  color: #E65100;
-}
-
-@mixin badge-success {
-  @include badge;
-  background: rgba(76, 175, 80, 0.1);
-  color: #388E3C;
-}
-
-@mixin badge-gray {
-  @include badge;
-  background: v.$gray-200;
-  color: v.$gray-700;
-}
-
-// Data type badges - using centralized colors
+// Data type badges - using centralized colors (supports both class and attribute selectors)
 @mixin data-type-badge {
   @include badge;
+  flex-shrink: 0;
 
-  &[data-type="numeric"] {
+  &.badge-numeric {
     background: v.$data-type-numeric-bg;
     color: v.$data-type-numeric;
   }
 
-  &[data-type="categorical"] {
+  &.badge-categorical {
     background: v.$data-type-categorical-bg;
     color: v.$data-type-categorical;
   }
 
-  &[data-type="text"] {
+  &.badge-text {
     background: v.$data-type-text-bg;
     color: v.$data-type-text;
   }
 
-  &[data-type="date"] {
+  &.badge-date {
     background: v.$data-type-date-bg;
     color: v.$data-type-date;
   }
 
-  &[data-type="boolean"] {
+  &.badge-boolean {
     background: v.$data-type-boolean-bg;
     color: v.$data-type-boolean;
   }
 
-  &[data-type="id"] {
+  &.badge-id {
     background: v.$data-type-id-bg;
     color: v.$data-type-id;
+  }
+
+  &.badge-coordinate {
+    background: v.$data-type-coordinate-bg;
+    color: v.$data-type-coordinate;
+  }
+
+  &.badge-unknown {
+    background: v.$data-type-unknown-bg;
+    color: v.$data-type-unknown;
   }
 }
 
@@ -189,7 +185,7 @@
   align-items: center;
   gap: 8px;
   padding: 10px 12px;
-  border-radius: 2px;
+  border-radius: 8px;
   font-size: 13px;
 
   .material-icons {
@@ -199,37 +195,30 @@
 
 @mixin message-info {
   @include message-base;
-  background: rgba(0, 188, 212, 0.1);
+  background: rgba(v.$active-color, 0.1);
   border-left: 3px solid v.$active-color;
-  color: #00838f;
+  color: v.$status-info;
 }
 
 @mixin message-warning {
   @include message-base;
-  background: rgba(255, 152, 0, 0.1);
-  border-left: 3px solid #FF9800;
-  color: #E65100;
-}
-
-@mixin message-success {
-  @include message-base;
-  background: rgba(76, 175, 80, 0.1);
-  border-left: 3px solid #4CAF50;
-  color: #2E7D32;
+  background: rgba(v.$status-warning, 0.1);
+  border-left: 3px solid v.$status-warning;
+  color: v.$status-warning-dark;
 }
 
 @mixin message-error {
   @include message-base;
-  background: rgba(244, 67, 54, 0.1);
-  border-left: 3px solid #F44336;
-  color: #C62828;
+  background: rgba(v.$status-error, 0.1);
+  border-left: 3px solid v.$status-error;
+  color: v.$status-error-dark;
 }
 
 // Form elements
 @mixin input-base {
   padding: 8px 10px;
   border: 1px solid v.$gray-300;
-  border-radius: 2px;
+  border-radius: 8px;
   font-size: 13px;
   background: white;
   transition: border-color 0.2s ease;
@@ -261,7 +250,62 @@
   accent-color: v.$active-color;
 }
 
+// Search box — shared between column selection, data features, and legend
+@mixin search-box($padding: 5px 8px, $icon-size: 18px, $border-color: v.$gray-300) {
+  display: flex;
+  align-items: center;
+  background: white;
+  border: 1px solid $border-color;
+  border-radius: 8px;
+  padding: $padding;
+
+  .material-icons {
+    color: v.$gray-500;
+    font-size: $icon-size;
+    margin-right: 6px;
+  }
+
+  .search-input {
+    flex: 1;
+    border: none;
+    outline: none;
+    font-size: 13px;
+    color: v.$gray-800;
+    background: transparent;
+
+    &::placeholder {
+      color: v.$gray-500;
+    }
+  }
+
+  .clear-search {
+    background: none;
+    border: none;
+    padding: 2px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    color: v.$gray-500;
+
+    &:hover {
+      color: v.$gray-800;
+    }
+
+    .material-icons {
+      font-size: 16px;
+      margin: 0;
+    }
+  }
+}
+
 // Tables
+@mixin table-container {
+  background: white;
+  border: 1px solid v.$gray-300;
+  border-radius: 8px;
+  overflow-x: auto;
+}
+
 @mixin table {
   width: 100%;
   border-collapse: collapse;
@@ -270,28 +314,48 @@
 
   thead {
     background: v.$wizard-table-header-bg;
-    border-bottom: 2px solid v.$gray-300;
-  }
+    position: sticky;
+    top: 0;
+    z-index: 10;
 
-  th {
-    padding: 8px 10px;
-    text-align: left;
-    font-weight: 600;
-    color: v.$gray-700;
-    white-space: nowrap;
-  }
+    tr {
+      border-bottom: 2px solid v.$gray-300;
+    }
 
-  td {
-    padding: 8px 10px;
-    border-top: 1px solid v.$gray-200;
-    color: v.$gray-800;
-  }
-
-  tbody tr {
-    &:hover {
-      background: v.$gray-100;
+    th {
+      padding: 10px 12px;
+      text-align: left;
+      font-weight: 600;
+      color: v.$gray-700;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      white-space: nowrap;
+      background: v.$wizard-table-header-bg;
     }
   }
+
+  tbody {
+    tr {
+      border-bottom: 1px solid v.$gray-200;
+
+      &:hover {
+        background: v.$gray-100;
+      }
+    }
+
+    td {
+      padding: 10px 12px;
+      vertical-align: middle;
+      color: v.$gray-800;
+    }
+  }
+}
+
+// Table cell helpers
+@mixin column-name-text {
+  font-weight: 500;
+  color: v.$gray-800;
 }
 
 // Progress bars
@@ -310,16 +374,17 @@
 }
 
 // No content states
-@mixin no-content {
+@mixin no-content($padding: 40px 20px, $icon-size: 48px, $text-size: 13px) {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 40px 20px;
+  padding: $padding;
   text-align: center;
+  color: v.$gray-600;
 
   .material-icons {
-    font-size: 48px;
+    font-size: $icon-size;
     color: v.$gray-400;
     margin-bottom: 12px;
   }
@@ -331,10 +396,20 @@
   }
 
   p {
-    font-size: 13px;
+    font-size: $text-size;
     color: v.$gray-600;
     margin: 4px 0;
   }
+}
+
+// Step content wrapper - constrains content width while allowing footer to be full-width
+@mixin step-content {
+  flex: 1;
+  padding: 16px 32px;
+  max-width: 1150px;
+  width: 100%;
+  margin: 0 auto;
+  box-sizing: border-box;
 }
 
 // Action buttons footer - fixed at bottom with Back on left, Next on right
@@ -343,7 +418,7 @@
   justify-content: space-between;
   align-items: center;
   gap: 12px;
-  padding: 16px;
+  padding: 16px 32px;
   border-top: 1px solid v.$gray-300;
   margin-top: auto;
   background: v.$wizard-header-bg;
@@ -367,15 +442,6 @@
 
 @mixin warning-box {
   @include message-warning;
-  margin-bottom: 16px;
-
-  .material-icons {
-    flex-shrink: 0;
-  }
-}
-
-@mixin success-box {
-  @include message-success;
   margin-bottom: 16px;
 
   .material-icons {
@@ -414,18 +480,6 @@
   }
 }
 
-// Badge with data loss warning
-@mixin badge-data-loss {
-  @include badge-warning;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-
-  .material-icons {
-    font-size: 14px;
-  }
-}
-
 // Helper classes that can be used directly in templates
 .info-box {
   @include info-box;
@@ -435,58 +489,10 @@
   @include warning-box;
 }
 
-.success-box {
-  @include success-box;
-}
-
 .step-purpose {
   @include step-purpose;
 }
 
 .feature-progress {
   @include feature-progress;
-}
-
-.badge-data-loss {
-  @include badge-data-loss;
-}
-
-.badge-numeric {
-  @include badge;
-  background: v.$data-type-numeric-bg;
-  color: v.$data-type-numeric;
-}
-
-.badge-categorical {
-  @include badge;
-  background: v.$data-type-categorical-bg;
-  color: v.$data-type-categorical;
-}
-
-.badge-text {
-  @include badge;
-  background: v.$data-type-text-bg;
-  color: v.$data-type-text;
-}
-
-.badge-date {
-  @include badge;
-  background: v.$data-type-date-bg;
-  color: v.$data-type-date;
-}
-
-.badge-boolean {
-  @include badge;
-  background: v.$data-type-boolean-bg;
-  color: v.$data-type-boolean;
-}
-
-.badge-id {
-  @include badge;
-  background: v.$data-type-id-bg;
-  color: v.$data-type-id;
-}
-
-.badge-warning {
-  @include badge-warning;
 }

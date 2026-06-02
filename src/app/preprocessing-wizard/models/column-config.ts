@@ -4,7 +4,7 @@ import {
   ScalingMethod,
   MissingValueStrategy,
   OutlierStrategy,
-  OutlierMethod
+  OutlierMethod,
 } from './data-type.enum';
 
 export interface ColumnConfig {
@@ -39,25 +39,25 @@ export interface CleaningConfig {
 export interface ProjectionConfig {
   // FastMap is always enabled as primary projection (runs immediately)
   // These are optional background projections:
-  enablePCA: boolean;         // PCA - fast linear projection
-  enableIsoMap: boolean;      // IsoMap - non-linear manifold, preserves geodesic distances
-  enableMDS: boolean;         // MDS - classical multidimensional scaling
-  enableLLE: boolean;         // LLE - locally linear embedding
-  enableLTSA: boolean;        // LTSA - local tangent space alignment
-  enableTSNE: boolean;        // t-SNE - preserves local structure (slow)
-  enableUMAP: boolean;        // UMAP - balances local/global structure (slow)
-  enableTriMap: boolean;      // TriMap - good for large datasets
-  enableTopoMap: boolean;     // TopoMap - topology preserving
-  enableSammon: boolean;      // Sammon mapping
+  enablePCA: boolean; // PCA - fast linear projection
+  enableIsoMap: boolean; // IsoMap - non-linear manifold, preserves geodesic distances
+  enableMDS: boolean; // MDS - classical multidimensional scaling
+  enableLLE: boolean; // LLE - locally linear embedding
+  enableLTSA: boolean; // LTSA - local tangent space alignment
+  enableTSNE: boolean; // t-SNE - preserves local structure (slow)
+  enableUMAP: boolean; // UMAP - balances local/global structure (slow)
+  enableTriMap: boolean; // TriMap - good for large datasets
+  enableTopoMap: boolean; // TopoMap - topology preserving
+  enableSammon: boolean; // Sammon mapping
 
   // IsoMap parameters
-  isomapNeighbors: number;    // Number of neighbors (default: auto based on dataset size)
+  isomapNeighbors: number; // Number of neighbors (default: auto based on dataset size)
 
   // LLE parameters
-  lleNeighbors: number;       // Number of neighbors for local reconstruction
+  lleNeighbors: number; // Number of neighbors for local reconstruction
 
   // LTSA parameters
-  ltsaNeighbors: number;      // Number of neighbors for tangent space
+  ltsaNeighbors: number; // Number of neighbors for tangent space
 
   // t-SNE parameters (DruidJS)
   tsnePerplexity: number;
@@ -68,7 +68,7 @@ export interface ProjectionConfig {
   umapMinDist: number;
 
   // TriMap parameters
-  trimapWeightAdj: number;    // Weight adjustment factor (default: 500)
+  trimapWeightAdj: number; // Weight adjustment factor (default: 500)
 }
 
 export interface CleaningResult {

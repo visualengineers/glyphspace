@@ -1,5 +1,4 @@
 import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PreprocessingService } from '../../services/preprocessing.service';
 import { ColumnConfig, CleaningConfig } from '../../models/column-config';
@@ -10,11 +9,13 @@ import {
   ScalingMethod,
   MissingValueStrategy,
   OutlierStrategy,
-  OutlierMethod
+  OutlierMethod,
+  DATA_TYPE_CONFIG,
 } from '../../models/data-type.enum';
 import { HelpTooltipComponent } from '../../shared/help-tooltip/help-tooltip.component';
 import { HELP_TEXT } from '../../shared/constants/help-text';
 import { STEP_INFO } from '../../shared/constants/step-info';
+import { DataTypeBadgeComponent } from '../../shared/data-type-badge/data-type-badge.component';
 
 interface ColumnConfigState {
   column: ColumnStatistics;
@@ -27,30 +28,33 @@ interface ColumnConfigState {
 @Component({
   selector: 'app-step3-configure-data-features',
   standalone: true,
-  imports: [CommonModule, FormsModule, HelpTooltipComponent],
+  imports: [FormsModule, HelpTooltipComponent, DataTypeBadgeComponent],
   templateUrl: './step3-configure-data-features.component.html',
-  styleUrl: './step3-configure-data-features.component.scss'
+  styleUrl: './step3-configure-data-features.component.scss',
 })
 export class Step3ConfigureDataFeaturesComponent implements OnInit {
   columns: ColumnConfigState[] = [];
   filteredColumns: ColumnConfigState[] = [];
 
+  // Selection state for list+detail panel
+  selectedColumnName: string | null = null;
+
+  // UI state
+  showInfoBox = true;
+
   // Duplicate handling
-  duplicateCount: number = 0;
-  duplicatePercentage: number = 0;
-  sampleDuplicates: any[] = [];
-  showDuplicateSamples: boolean = false;
-  totalRows: number = 0;
+  duplicateCount = 0;
+  duplicatePercentage = 0;
+  sampleDuplicates: Record<string, unknown>[] = [];
+  showDuplicateSamples = false;
+  totalRows = 0;
 
   cleaningConfig: CleaningConfig;
 
   // Filters
-  filterText: string = '';
+  filterText = '';
   filterType: DataType | 'all' = 'all';
-  showIssuesOnly: boolean = false;
-
-  // Expanded rows for details
-  expandedRows: Set<string> = new Set();
+  showIssuesOnly = false;
 
   // Enum references for template
   DataType = DataType;
@@ -66,14 +70,14 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit {
     { value: EncodingMethod.Label, label: 'Label', description: 'Integer encoding' },
     { value: EncodingMethod.OneHot, label: 'One-Hot', description: 'Binary columns' },
     { value: EncodingMethod.Normalize, label: 'Normalize', description: 'Scale [0,1]' },
-    { value: EncodingMethod.Standardize, label: 'Standardize', description: 'Z-score' }
+    { value: EncodingMethod.Standardize, label: 'Standardize', description: 'Z-score' },
   ];
 
   scalingMethods = [
     { value: ScalingMethod.None, label: 'None', description: 'No scaling' },
     { value: ScalingMethod.Standard, label: 'Standard', description: 'Z-score' },
     { value: ScalingMethod.MinMax, label: 'Min-Max', description: '[0,1]' },
-    { value: ScalingMethod.Robust, label: 'Robust', description: 'IQR-based' }
+    { value: ScalingMethod.Robust, label: 'Robust', description: 'IQR-based' },
   ];
 
   missingValueStrategies = [
@@ -82,7 +86,7 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit {
     { value: MissingValueStrategy.FillMean, label: 'Fill Mean', description: 'Average value', numericOnly: true },
     { value: MissingValueStrategy.FillMedian, label: 'Fill Median', description: 'Middle value', numericOnly: true },
     { value: MissingValueStrategy.FillMode, label: 'Fill Mode', description: 'Most common', categoricalOnly: true },
-    { value: MissingValueStrategy.FillValue, label: 'Fill Value', description: 'Custom value' }
+    { value: MissingValueStrategy.FillValue, label: 'Fill Value', description: 'Custom value' },
   ];
 
   outlierMethods = [
@@ -91,16 +95,20 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit {
     { value: OutlierMethod.IQR_3_0, label: 'IQR (3.0x)', description: 'Very Relaxed' },
     { value: OutlierMethod.ZScore_2, label: 'Z-Score (2σ)', description: 'Strict' },
     { value: OutlierMethod.ZScore_3, label: 'Z-Score (3σ)', description: 'Moderate' },
-    { value: OutlierMethod.ZScore_4, label: 'Z-Score (4σ)', description: 'Relaxed' }
+    { value: OutlierMethod.ZScore_4, label: 'Z-Score (4σ)', description: 'Relaxed' },
   ];
 
   outlierStrategies = [
     { value: OutlierStrategy.Keep, label: 'Keep', description: 'No change' },
     { value: OutlierStrategy.Remove, label: 'Remove', description: 'Delete rows' },
-    { value: OutlierStrategy.Cap, label: 'Cap', description: 'Limit to bounds' }
+    { value: OutlierStrategy.Cap, label: 'Cap', description: 'Limit to bounds' },
   ];
 
   error: string | null = null;
+
+  get selectedColumn(): ColumnConfigState | null {
+    return this.columns.find(c => c.column.name === this.selectedColumnName) || null;
+  }
 
   readonly HELP_TEXT = HELP_TEXT;
   readonly stepInfo = STEP_INFO[2]; // Step 3 (index 2)
@@ -128,12 +136,13 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit {
     this.columns = state.dataProfile.columns
       .filter(col => state.columnConfigs.get(col.name)?.enabled)
       .map(col => {
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- guaranteed by the .filter() which checks columnConfigs.get(col.name)?.enabled
         const config = state.columnConfigs.get(col.name)!;
         return {
           column: col,
           config: config,
           outlierCount: config.outlierCount,
-          isLoadingOutliers: false
+          isLoadingOutliers: false,
         };
       });
 
@@ -142,12 +151,17 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit {
 
     // Apply initial filter
     this.applyFilters();
+
+    // Auto-select first column
+    if (this.filteredColumns.length > 0) {
+      this.selectedColumnName = this.filteredColumns[0].column.name;
+    }
   }
 
   private async loadOutlierCounts(): Promise<void> {
-    const numericColumns = this.columns.filter(c => c.column.dataType === DataType.Numeric);
+    const outlierColumns = this.columns.filter(c => DATA_TYPE_CONFIG[c.column.dataType]?.hasOutliers);
 
-    for (const colState of numericColumns) {
+    for (const colState of outlierColumns) {
       if (colState.outlierCount === undefined) {
         await this.detectOutliersForColumn(colState);
       }
@@ -167,7 +181,7 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit {
 
       // Update config
       this.preprocessingService.updateColumnConfig(colState.column.name, {
-        outlierCount: result.outlierCount
+        outlierCount: result.outlierCount,
       });
     } catch (err) {
       console.error(`Failed to detect outliers for ${colState.column.name}:`, err);
@@ -217,6 +231,19 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit {
 
       return true;
     });
+
+    // Sort: columns with issues first, then alphabetical
+    this.filteredColumns.sort((a, b) => {
+      const aIssues = (a.column.missingCount > 0 ? 1 : 0) + ((a.outlierCount || 0) > 0 ? 1 : 0);
+      const bIssues = (b.column.missingCount > 0 ? 1 : 0) + ((b.outlierCount || 0) > 0 ? 1 : 0);
+      if (aIssues !== bIssues) return bIssues - aIssues;
+      return a.column.name.localeCompare(b.column.name);
+    });
+
+    // Re-select if current selection is filtered out
+    if (this.selectedColumnName && !this.filteredColumns.find(c => c.column.name === this.selectedColumnName)) {
+      this.selectedColumnName = this.filteredColumns.length > 0 ? this.filteredColumns[0].column.name : null;
+    }
   }
 
   onFilterChange(): void {
@@ -244,7 +271,7 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit {
 
   onMissingStrategyChange(columnName: string, strategy: MissingValueStrategy): void {
     this.preprocessingService.updateColumnConfig(columnName, {
-      missingValueStrategy: strategy
+      missingValueStrategy: strategy,
     });
     // Update local state to trigger template re-render
     const colState = this.columns.find(c => c.column.name === columnName);
@@ -255,13 +282,13 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit {
 
   onMissingValueFillChange(columnName: string, fillValue: string): void {
     this.preprocessingService.updateColumnConfig(columnName, {
-      missingValueFillValue: fillValue
+      missingValueFillValue: fillValue,
     });
   }
 
   async onOutlierMethodChange(columnName: string, method: OutlierMethod): Promise<void> {
     this.preprocessingService.updateColumnConfig(columnName, {
-      outlierMethod: method
+      outlierMethod: method,
     });
 
     const colState = this.columns.find(c => c.column.name === columnName);
@@ -272,7 +299,7 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit {
 
   onOutlierStrategyChange(columnName: string, strategy: OutlierStrategy): void {
     this.preprocessingService.updateColumnConfig(columnName, {
-      outlierStrategy: strategy
+      outlierStrategy: strategy,
     });
   }
 
@@ -282,7 +309,7 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit {
       const newValue = !colState.config.includeInProjection;
       // Update service
       this.preprocessingService.updateColumnConfig(columnName, {
-        includeInProjection: newValue
+        includeInProjection: newValue,
       });
       // Update local state to trigger template re-render
       colState.config.includeInProjection = newValue;
@@ -292,8 +319,29 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit {
   toggleRemoveDuplicates(): void {
     this.cleaningConfig.removeDuplicates = !this.cleaningConfig.removeDuplicates;
     this.preprocessingService.updateCleaningConfig({
-      removeDuplicates: this.cleaningConfig.removeDuplicates
+      removeDuplicates: this.cleaningConfig.removeDuplicates,
     });
+  }
+
+  // ============================================================================
+  // Selection
+  // ============================================================================
+
+  selectColumn(name: string): void {
+    this.selectedColumnName = name;
+  }
+
+  getConfigSummary(colState: ColumnConfigState): string {
+    const parts: string[] = [];
+    if (colState.config.encodingMethod !== EncodingMethod.None) {
+      const method = this.encodingMethods.find(m => m.value === colState.config.encodingMethod);
+      if (method) parts.push(method.label);
+    }
+    if (colState.config.scalingMethod !== ScalingMethod.None) {
+      const method = this.scalingMethods.find(m => m.value === colState.config.scalingMethod);
+      if (method) parts.push(method.label);
+    }
+    return parts.length > 0 ? parts.join(', ') : 'Default';
   }
 
   // ============================================================================
@@ -301,48 +349,31 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit {
   // ============================================================================
 
   getAvailableEncodingMethods(colState: ColumnConfigState) {
-    const dataType = colState.column.dataType;
-
-    switch (dataType) {
-      case DataType.Numeric:
-        return this.encodingMethods.filter(m =>
-          [EncodingMethod.None, EncodingMethod.Normalize, EncodingMethod.Standardize].includes(m.value)
-        );
-      case DataType.Categorical:
-        return this.encodingMethods.filter(m =>
-          [EncodingMethod.Label, EncodingMethod.OneHot].includes(m.value)
-        );
-      case DataType.Text:
-        return this.encodingMethods.filter(m =>
-          [EncodingMethod.None, EncodingMethod.Label, EncodingMethod.OneHot].includes(m.value)
-        );
-      case DataType.Date:
-        return this.encodingMethods.filter(m =>
-          [EncodingMethod.None, EncodingMethod.Normalize].includes(m.value)
-        );
-      default:
-        return this.encodingMethods.filter(m =>
-          [EncodingMethod.None, EncodingMethod.Label].includes(m.value)
-        );
-    }
+    const capabilities = DATA_TYPE_CONFIG[colState.column.dataType];
+    if (!capabilities || capabilities.encodingMethods.length === 0) return [];
+    return this.encodingMethods.filter(m => capabilities.encodingMethods.includes(m.value));
   }
 
   getAvailableMissingStrategies(colState: ColumnConfigState) {
-    const dataType = colState.column.dataType;
+    const capabilities = DATA_TYPE_CONFIG[colState.column.dataType];
 
     return this.missingValueStrategies.filter(strategy => {
-      if (strategy.numericOnly && dataType !== DataType.Numeric) return false;
-      if (strategy.categoricalOnly && dataType !== DataType.Categorical) return false;
+      if (strategy.numericOnly && !capabilities?.missingValueFlags.numericLike) return false;
+      if (strategy.categoricalOnly && !capabilities?.missingValueFlags.categorical) return false;
       return true;
     });
   }
 
+  shouldShowEncoding(colState: ColumnConfigState): boolean {
+    return this.getAvailableEncodingMethods(colState).length > 1;
+  }
+
   shouldShowScaling(colState: ColumnConfigState): boolean {
-    return colState.column.dataType === DataType.Numeric || colState.column.dataType === DataType.Date;
+    return DATA_TYPE_CONFIG[colState.column.dataType]?.hasScaling ?? false;
   }
 
   shouldShowOutliers(colState: ColumnConfigState): boolean {
-    return colState.column.dataType === DataType.Numeric;
+    return DATA_TYPE_CONFIG[colState.column.dataType]?.hasOutliers ?? false;
   }
 
   hasMissingValues(colState: ColumnConfigState): boolean {
@@ -357,8 +388,9 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit {
     return this.hasMissingValues(colState) || this.hasOutliers(colState);
   }
 
-  getDataTypeBadgeClass(dataType: DataType): string {
-    return `badge-${dataType}`;
+  formatDate(timestamp: number): string {
+    const date = new Date(timestamp);
+    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
   }
 
   getIssueDescription(colState: ColumnConfigState): string {
@@ -370,18 +402,6 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit {
       issues.push(`${colState.outlierCount} outliers`);
     }
     return issues.join(', ');
-  }
-
-  toggleRowExpansion(columnName: string): void {
-    if (this.expandedRows.has(columnName)) {
-      this.expandedRows.delete(columnName);
-    } else {
-      this.expandedRows.add(columnName);
-    }
-  }
-
-  isRowExpanded(columnName: string): boolean {
-    return this.expandedRows.has(columnName);
   }
 
   get columnNames(): string[] {

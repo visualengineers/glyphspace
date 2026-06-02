@@ -1,0 +1,10 @@
+<div class="mini-histogram">
+  @if (data && data.counts.length > 0) {
+    <div class="chart-container" #chartContainer></div>
+  } @else {
+    <div class="no-data">—</div>
+  }
+  @if (showLabel) {
+    <div class="hover-label" [class.visible]="showHoverLabel">{{ hoverLabel || '&nbsp;' }}</div>
+  }
+</div>

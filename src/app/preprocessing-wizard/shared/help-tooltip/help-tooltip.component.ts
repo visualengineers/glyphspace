@@ -1,4 +1,4 @@
-import { Component, Input, HostListener, ElementRef, ViewChild, AfterViewInit, ChangeDetectorRef } from '@angular/core';
+import { Component, Input, HostListener, ElementRef, ViewChild, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 @Component({
@@ -6,21 +6,20 @@ import { CommonModule } from '@angular/common';
   standalone: true,
   imports: [CommonModule],
   templateUrl: './help-tooltip.component.html',
-  styleUrl: './help-tooltip.component.scss'
+  styleUrl: './help-tooltip.component.scss',
 })
-export class HelpTooltipComponent implements AfterViewInit {
-  @Input() helpText: string = '';
+export class HelpTooltipComponent {
+  @Input() helpText = '';
   @Input() position: 'top' | 'bottom' | 'left' | 'right' = 'top';
   @ViewChild('tooltipContent') tooltipContent!: ElementRef;
 
   isVisible = false;
-  tooltipStyle: { [key: string]: string } = {};
+  tooltipStyle: Record<string, string> = {};
 
-  constructor(private elementRef: ElementRef, private cdr: ChangeDetectorRef) {}
-
-  ngAfterViewInit(): void {
-    // Initial positioning
-  }
+  constructor(
+    private elementRef: ElementRef,
+    private cdr: ChangeDetectorRef
+  ) {}
 
   showTooltip(): void {
     this.isVisible = true;
@@ -58,18 +57,18 @@ export class HelpTooltipComponent implements AfterViewInit {
       switch (this.position) {
         case 'top':
           top = rect.top - tooltipRect.height - offset;
-          left = rect.left + (rect.width / 2) - (tooltipRect.width / 2);
+          left = rect.left + rect.width / 2 - tooltipRect.width / 2;
           break;
         case 'bottom':
           top = rect.bottom + offset;
-          left = rect.left + (rect.width / 2) - (tooltipRect.width / 2);
+          left = rect.left + rect.width / 2 - tooltipRect.width / 2;
           break;
         case 'left':
-          top = rect.top + (rect.height / 2) - (tooltipRect.height / 2);
+          top = rect.top + rect.height / 2 - tooltipRect.height / 2;
           left = rect.left - tooltipRect.width - offset;
           break;
         case 'right':
-          top = rect.top + (rect.height / 2) - (tooltipRect.height / 2);
+          top = rect.top + rect.height / 2 - tooltipRect.height / 2;
           left = rect.right + offset;
           break;
       }
@@ -87,7 +86,7 @@ export class HelpTooltipComponent implements AfterViewInit {
 
       this.tooltipStyle = {
         top: `${top}px`,
-        left: `${left}px`
+        left: `${left}px`,
       };
       this.cdr.detectChanges();
     }, 0);

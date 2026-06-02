@@ -1,15 +1,22 @@
-<canvas #lensCanvas
-        id="lens-canvas"
-        [hidden]="!magicLensActive"
-        [width]="lensRadius"
-        [height]="lensRadius"
-        style="position: absolute; border-radius: 50%;
-                border: 2px solid black; pointer-events: none;
-                background: white; z-index: 10;">
+<canvas
+  #lensCanvas
+  id="lens-canvas"
+  [hidden]="!magicLensActive"
+  [width]="lensRadius"
+  [height]="lensRadius"
+  style="
+    position: absolute;
+    border-radius: 50%;
+    border: 2px solid black;
+    pointer-events: none;
+    background: white;
+    z-index: 10;
+  "
+>
 </canvas>
 <div
   class="lens-indicator"
-  [style.left.px]="relativePosition.x - 20"
-  [style.top.px]="relativePosition.y - 20"
+  [style.left.px]="relativePosition.x - 30"
+  [style.top.px]="relativePosition.y - 30"
   [hidden]="!magicLensActive"
 ></div>

@@ -1,0 +1,61 @@
+@use '../../../styles/variables' as v;
+
+.histogram-item {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  margin-bottom: 12px;
+
+  .histogram-label {
+    font-size: 14px;
+    color: v.$gray-700;
+    margin-top: 6px;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+
+    .type-tag {
+      font-size: 0.55rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+
+      padding: 0.25rem 0.4rem;
+      background-color: v.$gray-200;
+      color: v.$gray-600;
+
+      border-radius: 0.4rem;
+      line-height: 1;
+
+      margin-left: auto;
+    }
+  }
+
+  .histogram-container {
+    position: relative;
+    width: 100%;
+    height: 60px;
+    background: v.$gray-100;
+    border-radius: 8px;
+    box-sizing: border-box;
+  }
+
+  .histogram-container svg rect {
+    pointer-events: all;
+    /* ensure rects can receive events */
+  }
+
+  .hist-tooltip {
+    pointer-events: none;
+  }
+
+  .color-container {
+    margin-top: 2px;
+    width: 100%;
+    pointer-events: none; // purely visual
+  }
+
+  .color-container svg {
+    display: block;
+  }
+}

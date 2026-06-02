@@ -1,14 +1,13 @@
 import { Injectable } from '@angular/core';
-import { BehaviorSubject } from 'rxjs';
+import { BehaviorSubject, Subject } from 'rxjs';
 import { InteractionCommand } from '../shared/enum/interaction-command';
 import { GlyphObject } from '../glyph/glyph-object';
 import * as d3 from 'd3';
 import { Features } from '../shared/interfaces/glyph-feature';
 import { hexToRgb } from '../shared/helpers/d3-helper';
 import { GlyphConfiguration } from '../glyph/glyph-configuration';
-import { ItemFilter } from '../shared/filter/item-filter';
-import { IdFilter } from '../shared/filter/id-filter';
 import { COLOR_SCALES, ColorScale } from '../shared/interfaces/color-scale';
+import { normalizeFeatureValue } from '../shared/helpers/color-helper';
 
 @Injectable({
   providedIn: 'root',
@@ -17,13 +16,12 @@ export class ConfigService {
   colorScales: ColorScale[] = COLOR_SCALES;
 
   private _activeFeatures: string[] = [];
-  private _colorFeature: string = "";
-  private _scaleLinear: boolean = false;
+  private _colorFeature = '';
   private _featureLabels: Record<string, string> = {};
   private _featureTypes: Record<string, string> = {};
   private _featureMaxValues: Record<string, number> = {};
-  private _dataSource: string = "";
-  private _selectedColorScale: number = 0;
+  private _dataSource = '';
+  private _selectedColorScale = 0;
 
   // Flag to indicate if a modal (like preprocessing wizard) is open
   // Used to hide tooltips when modals are displayed
@@ -46,21 +44,20 @@ export class ConfigService {
   private glyphConfigSubject = new BehaviorSubject<GlyphConfiguration>(this.config);
   glyphConfigSubject$ = this.glyphConfigSubject.asObservable();
 
-  private commandSubject = new BehaviorSubject<InteractionCommand>(InteractionCommand.noop);
+  private commandSubject = new Subject<InteractionCommand>();
   commandSubject$ = this.commandSubject.asObservable();
 
-  private redrawGlyphSubject = new BehaviorSubject<GlyphObject | null>(null);
+  private redrawGlyphSubject = new Subject<GlyphObject | null>();
   redrawGlyphSubject$ = this.redrawGlyphSubject.asObservable();
 
-  private drawMagicLensGlyphsSubject = new BehaviorSubject<GlyphObject[] | null>(null);
+  private drawMagicLensGlyphsSubject = new Subject<GlyphObject[] | null>();
   drawMagicLensGlyphsSubject$ = this.drawMagicLensGlyphsSubject.asObservable();
 
-  private animateGlyphSubject = new BehaviorSubject<GlyphObject | null>(null);
+  private animateGlyphSubject = new Subject<GlyphObject | null>();
   animateGlyphSubject$ = this.animateGlyphSubject.asObservable();
 
-  private loadedDataSubject = new BehaviorSubject<string>("");
+  private loadedDataSubject = new BehaviorSubject<string>('');
   loadedDataSubject$ = this.loadedDataSubject.asObservable();
-  
 
   // --- Methods to update config ---
   redrawGlyph(glyph: GlyphObject) {
@@ -68,7 +65,7 @@ export class ConfigService {
   }
 
   reRender() {
-      this.commandSubject.next(InteractionCommand.rerender);
+    this.commandSubject.next(InteractionCommand.rerender);
   }
 
   removeCanvas(id: number) {
@@ -78,7 +75,7 @@ export class ConfigService {
   drawMagicLensGlyphs(glyphs: GlyphObject[]) {
     this.drawMagicLensGlyphsSubject.next(glyphs);
   }
- 
+
   animateGlyph(glyph: GlyphObject | null) {
     this.animateGlyphSubject.next(glyph);
   }
@@ -99,11 +96,6 @@ export class ConfigService {
     return this.loadedDataSubject.getValue();
   }
 
-  exportImage() {
-    this.commandSubject.next(InteractionCommand.exportimage);
-    this.commandSubject.next(InteractionCommand.noop);
-  }
-
   redraw() {
     this.commandSubject.next(InteractionCommand.redraw);
   }
@@ -112,29 +104,32 @@ export class ConfigService {
     this.commandSubject.next(InteractionCommand.fittoscreen);
   }
 
+  exportImage() {
+    this.commandSubject.next(InteractionCommand.exportimage);
+  }
+
   clearSelection() {
     this.commandSubject.next(InteractionCommand.clearselection);
   }
 
   getRgbaColor(features: Features): string {
-    let currentColor = hexToRgb("#00cc88");
+    let currentColor = hexToRgb('#00cc88');
     if (features != null) {
-      let featureValue = features["1"][this._colorFeature];
+      const featureValue = normalizeFeatureValue(
+        features['1'][this._colorFeature],
+        this._colorFeature,
+        this._featureTypes,
+        this._featureMaxValues
+      );
 
-      // Normalize categorical values to [0,1] range for proper color mapping
-      const featureType = this._featureTypes[this._colorFeature];
-      if (featureType === 'categorical') {
-        const maxValue = this._featureMaxValues[this._colorFeature];
-        if (maxValue !== undefined && maxValue > 0) {
-          featureValue = featureValue / maxValue;
-        }
+      const scale = this.color;
+      if (scale) {
+        currentColor = scale(featureValue);
+        if (!this.colorRange) currentColor = hexToRgb(currentColor);
       }
-
-      currentColor = this.color(featureValue);
-      if (!this.colorRange) currentColor = hexToRgb(currentColor);
     }
 
-    return currentColor
+    return currentColor;
   }
 
   getConfiguration(): GlyphConfiguration {
@@ -150,7 +145,7 @@ export class ConfigService {
     this.activeFeatures.push(...features);
   }
 
-  get color(): any {
+  get color(): d3.ScaleLinear<string, string> | d3.ScaleQuantize<string> | undefined {
     return this.colorScales.find(s => s.id === this._selectedColorScale)?.scale;
   }
 
@@ -172,14 +167,6 @@ export class ConfigService {
 
   set featureLabels(labels: Record<string, string>) {
     this._featureLabels = { ...labels };
-  }
-
-  set scaleLinear(scale: boolean) {
-    this._scaleLinear = scale;
-  }
-
-  get scaleLinear() {
-    return this._scaleLinear;
   }
 
   set colorFeature(feature: string) {

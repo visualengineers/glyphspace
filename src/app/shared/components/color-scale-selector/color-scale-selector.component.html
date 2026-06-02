@@ -1,0 +1,44 @@
+<div
+  class="color-scale-select"
+  (click)="$event.stopPropagation(); toggleDropdown()"
+  (keydown.enter)="$event.stopPropagation(); toggleDropdown()"
+  tabindex="0"
+>
+  <div class="selected-scale">
+    @if (selectedScale.type === 'numeric') {
+      <div class="color-gradient" [style.background]="getContinuousGradient(selectedScale)"></div>
+    } @else {
+      @for (c of getCategoricalColors(selectedScale); track c) {
+        <div class="color-box" [style.background]="c"></div>
+      }
+    }
+  </div>
+
+  @if (dropdownOpen) {
+    <div class="color-scale-options">
+      @for (group of groupedColorScales; track group.group; let gi = $index) {
+        <div class="color-scale-group-label">{{ group.group }}</div>
+        @for (scale of group.scales; track scale.id) {
+          <div
+            class="color-scale-option"
+            [class.active]="scale.id === selectedScale.id"
+            (click)="selectScale(scale.id); $event.stopPropagation()"
+            (keydown.enter)="selectScale(scale.id); $event.stopPropagation()"
+            tabindex="0"
+          >
+            @if (scale.type === 'numeric') {
+              <div class="color-gradient" [style.background]="getContinuousGradient(scale)"></div>
+            } @else {
+              @for (c of getCategoricalColors(scale); track c) {
+                <div class="color-box" [style.background]="c"></div>
+              }
+            }
+          </div>
+        }
+        @if (gi < groupedColorScales.length - 1) {
+          <div class="color-scale-group-divider"></div>
+        }
+      }
+    </div>
+  }
+</div>

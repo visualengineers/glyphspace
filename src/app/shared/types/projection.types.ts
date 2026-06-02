@@ -7,15 +7,26 @@
  * Available projection methods.
  * Used by ProjectionService, projection.worker, and UI components.
  */
-export type ProjectionMethod = 'pca' | 'fastmap' | 'isomap' | 'mds' | 'lle' | 'ltsa' | 'tsne' | 'umap' | 'trimap' | 'topomap' | 'sammon';
+export type ProjectionMethod =
+  | 'pca'
+  | 'fastmap'
+  | 'isomap'
+  | 'mds'
+  | 'lle'
+  | 'ltsa'
+  | 'tsne'
+  | 'umap'
+  | 'trimap'
+  | 'topomap'
+  | 'sammon';
 
 /**
  * Result of a projection computation.
  */
 export interface ProjectionResult {
   method: ProjectionMethod;
-  positions: Array<{ id: string | number; x: number; y: number }>;
-  computeTime: number;  // milliseconds
+  positions: { id: string | number; x: number; y: number }[];
+  computeTime: number; // milliseconds
 }
 
 /**
@@ -41,7 +52,7 @@ export interface ProjectionComputeConfig {
  */
 export interface ProjectionProgress {
   method: ProjectionMethod;
-  progress: number;  // 0-100
+  progress: number; // 0-100
   message?: string;
 }
 
@@ -62,7 +73,7 @@ export interface ProjectionWorkerRequest {
 export interface ProjectionWorkerResponse {
   type: 'result' | 'error' | 'progress';
   method?: string;
-  positions?: Array<{ id: string | number; x: number; y: number }>;
+  positions?: { id: string | number; x: number; y: number }[];
   computeTime?: number;
   error?: string;
   progress?: number;

@@ -1,369 +1,341 @@
 @use '../../styles/variables' as v;
 
 .menu-bar {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    height: 64px;
-    padding: 0 18px;
-    background: white;
-    border-bottom: 1px solid #ddd;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  height: 64px;
+  padding: 0 18px;
+  background: white;
+  border-bottom: 1px solid v.$gray-200;
 }
 
 .menu-top-row {
-    display: flex;
-    flex: 1;
-    align-items: center;
+  display: flex;
+  flex: 1;
+  align-items: center;
 }
 
 /* LEFT stays left */
 .menu-left {
-    flex: 0 0 auto;
+  flex: 0 0 auto;
 }
 
 /* THIS fills remaining space */
 .menu-collapsible {
-    display: flex;
-    align-items: center;
-    flex: 1;
-    /* ← critical */
-    min-width: 0;
+  display: flex;
+  align-items: center;
+  flex: 1;
+  /* ← critical */
+  min-width: 0;
 }
 
 /* CENTER grows normally */
 .menu-center {
-    //       display: flex;
-    //   align-items: center;
-    //   gap: 24px;
-    position: absolute;
-    left: 50%;
-    transform: translateX(-70%);
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
 
-    display: flex;
-    align-items: center;
-    gap: 24px;
-}
-
-/* RIGHT pushed all the way */
-.menu-right {
-    margin-left: auto;
-    /* ← critical */
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  white-space: nowrap;
 }
 
 /* hamburger hidden on desktop */
 .hamburger {
-    display: none;
+  display: none;
 }
 
 .logo {
-    display: flex;
-    align-items: center;
-    gap: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 
-    img {
-        width: 28px;
-        height: 28px;
-    }
+  img {
+    width: 28px;
+    height: 28px;
+  }
 
-    .title {
-        font-size: 18px;
-        font-weight: 600;
-    }
+  .title {
+    font-size: 18px;
+    font-weight: 600;
+  }
+}
+
+.dataset-selector {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.delete-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  color: v.$color-gray-border;
+  padding: 0;
+
+  &:hover {
+    background: v.$delete-hover-bg;
+    color: v.$delete-hover-text;
+  }
+
+  .material-icons {
+    font-size: 18px;
+  }
 }
 
 .data-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  .label {
+    font-size: 14px;
+  }
+
+  select {
+    appearance: none;
+
+    padding: 6px 12px;
+    border-radius: 10px;
+    border: none;
+    background-color: v.$gray-100;
+    color: v.$gray-800;
+    font-size: 14px;
+    cursor: pointer;
+
+    display: inline-flex;
+    align-items: center;
+
+    /* subtle hover effect */
+    &:hover {
+      background-color: v.$gray-200;
+    }
+
+    /* focus outline for accessibility */
+    &:focus {
+      outline: 2px solid v.$focus-outline;
+      outline-offset: 2px;
+    }
+  }
+
+  /* Optional: add a custom arrow */
+  select {
+    height: 32px;
+    line-height: 1.2;
+    background-image: url("data:image/svg+xml;utf8,<svg fill='none' stroke='%23333' stroke-width='2' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'><path d='M6 9l6 6 6-6'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    background-size: 16px 16px;
+    padding-right: 32px;
+    /* make room for arrow */
+  }
+}
+
+.icon-panel {
+  display: flex;
+  gap: 6px;
+  padding: 4px;
+  background: v.$gray-100;
+  border-radius: 10px;
+
+  button {
     display: flex;
     align-items: center;
     gap: 6px;
 
-    .label {
-        font-size: 14px;
+    border: none;
+    background: transparent;
+    padding: 6px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+
+    font-size: 14px;
+    color: v.$gray-800;
+
+    &:hover {
+      background: v.$gray-200;
     }
 
-    select {
-        appearance: none;
-        /* Remove native arrow */
-        -webkit-appearance: none;
-        -moz-appearance: none;
-
-        padding: 6px 12px;
-        border-radius: 10px;
-        border: none;
-        background-color: #f2f2f2;
-        color: #333;
-        font-size: 14px;
-        cursor: pointer;
-
-        display: inline-flex;
-        align-items: center;
-
-        /* subtle hover effect */
-        &:hover {
-            background-color: #e6e6e6;
-        }
-
-        /* focus outline for accessibility */
-        &:focus {
-            outline: 2px solid #c7d2fe;
-            outline-offset: 2px;
-        }
+    .material-icons {
+      font-size: 18px;
     }
-
-    /* Optional: add a custom arrow */
-    select {
-        height: 32px;
-        line-height: 1.2;
-        background-image: url("data:image/svg+xml;utf8,<svg fill='none' stroke='%23333' stroke-width='2' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'><path d='M6 9l6 6 6-6'/></svg>");
-        background-repeat: no-repeat;
-        background-position: right 8px center;
-        background-size: 16px 16px;
-        padding-right: 32px;
-        /* make room for arrow */
-    }
-}
-
-
-.icon-panel {
-    display: flex;
-    gap: 6px;
-    padding: 4px;
-    background: #f2f2f2;
-    border-radius: 10px;
-
-    button {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-
-        border: none;
-        background: transparent;
-        padding: 6px 10px;
-        border-radius: 8px;
-        cursor: pointer;
-
-        font-size: 14px;
-        color: #333;
-
-        &:hover {
-            background: #e0e0e0;
-        }
-
-        .material-icons {
-            font-size: 18px;
-        }
-    }
+  }
 }
 
 .canvas-control {
-    display: flex;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  .label {
+    font-size: 14px;
+  }
+
+  .add-btn {
+    display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: 4px;
+    white-space: nowrap;
 
-    .label {
-        font-size: 14px;
-    }
-
-    .add-btn {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-
-        border: none;
-        padding: 6px 12px;
-        border-radius: 10px;
-        background: #f2f2f2;
-        cursor: pointer;
-
-        &:hover {
-            background: #e6e6e6;
-        }
-    }
-}
-
-.legend-anchor {
-    position: relative;
-    width: 360px;
-    /* SAME as dropdown width */
-}
-
-.legend-toggle {
-    width: 100%;
-    /* ← stretch to panel width */
-
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    /* text left, icon right */
-
-    padding: 8px 14px;
-    border-radius: 12px;
     border: none;
-
-    background: #f2f2f2;
+    padding: 6px 12px;
+    border-radius: 10px;
+    background: v.$gray-100;
     cursor: pointer;
     font-size: 14px;
-
-    z-index: 2;
+    color: v.$gray-800;
 
     &:hover {
-        background: #e6e6e6;
+      background: v.$gray-200;
     }
 
-    &.open {
-        border-bottom-left-radius: 0;
-        border-bottom-right-radius: 0;
+    .material-icons {
+      font-size: 18px;
     }
-}
-
-.legend-toggle.open {
-    background: white;
-    border: 1px solid #e5e5e5;
-    border-bottom: none;
-}
-
-.legend-toggle .material-icons {
-    transition: transform 0.2s ease;
-}
-
-.legend-toggle.open .material-icons {
-    transform: rotate(180deg);
+  }
 }
 
 @media (max-width: 1200px) {
+  /* Show the hamburger button */
+  .hamburger {
+    display: block;
+    margin-left: auto;
+    margin-right: 6px;
+    background-color: white;
+    border-color: v.$gray-700;
+    border-radius: 8px;
+    color: v.$gray-600;
+  }
 
-    /* Show the hamburger button */
-    .hamburger {
-        display: block;
-        margin-left: auto;
-        margin-right: 6px;
-        background-color: white;
-        border-color: v.$gray-700;
-        border-radius: 8px;
-        color: v.$gray-600;
-    }
+  /* Reset menu-bar layout for mobile */
+  .menu-bar {
+    display: flex;
+    flex-direction: column;
+    height: auto;
+    align-items: flex-start;
+    padding: 16px 18px;
+    position: relative;
+  }
 
-    /* Reset menu-bar layout for mobile */
-    .menu-bar {
-        display: flex;
-        flex-direction: column;
-        height: auto;
-        align-items: flex-start;
-        padding: 16px 18px;
-        position: relative;
-    }
+  .menu-top-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+  }
 
-    .menu-top-row {
-        display: flex;
-        flex-direction: row;
-        align-items: center;
-        justify-content: space-between;
-        width: 100%;
-    }
+  /* Collapsible menu overlays below header */
+  .menu-collapsible {
+    display: flex;
+    position: absolute;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    min-width: 0;
+    top: 64px;
+    left: 0;
+    right: 0;
+    z-index: 920;
+    background: white;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 400ms ease;
+    transition: height 400ms ease;
+  }
 
-    /* Collapsible menu overlays below header */
-    .menu-collapsible {
-        display: flex;
-        position: absolute;
-        flex-direction: column !important;
-        align-items: flex-start !important;
-        min-width: 0;
-        top: 64px;
-        left: 0;
-        right: 0;
-        z-index: 920;
-        background: white;
-        max-height: 0;
-        overflow: hidden;
-        transition: max-height 400ms ease;
-        transition: height 400ms ease;
-    }
+  /* Open state */
+  .menu-collapsible.open {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    justify-content: flex-start !important;
+    width: 100%;
+    max-height: none !important;
+    padding: 16px;
+    background: white;
+    border-bottom: none;
+    position: static !important;
+    overflow: visible !important;
+  }
 
-    /* Open state */
-    .menu-collapsible.open {
-        display: flex !important;
-        flex-direction: column !important;
-        align-items: flex-start !important;
-        justify-content: flex-start !important;
-        width: 100%;
-        max-height: none !important;
-        padding: 16px;
-        background: white;
-        border-bottom: none;
-        position: static !important;
-        overflow: visible !important;
-    }
+  /* Reset menu-center layout */
+  .menu-center {
+    position: relative;
+    left: 0;
+    transform: none;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 16px;
+    width: 100%;
+    padding: 0;
+    margin: 0;
+  }
 
-    /* Reset menu-center and menu-right layout */
-    .menu-center,
-    .menu-right {
-        position: relative;
-        left: 0;
-        transform: none;
-        display: flex !important;
-        flex-direction: column !important;
-        align-items: flex-start !important;
-        gap: 16px;
-        width: 100%;
-        padding: 0;
-        margin: 0;
-    }
+  /* Buttons: icon + label left-aligned */
+  .menu-center button {
+    justify-content: flex-start;
+  }
 
-    /* Buttons: icon + label left-aligned */
-    .menu-center button,
-    .menu-right button {
-        justify-content: flex-start;
-    }
-
-    /* Optional: add spacing between sections */
-    .menu-center {
-        margin-bottom: 24px;
-    }
+  /* Optional: add spacing between sections */
+  .menu-center {
+    margin-bottom: 24px;
+  }
 }
 
 .wizard-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
-    z-index: 9999;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    animation: fadeIn 0.3s ease;
-    padding: 32px;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.3s ease;
+  padding: 32px;
 
-    app-preprocessing-wizard {
-        width: 90%;
-        max-width: 1400px;
-        height: 90%;
-        max-height: 900px;
-        display: block;
-        background: white;
-        border-radius: 12px;
-        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
-        animation: slideUp 0.3s ease;
-        overflow: hidden;
-    }
+  app-preprocessing-wizard {
+    width: 90%;
+    max-width: 1400px;
+    height: 90%;
+    max-height: 900px;
+    display: block;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    animation: slideUp 0.3s ease;
+    overflow: hidden;
+  }
 }
 
 @keyframes fadeIn {
-    from {
-        opacity: 0;
-    }
-    to {
-        opacity: 1;
-    }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes slideUp {
-    from {
-        transform: translateY(20px);
-        opacity: 0;
-    }
-    to {
-        transform: translateY(0);
-        opacity: 1;
-    }
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }

@@ -1,5 +1,5 @@
-import { GlyphObject } from "../../glyph/glyph-object";
-import { ItemFilter } from "./item-filter";
+import { GlyphObject } from '../../glyph/glyph-object';
+import { ItemFilter } from './item-filter';
 
 export interface CategoryRange {
   min: number;
@@ -7,7 +7,6 @@ export interface CategoryRange {
 }
 
 export class CategoryFilter extends ItemFilter {
-
   private _featureName: string;
   private _ranges: CategoryRange[] = [];
 
@@ -15,7 +14,7 @@ export class CategoryFilter extends ItemFilter {
   constructor(featureName?: string);
   constructor(featureName?: string, ranges?: CategoryRange[]) {
     super();
-    this._featureName = featureName ?? "";
+    this._featureName = featureName ?? '';
     if (ranges) {
       this.setRanges(ranges);
     }
@@ -34,9 +33,7 @@ export class CategoryFilter extends ItemFilter {
   }
 
   public override info(): string {
-    const ranges = this._ranges
-      .map(r => `[${r.min}, ${r.max}]`)
-      .join(", ");
+    const ranges = this._ranges.map(r => `[${r.min}, ${r.max}]`).join(', ');
 
     return `CategoryFilter for ${this._featureName} with ranges ${ranges} | FilterMode: ${this.filterMode}`;
   }
@@ -71,7 +68,7 @@ export class CategoryFilter extends ItemFilter {
    * Range management
    * ----------------------------- */
 
-  public get ranges(): ReadonlyArray<CategoryRange> {
+  public get ranges(): readonly CategoryRange[] {
     return this._ranges;
   }
 
@@ -96,13 +93,13 @@ export class CategoryFilter extends ItemFilter {
 
   private validateRange(min: number, max: number): void {
     if (min === undefined || max === undefined) {
-      throw new RangeError("range values must be defined");
+      throw new RangeError('range values must be defined');
     }
 
     // CategoryFilter can work with both normalized [0,1] and raw integer values
     // so we only check that min <= max
     if (min > max) {
-      throw new RangeError("min must be <= max");
+      throw new RangeError('min must be <= max');
     }
   }
 }

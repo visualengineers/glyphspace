@@ -1,6 +1,4 @@
 import { Component, Input, Output, EventEmitter } from '@angular/core';
-import { CommonModule } from '@angular/common';
-
 export interface Step {
   label: string;
   icon?: string;
@@ -10,14 +8,14 @@ export interface Step {
 @Component({
   selector: 'app-progress-stepper',
   standalone: true,
-  imports: [CommonModule],
+  imports: [],
   templateUrl: './progress-stepper.component.html',
-  styleUrl: './progress-stepper.component.scss'
+  styleUrl: './progress-stepper.component.scss',
 })
 export class ProgressStepperComponent {
   @Input() steps: Step[] = [];
-  @Input() currentStep: number = 0;
-  @Input() vertical: boolean = false;
+  @Input() currentStep = 0;
+  @Input() vertical = false;
   @Output() stepClick = new EventEmitter<number>();
 
   onStepClick(index: number): void {
