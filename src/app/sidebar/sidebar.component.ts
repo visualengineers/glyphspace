@@ -116,7 +116,38 @@ export class SidebarComponent implements OnInit, OnDestroy {
           this.ngZone.run(() => {
             this.features = metaData.features;
             this.featureIds = Object.keys(this.features);
-            this.selectedColorAttribute = this.config.colorFeature;
+
+            // Decide which color feature to use for the new dataset
+            const desired = this.config.colorFeature;
+            const colorFeature =
+              desired && this.featureIds.includes(desired)
+                ? desired
+                : this.schema?.color && this.featureIds.includes(this.schema.color)
+                  ? this.schema.color
+                  : this.featureIds[0];
+
+            let configChanged = false;
+            if (colorFeature && colorFeature !== this.config.colorFeature) {
+              this.config.colorFeature = colorFeature;
+              configChanged = true;
+            }
+            this.selectedColorAttribute = colorFeature ?? '';
+
+            // Ensure the active color scale matches the new feature's type
+            // (e.g. don't keep a categorical scale on a numeric feature after a dataset switch)
+            if (colorFeature) {
+              const featureType = this.schema?.types?.[colorFeature];
+              const currentScale = this.colorScales.find(s => s.id === this.config.colorRange);
+              if (featureType && currentScale && currentScale.type !== featureType) {
+                const matchingScale = this.colorScales.find(s => s.type === featureType)?.id;
+                if (matchingScale !== undefined) {
+                  this.config.colorRange = matchingScale;
+                  configChanged = true;
+                }
+              }
+            }
+
+            if (configChanged) this.config.updateConfiguration();
             this.selectedColorScaleId = this.config.colorRange;
           });
         }
