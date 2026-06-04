@@ -29,7 +29,7 @@
   >
     <app-magiclens [container]="canvasContainer" [glyphGroup]="rendererSvc.glyphGroup" [parentId]="id"></app-magiclens>
     <app-navigationcontrols
-      [visible]="mouseInside"
+      [visible]="mouseInside || tutorialActive"
       [selectionMode]="selectionSvc.selectionMode"
       [magicLenseStatus]="magicLenseStatus"
       (toggleNavigation)="toggleNavigationMode()"

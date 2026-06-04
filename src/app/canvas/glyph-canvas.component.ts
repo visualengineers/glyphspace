@@ -95,6 +95,7 @@ export class GlyphCanvasComponent implements AfterViewInit, OnDestroy, OnChanges
   private lastHitTestTime = 0;
   lastMousePosition = new THREE.Vector2();
   mouseInside = false;
+  tutorialActive = false;
   private mouseIdleTimer: ReturnType<typeof setTimeout> | undefined;
   private mouseDownTime = 0;
 
