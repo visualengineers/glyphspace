@@ -555,47 +555,21 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges, OnD
     this.filter.clear();
 
     if (effectiveType === 'categorical') {
-      // For categorical: Filter by actual feature values
-      // Values can be either normalized [0,1] or raw integers depending on scaling config
-
-      // Get the number of actual categories from the non-zero bins
-      const nonZeroBins = Object.entries(this.histogramData)
-        .filter(([, v]) => v !== 0)
-        .map(([k]) => +k)
-        .sort((a, b) => a - b);
-
-      const numCategories = nonZeroBins.length;
-
-      // Determine if data is raw label-encoded integers (not normalized)
-      // Raw integers: min=0, max=numCategories-1 (e.g., 0,1,2,3,4 for 5 categories)
-      // Normalized: any other pattern (data was scaled to [0,1])
-      const isRawIntegers = this.featureMin === 0 && this.featureMax === numCategories - 1 && numCategories > 1;
+      // Glyph feature values are ALWAYS stored in normalized [0,1] space (both
+      // process.py and the wizard normalize before storing). Histogram bins are
+      // uniformly distributed across the bin index range, so bin n corresponds to
+      // normalized value range [n/totalBins, (n+1)/totalBins].
+      //
+      // This works for:
+      //   - process.py output (20 fixed bins, multiple categories may share a bin)
+      //   - wizard uploads (one bin per category, N bins for N categories)
+      //   - any future normalized-data binning scheme
+      const binWidth = 1 / totalBins;
+      const epsilon = binWidth * 1e-6;
 
       selectedBins.forEach(bin => {
-        // Find which category index this bin corresponds to
-        const categoryIndex = nonZeroBins.indexOf(bin);
-
-        if (categoryIndex === -1) {
-          return;
-        }
-
-        let filterMin: number;
-        let filterMax: number;
-
-        if (isRawIntegers) {
-          // Data is raw integers: category index IS the value
-          // With tolerance for float comparison
-          filterMin = categoryIndex - 0.5;
-          filterMax = categoryIndex + 0.5;
-        } else {
-          // Data is normalized [0,1]: use category index to compute normalized value
-          // category i → i / (N-1) for N categories
-          const normalizedValue = numCategories === 1 ? 0 : categoryIndex / (numCategories - 1);
-          const tolerance = 0.01;
-          filterMin = Math.max(0, normalizedValue - tolerance);
-          filterMax = Math.min(1, normalizedValue + tolerance);
-        }
-
+        const filterMin = bin * binWidth - epsilon;
+        const filterMax = (bin + 1) * binWidth + epsilon;
         this.categoryFilter.addRange(filterMin, filterMax);
       });
     } else {
