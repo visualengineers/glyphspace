@@ -1,4 +1,4 @@
-import { Component, HostListener, OnInit } from '@angular/core';
+import { Component, HostListener, OnInit, AfterViewInit, ViewChild } from '@angular/core';
 import { ConfigService } from './services/config.service';
 import { GlyphCanvasComponent } from './canvas/glyph-canvas.component';
 import { DataLoaderService } from './services/data-loader.service';
@@ -6,6 +6,10 @@ import { checkTextInput } from './shared/helpers/angular-helper';
 import { MenuBarComponent } from './menubar/menubar.component';
 import { ToastComponent } from './shared/components/toast/toast.component';
 import { SidebarComponent } from './sidebar/sidebar.component';
+import { driver } from 'driver.js';
+import 'driver.js/dist/driver.css';
+import Shepherd from 'shepherd.js';
+import 'shepherd.js/dist/css/shepherd.css';
 
 interface GlyphCanvasItem {
   id: number;
@@ -20,8 +24,9 @@ interface GlyphCanvasItem {
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss',
 })
-export class AppComponent implements OnInit {
+export class AppComponent implements OnInit, AfterViewInit {
   title = 'Glyphboard Royale';
+  @ViewChild(GlyphCanvasComponent) glyphCanvas!: GlyphCanvasComponent;
 
   grid: GlyphCanvasItem[] = [];
   totalCells = 1;
@@ -50,6 +55,53 @@ export class AppComponent implements OnInit {
         }
       }
     });
+  }
+
+  ngAfterViewInit() {
+    const driverObj = driver({
+      showProgress: true,
+      onDestroyStarted: () => {
+        this.glyphCanvas.tutorialActive = false;
+        driverObj.destroy();
+      },
+      steps: [
+        {
+          element: '[data-tour="data-menu"]',
+          popover: {
+            title: 'Schritt 1: Datensatz auswählen',
+            description: 'Über dieses Menü kann zwischen Datensätzen gewechselt werden.',
+            side: 'bottom',
+          },
+        },
+        {
+          element: '[data-tour="glyph-type"]',
+          popover: {
+            title: 'Schritt 2: Glyph-Typ wechseln',
+            description: 'Hier kann die Darstellungsform der Glyphen geändert werden.',
+            side: 'left',
+          },
+        },
+        {
+          element: '[data-tour="legend"]',
+          popover: {
+            title: 'Schritt 3: Legende verstehen',
+            description: 'Die Legende zeigt, welche Datenattribute über Farben und Formen dargestellt werden.',
+            side: 'left',
+          },
+        },
+        {
+          element: '[data-tour="legend"]',
+          popover: {
+            title: 'Schritt 4: Filter nutzen',
+            description: 'Nutze die Filter, um bestimmte Datenbereiche gezielt hervorzuheben.',
+            side: 'left',
+          },
+        },
+      ],
+    });
+
+    this.glyphCanvas.tutorialActive = true;
+    driverObj.drive();
   }
 
   getNextFreeId(grid: GlyphCanvasItem[]): number {

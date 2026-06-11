@@ -2,6 +2,7 @@
 <div class="activity-strip">
   <button
     class="strip-btn"
+    data-tour="legend"
     [class.active]="!collapsed && activePane === 'encoding'"
     (click)="selectPane('encoding')"
     title="Encoding"
@@ -10,6 +11,7 @@
   </button>
   <button
     class="strip-btn"
+    data-tour="glyph-type"
     [class.active]="!collapsed && activePane === 'style'"
     (click)="selectPane('style')"
     title="Style"
