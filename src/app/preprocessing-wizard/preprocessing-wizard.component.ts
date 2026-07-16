@@ -3,6 +3,7 @@ import { Subscription, distinctUntilChanged, map } from 'rxjs';
 import { PreprocessingService } from './services/preprocessing.service';
 import { ProgressStepperComponent, Step } from './shared/progress-stepper/progress-stepper.component';
 import { WIZARD_STEP } from './shared/wizard-step';
+import { STEP_INFO } from './shared/constants/step-info';
 import { Step1UploadComponent } from './steps/step1-upload/step1-upload.component';
 import { Step2ColumnSelectionComponent } from './steps/step2-column-selection/step2-column-selection.component';
 import { Step3ConfigureDataFeaturesComponent } from './steps/step3-configure-data-features/step3-configure-data-features.component';
@@ -40,13 +41,16 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
   isProcessing = false;
   error: string | null = null;
 
-  steps: Step[] = [
-    { label: 'Upload Data', completed: false },
-    { label: 'Select Columns', completed: false },
-    { label: 'Configure Data & Features', completed: false },
-    { label: 'Visualization Settings', completed: false },
-    { label: 'Review & Process', completed: false },
-  ];
+  // Labels and descriptions come from STEP_INFO so the sidebar stays the single
+  // source of truth for step titles/purposes (no duplication in the work area).
+  steps: Step[] = Object.keys(STEP_INFO)
+    .map(Number)
+    .sort((a, b) => a - b)
+    .map(i => ({
+      label: STEP_INFO[i].title,
+      description: STEP_INFO[i].purpose,
+      completed: false,
+    }));
 
   constructor(private preprocessingService: PreprocessingService) {}
 

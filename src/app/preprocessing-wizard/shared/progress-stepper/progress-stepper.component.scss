@@ -63,12 +63,29 @@
       font-size: 0.9375rem;
     }
 
+    .step-text {
+      flex: 1;
+      min-width: 0;
+      gap: 0.125rem;
+    }
+
     .step-label {
       font-size: 0.875rem;
       text-align: left;
-      flex: 1;
       white-space: normal;
       line-height: 1.3;
+    }
+
+    // Description only shown for the active step
+    .step-description {
+      font-size: 0.75rem;
+      color: v.$gray-500;
+      line-height: 1.3;
+      white-space: normal;
+    }
+
+    .step.active .step-description {
+      display: block;
     }
 
     // Compact connector aligned under the circle centre; no flex-grow so it
@@ -170,6 +187,16 @@
   .completed & {
     color: v.$gray-700;
   }
+}
+
+.step-text {
+  display: flex;
+  flex-direction: column;
+}
+
+// Step description is a sidebar-only subtitle (vertical mode)
+.step-description {
+  display: none;
 }
 
 .step-connector {

@@ -1,6 +1,7 @@
 import { Component, Input, Output, EventEmitter } from '@angular/core';
 export interface Step {
   label: string;
+  description?: string;
   icon?: string;
   completed: boolean;
 }
