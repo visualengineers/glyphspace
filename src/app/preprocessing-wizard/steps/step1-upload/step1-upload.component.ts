@@ -1,4 +1,4 @@
-import { Component, Output, EventEmitter, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, forwardRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subscription } from 'rxjs';
@@ -7,6 +7,7 @@ import { DataPreviewTableComponent } from '../../shared/data-preview-table/data-
 import { DataProfile } from '../../models/column-statistics';
 import { HelpTooltipComponent } from '../../shared/help-tooltip/help-tooltip.component';
 import { STEP_INFO } from '../../shared/constants/step-info';
+import { WizardStep, WIZARD_STEP } from '../../shared/wizard-step';
 
 @Component({
   selector: 'app-step1-upload',
@@ -14,9 +15,10 @@ import { STEP_INFO } from '../../shared/constants/step-info';
   imports: [CommonModule, FormsModule, DataPreviewTableComponent, HelpTooltipComponent],
   templateUrl: './step1-upload.component.html',
   styleUrl: './step1-upload.component.scss',
+  providers: [{ provide: WIZARD_STEP, useExisting: forwardRef(() => Step1UploadComponent) }],
 })
-export class Step1UploadComponent implements OnInit, OnDestroy {
-  @Output() dataLoaded = new EventEmitter<DataProfile>();
+export class Step1UploadComponent implements OnInit, OnDestroy, WizardStep {
+  readonly primaryLabel = 'Continue to Column Selection';
 
   private subscription = new Subscription();
 
@@ -41,6 +43,16 @@ export class Step1UploadComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.subscription.unsubscribe();
+  }
+
+  canProceed(): boolean {
+    return this.profile !== null;
+  }
+
+  proceed(): void {
+    if (this.canProceed()) {
+      this.preprocessingService.nextStep();
+    }
   }
 
   onFileSelected(event: Event): void {

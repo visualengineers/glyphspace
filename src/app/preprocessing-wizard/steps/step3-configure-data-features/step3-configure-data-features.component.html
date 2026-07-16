@@ -420,28 +420,4 @@
       }
     }
   </div>
-
-  @if (!error) {
-    <!-- Action Buttons -->
-    <div class="action-buttons">
-      <button class="btn-secondary" (click)="goBack()">
-        <span class="material-icons">arrow_back</span>
-        <span>Back</span>
-      </button>
-
-      <div class="buttons-right">
-        @if (!canContinue()) {
-          <div class="warning-message">
-            <span class="material-icons">warning</span>
-            <span>Please include at least one column in projection to continue.</span>
-          </div>
-        }
-
-        <button class="btn-primary" (click)="onContinue()" [disabled]="!canContinue()">
-          <span>Continue to Visualization Settings</span>
-          <span class="material-icons">arrow_forward</span>
-        </button>
-      </div>
-    </div>
-  }
 </div>

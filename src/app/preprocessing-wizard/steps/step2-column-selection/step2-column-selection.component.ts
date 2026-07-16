@@ -1,4 +1,4 @@
-import { Component, OnInit, Output, EventEmitter } from '@angular/core';
+import { Component, OnInit, forwardRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PreprocessingService } from '../../services/preprocessing.service';
@@ -10,6 +10,7 @@ import { HelpTooltipComponent } from '../../shared/help-tooltip/help-tooltip.com
 import { HELP_TEXT } from '../../shared/constants/help-text';
 import { STEP_INFO } from '../../shared/constants/step-info';
 import { DataTypeBadgeComponent } from '../../shared/data-type-badge/data-type-badge.component';
+import { WizardStep, WIZARD_STEP } from '../../shared/wizard-step';
 
 @Component({
   selector: 'app-step2-column-selection',
@@ -17,9 +18,11 @@ import { DataTypeBadgeComponent } from '../../shared/data-type-badge/data-type-b
   imports: [CommonModule, FormsModule, MiniHistogramComponent, HelpTooltipComponent, DataTypeBadgeComponent],
   templateUrl: './step2-column-selection.component.html',
   styleUrl: './step2-column-selection.component.scss',
+  providers: [{ provide: WIZARD_STEP, useExisting: forwardRef(() => Step2ColumnSelectionComponent) }],
 })
-export class Step2ColumnSelectionComponent implements OnInit {
-  @Output() continue = new EventEmitter<void>();
+export class Step2ColumnSelectionComponent implements OnInit, WizardStep {
+  readonly primaryLabel = 'Continue to Configure Data & Features';
+  readonly disabledHint = 'Please select at least one column to continue';
 
   columns: ColumnStatistics[] = [];
   columnConfigs = new Map<string, ColumnConfig>();
@@ -91,14 +94,14 @@ export class Step2ColumnSelectionComponent implements OnInit {
     this.columnConfigs = this.preprocessingService.currentState.columnConfigs;
   }
 
-  onContinue(): void {
-    if (this.enabledCount > 0) {
-      this.continue.emit();
-    }
+  canProceed(): boolean {
+    return this.enabledCount > 0;
   }
 
-  goBack(): void {
-    this.preprocessingService.previousStep();
+  proceed(): void {
+    if (this.canProceed()) {
+      this.preprocessingService.nextStep();
+    }
   }
 
   getColumnConfig(columnName: string): ColumnConfig | undefined {

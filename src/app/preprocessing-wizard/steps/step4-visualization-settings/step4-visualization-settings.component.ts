@@ -1,7 +1,8 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, forwardRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PreprocessingService } from '../../services/preprocessing.service';
+import { WizardStep, WIZARD_STEP } from '../../shared/wizard-step';
 import { ProjectionConfig } from '../../models/column-config';
 import { ColumnStatistics } from '../../models/column-statistics';
 import { DataType } from '../../models/data-type.enum';
@@ -56,8 +57,12 @@ interface ProjectionMethodUI {
   imports: [CommonModule, FormsModule, HelpTooltipComponent, ColorScaleSelectorComponent],
   templateUrl: './step4-visualization-settings.component.html',
   styleUrl: './step4-visualization-settings.component.scss',
+  providers: [{ provide: WIZARD_STEP, useExisting: forwardRef(() => Step4VisualizationSettingsComponent) }],
 })
-export class Step4VisualizationSettingsComponent implements OnInit {
+export class Step4VisualizationSettingsComponent implements OnInit, WizardStep {
+  readonly primaryLabel = 'Continue to Review';
+  readonly disabledHint = 'Please select 3-12 glyph features to continue.';
+
   // Color feature selection
   columns: ColumnStatistics[] = [];
   colorFeature: string | null = null;
@@ -630,13 +635,9 @@ export class Step4VisualizationSettingsComponent implements OnInit {
     return glyphValid && projectionValid;
   }
 
-  continue(): void {
+  proceed(): void {
     if (this.canProceed()) {
       this.preprocessingService.nextStep();
     }
-  }
-
-  goBack(): void {
-    this.preprocessingService.previousStep();
   }
 }

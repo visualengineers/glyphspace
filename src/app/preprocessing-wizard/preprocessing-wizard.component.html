@@ -1,49 +1,81 @@
 <div class="preprocessing-wizard">
-  <div class="wizard-header">
-    <div class="header-content">
-      <h1>Data Preprocessing Wizard</h1>
-      <div class="header-actions">
-        <button class="btn-icon" (click)="reset()" title="Start Over">
-          <span class="material-icons">refresh</span>
-        </button>
-        <button class="btn-icon" (click)="closeWizard()" title="Close">
-          <span class="material-icons">close</span>
-        </button>
-      </div>
+  <div class="wizard-titlebar">
+    <h1>Data Preprocessing Wizard</h1>
+    <div class="header-actions">
+      <button class="btn-icon" (click)="reset()" title="Start Over">
+        <span class="material-icons">refresh</span>
+      </button>
+      <button class="btn-icon" (click)="closeWizard()" title="Close">
+        <span class="material-icons">close</span>
+      </button>
     </div>
-
-    <app-progress-stepper [steps]="steps" [currentStep]="currentStep" (stepClick)="onStepClick($event)">
-    </app-progress-stepper>
   </div>
 
-  <div class="wizard-content" #wizardContent>
-    @if (error) {
-      <div class="error-banner">
-        <span class="material-icons">error</span>
-        <span>{{ error }}</span>
-        <button class="btn-close" (click)="error = null">
-          <span class="material-icons">close</span>
-        </button>
-      </div>
-    }
+  <div class="wizard-body">
+    <aside class="wizard-sidebar">
+      <app-progress-stepper
+        [steps]="steps"
+        [currentStep]="currentStep"
+        [vertical]="true"
+        (stepClick)="onStepClick($event)"
+      >
+      </app-progress-stepper>
+    </aside>
 
-    <div class="step-container">
-      @switch (currentStep) {
-        @case (0) {
-          <app-step1-upload (dataLoaded)="onDataLoaded($event)"></app-step1-upload>
+    <div class="wizard-main">
+      <div class="wizard-content" #wizardContent>
+        @if (error) {
+          <div class="error-banner">
+            <span class="material-icons">error</span>
+            <span>{{ error }}</span>
+            <button class="btn-close" (click)="error = null">
+              <span class="material-icons">close</span>
+            </button>
+          </div>
         }
-        @case (1) {
-          <app-step2-column-selection (continue)="nextStep()"></app-step2-column-selection>
-        }
-        @case (2) {
-          <app-step3-configure-data-features></app-step3-configure-data-features>
-        }
-        @case (3) {
-          <app-step4-visualization-settings></app-step4-visualization-settings>
-        }
-        @case (4) {
-          <app-step5-review-processing (wizardFinish)="onWizardComplete()"></app-step5-review-processing>
-        }
+
+        <div class="step-container">
+          @switch (currentStep) {
+            @case (0) {
+              <app-step1-upload></app-step1-upload>
+            }
+            @case (1) {
+              <app-step2-column-selection></app-step2-column-selection>
+            }
+            @case (2) {
+              <app-step3-configure-data-features></app-step3-configure-data-features>
+            }
+            @case (3) {
+              <app-step4-visualization-settings></app-step4-visualization-settings>
+            }
+            @case (4) {
+              <app-step5-review-processing (wizardFinish)="onWizardComplete()"></app-step5-review-processing>
+            }
+          }
+        </div>
+      </div>
+
+      @if (activeStep(); as step) {
+        <div class="wizard-nav">
+          <button class="btn-secondary" (click)="previousStep()" [disabled]="currentStep === 0">
+            <span class="material-icons">arrow_back</span>
+            <span>Back</span>
+          </button>
+
+          <div class="buttons-right">
+            @if (!step.canProceed() && step.disabledHint) {
+              <div class="warning-message">
+                <span class="material-icons">warning</span>
+                <span>{{ step.disabledHint }}</span>
+              </div>
+            }
+
+            <button class="btn-primary" (click)="step.proceed()" [disabled]="!step.canProceed()">
+              <span>{{ step.primaryLabel }}</span>
+              <span class="material-icons">arrow_forward</span>
+            </button>
+          </div>
+        </div>
       }
     </div>
   </div>

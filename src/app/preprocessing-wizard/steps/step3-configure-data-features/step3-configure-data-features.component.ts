@@ -1,6 +1,7 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, forwardRef } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { PreprocessingService } from '../../services/preprocessing.service';
+import { WizardStep, WIZARD_STEP } from '../../shared/wizard-step';
 import { ColumnConfig, CleaningConfig } from '../../models/column-config';
 import { ColumnStatistics } from '../../models/column-statistics';
 import {
@@ -31,8 +32,12 @@ interface ColumnConfigState {
   imports: [FormsModule, HelpTooltipComponent, DataTypeBadgeComponent],
   templateUrl: './step3-configure-data-features.component.html',
   styleUrl: './step3-configure-data-features.component.scss',
+  providers: [{ provide: WIZARD_STEP, useExisting: forwardRef(() => Step3ConfigureDataFeaturesComponent) }],
 })
-export class Step3ConfigureDataFeaturesComponent implements OnInit {
+export class Step3ConfigureDataFeaturesComponent implements OnInit, WizardStep {
+  readonly primaryLabel = 'Continue to Visualization Settings';
+  readonly disabledHint = 'Please include at least one column in projection to continue.';
+
   columns: ColumnConfigState[] = [];
   filteredColumns: ColumnConfigState[] = [];
 
@@ -414,18 +419,14 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit {
     return this.columns.filter(c => c.config.includeInProjection).length;
   }
 
-  canContinue(): boolean {
+  canProceed(): boolean {
     // At least one column must be included in projection
     return this.getProjectionCount() > 0;
   }
 
-  onContinue(): void {
-    if (this.canContinue()) {
+  proceed(): void {
+    if (this.canProceed()) {
       this.preprocessingService.nextStep();
     }
-  }
-
-  goBack(): void {
-    this.preprocessingService.previousStep();
   }
 }

@@ -178,25 +178,4 @@
       }
     </div>
   </div>
-
-  <div class="action-buttons">
-    <button class="btn-secondary" (click)="goBack()">
-      <span class="material-icons">arrow_back</span>
-      <span>Back</span>
-    </button>
-
-    <div class="buttons-right">
-      @if (enabledCount === 0) {
-        <div class="warning-message">
-          <span class="material-icons">warning</span>
-          Please select at least one column to continue
-        </div>
-      }
-
-      <button class="btn-primary" (click)="onContinue()" [disabled]="enabledCount === 0">
-        Continue to Configure Data & Features
-        <span class="material-icons">arrow_forward</span>
-      </button>
-    </div>
-  </div>
 </div>

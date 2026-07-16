@@ -3,7 +3,7 @@
 // Shared wizard styles following GlyphSpace design system
 
 @mixin step-header {
-  text-align: center;
+  text-align: left;
   margin-bottom: 16px;
 
   h2 {
@@ -402,13 +402,11 @@
   }
 }
 
-// Step content wrapper - constrains content width while allowing footer to be full-width
+// Step content wrapper - fills the available work-area width with consistent padding
 @mixin step-content {
   flex: 1;
-  padding: 16px 32px;
-  max-width: 1150px;
+  padding: 24px 32px;
   width: 100%;
-  margin: 0 auto;
   box-sizing: border-box;
 }
 
@@ -451,7 +449,7 @@
 
 // Step purpose statement
 @mixin step-purpose {
-  text-align: center;
+  text-align: left;
   font-size: 13px;
   color: v.$gray-600;
   margin-bottom: 16px;
