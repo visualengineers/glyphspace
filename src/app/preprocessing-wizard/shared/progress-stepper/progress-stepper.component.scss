@@ -35,7 +35,7 @@
       width: 100%;
       box-sizing: border-box;
       flex-direction: row;
-      align-items: center;
+      align-items: flex-start;
       gap: 0.75rem;
       padding: 0.625rem 0.75rem;
       border-radius: 0.5rem;
@@ -69,7 +69,12 @@
       gap: 0.125rem;
     }
 
+    // Label matches the circle height and centres its text, so the circle and
+    // the heading sit on the same line (description flows underneath)
     .step-label {
+      display: flex;
+      align-items: center;
+      min-height: 2.25rem;
       font-size: 0.875rem;
       text-align: left;
       white-space: normal;
