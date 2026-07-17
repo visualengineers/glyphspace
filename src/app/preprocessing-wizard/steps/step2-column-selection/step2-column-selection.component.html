@@ -1,10 +1,5 @@
 <div class="step2-column-selection">
   <div class="step-content">
-    <div class="step-header">
-      <h2>{{ stepInfo.title }}</h2>
-      <p class="step-purpose">{{ stepInfo.purpose }}</p>
-    </div>
-
     <!-- Info Box -->
     <div class="info-box">
       <span class="material-icons">info</span>
@@ -176,27 +171,6 @@
           </tbody>
         </table>
       }
-    </div>
-  </div>
-
-  <div class="action-buttons">
-    <button class="btn-secondary" (click)="goBack()">
-      <span class="material-icons">arrow_back</span>
-      <span>Back</span>
-    </button>
-
-    <div class="buttons-right">
-      @if (enabledCount === 0) {
-        <div class="warning-message">
-          <span class="material-icons">warning</span>
-          Please select at least one column to continue
-        </div>
-      }
-
-      <button class="btn-primary" (click)="onContinue()" [disabled]="enabledCount === 0">
-        Continue to Configure Data & Features
-        <span class="material-icons">arrow_forward</span>
-      </button>
     </div>
   </div>
 </div>

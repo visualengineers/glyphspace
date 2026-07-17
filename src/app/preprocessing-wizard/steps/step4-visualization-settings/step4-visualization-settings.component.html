@@ -1,10 +1,5 @@
 <div class="step4-visualization-settings">
   <div class="step-content">
-    <div class="step-header">
-      <h2>{{ stepInfo.title }}</h2>
-      <p class="step-purpose">{{ stepInfo.purpose }}</p>
-    </div>
-
     <!-- ====== Color Feature (single row) ====== -->
     <div class="config-panel color-feature-panel">
       <div class="panel-header-row">
@@ -356,28 +351,6 @@
           </div>
         }
       }
-    </div>
-  </div>
-
-  <!-- Action Buttons -->
-  <div class="action-buttons">
-    <button class="btn-secondary" (click)="goBack()">
-      <span class="material-icons">arrow_back</span>
-      <span>Back</span>
-    </button>
-
-    <div class="buttons-right">
-      @if (!canProceed()) {
-        <div class="warning-message">
-          <span class="material-icons">warning</span>
-          <span>Please select 3-12 glyph features to continue.</span>
-        </div>
-      }
-
-      <button class="btn-primary" (click)="continue()" [disabled]="!canProceed()">
-        <span>Continue to Review</span>
-        <span class="material-icons">arrow_forward</span>
-      </button>
     </div>
   </div>
 </div>

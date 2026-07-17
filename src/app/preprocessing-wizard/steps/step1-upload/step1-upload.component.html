@@ -1,10 +1,5 @@
 <div class="step1-upload">
   <div class="step-content">
-    <div class="step-header">
-      <h2>{{ stepInfo.title }}</h2>
-      <p class="step-purpose">{{ stepInfo.purpose }}</p>
-    </div>
-
     @if (!profile) {
       <!-- Help Info Box -->
       <div class="info-box">
@@ -154,16 +149,4 @@
       </div>
     }
   </div>
-
-  @if (profile) {
-    <div class="action-buttons">
-      <div class="buttons-left"></div>
-      <div class="buttons-right">
-        <button class="btn-primary" (click)="dataLoaded.emit(profile)">
-          Continue to Column Selection
-          <span class="material-icons">arrow_forward</span>
-        </button>
-      </div>
-    </div>
-  }
 </div>

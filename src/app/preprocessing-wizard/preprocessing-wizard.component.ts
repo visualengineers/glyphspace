@@ -1,13 +1,14 @@
-import { Component, OnInit, OnDestroy, Output, EventEmitter, ViewChild, ElementRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, Output, EventEmitter, ViewChild, ElementRef, viewChild } from '@angular/core';
 import { Subscription, distinctUntilChanged, map } from 'rxjs';
 import { PreprocessingService } from './services/preprocessing.service';
 import { ProgressStepperComponent, Step } from './shared/progress-stepper/progress-stepper.component';
+import { WIZARD_STEP } from './shared/wizard-step';
+import { STEP_INFO } from './shared/constants/step-info';
 import { Step1UploadComponent } from './steps/step1-upload/step1-upload.component';
 import { Step2ColumnSelectionComponent } from './steps/step2-column-selection/step2-column-selection.component';
 import { Step3ConfigureDataFeaturesComponent } from './steps/step3-configure-data-features/step3-configure-data-features.component';
 import { Step4VisualizationSettingsComponent } from './steps/step4-visualization-settings/step4-visualization-settings.component';
 import { Step5ReviewProcessingComponent } from './steps/step5-review-processing/step5-review-processing.component';
-import { DataProfile } from './models/column-statistics';
 import { PreprocessingState } from './models/preprocessing-state';
 
 @Component({
@@ -28,6 +29,11 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
   @Output() wizardClose = new EventEmitter<void>();
   @ViewChild('wizardContent') wizardContent!: ElementRef<HTMLElement>;
 
+  // Currently rendered step (1–4) exposed through the WIZARD_STEP token so the
+  // shell can drive the centralized navigation bar. Undefined on step 5, which
+  // keeps its own context-dependent footer.
+  readonly activeStep = viewChild(WIZARD_STEP);
+
   private subscription = new Subscription();
 
   currentStep = 0;
@@ -35,13 +41,16 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
   isProcessing = false;
   error: string | null = null;
 
-  steps: Step[] = [
-    { label: 'Upload Data', completed: false },
-    { label: 'Select Columns', completed: false },
-    { label: 'Configure Data & Features', completed: false },
-    { label: 'Visualization Settings', completed: false },
-    { label: 'Review & Process', completed: false },
-  ];
+  // Labels and descriptions come from STEP_INFO so the sidebar stays the single
+  // source of truth for step titles/purposes (no duplication in the work area).
+  steps: Step[] = Object.keys(STEP_INFO)
+    .map(Number)
+    .sort((a, b) => a - b)
+    .map(i => ({
+      label: STEP_INFO[i].title,
+      description: STEP_INFO[i].purpose,
+      completed: false,
+    }));
 
   constructor(private preprocessingService: PreprocessingService) {}
 
@@ -107,36 +116,8 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
     this.preprocessingService.goToStep(step);
   }
 
-  onDataLoaded(_profile: DataProfile): void {
-    // User clicked "Continue to Column Selection" button - proceed to next step
-    this.preprocessingService.nextStep();
-  }
-
-  nextStep(): void {
-    this.preprocessingService.nextStep();
-  }
-
   previousStep(): void {
     this.preprocessingService.previousStep();
-  }
-
-  canGoNext(): boolean {
-    const state = this.preprocessingService.currentState;
-
-    switch (this.currentStep) {
-      case 0: // Upload
-        return state.dataProfile !== null;
-      case 1: // Column Selection
-        return state.columnConfigs.size > 0;
-      case 2: // Configure Data & Features
-        return true;
-      case 3: // Visualization Settings
-        return true;
-      case 4: // Review & Process
-        return false; // Final step - processing happens here
-      default:
-        return false;
-    }
   }
 
   reset(): void {
