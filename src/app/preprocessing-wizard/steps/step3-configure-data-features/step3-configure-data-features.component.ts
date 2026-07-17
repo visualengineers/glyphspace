@@ -17,6 +17,7 @@ import { HelpTooltipComponent } from '../../shared/help-tooltip/help-tooltip.com
 import { HELP_TEXT } from '../../shared/constants/help-text';
 import { STEP_INFO } from '../../shared/constants/step-info';
 import { DataTypeBadgeComponent } from '../../shared/data-type-badge/data-type-badge.component';
+import { DataPreviewTableComponent } from '../../shared/data-preview-table/data-preview-table.component';
 
 interface ColumnConfigState {
   column: ColumnStatistics;
@@ -29,7 +30,7 @@ interface ColumnConfigState {
 @Component({
   selector: 'app-step3-configure-data-features',
   standalone: true,
-  imports: [FormsModule, HelpTooltipComponent, DataTypeBadgeComponent],
+  imports: [FormsModule, HelpTooltipComponent, DataTypeBadgeComponent, DataPreviewTableComponent],
   templateUrl: './step3-configure-data-features.component.html',
   styleUrl: './step3-configure-data-features.component.scss',
   providers: [{ provide: WIZARD_STEP, useExisting: forwardRef(() => Step3ConfigureDataFeaturesComponent) }],
@@ -318,6 +319,28 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit, WizardStep {
       });
       // Update local state to trigger template re-render
       colState.config.includeInProjection = newValue;
+    }
+  }
+
+  // Select-all state for the unified list header toggle. Operates on the
+  // currently listed (filtered) columns so the toggle matches what the user sees.
+  get allFilteredInProjection(): boolean {
+    return this.filteredColumns.length > 0 && this.filteredColumns.every(c => c.config.includeInProjection);
+  }
+
+  get someFilteredInProjection(): boolean {
+    return this.filteredColumns.some(c => c.config.includeInProjection);
+  }
+
+  toggleAllProjection(): void {
+    const target = !this.allFilteredInProjection;
+    for (const colState of this.filteredColumns) {
+      if (colState.config.includeInProjection !== target) {
+        this.preprocessingService.updateColumnConfig(colState.column.name, {
+          includeInProjection: target,
+        });
+        colState.config.includeInProjection = target;
+      }
     }
   }
 

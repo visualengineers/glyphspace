@@ -200,14 +200,32 @@
     }
   }
 
-  .item-projection {
+  // Unified left-hand selection cell — shared by the select-all header bar and
+  // every list item so the header checkbox aligns vertically with row checkboxes.
+  .select-cell {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-start;
+    width: 24px;
     flex-shrink: 0;
 
     input[type='checkbox'] {
-      width: 16px;
-      height: 16px;
-      cursor: pointer;
-      accent-color: v.$active-color;
+      @include w.selection-checkbox;
+    }
+  }
+
+  .list-select-all {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-bottom: 1px solid v.$gray-300;
+    background: white;
+
+    .select-all-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: v.$gray-700;
     }
   }
 
@@ -397,7 +415,7 @@
       color: v.$gray-800;
 
       input[type='checkbox'] {
-        @include w.checkbox;
+        @include w.selection-checkbox;
       }
     }
   }
@@ -525,16 +543,8 @@
 
       .duplicate-samples {
         margin-top: 8px;
-        border: 1px solid v.$gray-300;
-        border-radius: 4px;
-        overflow-x: auto;
         overflow-y: auto;
         max-height: 250px;
-
-        .sample-table {
-          @include w.table;
-          font-size: 12px;
-        }
       }
     }
   }

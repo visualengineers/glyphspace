@@ -250,6 +250,55 @@
   accent-color: v.$active-color;
 }
 
+// ============================================================================
+// Unified table/list selection system (A15)
+// One consistent pattern for every selectable table/list in the wizard:
+// selection control on the LEFT, a header "select all" toggle, a single blue
+// accent color, and no data-type color-coding of rows.
+// ============================================================================
+
+// Fixed geometry for the selection column. Using the SAME width and left
+// padding for the header cell and every row cell guarantees the header
+// "select all" checkbox sits on one vertical line with the row checkboxes.
+$selection-col-width: 44px;
+$selection-col-pad-left: 12px;
+
+// The single selection checkbox used everywhere (header + rows + list items).
+// Accent is the shared $active-color (#00bcd4 cyan) from the design template.
+@mixin selection-checkbox {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  cursor: pointer;
+  accent-color: v.$active-color;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
+// Left-hand selection cell / container (table <th>/<td> or flex list item).
+@mixin selection-cell {
+  width: $selection-col-width;
+  min-width: $selection-col-width;
+  box-sizing: border-box;
+  padding-left: $selection-col-pad-left;
+  padding-right: 0;
+  text-align: left;
+  vertical-align: middle;
+}
+
+// Selected-row / selected-item highlight (single accent, no type colors).
+@mixin selection-highlight {
+  background: rgba(v.$active-color, 0.06);
+}
+
+// Live selection count rendered as accent text in the header/filter bar.
+@mixin selection-count-text {
+  font-size: 13px;
+  font-weight: 600;
+  color: v.$status-info;
+  white-space: nowrap;
+}
+
 // Search box — shared between column selection, data features, and legend
 @mixin search-box($padding: 5px 8px, $icon-size: 18px, $border-color: v.$gray-300) {
   display: flex;

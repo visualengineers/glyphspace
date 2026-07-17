@@ -62,6 +62,20 @@
             </div>
           </div>
 
+          <!-- Select-all header toggle (aligned with row checkboxes) -->
+          <div class="list-select-all">
+            <span class="select-cell">
+              <input
+                type="checkbox"
+                [checked]="allFilteredInProjection"
+                [indeterminate]="someFilteredInProjection && !allFilteredInProjection"
+                (change)="toggleAllProjection()"
+                title="Include/exclude all listed columns in projection"
+              />
+            </span>
+            <span class="select-all-label">Include all in projection</span>
+          </div>
+
           <div class="column-list">
             @for (colState of filteredColumns; track colState.column.name) {
               <div
@@ -72,6 +86,19 @@
                 (keydown.enter)="selectColumn(colState.column.name)"
                 tabindex="0"
               >
+                <span
+                  class="select-cell"
+                  (click)="$event.stopPropagation()"
+                  (keydown.enter)="$event.stopPropagation()"
+                  tabindex="0"
+                >
+                  <input
+                    type="checkbox"
+                    [checked]="colState.config.includeInProjection"
+                    (change)="toggleProjection(colState.column.name)"
+                    title="Include in projection"
+                  />
+                </span>
                 <div class="item-content">
                   <div class="item-top">
                     <span class="column-name">{{ colState.column.name }}</span>
@@ -86,19 +113,6 @@
                       <span class="issue-badge outliers">{{ colState.outlierCount }} outliers</span>
                     }
                   </div>
-                </div>
-                <div
-                  class="item-projection"
-                  (click)="$event.stopPropagation()"
-                  (keydown.enter)="$event.stopPropagation()"
-                  tabindex="0"
-                >
-                  <input
-                    type="checkbox"
-                    [checked]="colState.config.includeInProjection"
-                    (change)="toggleProjection(colState.column.name)"
-                    title="Include in projection"
-                  />
                 </div>
               </div>
             }
@@ -389,24 +403,11 @@
 
               @if (showDuplicateSamples) {
                 <div class="duplicate-samples">
-                  <table class="sample-table">
-                    <thead>
-                      <tr>
-                        @for (colName of columnNames; track colName) {
-                          <th>{{ colName }}</th>
-                        }
-                      </tr>
-                    </thead>
-                    <tbody>
-                      @for (row of sampleDuplicates; track $index) {
-                        <tr>
-                          @for (colName of columnNames; track colName) {
-                            <td>{{ row[colName] || '' }}</td>
-                          }
-                        </tr>
-                      }
-                    </tbody>
-                  </table>
+                  <app-data-preview-table
+                    [data]="sampleDuplicates"
+                    [columns]="columnNames"
+                    [maxRows]="sampleDuplicates.length"
+                  ></app-data-preview-table>
                 </div>
               }
             }

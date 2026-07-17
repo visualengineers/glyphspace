@@ -484,15 +484,12 @@
       .card-desc {
         font-size: 10px;
         color: v.$gray-500;
-        padding-left: 19px;
+        padding-left: 20px;
         line-height: 1.3;
       }
 
       input[type='checkbox'] {
-        @include w.checkbox;
-        width: 14px;
-        height: 14px;
-        flex-shrink: 0;
+        @include w.selection-checkbox;
       }
 
       .method-name {
