@@ -490,6 +490,22 @@ export class Step4VisualizationSettingsComponent implements OnInit, WizardStep {
     }
   }
 
+  /** True when every column is included (master checkbox checked). */
+  allColumnsInProjection(): boolean {
+    return this.projectionColumns.length > 0 && this.getProjectionCount() === this.projectionColumns.length;
+  }
+
+  /** True when only some columns are included (master checkbox indeterminate). */
+  someColumnsInProjection(): boolean {
+    const count = this.getProjectionCount();
+    return count > 0 && count < this.projectionColumns.length;
+  }
+
+  /** Master checkbox: select all unless everything is already selected, in which case clear. */
+  onToggleAllProjection(): void {
+    this.setAllProjectionColumns(!this.allColumnsInProjection());
+  }
+
   // ============================================================================
   // Projection Configuration
   // ============================================================================

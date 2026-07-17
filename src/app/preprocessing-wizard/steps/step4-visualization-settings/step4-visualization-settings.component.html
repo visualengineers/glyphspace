@@ -251,18 +251,29 @@
             Projection Columns
             <app-help-tooltip [helpText]="HELP_TEXT.general.projection"></app-help-tooltip>
           </h3>
-          <span class="projection-count">{{ getProjectionCount() }}/{{ projectionColumns.length }}</span>
+          <span class="projection-count">{{ getProjectionCount() }} / {{ projectionColumns.length }} included</span>
         </div>
         <p class="panel-description">Choose which columns feed the dimensionality reduction.</p>
 
-        <div class="projection-columns-actions">
-          <button type="button" class="btn-link" (click)="setAllProjectionColumns(true)">Select all</button>
-          <button type="button" class="btn-link" (click)="setAllProjectionColumns(false)">Clear</button>
+        <div class="projection-columns-list-header">
+          <input
+            type="checkbox"
+            class="master-checkbox"
+            [checked]="allColumnsInProjection()"
+            [indeterminate]="someColumnsInProjection()"
+            (change)="onToggleAllProjection()"
+            title="Select all columns"
+          />
+          <span class="master-label">All columns</span>
         </div>
 
         <div class="projection-columns-list">
           @for (entry of projectionColumns; track entry.column.name) {
-            <label class="projection-column-item" [class.selected]="entry.config.includeInProjection">
+            <label
+              class="projection-column-item"
+              [class.selected]="entry.config.includeInProjection"
+              [class.excluded]="!entry.config.includeInProjection"
+            >
               <input
                 type="checkbox"
                 [checked]="entry.config.includeInProjection"
