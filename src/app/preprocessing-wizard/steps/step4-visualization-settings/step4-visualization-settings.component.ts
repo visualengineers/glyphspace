@@ -3,14 +3,21 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PreprocessingService } from '../../services/preprocessing.service';
 import { WizardStep, WIZARD_STEP } from '../../shared/wizard-step';
-import { ProjectionConfig } from '../../models/column-config';
+import { ColumnConfig, ProjectionConfig } from '../../models/column-config';
 import { ColumnStatistics } from '../../models/column-statistics';
 import { DataType } from '../../models/data-type.enum';
 import { HelpTooltipComponent } from '../../shared/help-tooltip/help-tooltip.component';
 import { HELP_TEXT } from '../../shared/constants/help-text';
 import { STEP_INFO } from '../../shared/constants/step-info';
+import { DataTypeBadgeComponent } from '../../shared/data-type-badge/data-type-badge.component';
 import { COLOR_SCALES, ColorScale, buildGroupedColorScales } from '../../../shared/interfaces/color-scale';
 import { ColorScaleSelectorComponent } from '../../../shared/components/color-scale-selector/color-scale-selector.component';
+
+/** A dataset column paired with its live configuration, used for projection column selection. */
+interface ProjectionColumnState {
+  column: ColumnStatistics;
+  config: ColumnConfig;
+}
 
 /** Describes a tunable parameter for a projection method. */
 interface ProjectionParam {
@@ -54,14 +61,17 @@ interface ProjectionMethodUI {
 @Component({
   selector: 'app-step4-visualization-settings',
   standalone: true,
-  imports: [CommonModule, FormsModule, HelpTooltipComponent, ColorScaleSelectorComponent],
+  imports: [CommonModule, FormsModule, HelpTooltipComponent, DataTypeBadgeComponent, ColorScaleSelectorComponent],
   templateUrl: './step4-visualization-settings.component.html',
   styleUrl: './step4-visualization-settings.component.scss',
   providers: [{ provide: WIZARD_STEP, useExisting: forwardRef(() => Step4VisualizationSettingsComponent) }],
 })
 export class Step4VisualizationSettingsComponent implements OnInit, WizardStep {
   readonly primaryLabel = 'Continue to Review';
-  readonly disabledHint = 'Please select 3-12 glyph features to continue.';
+  readonly disabledHint = 'Select at least one projection column and 3-12 glyph features to continue.';
+
+  // Projection column selection (which features feed the dimensionality reduction)
+  projectionColumns: ProjectionColumnState[] = [];
 
   // Color feature selection
   columns: ColumnStatistics[] = [];
@@ -244,6 +254,14 @@ export class Step4VisualizationSettingsComponent implements OnInit, WizardStep {
         const config = state.columnConfigs.get(col.name);
         return config && config.enabled;
       });
+
+      // Build projection column selection from the enabled columns
+      this.projectionColumns = this.columns
+        .map(col => {
+          const config = state.columnConfigs.get(col.name);
+          return config ? { column: col, config } : null;
+        })
+        .filter((entry): entry is ProjectionColumnState => entry !== null);
     }
 
     // Load color feature and scale
@@ -442,6 +460,37 @@ export class Step4VisualizationSettingsComponent implements OnInit, WizardStep {
   }
 
   // ============================================================================
+  // Projection Column Selection
+  // ============================================================================
+
+  toggleColumnProjection(columnName: string): void {
+    const entry = this.projectionColumns.find(c => c.column.name === columnName);
+    if (entry) {
+      const newValue = !entry.config.includeInProjection;
+      this.preprocessingService.updateColumnConfig(columnName, { includeInProjection: newValue });
+      // Update local reference to trigger template re-render
+      entry.config.includeInProjection = newValue;
+    }
+  }
+
+  isColumnInProjection(columnName: string): boolean {
+    return this.projectionColumns.find(c => c.column.name === columnName)?.config.includeInProjection ?? false;
+  }
+
+  getProjectionCount(): number {
+    return this.projectionColumns.filter(c => c.config.includeInProjection).length;
+  }
+
+  setAllProjectionColumns(included: boolean): void {
+    for (const entry of this.projectionColumns) {
+      if (entry.config.includeInProjection !== included) {
+        this.preprocessingService.updateColumnConfig(entry.column.name, { includeInProjection: included });
+        entry.config.includeInProjection = included;
+      }
+    }
+  }
+
+  // ============================================================================
   // Projection Configuration
   // ============================================================================
 
@@ -632,7 +681,8 @@ export class Step4VisualizationSettingsComponent implements OnInit, WizardStep {
       this.selectedGlyphFeatures.length >= this.MIN_GLYPH_FEATURES &&
       this.selectedGlyphFeatures.length <= this.MAX_GLYPH_FEATURES;
     const projectionValid = this.hasEnabledMethod();
-    return glyphValid && projectionValid;
+    const projectionColumnsValid = this.getProjectionCount() > 0;
+    return glyphValid && projectionValid && projectionColumnsValid;
   }
 
   proceed(): void {
