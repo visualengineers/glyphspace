@@ -20,18 +20,20 @@
         </div>
       }
 
-      <!-- List + Detail Layout -->
-      <div class="config-layout">
-        <!-- Left: Column List -->
-        <div class="column-list-panel">
-          <div class="list-header">
+      <!-- Master rail + recessed detail well -->
+      <div class="config-shell">
+        <!-- LEFT RAIL: dataset columns -->
+        <div class="master-rail">
+          <div class="rail-header">
+            <span class="rail-title">DATASET COLUMNS</span>
+
             <div class="search-box">
               <span class="material-icons">search</span>
               <input
                 type="text"
                 [(ngModel)]="filterText"
                 (ngModelChange)="onFilterChange()"
-                placeholder="Search columns..."
+                placeholder="Search columns…"
                 class="search-input"
               />
               @if (filterText) {
@@ -40,7 +42,8 @@
                 </button>
               }
             </div>
-            <div class="list-filters">
+
+            <div class="rail-filters">
               <select [(ngModel)]="filterType" (ngModelChange)="onFilterChange()" class="filter-select">
                 <option value="all">All Types</option>
                 <option [value]="DataType.Numeric">Numeric</option>
@@ -51,29 +54,13 @@
                 <option [value]="DataType.Coordinate">Coordinate</option>
                 <option [value]="DataType.ID">ID</option>
               </select>
-              <label class="checkbox-label">
+              <label class="issues-check">
                 <input type="checkbox" [(ngModel)]="showIssuesOnly" (ngModelChange)="onFilterChange()" />
                 <span>Issues</span>
               </label>
             </div>
-            <div class="list-footer">
-              <span class="list-count">{{ filteredColumns.length }} of {{ columns.length }}</span>
-              <span class="projection-count">{{ getProjectionCount() }} in projection</span>
-            </div>
-          </div>
 
-          <!-- Select-all header toggle (aligned with row checkboxes) -->
-          <div class="list-select-all">
-            <span class="select-cell">
-              <input
-                type="checkbox"
-                [checked]="allFilteredInProjection"
-                [indeterminate]="someFilteredInProjection && !allFilteredInProjection"
-                (change)="toggleAllProjection()"
-                title="Include/exclude all listed columns in projection"
-              />
-            </span>
-            <span class="select-all-label">Include all in projection</span>
+            <div class="rail-count">{{ filteredColumns.length }} of {{ columns.length }} columns</div>
           </div>
 
           <div class="column-list">
@@ -81,39 +68,32 @@
               <div
                 class="column-item"
                 [class.selected]="selectedColumnName === colState.column.name"
-                [class.has-issues]="hasIssues(colState)"
                 (click)="selectColumn(colState.column.name)"
                 (keydown.enter)="selectColumn(colState.column.name)"
                 tabindex="0"
               >
-                <span
-                  class="select-cell"
-                  (click)="$event.stopPropagation()"
-                  (keydown.enter)="$event.stopPropagation()"
-                  tabindex="0"
-                >
-                  <input
-                    type="checkbox"
-                    [checked]="colState.config.includeInProjection"
-                    (change)="toggleProjection(colState.column.name)"
-                    title="Include in projection"
-                  />
-                </span>
-                <div class="item-content">
-                  <div class="item-top">
-                    <span class="column-name">{{ colState.column.name }}</span>
-                    <app-data-type-badge [dataType]="colState.column.dataType"></app-data-type-badge>
+                <div class="item-main">
+                  <div class="item-line1">
+                    <span class="column-name" [title]="colState.column.name">{{ colState.column.name }}</span>
+                    <span class="type-label">{{ getTypeLabel(colState.column.dataType) }}</span>
                   </div>
-                  <div class="item-bottom">
+                  <div class="item-line2">
                     <span class="config-summary">{{ getConfigSummary(colState) }}</span>
-                    @if (colState.column.missingCount > 0) {
-                      <span class="issue-badge missing">{{ colState.column.missingCount }} missing</span>
-                    }
-                    @if ((colState.outlierCount || 0) > 0) {
-                      <span class="issue-badge outliers">{{ colState.outlierCount }} outliers</span>
-                    }
                   </div>
                 </div>
+
+                @if (colState.column.missingCount > 0) {
+                  <span
+                    class="missing-badge"
+                    [class.high]="isHighMissing(colState)"
+                    title="{{ colState.column.missingCount }} missing ({{
+                      colState.column.missingPercentage.toFixed(1)
+                    }}%)"
+                  >
+                    <span class="material-icons">warning</span>
+                    {{ colState.column.missingCount }}
+                  </span>
+                }
               </div>
             }
 
@@ -127,228 +107,223 @@
           </div>
         </div>
 
-        <!-- Right: Detail Panel -->
-        <div class="detail-panel">
+        <!-- RIGHT: recessed "imprint" well -->
+        <div class="detail-well">
           @if (selectedColumn) {
-            <div class="detail-header">
-              <h3>{{ selectedColumn.column.name }}</h3>
-              <app-data-type-badge [dataType]="selectedColumn.column.dataType"></app-data-type-badge>
+            <div class="breadcrumb">
+              <span>Dataset columns</span>
+              <span class="material-icons">chevron_right</span>
+              <span class="crumb-current">{{ selectedColumn.column.name }}</span>
             </div>
 
-            <!-- Column Statistics -->
-            <div class="stats-bar">
-              <div class="stat">
-                <span class="stat-label">Rows</span>
-                <span class="stat-value">{{ selectedColumn.column.count }}</span>
+            <div class="detail-card">
+              <div class="card-header">
+                <span class="card-eyebrow">CONFIGURING SELECTED COLUMN</span>
+                <div class="card-title-row">
+                  <h3 [title]="selectedColumn.column.name">{{ selectedColumn.column.name }}</h3>
+                  <span class="type-pill">{{ getTypeLabel(selectedColumn.column.dataType) }}</span>
+                </div>
               </div>
-              <div class="stat">
-                <span class="stat-label">Unique</span>
-                <span class="stat-value">{{ selectedColumn.column.uniqueCount }}</span>
-              </div>
-              @if (selectedColumn.column.missingCount > 0) {
-                <div class="stat">
-                  <span class="stat-label">Missing</span>
-                  <span class="stat-value warn"
-                    >{{ selectedColumn.column.missingCount }} ({{
-                      selectedColumn.column.missingPercentage.toFixed(1)
-                    }}%)</span
-                  >
-                </div>
-              }
-              @if (
-                selectedColumn.column.dataType === DataType.Numeric ||
-                selectedColumn.column.dataType === DataType.Coordinate
-              ) {
-                <div class="stat">
-                  <span class="stat-label">Range</span>
-                  <span class="stat-value"
-                    >{{ selectedColumn.column.min?.toFixed(2) }} — {{ selectedColumn.column.max?.toFixed(2) }}</span
-                  >
-                </div>
-                <div class="stat">
-                  <span class="stat-label">Mean</span>
-                  <span class="stat-value">{{ selectedColumn.column.mean?.toFixed(2) }}</span>
-                </div>
-                <div class="stat">
-                  <span class="stat-label">Std</span>
-                  <span class="stat-value">{{ selectedColumn.column.stdDev?.toFixed(2) }}</span>
-                </div>
-              }
-              @if (
-                selectedColumn.column.dataType === DataType.Date &&
-                selectedColumn.column.min != null &&
-                selectedColumn.column.max != null
-              ) {
-                <div class="stat stat-date">
-                  <span class="stat-label">Range</span>
-                  <span class="stat-value"
-                    >{{ formatDate(selectedColumn.column.min!) }} — {{ formatDate(selectedColumn.column.max!) }}</span
-                  >
-                </div>
-              }
-              @if (
-                selectedColumn.column.dataType === DataType.Categorical &&
-                selectedColumn.column.topValues &&
-                selectedColumn.column.topValues.length > 0
-              ) {
-                <div class="stat top-values">
-                  <span class="stat-label">Top</span>
-                  <span class="stat-value"
-                    >{{ selectedColumn.column.topValues![0].value }} ({{
-                      selectedColumn.column.topValues![0].count
-                    }})</span
-                  >
-                </div>
-              }
-              @if (selectedColumn.column.dataType === DataType.Boolean && selectedColumn.column.topValues) {
-                <div class="stat">
-                  <span class="stat-label">Distribution</span>
-                  <span class="stat-value">
-                    @for (tv of selectedColumn.column.topValues!; track tv.value) {
-                      {{ tv.value }}: {{ tv.count }}{{ $last ? '' : ', ' }}
-                    }
-                  </span>
-                </div>
-              }
-              @if (selectedColumn.column.dataType === DataType.Text) {
-                <div class="stat">
-                  <span class="stat-label">Avg length</span>
-                  <span class="stat-value">{{ selectedColumn.column.mean?.toFixed(0) || '—' }}</span>
-                </div>
-              }
-            </div>
 
-            <!-- Encoding -->
-            @if (shouldShowEncoding(selectedColumn)) {
-              <div class="config-section">
-                <div class="section-header">
-                  <span class="section-label">Encoding</span>
-                  <app-help-tooltip [helpText]="HELP_TEXT.tableHeaders.encoding" position="bottom"></app-help-tooltip>
+              <!-- Stat chips -->
+              <div class="stat-chips">
+                <div class="chip">
+                  <span class="chip-label">Rows</span>
+                  <span class="chip-value">{{ selectedColumn.column.count }}</span>
                 </div>
-                <select
-                  class="config-select"
-                  [value]="selectedColumn.config.encodingMethod"
-                  (change)="onEncodingChange(selectedColumn.column.name, $any($event.target).value)"
-                >
-                  @for (method of getAvailableEncodingMethods(selectedColumn); track method.value) {
-                    <option [value]="method.value">{{ method.label }} — {{ method.description }}</option>
-                  }
-                </select>
-              </div>
-            }
-
-            <!-- Scaling (numeric/date only) -->
-            @if (shouldShowScaling(selectedColumn)) {
-              <div class="config-section">
-                <div class="section-header">
-                  <span class="section-label">Scaling</span>
-                  <app-help-tooltip [helpText]="HELP_TEXT.tableHeaders.scaling" position="bottom"></app-help-tooltip>
+                <div class="chip">
+                  <span class="chip-label">Unique</span>
+                  <span class="chip-value">{{ selectedColumn.column.uniqueCount }}</span>
                 </div>
-                <select
-                  class="config-select"
-                  [value]="selectedColumn.config.scalingMethod"
-                  (change)="onScalingChange(selectedColumn.column.name, $any($event.target).value)"
-                >
-                  @for (method of scalingMethods; track method.value) {
-                    <option [value]="method.value">{{ method.label }} — {{ method.description }}</option>
-                  }
-                </select>
-              </div>
-            }
-
-            <!-- Missing Values -->
-            @if (hasMissingValues(selectedColumn)) {
-              <div class="config-section">
-                <div class="section-header">
-                  <span class="section-label">Missing Values</span>
-                  <span class="section-count"
-                    >{{ selectedColumn.column.missingCount }} ({{
-                      selectedColumn.column.missingPercentage.toFixed(1)
-                    }}%)</span
-                  >
-                  <app-help-tooltip
-                    [helpText]="HELP_TEXT.tableHeaders.missingValues"
-                    position="bottom"
-                  ></app-help-tooltip>
-                </div>
-                <select
-                  class="config-select"
-                  [value]="selectedColumn.config.missingValueStrategy"
-                  (change)="onMissingStrategyChange(selectedColumn.column.name, $any($event.target).value)"
-                >
-                  @for (strategy of getAvailableMissingStrategies(selectedColumn); track strategy.value) {
-                    <option [value]="strategy.value">{{ strategy.label }} — {{ strategy.description }}</option>
-                  }
-                </select>
-                @if (selectedColumn.config.missingValueStrategy === MissingValueStrategy.FillValue) {
-                  <input
-                    type="text"
-                    class="fill-value-input"
-                    [(ngModel)]="selectedColumn.config.missingValueFillValue"
-                    (ngModelChange)="onMissingValueFillChange(selectedColumn.column.name, $event || '')"
-                    placeholder="Enter fill value..."
-                  />
+                @if (selectedColumn.column.missingCount > 0) {
+                  <div class="chip chip-warning">
+                    <span class="material-icons">warning</span>
+                    <span class="chip-label">Missing</span>
+                    <span class="chip-value"
+                      >{{ selectedColumn.column.missingCount }} ({{
+                        selectedColumn.column.missingPercentage.toFixed(1)
+                      }}%)</span
+                    >
+                  </div>
+                }
+                @if (
+                  selectedColumn.column.dataType === DataType.Numeric ||
+                  selectedColumn.column.dataType === DataType.Coordinate
+                ) {
+                  <div class="chip">
+                    <span class="chip-label">Range</span>
+                    <span class="chip-value"
+                      >{{ selectedColumn.column.min?.toFixed(2) }} — {{ selectedColumn.column.max?.toFixed(2) }}</span
+                    >
+                  </div>
+                  <div class="chip">
+                    <span class="chip-label">Mean</span>
+                    <span class="chip-value">{{ selectedColumn.column.mean?.toFixed(2) }}</span>
+                  </div>
+                  <div class="chip">
+                    <span class="chip-label">Std</span>
+                    <span class="chip-value">{{ selectedColumn.column.stdDev?.toFixed(2) }}</span>
+                  </div>
+                }
+                @if (
+                  selectedColumn.column.dataType === DataType.Date &&
+                  selectedColumn.column.min != null &&
+                  selectedColumn.column.max != null
+                ) {
+                  <div class="chip">
+                    <span class="chip-label">Range</span>
+                    <span class="chip-value"
+                      >{{ formatDate(selectedColumn.column.min!) }} — {{ formatDate(selectedColumn.column.max!) }}</span
+                    >
+                  </div>
+                }
+                @if (
+                  selectedColumn.column.dataType === DataType.Categorical &&
+                  selectedColumn.column.topValues &&
+                  selectedColumn.column.topValues.length > 0
+                ) {
+                  <div class="chip">
+                    <span class="chip-label">Top</span>
+                    <span class="chip-value"
+                      >{{ selectedColumn.column.topValues![0].value }} ({{
+                        selectedColumn.column.topValues![0].count
+                      }})</span
+                    >
+                  </div>
+                }
+                @if (selectedColumn.column.dataType === DataType.Text) {
+                  <div class="chip">
+                    <span class="chip-label">Avg length</span>
+                    <span class="chip-value">{{ selectedColumn.column.mean?.toFixed(0) || '—' }}</span>
+                  </div>
                 }
               </div>
-            }
 
-            <!-- Outliers (numeric only) -->
-            @if (shouldShowOutliers(selectedColumn)) {
-              <div class="config-section">
-                <div class="section-header">
-                  <span class="section-label">Outliers</span>
-                  @if (selectedColumn.isLoadingOutliers) {
-                    <span class="loading-indicator">
-                      <span class="material-icons spinning">sync</span>
-                    </span>
-                  } @else if (hasOutliers(selectedColumn)) {
-                    <span class="section-count">{{ selectedColumn.outlierCount }} detected</span>
-                  }
-                  <app-help-tooltip [helpText]="HELP_TEXT.tableHeaders.outliers" position="bottom"></app-help-tooltip>
-                </div>
-                <div class="outlier-controls">
-                  <div class="control-group">
-                    <label for="step3-outlier-method">Detection Method</label>
+              <!-- SETTINGS -->
+              <div class="settings-section">
+                <span class="settings-label">SETTINGS</span>
+
+                <!-- Encoding -->
+                @if (shouldShowEncoding(selectedColumn)) {
+                  <div class="config-section">
+                    <div class="section-header">
+                      <span class="section-label">Encoding</span>
+                      <app-help-tooltip [helpText]="HELP_TEXT.tableHeaders.encoding" position="bottom"></app-help-tooltip>
+                    </div>
                     <select
-                      id="step3-outlier-method"
                       class="config-select"
-                      [value]="selectedColumn.config.outlierMethod"
-                      (change)="onOutlierMethodChange(selectedColumn.column.name, $any($event.target).value)"
-                      [disabled]="selectedColumn.isLoadingOutliers"
+                      [value]="selectedColumn.config.encodingMethod"
+                      (change)="onEncodingChange(selectedColumn.column.name, $any($event.target).value)"
                     >
-                      @for (method of outlierMethods; track method.value) {
+                      @for (method of getAvailableEncodingMethods(selectedColumn); track method.value) {
                         <option [value]="method.value">{{ method.label }} — {{ method.description }}</option>
                       }
                     </select>
                   </div>
-                  <div class="control-group">
-                    <label for="step3-outlier-strategy">Strategy</label>
+                }
+
+                <!-- Scaling (numeric/date only) -->
+                @if (shouldShowScaling(selectedColumn)) {
+                  <div class="config-section">
+                    <div class="section-header">
+                      <span class="section-label">Scaling</span>
+                      <app-help-tooltip [helpText]="HELP_TEXT.tableHeaders.scaling" position="bottom"></app-help-tooltip>
+                    </div>
                     <select
-                      id="step3-outlier-strategy"
                       class="config-select"
-                      [value]="selectedColumn.config.outlierStrategy"
-                      (change)="onOutlierStrategyChange(selectedColumn.column.name, $any($event.target).value)"
-                      [disabled]="selectedColumn.isLoadingOutliers"
+                      [value]="selectedColumn.config.scalingMethod"
+                      (change)="onScalingChange(selectedColumn.column.name, $any($event.target).value)"
                     >
-                      @for (strategy of outlierStrategies; track strategy.value) {
-                        <option [value]="strategy.value">{{ strategy.label }} — {{ strategy.description }}</option>
+                      @for (method of scalingMethods; track method.value) {
+                        <option [value]="method.value">{{ method.label }} — {{ method.description }}</option>
                       }
                     </select>
                   </div>
-                </div>
-              </div>
-            }
+                }
 
-            <!-- Projection -->
-            <div class="config-section projection-section">
-              <label class="projection-label">
-                <input
-                  type="checkbox"
-                  [checked]="selectedColumn.config.includeInProjection"
-                  (change)="toggleProjection(selectedColumn.column.name)"
-                />
-                <span>Include in projection</span>
-              </label>
+                <!-- Missing Values -->
+                @if (hasMissingValues(selectedColumn)) {
+                  <div class="config-section">
+                    <div class="section-header">
+                      <span class="section-label">Missing Values</span>
+                      <span class="section-count"
+                        >{{ selectedColumn.column.missingCount }} ({{
+                          selectedColumn.column.missingPercentage.toFixed(1)
+                        }}%)</span
+                      >
+                      <app-help-tooltip
+                        [helpText]="HELP_TEXT.tableHeaders.missingValues"
+                        position="bottom"
+                      ></app-help-tooltip>
+                    </div>
+                    <select
+                      class="config-select"
+                      [value]="selectedColumn.config.missingValueStrategy"
+                      (change)="onMissingStrategyChange(selectedColumn.column.name, $any($event.target).value)"
+                    >
+                      @for (strategy of getAvailableMissingStrategies(selectedColumn); track strategy.value) {
+                        <option [value]="strategy.value">{{ strategy.label }} — {{ strategy.description }}</option>
+                      }
+                    </select>
+                    @if (selectedColumn.config.missingValueStrategy === MissingValueStrategy.FillValue) {
+                      <input
+                        type="text"
+                        class="fill-value-input"
+                        [(ngModel)]="selectedColumn.config.missingValueFillValue"
+                        (ngModelChange)="onMissingValueFillChange(selectedColumn.column.name, $event || '')"
+                        placeholder="Enter fill value..."
+                      />
+                    }
+                  </div>
+                }
+
+                <!-- Outliers (numeric only) -->
+                @if (shouldShowOutliers(selectedColumn)) {
+                  <div class="config-section">
+                    <div class="section-header">
+                      <span class="section-label">Outliers</span>
+                      @if (selectedColumn.isLoadingOutliers) {
+                        <span class="loading-indicator">
+                          <span class="material-icons spinning">sync</span>
+                        </span>
+                      } @else if (hasOutliers(selectedColumn)) {
+                        <span class="section-count">{{ selectedColumn.outlierCount }} detected</span>
+                      }
+                      <app-help-tooltip [helpText]="HELP_TEXT.tableHeaders.outliers" position="bottom"></app-help-tooltip>
+                    </div>
+                    <div class="outlier-controls">
+                      <div class="control-group">
+                        <label for="step3-outlier-method">Detection Method</label>
+                        <select
+                          id="step3-outlier-method"
+                          class="config-select"
+                          [value]="selectedColumn.config.outlierMethod"
+                          (change)="onOutlierMethodChange(selectedColumn.column.name, $any($event.target).value)"
+                          [disabled]="selectedColumn.isLoadingOutliers"
+                        >
+                          @for (method of outlierMethods; track method.value) {
+                            <option [value]="method.value">{{ method.label }} — {{ method.description }}</option>
+                          }
+                        </select>
+                      </div>
+                      <div class="control-group">
+                        <label for="step3-outlier-strategy">Strategy</label>
+                        <select
+                          id="step3-outlier-strategy"
+                          class="config-select"
+                          [value]="selectedColumn.config.outlierStrategy"
+                          (change)="onOutlierStrategyChange(selectedColumn.column.name, $any($event.target).value)"
+                          [disabled]="selectedColumn.isLoadingOutliers"
+                        >
+                          @for (strategy of outlierStrategies; track strategy.value) {
+                            <option [value]="strategy.value">{{ strategy.label }} — {{ strategy.description }}</option>
+                          }
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                }
+              </div>
             </div>
           } @else {
             <div class="no-selection">

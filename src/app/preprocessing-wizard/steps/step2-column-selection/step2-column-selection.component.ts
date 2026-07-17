@@ -29,6 +29,12 @@ export class Step2ColumnSelectionComponent implements OnInit, WizardStep {
   searchTerm = '';
   columnHistogramCache = new Map<string, HistogramData>();
 
+  // Distribution bars use the single cyan accent (A15) instead of per-type colors.
+  // These mirror $active-color (#00bcd4) / $status-info (#00838f); the mini-histogram
+  // renders to a d3 canvas so the color must be passed as a string here.
+  readonly distributionColor = '#00bcd4';
+  readonly distributionHoverColor = '#00838f';
+
   // Expose help text and step info to template
   readonly HELP_TEXT = HELP_TEXT;
   readonly stepInfo = STEP_INFO[1]; // Step 2 (index 1)

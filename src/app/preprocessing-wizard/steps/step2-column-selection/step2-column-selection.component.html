@@ -144,8 +144,8 @@
                     <app-mini-histogram
                       [data]="histogramData"
                       [dataType]="column.dataType"
-                      [color]="getDataTypeBgColor(column.dataType)"
-                      [hoverColor]="getDataTypeColor(column.dataType)"
+                      [color]="distributionColor"
+                      [hoverColor]="distributionHoverColor"
                       [width]="112"
                       [height]="25"
                       [enabled]="isColumnEnabled(column.name)"
