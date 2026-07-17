@@ -98,6 +98,8 @@ Quick Wins ohne Abhängigkeit, die sich parallel zum Fundament wegräumen lassen
 
 **Problem:** Fachbegriffe werden ohne Erklärung angeboten (Farbattribut, Projektionsmethoden, FastMap, Ausreißermethoden, Z-Wert-Standardisierung, Smart Defaults).
 
+**Hinweis:** Aus A5 übernommen: Die unerklärten Farbabweichungen bzw. die „Farbauswahl" sind hier über einen erklärenden Text zu lösen, nicht über ein zusätzliches Farb-Steuerelement.
+
 **Wo umsetzen:**
 - Erklärtexte zentral pflegen in `shared/constants/help-text.ts`.
 - Abrufbare Erklärung (Progressive Disclosure) über die bestehende `shared/help-tooltip/`-Komponente; für Projektionsmethoden auf visuelle Tooltips erweitern (Miro „Visual Tooltips Methoden", vgl. `tmp/Projektion_Methoden_Visualisierung.html`).
@@ -154,6 +156,8 @@ Quick Wins ohne Abhängigkeit, die sich parallel zum Fundament wegräumen lassen
 **Wo umsetzen:**
 - Parameter in den Kasten der jeweiligen Methode ziehen + Reset auf Defaultwerte: `steps/step4-visualization-settings/step4-visualization-settings.component.html` und `.ts` (Miro „Parameter Location").
 - Datenkonfiguration klarer strukturieren (Angabe↔Spalte erkennbar): `steps/step3-configure-data-features/`.
+
+**Hinweis:** Der Befund zu unerklärten Farbabweichungen bzw. zur „Farbauswahl" passt inhaltlich nicht zu A5 und wird nach A1 verschoben; dort ist er über einen erklärenden Text statt über ein Farb-Steuerelement zu lösen.
 
 ---
 

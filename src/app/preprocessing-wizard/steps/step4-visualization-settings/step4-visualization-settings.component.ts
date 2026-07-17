@@ -20,6 +20,8 @@ interface ProjectionParam {
   min: number;
   max: number;
   step?: number;
+  /** Default value used by the per-method "reset parameters" action. */
+  default: number;
 }
 
 /**
@@ -138,6 +140,7 @@ export class Step4VisualizationSettingsComponent implements OnInit, WizardStep {
           min: 100,
           max: 2000,
           step: 50,
+          default: 500,
         },
       ],
     },
@@ -159,7 +162,14 @@ export class Step4VisualizationSettingsComponent implements OnInit, WizardStep {
       sizeHint: 'up to 5K rows',
       largeDatasetWarning: true,
       params: [
-        { label: 'Neighbors (0 = auto)', helpKey: 'isomapNeighbors', configKey: 'isomapNeighbors', min: 0, max: 200 },
+        {
+          label: 'Neighbors (0 = auto)',
+          helpKey: 'isomapNeighbors',
+          configKey: 'isomapNeighbors',
+          min: 0,
+          max: 200,
+          default: 0,
+        },
       ],
     },
     {
@@ -170,7 +180,16 @@ export class Step4VisualizationSettingsComponent implements OnInit, WizardStep {
       badge: 'Medium',
       sizeHint: 'up to 30K rows',
       largeDatasetWarning: true,
-      params: [{ label: 'Neighbors (0 = auto)', helpKey: 'lleNeighbors', configKey: 'lleNeighbors', min: 0, max: 200 }],
+      params: [
+        {
+          label: 'Neighbors (0 = auto)',
+          helpKey: 'lleNeighbors',
+          configKey: 'lleNeighbors',
+          min: 0,
+          max: 200,
+          default: 0,
+        },
+      ],
     },
     {
       key: 'enableLTSA',
@@ -181,7 +200,14 @@ export class Step4VisualizationSettingsComponent implements OnInit, WizardStep {
       sizeHint: 'up to 20K rows',
       largeDatasetWarning: true,
       params: [
-        { label: 'Neighbors (0 = auto)', helpKey: 'ltsaNeighbors', configKey: 'ltsaNeighbors', min: 0, max: 200 },
+        {
+          label: 'Neighbors (0 = auto)',
+          helpKey: 'ltsaNeighbors',
+          configKey: 'ltsaNeighbors',
+          min: 0,
+          max: 200,
+          default: 0,
+        },
       ],
     },
     {
@@ -202,8 +228,16 @@ export class Step4VisualizationSettingsComponent implements OnInit, WizardStep {
       sizeHint: 'up to 100K rows',
       largeDatasetWarning: true,
       params: [
-        { label: 'Number of Neighbors', helpKey: 'umapNeighbors', configKey: 'umapNeighbors', min: 2, max: 200 },
-        { label: 'Minimum Distance', helpKey: 'umapMinDist', configKey: 'umapMinDist', min: 0, max: 0.99, step: 0.01 },
+        { label: 'Number of Neighbors', helpKey: 'umapNeighbors', configKey: 'umapNeighbors', min: 2, max: 200, default: 15 },
+        {
+          label: 'Minimum Distance',
+          helpKey: 'umapMinDist',
+          configKey: 'umapMinDist',
+          min: 0,
+          max: 0.99,
+          step: 0.01,
+          default: 0.1,
+        },
       ],
     },
     {
@@ -224,8 +258,16 @@ export class Step4VisualizationSettingsComponent implements OnInit, WizardStep {
       sizeHint: 'up to 15K rows',
       largeDatasetWarning: true,
       params: [
-        { label: 'Perplexity', helpKey: 'tsnePerplexity', configKey: 'tsnePerplexity', min: 5, max: 50 },
-        { label: 'Iterations', helpKey: 'tsneIterations', configKey: 'tsneIterations', min: 250, max: 5000, step: 250 },
+        { label: 'Perplexity', helpKey: 'tsnePerplexity', configKey: 'tsnePerplexity', min: 5, max: 50, default: 30 },
+        {
+          label: 'Iterations',
+          helpKey: 'tsneIterations',
+          configKey: 'tsneIterations',
+          min: 250,
+          max: 5000,
+          step: 250,
+          default: 1000,
+        },
       ],
     },
   ];
@@ -621,6 +663,20 @@ export class Step4VisualizationSettingsComponent implements OnInit, WizardStep {
 
   methodHasParams(method: ProjectionMethodUI): boolean {
     return (method.params?.length ?? 0) > 0;
+  }
+
+  /** Resets all parameters of a method back to their default values. */
+  resetMethodParams(method: ProjectionMethodUI): void {
+    if (!method.params) return;
+    for (const param of method.params) {
+      this.onParamChange(param.configKey, param.default, param.min, param.max);
+    }
+  }
+
+  /** True when at least one parameter of the method differs from its default. */
+  methodParamsChanged(method: ProjectionMethodUI): boolean {
+    if (!method.params) return false;
+    return method.params.some(param => this.projectionConfig[param.configKey] !== param.default);
   }
 
   // ============================================================================
