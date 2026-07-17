@@ -475,9 +475,8 @@
         border-color: rgba(v.$status-warning, 0.3);
       }
 
-      // Give the parameter box full width when a method is expanded
+      // Keep the card in its own cell; only its height grows when expanded
       &.expanded {
-        grid-column: 1 / -1;
         cursor: default;
       }
 
@@ -586,12 +585,29 @@
       border: 1px solid v.$gray-300;
     }
 
+    // Animated height wrapper: collapses to 0fr, expands to content height in place
+    .params-wrapper {
+      display: grid;
+      grid-template-rows: 0fr;
+      margin-top: 0;
+      transition:
+        grid-template-rows 0.25s ease,
+        margin-top 0.25s ease;
+
+      &.open {
+        grid-template-rows: 1fr;
+        margin-top: 6px;
+      }
+    }
+
     .inline-params {
+      // Clipped by the 0fr wrapper while collapsed
+      min-height: 0;
+      overflow: hidden;
       padding: 6px 10px;
       background: v.$wizard-header-bg;
       border: 1px solid v.$gray-200;
       border-radius: 8px;
-      margin-top: 6px;
       cursor: default;
       display: flex;
       flex-wrap: wrap;
@@ -639,8 +655,9 @@
       }
 
       .param-field {
-        flex: 1;
-        min-width: 180px;
+        // Fit the (narrower) card column: each parameter takes the full width
+        flex: 1 1 100%;
+        min-width: 0;
 
         label {
           display: flex;
