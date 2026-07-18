@@ -69,10 +69,14 @@
           @for (feature of selectedGlyphFeatures; track feature; let i = $index) {
             <div
               class="feature-row selected"
+              [class.drop-target]="dragOverIndex === i"
               draggable="true"
               (dragstart)="onDragStart($event, feature, 'selected', i)"
               (dragend)="onDragEnd($event)"
+              (dragover)="onItemDragOver($event, i)"
+              (drop)="onDropOnSelectedItem($event, i)"
             >
+              <span class="material-icons drag-handle" title="Drag to reorder">drag_indicator</span>
               <span class="feature-order">{{ i + 1 }}</span>
               <span class="feature-name">{{ feature }}</span>
               @if (getFeatureVariance(feature) !== null) {
@@ -102,27 +106,63 @@
           <span>Available features</span>
           <span class="variance-label">Variance</span>
         </div>
-        <div class="available-features-list">
-          @for (feature of availableFeatures; track feature) {
-            @if (!isFeatureSelected(feature)) {
-              <div
-                class="feature-row available"
-                (click)="addGlyphFeature(feature)"
-                (keydown.enter)="addGlyphFeature(feature)"
-                tabindex="0"
-                draggable="true"
-                (dragstart)="onDragStart($event, feature, 'available', -1)"
-                (dragend)="onDragEnd($event)"
-              >
-                <span class="material-icons add-icon">add</span>
-                <span class="feature-name">{{ feature }}</span>
-                @if (getFeatureVariance(feature) !== null) {
-                  <span class="variance-bar" title="Relative variance: {{ getFeatureVariance(feature)?.toFixed(4) }}">
-                    <span class="variance-fill" [style.width.%]="getFeatureVariancePercent(feature)"></span>
-                  </span>
-                }
-              </div>
+
+        <!-- Search + type filter for available features -->
+        <div class="feature-filter-bar">
+          <div class="search-box">
+            <span class="material-icons">search</span>
+            <input
+              type="text"
+              [(ngModel)]="featureSearch"
+              placeholder="Search features…"
+              class="search-input"
+            />
+            @if (featureSearch) {
+              <button class="clear-search" (click)="featureSearch = ''">
+                <span class="material-icons">close</span>
+              </button>
             }
+          </div>
+          <select [(ngModel)]="featureTypeFilter" class="filter-select">
+            <option value="all">All Types</option>
+            <option [value]="DataType.Numeric">Numeric</option>
+            <option [value]="DataType.Categorical">Categorical</option>
+            <option [value]="DataType.Text">Text</option>
+            <option [value]="DataType.Date">Date</option>
+            <option [value]="DataType.Boolean">Boolean</option>
+            <option [value]="DataType.Coordinate">Coordinate</option>
+            <option [value]="DataType.ID">ID</option>
+          </select>
+        </div>
+
+        <div class="available-features-list" (drop)="onDropInAvailable($event)" (dragover)="onDragOver($event)">
+          @for (feature of filteredAvailableFeatures; track feature) {
+            <div
+              class="feature-row available"
+              [class.dragging]="draggedFromList === 'available' && draggedFeature === feature"
+              (click)="addGlyphFeature(feature)"
+              (keydown.enter)="addGlyphFeature(feature)"
+              tabindex="0"
+              draggable="true"
+              (dragstart)="onDragStart($event, feature, 'available', -1)"
+              (dragend)="onDragEnd($event)"
+            >
+              <span class="material-icons add-icon">add</span>
+              <span class="feature-name">{{ feature }}</span>
+              @if (getFeatureVariance(feature) !== null) {
+                <span class="variance-bar" title="Relative variance: {{ getFeatureVariance(feature)?.toFixed(4) }}">
+                  <span class="variance-fill" [style.width.%]="getFeatureVariancePercent(feature)"></span>
+                </span>
+              }
+            </div>
+          }
+          @if (filteredAvailableFeatures.length === 0) {
+            <div class="available-empty">
+              <span>No features match</span>
+              @if (featureSearch || featureTypeFilter !== 'all') {
+                <button class="btn-clear-inline" (click)="clearFeatureFilters()">Clear filters</button>
+              }
+            </div>
           }
         </div>
       </div>
@@ -241,8 +281,60 @@
       </div>
     </div>
 
-    <!-- ====== Projection Methods (two-column grid) ====== -->
-    <div class="config-panel projection-panel">
+    <!-- ====== Projection Options (columns + method, two-column layout) ====== -->
+    <div class="projection-options-two-col">
+      <!-- LEFT: Columns feeding the projection -->
+      <div class="config-panel projection-columns-panel">
+        <div class="projection-columns-header">
+          <h3>
+            <span class="material-icons">view_column</span>
+            Projection Columns
+            <app-help-tooltip [helpText]="HELP_TEXT.general.projection"></app-help-tooltip>
+          </h3>
+          <span class="projection-count">{{ getProjectionCount() }} / {{ projectionColumns.length }} included</span>
+        </div>
+        <p class="panel-description">Choose which columns feed the dimensionality reduction.</p>
+
+        <div class="projection-columns-list-header">
+          <input
+            type="checkbox"
+            class="master-checkbox"
+            [checked]="allColumnsInProjection()"
+            [indeterminate]="someColumnsInProjection()"
+            (change)="onToggleAllProjection()"
+            title="Select all columns"
+          />
+          <span class="master-label">All columns</span>
+        </div>
+
+        <div class="projection-columns-list">
+          @for (entry of projectionColumns; track entry.column.name) {
+            <label
+              class="projection-column-item"
+              [class.selected]="entry.config.includeInProjection"
+              [class.excluded]="!entry.config.includeInProjection"
+            >
+              <input
+                type="checkbox"
+                [checked]="entry.config.includeInProjection"
+                (change)="toggleColumnProjection(entry.column.name)"
+              />
+              <span class="col-name">{{ entry.column.name }}</span>
+              <app-data-type-badge [dataType]="entry.column.dataType"></app-data-type-badge>
+            </label>
+          }
+        </div>
+
+        @if (getProjectionCount() === 0) {
+          <div class="validation-warning">
+            <span class="material-icons">warning</span>
+            <span>Select at least one column for the projection</span>
+          </div>
+        }
+      </div>
+
+      <!-- RIGHT: Projection method selection -->
+      <div class="config-panel projection-panel">
       <div class="projection-panel-header">
         <h3>
           <span class="material-icons">settings</span>

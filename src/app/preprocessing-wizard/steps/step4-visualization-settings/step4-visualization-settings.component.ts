@@ -3,14 +3,21 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PreprocessingService } from '../../services/preprocessing.service';
 import { WizardStep, WIZARD_STEP } from '../../shared/wizard-step';
-import { ProjectionConfig } from '../../models/column-config';
+import { ColumnConfig, ProjectionConfig } from '../../models/column-config';
 import { ColumnStatistics } from '../../models/column-statistics';
 import { DataType } from '../../models/data-type.enum';
 import { HelpTooltipComponent } from '../../shared/help-tooltip/help-tooltip.component';
 import { HELP_TEXT } from '../../shared/constants/help-text';
 import { STEP_INFO } from '../../shared/constants/step-info';
+import { DataTypeBadgeComponent } from '../../shared/data-type-badge/data-type-badge.component';
 import { COLOR_SCALES, ColorScale, buildGroupedColorScales } from '../../../shared/interfaces/color-scale';
 import { ColorScaleSelectorComponent } from '../../../shared/components/color-scale-selector/color-scale-selector.component';
+
+/** A dataset column paired with its live configuration, used for projection column selection. */
+interface ProjectionColumnState {
+  column: ColumnStatistics;
+  config: ColumnConfig;
+}
 
 /** Describes a tunable parameter for a projection method. */
 interface ProjectionParam {
@@ -56,14 +63,17 @@ interface ProjectionMethodUI {
 @Component({
   selector: 'app-step4-visualization-settings',
   standalone: true,
-  imports: [CommonModule, FormsModule, HelpTooltipComponent, ColorScaleSelectorComponent],
+  imports: [CommonModule, FormsModule, HelpTooltipComponent, DataTypeBadgeComponent, ColorScaleSelectorComponent],
   templateUrl: './step4-visualization-settings.component.html',
   styleUrl: './step4-visualization-settings.component.scss',
   providers: [{ provide: WIZARD_STEP, useExisting: forwardRef(() => Step4VisualizationSettingsComponent) }],
 })
 export class Step4VisualizationSettingsComponent implements OnInit, WizardStep {
   readonly primaryLabel = 'Continue to Review';
-  readonly disabledHint = 'Please select 3-12 glyph features to continue.';
+  readonly disabledHint = 'Select at least one projection column and 3-12 glyph features to continue.';
+
+  // Projection column selection (which features feed the dimensionality reduction)
+  projectionColumns: ProjectionColumnState[] = [];
 
   // Color feature selection
   columns: ColumnStatistics[] = [];
@@ -80,6 +90,13 @@ export class Step4VisualizationSettingsComponent implements OnInit, WizardStep {
   draggedFeature: string | null = null;
   draggedFromList: 'selected' | 'available' = 'available';
   draggedIndex = -1;
+  // Index of the selected row currently under the drag cursor (insertion highlight).
+  dragOverIndex = -1;
+
+  // Search + type filter for the AVAILABLE feature list.
+  featureSearch = '';
+  featureTypeFilter: DataType | 'all' = 'all';
+  readonly DataType = DataType;
 
   // Glyph preview
   selectedGlyphType: 'star' | 'flower' | 'whisker' = 'star';
@@ -286,6 +303,14 @@ export class Step4VisualizationSettingsComponent implements OnInit, WizardStep {
         const config = state.columnConfigs.get(col.name);
         return config && config.enabled;
       });
+
+      // Build projection column selection from the enabled columns
+      this.projectionColumns = this.columns
+        .map(col => {
+          const config = state.columnConfigs.get(col.name);
+          return config ? { column: col, config } : null;
+        })
+        .filter((entry): entry is ProjectionColumnState => entry !== null);
     }
 
     // Load color feature and scale
@@ -424,6 +449,31 @@ export class Step4VisualizationSettingsComponent implements OnInit, WizardStep {
     return this.selectedGlyphFeatures.includes(feature);
   }
 
+  /** Data type of a feature, resolving one-hot columns (e.g. city_NYC → city). */
+  getFeatureType(feature: string): DataType | null {
+    const profile = this.preprocessingService.currentState.dataProfile;
+    if (!profile) return null;
+    const col =
+      profile.columns.find(c => c.name === feature) || profile.columns.find(c => feature.startsWith(c.name + '_'));
+    return col ? col.dataType : null;
+  }
+
+  /** Available features minus the already-selected ones, filtered by search + type. */
+  get filteredAvailableFeatures(): string[] {
+    const term = this.featureSearch.trim().toLowerCase();
+    return this.availableFeatures.filter(feature => {
+      if (this.isFeatureSelected(feature)) return false;
+      if (term && !feature.toLowerCase().includes(term)) return false;
+      if (this.featureTypeFilter !== 'all' && this.getFeatureType(feature) !== this.featureTypeFilter) return false;
+      return true;
+    });
+  }
+
+  clearFeatureFilters(): void {
+    this.featureSearch = '';
+    this.featureTypeFilter = 'all';
+  }
+
   getFeatureVariance(feature: string): number | null {
     return this.featureVariances.get(feature) ?? null;
   }
@@ -459,6 +509,7 @@ export class Step4VisualizationSettingsComponent implements OnInit, WizardStep {
     this.draggedFeature = null;
     this.draggedFromList = 'available';
     this.draggedIndex = -1;
+    this.dragOverIndex = -1;
   }
 
   onDragOver(event: DragEvent): void {
@@ -468,6 +519,53 @@ export class Step4VisualizationSettingsComponent implements OnInit, WizardStep {
     }
   }
 
+  /** Hovering a specific selected row while dragging — shows the insertion point. */
+  onItemDragOver(event: DragEvent, index: number): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.dragOverIndex = index;
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = 'move';
+    }
+  }
+
+  /** Insert a feature into the selected list at a specific position. */
+  private insertSelectedAt(feature: string, index: number): void {
+    if (this.selectedGlyphFeatures.length >= this.MAX_GLYPH_FEATURES || this.isFeatureSelected(feature)) return;
+    const clamped = Math.max(0, Math.min(index, this.selectedGlyphFeatures.length));
+    this.selectedGlyphFeatures.splice(clamped, 0, feature);
+    this.saveGlyphFeatures();
+    this.regeneratePreviewData();
+  }
+
+  /** Move a selected feature to a new position (reordering — order drives the glyph). */
+  private moveSelected(from: number, to: number): void {
+    if (from < 0 || from >= this.selectedGlyphFeatures.length) return;
+    const clampedTo = Math.max(0, Math.min(to, this.selectedGlyphFeatures.length - 1));
+    if (from === clampedTo) return;
+    const [moved] = this.selectedGlyphFeatures.splice(from, 1);
+    this.selectedGlyphFeatures.splice(clampedTo, 0, moved);
+    this.saveGlyphFeatures();
+    this.regeneratePreviewData();
+  }
+
+  /** Drop onto a specific selected row: reorder (from selected) or insert (from available). */
+  onDropOnSelectedItem(event: DragEvent, targetIndex: number): void {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!this.draggedFeature) {
+      this.onDragEnd(event);
+      return;
+    }
+    if (this.draggedFromList === 'selected') {
+      this.moveSelected(this.draggedIndex, targetIndex);
+    } else {
+      this.insertSelectedAt(this.draggedFeature, targetIndex);
+    }
+    this.onDragEnd(event);
+  }
+
+  /** Drop on the selected list background: append (available) or move to end (selected). */
   onDropInSelected(event: DragEvent): void {
     event.preventDefault();
     if (!this.draggedFeature) return;
@@ -478,9 +576,70 @@ export class Step4VisualizationSettingsComponent implements OnInit, WizardStep {
         this.saveGlyphFeatures();
         this.regeneratePreviewData();
       }
+    } else {
+      this.moveSelected(this.draggedIndex, this.selectedGlyphFeatures.length - 1);
     }
 
     this.onDragEnd(event);
+  }
+
+  /** Drop a selected feature onto the available area to remove it from the glyph. */
+  onDropInAvailable(event: DragEvent): void {
+    event.preventDefault();
+    if (this.draggedFeature && this.draggedFromList === 'selected') {
+      const idx = this.selectedGlyphFeatures.indexOf(this.draggedFeature);
+      if (idx !== -1) {
+        this.removeGlyphFeature(idx);
+      }
+    }
+    this.onDragEnd(event);
+  }
+
+  // ============================================================================
+  // Projection Column Selection
+  // ============================================================================
+
+  toggleColumnProjection(columnName: string): void {
+    const entry = this.projectionColumns.find(c => c.column.name === columnName);
+    if (entry) {
+      const newValue = !entry.config.includeInProjection;
+      this.preprocessingService.updateColumnConfig(columnName, { includeInProjection: newValue });
+      // Update local reference to trigger template re-render
+      entry.config.includeInProjection = newValue;
+    }
+  }
+
+  isColumnInProjection(columnName: string): boolean {
+    return this.projectionColumns.find(c => c.column.name === columnName)?.config.includeInProjection ?? false;
+  }
+
+  getProjectionCount(): number {
+    return this.projectionColumns.filter(c => c.config.includeInProjection).length;
+  }
+
+  setAllProjectionColumns(included: boolean): void {
+    for (const entry of this.projectionColumns) {
+      if (entry.config.includeInProjection !== included) {
+        this.preprocessingService.updateColumnConfig(entry.column.name, { includeInProjection: included });
+        entry.config.includeInProjection = included;
+      }
+    }
+  }
+
+  /** True when every column is included (master checkbox checked). */
+  allColumnsInProjection(): boolean {
+    return this.projectionColumns.length > 0 && this.getProjectionCount() === this.projectionColumns.length;
+  }
+
+  /** True when only some columns are included (master checkbox indeterminate). */
+  someColumnsInProjection(): boolean {
+    const count = this.getProjectionCount();
+    return count > 0 && count < this.projectionColumns.length;
+  }
+
+  /** Master checkbox: select all unless everything is already selected, in which case clear. */
+  onToggleAllProjection(): void {
+    this.setAllProjectionColumns(!this.allColumnsInProjection());
   }
 
   // ============================================================================
@@ -640,8 +799,9 @@ export class Step4VisualizationSettingsComponent implements OnInit, WizardStep {
       const y = cy - Math.sin(angle) * labelR;
       const cos = Math.cos(angle);
       const anchor = cos > 0.1 ? 'start' : cos < -0.1 ? 'end' : 'middle';
-      const name = feature.length > 14 ? feature.substring(0, 13) + '\u2026' : feature;
-      return { x, y, name, anchor };
+      // Show the full feature name; the SVG is allowed to overflow so long
+      // one-hot names (e.g. neighbourhood_group_Manhattan) are not clipped.
+      return { x, y, name: feature, anchor };
     });
   }
 
@@ -688,7 +848,8 @@ export class Step4VisualizationSettingsComponent implements OnInit, WizardStep {
       this.selectedGlyphFeatures.length >= this.MIN_GLYPH_FEATURES &&
       this.selectedGlyphFeatures.length <= this.MAX_GLYPH_FEATURES;
     const projectionValid = this.hasEnabledMethod();
-    return glyphValid && projectionValid;
+    const projectionColumnsValid = this.getProjectionCount() > 0;
+    return glyphValid && projectionValid && projectionColumnsValid;
   }
 
   proceed(): void {

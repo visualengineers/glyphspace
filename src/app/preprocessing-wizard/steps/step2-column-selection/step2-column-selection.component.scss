@@ -47,26 +47,8 @@
   font-size: 13px;
 }
 
-.selection-summary {
-  display: flex;
-  gap: 8px;
-}
-
-.count-badge {
-  padding: 4px 10px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: 600;
-
-  &.enabled {
-    background: rgba(v.$active-color, 0.1);
-    color: v.$active-color;
-  }
-
-  &.disabled {
-    background: v.$gray-200;
-    color: v.$gray-600;
-  }
+.selection-count {
+  @include wizard.selection-count-text;
 }
 
 // Table Layout
@@ -88,8 +70,11 @@
     }
 
     &.col-checkbox {
-      width: 44px;
-      padding-left: 12px;
+      @include wizard.selection-cell;
+
+      input[type='checkbox'] {
+        @include wizard.selection-checkbox;
+      }
     }
 
     &.col-name {
@@ -134,12 +119,10 @@
 
     td {
       &.col-checkbox {
-        padding-left: 12px;
+        @include wizard.selection-cell;
 
         input[type='checkbox'] {
-          width: 16px;
-          height: 16px;
-          cursor: pointer;
+          @include wizard.selection-checkbox;
         }
       }
 
