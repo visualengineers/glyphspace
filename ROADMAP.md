@@ -37,7 +37,7 @@ Integrations-Branch `feature/wizard-redesign` von `main` abzweigen. Pro Ticket e
 | A9 | Beschleuniger für Power-Nutzer | Konzept | TODO | `feat/a9-power-shortcuts` | Step 2/3/4 |
 | A10 | Layout gegen lange/viele Inhalte | Konzept | TODO | `feat/a10-layout-robust` | Step 1+4, `shared/_wizard-shared.scss` |
 | A11 | Technische Defekte beheben | trivial | TODO | `feat/a11-bugfixes` | siehe Ticket |
-| A12 | Zweispaltiges Layout | Konzept | In Progress | `feat/a12-two-column` | `preprocessing-wizard.component.*`, `shared/progress-stepper/` |
+| A12 | Zweispaltiges Layout | Konzept | In Feature-Branch | `feat/a12-two-column` | `preprocessing-wizard.component.*`, `shared/progress-stepper/` |
 | A13 | Schrittlogik klären/neu ordnen | Konzept | In Feature-Branch | `feat/a13-schrittlogik` | Step 2/3/4, `shared/constants/step-info.ts` |
 | A14 | Übergänge sichtbar (Animation) | Konzept | TODO | `feat/a14-animation` | Step 2↔3, `shared/data-preview-table/` |
 | A15 | Einheitliches Tabellen/Listen-System | Konzept | In Feature-Branch | `feat/a15-table-system` | `shared/data-preview-table/`, Step 2/3/4 |
@@ -239,7 +239,7 @@ Quick Wins ohne Abhängigkeit, die sich parallel zum Fundament wegräumen lassen
 ---
 
 ## A12 – Anzeigeraum effizient und zweispaltig nutzen
-**Typ:** Konzept · **Miro:** Neue two column UI, Neuer Schritt 4 Anpassung · **Status:** In Progress · **Branch:** `feat/a12-two-column`
+**Typ:** Konzept · **Miro:** Neue two column UI, Neuer Schritt 4 Anpassung · **Status:** In Feature-Branch · **Branch:** `feat/a12-two-column`
 **Befund:** K-01
 
 **Problem:** Vertikaler Bildschirmraum schlecht genutzt; Navigation über volle Breite erzeugt langes Scrollen.
