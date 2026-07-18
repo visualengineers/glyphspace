@@ -104,8 +104,7 @@
     overflow: hidden;
 
     .glyph-panel-header {
-      display: flex;
-      align-items: center;
+      @include w.list-header-row;
       justify-content: space-between;
       gap: 8px;
       margin-bottom: 8px;
@@ -116,26 +115,15 @@
     }
 
     .btn-suggestion-compact {
-      @include w.btn-base;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
+      // Match the wizard's primary "Continue" nav button (cyan, white text).
+      @include w.btn-primary;
       font-size: 11px;
-      font-weight: 600;
       padding: 4px 10px;
       white-space: nowrap;
       flex-shrink: 0;
 
       .material-icons {
         font-size: 14px;
-      }
-
-      &:hover:not(:disabled) {
-        opacity: 0.9;
-      }
-
-      &:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
       }
     }
 
@@ -153,10 +141,50 @@
       flex-direction: column;
       gap: 3px;
       min-height: 50px;
+      max-height: 200px;
+      overflow-y: auto;
       padding: 6px;
       border: 2px dashed v.$gray-300;
       border-radius: 8px;
       background: v.$wizard-header-bg;
+    }
+
+    // Search + type filter above the available list (same anatomy as steps 2/3)
+    .feature-filter-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+
+      .search-box {
+        @include w.search-box($padding: 4px 8px, $icon-size: 16px);
+        flex: 1;
+        min-width: 0;
+      }
+
+      .filter-select {
+        @include w.select;
+        font-size: 12px;
+        padding: 4px 24px 4px 8px;
+        flex-shrink: 0;
+        max-width: 130px;
+      }
+    }
+
+    .available-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      padding: 16px 8px;
+      color: v.$gray-500;
+      font-size: 12px;
+
+      .btn-clear-inline {
+        @include w.btn-text;
+        font-size: 11px;
+        padding: 3px 8px;
+      }
     }
 
     .empty-hint {
@@ -179,8 +207,7 @@
     }
 
     .available-label {
-      display: flex;
-      align-items: center;
+      @include w.list-header-row;
       justify-content: space-between;
       font-size: 11px;
       font-weight: 600;
@@ -203,6 +230,7 @@
       overflow-y: auto;
       flex: 1;
       min-height: 0;
+      max-height: 240px;
     }
 
     .feature-row {
@@ -227,6 +255,18 @@
           border-color: v.$active-color;
         }
 
+        &.drop-target {
+          border-color: v.$active-color;
+          box-shadow: inset 0 2px 0 v.$active-color;
+        }
+
+        .drag-handle {
+          font-size: 16px;
+          color: v.$gray-400;
+          flex-shrink: 0;
+          cursor: grab;
+        }
+
         .feature-order {
           display: flex;
           align-items: center;
@@ -243,8 +283,13 @@
       }
 
       &.available {
-        cursor: pointer;
+        cursor: grab;
         color: v.$gray-700;
+
+        &:active,
+        &.dragging {
+          cursor: grabbing;
+        }
 
         &:hover {
           background: v.$gray-100;
@@ -342,10 +387,13 @@
       align-items: center;
       justify-content: center;
       margin: 8px 0;
+      // Let long edge labels render past the drawing box instead of being clipped.
+      overflow: visible;
 
       .glyph-preview-svg {
         width: 100%;
         height: 100%;
+        overflow: visible;
       }
 
       .axis-label {
@@ -417,8 +465,7 @@
     padding-bottom: 8px;
 
     .projection-panel-header {
-      display: flex;
-      align-items: center;
+      @include w.list-header-row;
       gap: 12px;
       margin-bottom: 8px;
 
@@ -484,15 +531,12 @@
       .card-desc {
         font-size: 10px;
         color: v.$gray-500;
-        padding-left: 19px;
+        padding-left: 20px;
         line-height: 1.3;
       }
 
       input[type='checkbox'] {
-        @include w.checkbox;
-        width: 14px;
-        height: 14px;
-        flex-shrink: 0;
+        @include w.selection-checkbox;
       }
 
       .method-name {
@@ -670,8 +714,7 @@
     max-height: 420px;
 
     .projection-columns-header {
-      display: flex;
-      align-items: center;
+      @include w.list-header-row;
       justify-content: space-between;
       gap: 8px;
 
@@ -696,10 +739,10 @@
     }
 
     .projection-columns-list-header {
-      display: flex;
-      align-items: center;
+      @include w.list-header-row;
       gap: 8px;
-      padding: 4px 8px;
+      padding-left: 8px;
+      padding-right: 8px;
       margin-bottom: 4px;
       border-bottom: 1px solid v.$gray-200;
 

@@ -69,10 +69,14 @@
           @for (feature of selectedGlyphFeatures; track feature; let i = $index) {
             <div
               class="feature-row selected"
+              [class.drop-target]="dragOverIndex === i"
               draggable="true"
               (dragstart)="onDragStart($event, feature, 'selected', i)"
               (dragend)="onDragEnd($event)"
+              (dragover)="onItemDragOver($event, i)"
+              (drop)="onDropOnSelectedItem($event, i)"
             >
+              <span class="material-icons drag-handle" title="Drag to reorder">drag_indicator</span>
               <span class="feature-order">{{ i + 1 }}</span>
               <span class="feature-name">{{ feature }}</span>
               @if (getFeatureVariance(feature) !== null) {
@@ -102,27 +106,63 @@
           <span>Available features</span>
           <span class="variance-label">Variance</span>
         </div>
-        <div class="available-features-list">
-          @for (feature of availableFeatures; track feature) {
-            @if (!isFeatureSelected(feature)) {
-              <div
-                class="feature-row available"
-                (click)="addGlyphFeature(feature)"
-                (keydown.enter)="addGlyphFeature(feature)"
-                tabindex="0"
-                draggable="true"
-                (dragstart)="onDragStart($event, feature, 'available', -1)"
-                (dragend)="onDragEnd($event)"
-              >
-                <span class="material-icons add-icon">add</span>
-                <span class="feature-name">{{ feature }}</span>
-                @if (getFeatureVariance(feature) !== null) {
-                  <span class="variance-bar" title="Relative variance: {{ getFeatureVariance(feature)?.toFixed(4) }}">
-                    <span class="variance-fill" [style.width.%]="getFeatureVariancePercent(feature)"></span>
-                  </span>
-                }
-              </div>
+
+        <!-- Search + type filter for available features -->
+        <div class="feature-filter-bar">
+          <div class="search-box">
+            <span class="material-icons">search</span>
+            <input
+              type="text"
+              [(ngModel)]="featureSearch"
+              placeholder="Search features…"
+              class="search-input"
+            />
+            @if (featureSearch) {
+              <button class="clear-search" (click)="featureSearch = ''">
+                <span class="material-icons">close</span>
+              </button>
             }
+          </div>
+          <select [(ngModel)]="featureTypeFilter" class="filter-select">
+            <option value="all">All Types</option>
+            <option [value]="DataType.Numeric">Numeric</option>
+            <option [value]="DataType.Categorical">Categorical</option>
+            <option [value]="DataType.Text">Text</option>
+            <option [value]="DataType.Date">Date</option>
+            <option [value]="DataType.Boolean">Boolean</option>
+            <option [value]="DataType.Coordinate">Coordinate</option>
+            <option [value]="DataType.ID">ID</option>
+          </select>
+        </div>
+
+        <div class="available-features-list" (drop)="onDropInAvailable($event)" (dragover)="onDragOver($event)">
+          @for (feature of filteredAvailableFeatures; track feature) {
+            <div
+              class="feature-row available"
+              [class.dragging]="draggedFromList === 'available' && draggedFeature === feature"
+              (click)="addGlyphFeature(feature)"
+              (keydown.enter)="addGlyphFeature(feature)"
+              tabindex="0"
+              draggable="true"
+              (dragstart)="onDragStart($event, feature, 'available', -1)"
+              (dragend)="onDragEnd($event)"
+            >
+              <span class="material-icons add-icon">add</span>
+              <span class="feature-name">{{ feature }}</span>
+              @if (getFeatureVariance(feature) !== null) {
+                <span class="variance-bar" title="Relative variance: {{ getFeatureVariance(feature)?.toFixed(4) }}">
+                  <span class="variance-fill" [style.width.%]="getFeatureVariancePercent(feature)"></span>
+                </span>
+              }
+            </div>
+          }
+          @if (filteredAvailableFeatures.length === 0) {
+            <div class="available-empty">
+              <span>No features match</span>
+              @if (featureSearch || featureTypeFilter !== 'all') {
+                <button class="btn-clear-inline" (click)="clearFeatureFilters()">Clear filters</button>
+              }
+            </div>
           }
         </div>
       </div>

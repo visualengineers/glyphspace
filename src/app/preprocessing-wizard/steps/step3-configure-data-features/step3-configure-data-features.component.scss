@@ -44,53 +44,62 @@
   }
 
   // ============================================================================
-  // List + Detail Layout
+  // Option 1d layout: master rail (left) + recessed "imprint" well (right)
   // ============================================================================
 
-  .config-layout {
+  .config-shell {
     display: flex;
-    gap: 16px;
+    border: 1px solid v.$gray-300;
+    border-radius: 4px;
+    overflow: hidden;
     margin-bottom: 16px;
+    background: white;
   }
 
-  // ── Left Panel: Column List ──────────────────────────────────────────────────
-
-  .column-list-panel {
+  // ── Left rail ────────────────────────────────────────────────────────────
+  .master-rail {
     width: 320px;
     flex-shrink: 0;
     display: flex;
     flex-direction: column;
-    border: 1px solid v.$gray-300;
-    border-radius: 4px;
     background: white;
+    border-right: 1px solid v.$gray-300;
   }
 
-  .list-header {
-    padding: 10px 12px;
-    border-bottom: 1px solid v.$gray-300;
-    background: v.$wizard-header-bg;
+  .rail-header {
     display: flex;
     flex-direction: column;
     gap: 8px;
+    padding: 10px 12px;
+    background: v.$wizard-header-bg;
+    border-bottom: 1px solid v.$gray-200;
+  }
+
+  .rail-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.7px;
+    color: v.$gray-500;
+    text-transform: uppercase;
   }
 
   .search-box {
     @include w.search-box;
   }
 
-  .list-filters {
+  .rail-filters {
     display: flex;
     align-items: center;
     gap: 8px;
 
     .filter-select {
       @include w.select;
+      flex: 1;
       font-size: 12px;
       padding: 4px 24px 4px 8px;
-      flex: 1;
     }
 
-    .checkbox-label {
+    .issues-check {
       display: flex;
       align-items: center;
       gap: 4px;
@@ -108,28 +117,21 @@
     }
   }
 
-  .list-footer {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+  .rail-count {
     font-size: 11px;
     color: v.$gray-500;
-
-    .projection-count {
-      color: v.$active-color;
-      font-weight: 600;
-    }
   }
 
   .column-list {
-    flex: none;
+    flex: 1;
+    overflow-y: auto;
   }
 
   .column-item {
     display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 10px 12px;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 14px 10px 12px;
     cursor: pointer;
     border-bottom: 1px solid v.$gray-200;
     border-left: 3px solid transparent;
@@ -140,79 +142,69 @@
     }
 
     &.selected {
-      background: rgba(v.$active-color, 0.06);
+      background: rgba(v.$active-color, 0.08);
       border-left-color: v.$active-color;
-    }
 
-    &.has-issues {
       .column-name {
-        color: v.$status-warning-dark;
+        color: v.$status-info;
+        font-weight: 700;
       }
     }
   }
 
-  .item-content {
+  .item-main {
     flex: 1;
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 3px;
   }
 
-  .item-top {
+  .item-line1 {
     display: flex;
     align-items: center;
     gap: 8px;
 
     .column-name {
-      @include w.column-name-text;
       font-size: 13px;
+      font-weight: 600;
+      color: v.$gray-800;
       @include m.text-truncate;
+    }
+
+    .type-label {
+      @include w.data-type-badge;
     }
   }
 
-  .item-bottom {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    flex-wrap: wrap;
-
+  .item-line2 {
     .config-summary {
       font-size: 11px;
       color: v.$gray-500;
     }
-
-    .issue-badge {
-      font-size: 10px;
-      font-weight: 600;
-      padding: 1px 6px;
-      border-radius: 8px;
-
-      &.missing {
-        background: rgba(v.$status-warning, 0.1);
-        color: v.$status-warning-dark;
-      }
-
-      &.outliers {
-        background: rgba(v.$status-error, 0.1);
-        color: v.$status-error-dark;
-      }
-    }
   }
 
-  .item-projection {
+  // Missing-value warning badge (informational — stays amber, red at >= 20%)
+  .missing-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
     flex-shrink: 0;
+    padding: 2px 6px;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 700;
+    background: #fff3e0;
+    color: #c85f00;
 
-    input[type='checkbox'] {
-      width: 16px;
-      height: 16px;
-      cursor: pointer;
-      accent-color: v.$active-color;
+    .material-icons {
+      font-size: 12px;
     }
-  }
 
-  .data-type-badge {
-    @include w.data-type-badge;
+    &.high {
+      background: #fbe4e4;
+      color: #c0341d;
+    }
   }
 
   .no-columns {
@@ -225,85 +217,154 @@
     }
   }
 
-  // ── Right Panel: Detail Configuration ────────────────────────────────────────
-
-  .detail-panel {
+  // ── Right recessed well ────────────────────────────────────────────────────
+  .detail-well {
     flex: 1;
-    border: 1px solid v.$gray-300;
-    border-radius: 4px;
-    background: white;
+    min-width: 0;
     display: flex;
     flex-direction: column;
+    gap: 12px;
+    padding: 18px;
+    background: #eceff2; // recessed "imprint" tone (no matching SCSS var)
   }
 
-  .detail-header {
+  .breadcrumb {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 12px 16px;
-    border-bottom: 1px solid v.$gray-300;
-    background: v.$wizard-header-bg;
+    gap: 4px;
+    font-size: 11px;
+    color: v.$gray-500;
 
-    h3 {
-      font-size: 15px;
-      font-weight: 600;
-      color: v.$gray-800;
-      margin: 0;
+    .material-icons {
+      font-size: 14px;
+    }
+
+    .crumb-current {
+      color: v.$status-info;
+      font-weight: 700;
+      @include m.text-truncate;
     }
   }
 
-  .stats-bar {
+  .detail-card {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: white;
+    border: 1px solid v.$gray-300;
+    border-radius: 6px;
+    overflow: hidden;
+  }
+
+  .card-header {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 14px 18px;
+    border-bottom: 1px solid v.$gray-200;
+
+    .card-eyebrow {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      color: v.$status-info;
+    }
+
+    .card-title-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+
+      h3 {
+        font-size: 19px;
+        font-weight: 700;
+        color: v.$gray-800;
+        margin: 0;
+        @include m.text-truncate;
+      }
+
+      .type-pill {
+        flex-shrink: 0;
+        padding: 2px 6px;
+        border: 1px solid v.$gray-200;
+        border-radius: 4px;
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: 0.6px;
+        text-transform: uppercase;
+        color: v.$gray-500;
+      }
+    }
+  }
+
+  .stat-chips {
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
-    padding: 10px 16px;
+    padding: 12px 18px;
     border-bottom: 1px solid v.$gray-200;
-    background: v.$wizard-header-bg;
 
-    .stat {
+    .chip {
       display: inline-flex;
       align-items: center;
       gap: 4px;
       padding: 3px 8px;
-      background: white;
+      background: v.$wizard-header-bg;
       border: 1px solid v.$gray-200;
       border-radius: 4px;
       font-size: 12px;
       line-height: 1;
 
-      .stat-label {
+      .chip-label {
         color: v.$gray-500;
-        font-weight: 400;
       }
 
-      .stat-value {
+      .chip-value {
         font-weight: 600;
         color: v.$gray-800;
         font-variant-numeric: tabular-nums;
+      }
 
-        &.warn {
+      &.chip-warning {
+        background: #fffaf2;
+        border-color: #ffdca8;
+
+        .material-icons {
+          font-size: 14px;
           color: v.$status-warning-dark;
         }
-      }
 
-      &.top-values .stat-value {
-        font-weight: 500;
-        max-width: 100px;
-        @include m.text-truncate;
-      }
-
-      &.stat-date .stat-value {
-        font-weight: 500;
-        font-size: 11px;
+        .chip-value {
+          color: v.$status-warning-dark;
+        }
       }
     }
   }
 
+  .settings-section {
+    display: flex;
+    flex-direction: column;
+    padding: 16px 18px;
+
+    .settings-label {
+      display: block;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      color: v.$gray-500;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+  }
+
   .config-section {
-    padding: 10px 16px;
+    padding-bottom: 12px;
+    margin-bottom: 12px;
     border-bottom: 1px solid v.$gray-200;
 
     &:last-child {
+      padding-bottom: 0;
+      margin-bottom: 0;
       border-bottom: none;
     }
   }
@@ -346,7 +407,7 @@
   .config-select {
     @include w.select;
     width: 100%;
-    max-width: 320px;
+    max-width: 340px;
     font-size: 13px;
     padding: 6px 28px 6px 10px;
 
@@ -359,7 +420,7 @@
   .fill-value-input {
     @include w.input-base;
     width: 100%;
-    max-width: 320px;
+    max-width: 340px;
     font-size: 13px;
     padding: 6px 10px;
     margin-top: 6px;
@@ -386,30 +447,17 @@
     }
   }
 
-  .projection-section {
-    .projection-label {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      cursor: pointer;
-      font-size: 13px;
-      font-weight: 500;
-      color: v.$gray-800;
-
-      input[type='checkbox'] {
-        @include w.checkbox;
-      }
-    }
-  }
-
   .no-selection {
     @include w.no-content($icon-size: 40px, $text-size: 14px);
     flex: 1;
     gap: 8px;
+    background: white;
+    border: 1px solid v.$gray-300;
+    border-radius: 6px;
   }
 
   // ============================================================================
-  // Duplicates Section (unchanged)
+  // Duplicates Section
   // ============================================================================
 
   .duplicates-section {
@@ -431,23 +479,6 @@
       .material-icons {
         font-size: 20px;
         color: v.$active-color;
-      }
-    }
-
-    .no-duplicates {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 12px;
-      background: rgba(v.$status-success, 0.05);
-      border-left: 3px solid v.$status-success;
-      border-radius: 2px;
-      color: v.$status-success-dark;
-      font-size: 13px;
-
-      .material-icons {
-        font-size: 18px;
-        color: v.$status-success;
       }
     }
 
@@ -496,7 +527,7 @@
           font-weight: 500;
 
           input[type='checkbox'] {
-            @include w.checkbox;
+            @include w.selection-checkbox;
           }
         }
 
@@ -525,16 +556,8 @@
 
       .duplicate-samples {
         margin-top: 8px;
-        border: 1px solid v.$gray-300;
-        border-radius: 4px;
-        overflow-x: auto;
         overflow-y: auto;
         max-height: 250px;
-
-        .sample-table {
-          @include w.table;
-          font-size: 12px;
-        }
       }
     }
   }

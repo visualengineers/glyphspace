@@ -26,18 +26,7 @@
       </div>
 
       <div class="selection-controls">
-        <button class="btn-text" (click)="selectAll()">
-          <span class="material-icons">check_box</span>
-          Select All
-        </button>
-        <button class="btn-text" (click)="deselectAll()">
-          <span class="material-icons">check_box_outline_blank</span>
-          Deselect All
-        </button>
-        <div class="selection-summary">
-          <span class="count-badge enabled">{{ enabledCount }} selected</span>
-          <span class="count-badge disabled">{{ disabledCount }} excluded</span>
-        </div>
+        <span class="selection-count">{{ enabledCount }} of {{ columns.length }} selected</span>
       </div>
     </div>
 
@@ -155,8 +144,8 @@
                     <app-mini-histogram
                       [data]="histogramData"
                       [dataType]="column.dataType"
-                      [color]="getDataTypeBgColor(column.dataType)"
-                      [hoverColor]="getDataTypeColor(column.dataType)"
+                      [color]="distributionColor"
+                      [hoverColor]="distributionHoverColor"
                       [width]="112"
                       [height]="25"
                       [enabled]="isColumnEnabled(column.name)"
