@@ -104,8 +104,7 @@
     overflow: hidden;
 
     .glyph-panel-header {
-      display: flex;
-      align-items: center;
+      @include w.list-header-row;
       justify-content: space-between;
       gap: 8px;
       margin-bottom: 8px;
@@ -208,8 +207,7 @@
     }
 
     .available-label {
-      display: flex;
-      align-items: center;
+      @include w.list-header-row;
       justify-content: space-between;
       font-size: 11px;
       font-weight: 600;
@@ -467,8 +465,7 @@
     padding-bottom: 8px;
 
     .projection-panel-header {
-      display: flex;
-      align-items: center;
+      @include w.list-header-row;
       gap: 12px;
       margin-bottom: 8px;
 
@@ -717,8 +714,7 @@
     max-height: 420px;
 
     .projection-columns-header {
-      display: flex;
-      align-items: center;
+      @include w.list-header-row;
       justify-content: space-between;
       gap: 8px;
 
@@ -743,10 +739,10 @@
     }
 
     .projection-columns-list-header {
-      display: flex;
-      align-items: center;
+      @include w.list-header-row;
       gap: 8px;
-      padding: 4px 8px;
+      padding-left: 8px;
+      padding-right: 8px;
       margin-bottom: 4px;
       border-bottom: 1px solid v.$gray-200;
 

@@ -315,6 +315,24 @@ $selection-col-pad-left: 12px;
   }
 }
 
+// ============================================================================
+// Unified header-row height (A15)
+// Every single-row table/list header bar in the wizard uses this height so the
+// headers line up visually across steps. Height is governed by min-height +
+// box-sizing (not vertical padding), so different content stays vertically
+// centered at the same height.
+// ============================================================================
+$wizard-header-row-height: 40px;
+
+@mixin list-header-row {
+  display: flex;
+  align-items: center;
+  min-height: $wizard-header-row-height;
+  box-sizing: border-box;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
 // Tables
 @mixin table-container {
   background: white;
@@ -340,8 +358,10 @@ $selection-col-pad-left: 12px;
     }
 
     th {
-      padding: 10px 12px;
+      height: $wizard-header-row-height;
+      padding: 0 12px;
       text-align: left;
+      vertical-align: middle;
       font-weight: 600;
       color: v.$gray-700;
       font-size: 12px;
