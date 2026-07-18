@@ -78,6 +78,13 @@ export class Step4VisualizationSettingsComponent implements OnInit, WizardStep {
   draggedFeature: string | null = null;
   draggedFromList: 'selected' | 'available' = 'available';
   draggedIndex = -1;
+  // Index of the selected row currently under the drag cursor (insertion highlight).
+  dragOverIndex = -1;
+
+  // Search + type filter for the AVAILABLE feature list.
+  featureSearch = '';
+  featureTypeFilter: DataType | 'all' = 'all';
+  readonly DataType = DataType;
 
   // Glyph preview
   selectedGlyphType: 'star' | 'flower' | 'whisker' = 'star';
@@ -382,6 +389,31 @@ export class Step4VisualizationSettingsComponent implements OnInit, WizardStep {
     return this.selectedGlyphFeatures.includes(feature);
   }
 
+  /** Data type of a feature, resolving one-hot columns (e.g. city_NYC → city). */
+  getFeatureType(feature: string): DataType | null {
+    const profile = this.preprocessingService.currentState.dataProfile;
+    if (!profile) return null;
+    const col =
+      profile.columns.find(c => c.name === feature) || profile.columns.find(c => feature.startsWith(c.name + '_'));
+    return col ? col.dataType : null;
+  }
+
+  /** Available features minus the already-selected ones, filtered by search + type. */
+  get filteredAvailableFeatures(): string[] {
+    const term = this.featureSearch.trim().toLowerCase();
+    return this.availableFeatures.filter(feature => {
+      if (this.isFeatureSelected(feature)) return false;
+      if (term && !feature.toLowerCase().includes(term)) return false;
+      if (this.featureTypeFilter !== 'all' && this.getFeatureType(feature) !== this.featureTypeFilter) return false;
+      return true;
+    });
+  }
+
+  clearFeatureFilters(): void {
+    this.featureSearch = '';
+    this.featureTypeFilter = 'all';
+  }
+
   getFeatureVariance(feature: string): number | null {
     return this.featureVariances.get(feature) ?? null;
   }
@@ -417,6 +449,7 @@ export class Step4VisualizationSettingsComponent implements OnInit, WizardStep {
     this.draggedFeature = null;
     this.draggedFromList = 'available';
     this.draggedIndex = -1;
+    this.dragOverIndex = -1;
   }
 
   onDragOver(event: DragEvent): void {
@@ -426,6 +459,53 @@ export class Step4VisualizationSettingsComponent implements OnInit, WizardStep {
     }
   }
 
+  /** Hovering a specific selected row while dragging — shows the insertion point. */
+  onItemDragOver(event: DragEvent, index: number): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.dragOverIndex = index;
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = 'move';
+    }
+  }
+
+  /** Insert a feature into the selected list at a specific position. */
+  private insertSelectedAt(feature: string, index: number): void {
+    if (this.selectedGlyphFeatures.length >= this.MAX_GLYPH_FEATURES || this.isFeatureSelected(feature)) return;
+    const clamped = Math.max(0, Math.min(index, this.selectedGlyphFeatures.length));
+    this.selectedGlyphFeatures.splice(clamped, 0, feature);
+    this.saveGlyphFeatures();
+    this.regeneratePreviewData();
+  }
+
+  /** Move a selected feature to a new position (reordering — order drives the glyph). */
+  private moveSelected(from: number, to: number): void {
+    if (from < 0 || from >= this.selectedGlyphFeatures.length) return;
+    const clampedTo = Math.max(0, Math.min(to, this.selectedGlyphFeatures.length - 1));
+    if (from === clampedTo) return;
+    const [moved] = this.selectedGlyphFeatures.splice(from, 1);
+    this.selectedGlyphFeatures.splice(clampedTo, 0, moved);
+    this.saveGlyphFeatures();
+    this.regeneratePreviewData();
+  }
+
+  /** Drop onto a specific selected row: reorder (from selected) or insert (from available). */
+  onDropOnSelectedItem(event: DragEvent, targetIndex: number): void {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!this.draggedFeature) {
+      this.onDragEnd(event);
+      return;
+    }
+    if (this.draggedFromList === 'selected') {
+      this.moveSelected(this.draggedIndex, targetIndex);
+    } else {
+      this.insertSelectedAt(this.draggedFeature, targetIndex);
+    }
+    this.onDragEnd(event);
+  }
+
+  /** Drop on the selected list background: append (available) or move to end (selected). */
   onDropInSelected(event: DragEvent): void {
     event.preventDefault();
     if (!this.draggedFeature) return;
@@ -436,8 +516,22 @@ export class Step4VisualizationSettingsComponent implements OnInit, WizardStep {
         this.saveGlyphFeatures();
         this.regeneratePreviewData();
       }
+    } else {
+      this.moveSelected(this.draggedIndex, this.selectedGlyphFeatures.length - 1);
     }
 
+    this.onDragEnd(event);
+  }
+
+  /** Drop a selected feature onto the available area to remove it from the glyph. */
+  onDropInAvailable(event: DragEvent): void {
+    event.preventDefault();
+    if (this.draggedFeature && this.draggedFromList === 'selected') {
+      const idx = this.selectedGlyphFeatures.indexOf(this.draggedFeature);
+      if (idx !== -1) {
+        this.removeGlyphFeature(idx);
+      }
+    }
     this.onDragEnd(event);
   }
 
