@@ -15,16 +15,18 @@ export const STEP_INFO: Record<number, StepInfo> = {
   },
   1: {
     title: 'Select Columns',
-    purpose: 'Choose which columns to include in your visualization. Deselect ID fields and irrelevant columns.',
+    purpose:
+      'Choose which columns to keep under consideration for the analysis. Deselect ID fields and irrelevant columns.',
   },
   2: {
     title: 'Configure Data & Features',
     purpose:
-      'Configure encoding, scaling, and data cleaning settings for each column. Select a column to view and edit its options.',
+      'Configure data types, encoding, scaling, outliers, and cleaning for each column. Select a column to view and edit its options.',
   },
   3: {
     title: 'Visualization Settings',
-    purpose: 'Configure glyph features with live preview, set color mapping, and select projection methods.',
+    purpose:
+      'Choose which columns feed the projection and pick the projection methods, then configure glyph features and color mapping.',
   },
   4: {
     title: 'Review & Process',

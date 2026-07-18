@@ -58,7 +58,6 @@
             </div>
             <div class="list-footer">
               <span class="list-count">{{ filteredColumns.length }} of {{ columns.length }}</span>
-              <span class="projection-count">{{ getProjectionCount() }} in projection</span>
             </div>
           </div>
 
@@ -86,19 +85,6 @@
                       <span class="issue-badge outliers">{{ colState.outlierCount }} outliers</span>
                     }
                   </div>
-                </div>
-                <div
-                  class="item-projection"
-                  (click)="$event.stopPropagation()"
-                  (keydown.enter)="$event.stopPropagation()"
-                  tabindex="0"
-                >
-                  <input
-                    type="checkbox"
-                    [checked]="colState.config.includeInProjection"
-                    (change)="toggleProjection(colState.column.name)"
-                    title="Include in projection"
-                  />
                 </div>
               </div>
             }
@@ -325,17 +311,6 @@
               </div>
             }
 
-            <!-- Projection -->
-            <div class="config-section projection-section">
-              <label class="projection-label">
-                <input
-                  type="checkbox"
-                  [checked]="selectedColumn.config.includeInProjection"
-                  (change)="toggleProjection(selectedColumn.column.name)"
-                />
-                <span>Include in projection</span>
-              </label>
-            </div>
           } @else {
             <div class="no-selection">
               <span class="material-icons">touch_app</span>
