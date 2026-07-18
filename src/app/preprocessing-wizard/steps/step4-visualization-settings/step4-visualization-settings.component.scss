@@ -522,6 +522,11 @@
         border-color: rgba(v.$status-warning, 0.3);
       }
 
+      // Keep the card in its own cell; only its height grows when expanded
+      &.expanded {
+        cursor: default;
+      }
+
       .card-row {
         display: flex;
         align-items: center;
@@ -624,27 +629,83 @@
       border: 1px solid v.$gray-300;
     }
 
+    // Animated height wrapper: collapses to 0fr, expands to content height in place.
+    .params-wrapper {
+      display: grid;
+      grid-template-rows: 0fr;
+      margin-top: 0;
+      transition:
+        grid-template-rows 0.25s ease,
+        margin-top 0.25s ease;
+
+      &.open {
+        grid-template-rows: 1fr;
+        margin-top: 6px;
+      }
+    }
+
+    // Bare grid item: no padding/border/background so the 0fr track truly
+    // collapses to zero and fully clips the padded box below (no sliver).
+    .params-clip {
+      min-height: 0;
+      overflow: hidden;
+    }
+
     .inline-params {
       padding: 6px 10px;
       background: v.$wizard-header-bg;
       border: 1px solid v.$gray-200;
       border-radius: 8px;
-      margin-top: 4px;
+      cursor: default;
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
       align-items: flex-end;
 
+      .params-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+      }
+
       .params-label {
         font-size: 11px;
         font-weight: 600;
         color: v.$gray-600;
-        width: 100%;
+      }
+
+      .btn-reset-params {
+        @include w.btn-base;
+        background: white;
+        border: 1px solid v.$gray-300;
+        color: v.$gray-600;
+        font-size: 10px;
+        font-weight: 600;
+        padding: 2px 8px;
+        gap: 3px;
+        flex-shrink: 0;
+
+        .material-icons {
+          font-size: 13px;
+        }
+
+        &:hover:not(:disabled) {
+          background: v.$gray-100;
+          border-color: v.$active-color;
+          color: v.$active-color;
+        }
+
+        &:disabled {
+          opacity: 0.4;
+          cursor: not-allowed;
+        }
       }
 
       .param-field {
-        flex: 1;
-        min-width: 180px;
+        // Fit the (narrower) card column: each parameter takes the full width
+        flex: 1 1 100%;
+        min-width: 0;
 
         label {
           display: flex;
