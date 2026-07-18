@@ -139,6 +139,7 @@
           @for (feature of filteredAvailableFeatures; track feature) {
             <div
               class="feature-row available"
+              [class.dragging]="draggedFromList === 'available' && draggedFeature === feature"
               (click)="addGlyphFeature(feature)"
               (keydown.enter)="addGlyphFeature(feature)"
               tabindex="0"

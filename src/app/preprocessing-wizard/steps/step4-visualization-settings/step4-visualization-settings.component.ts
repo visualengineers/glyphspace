@@ -692,8 +692,9 @@ export class Step4VisualizationSettingsComponent implements OnInit, WizardStep {
       const y = cy - Math.sin(angle) * labelR;
       const cos = Math.cos(angle);
       const anchor = cos > 0.1 ? 'start' : cos < -0.1 ? 'end' : 'middle';
-      const name = feature.length > 14 ? feature.substring(0, 13) + '\u2026' : feature;
-      return { x, y, name, anchor };
+      // Show the full feature name; the SVG is allowed to overflow so long
+      // one-hot names (e.g. neighbourhood_group_Manhattan) are not clipped.
+      return { x, y, name: feature, anchor };
     });
   }
 
