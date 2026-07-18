@@ -304,8 +304,9 @@
             <!-- Parameters grouped inside their own method box (grows in place) -->
             @if (methodHasParams(method) && projectionConfig[method.key]) {
               <div class="params-wrapper" [class.open]="isMethodParamsExpanded(method.key)">
-                <div class="inline-params" (click)="$event.stopPropagation()" (keydown)="$event.stopPropagation()">
-                  <div class="params-header">
+                <div class="params-clip">
+                  <div class="inline-params" (click)="$event.stopPropagation()" (keydown)="$event.stopPropagation()">
+                    <div class="params-header">
                   <span class="params-label">{{ method.name }} Parameters</span>
                   <button
                     class="btn-reset-params"
@@ -358,6 +359,7 @@
                     </div>
                   </div>
                 }
+                  </div>
                 </div>
               </div>
             }

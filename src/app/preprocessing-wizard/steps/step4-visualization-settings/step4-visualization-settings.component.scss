@@ -586,13 +586,10 @@
     }
 
     // Animated height wrapper: collapses to 0fr, expands to content height in place.
-    // overflow:hidden clips the inner box (incl. its border/padding) so nothing
-    // shows while collapsed.
     .params-wrapper {
       display: grid;
       grid-template-rows: 0fr;
       margin-top: 0;
-      overflow: hidden;
       transition:
         grid-template-rows 0.25s ease,
         margin-top 0.25s ease;
@@ -603,10 +600,14 @@
       }
     }
 
-    .inline-params {
-      // Clipped by the 0fr wrapper while collapsed
+    // Bare grid item: no padding/border/background so the 0fr track truly
+    // collapses to zero and fully clips the padded box below (no sliver).
+    .params-clip {
       min-height: 0;
       overflow: hidden;
+    }
+
+    .inline-params {
       padding: 6px 10px;
       background: v.$wizard-header-bg;
       border: 1px solid v.$gray-200;
