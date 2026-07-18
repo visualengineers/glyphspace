@@ -30,7 +30,7 @@ Integrations-Branch `feature/wizard-redesign` von `main` abzweigen. Pro Ticket e
 | A2 | Voreinstellungen sichtbar/umkehrbar | Konzept | TODO | `feat/a2-smart-defaults` | Step 2+3, `services/preprocessing.service.ts` |
 | A3 | Fehlermeldungen inline/verständlich | Konzept | TODO | `feat/a3-fehleranzeige` | Step 4+5 |
 | A4 | Undo/Zurücksetzen | Konzept | TODO | `feat/a4-undo-historie` | `services/preprocessing.service.ts`, Step 1+4 |
-| A5 | Zusammengehöriges gruppieren | Konzept | TODO | `feat/a5-gruppierung` | Step 3+4 |
+| A5 | Zusammengehöriges gruppieren | Konzept | In Feature-Branch | `feat/a5-gruppierung` | Step 3+4 |
 | A6 | Review-Navigation (Direktsprünge) | Konzept | TODO | `feat/a6-direct-links` | Step 5, `shared/progress-stepper/` |
 | A7 | Ehrliche/konsistente Signifier | trivial | TODO | `feat/a7-signifier` | Step 1/2/4, `shared/progress-stepper/` |
 | A8 | Systemstatus/Datenanzeige korrekt | trivial | TODO | `feat/a8-datenanzeige` | Step 2+4 |
@@ -38,9 +38,9 @@ Integrations-Branch `feature/wizard-redesign` von `main` abzweigen. Pro Ticket e
 | A10 | Layout gegen lange/viele Inhalte | Konzept | TODO | `feat/a10-layout-robust` | Step 1+4, `shared/_wizard-shared.scss` |
 | A11 | Technische Defekte beheben | trivial | TODO | `feat/a11-bugfixes` | siehe Ticket |
 | A12 | Zweispaltiges Layout | Konzept | In Progress | `feat/a12-two-column` | `preprocessing-wizard.component.*`, `shared/progress-stepper/` |
-| A13 | Schrittlogik klären/neu ordnen | Konzept | TODO | `feat/a13-schrittlogik` | Step 2/3/4, `shared/constants/step-info.ts` |
+| A13 | Schrittlogik klären/neu ordnen | Konzept | In Feature-Branch | `feat/a13-schrittlogik` | Step 2/3/4, `shared/constants/step-info.ts` |
 | A14 | Übergänge sichtbar (Animation) | Konzept | TODO | `feat/a14-animation` | Step 2↔3, `shared/data-preview-table/` |
-| A15 | Einheitliches Tabellen/Listen-System | Konzept | TODO | `feat/a15-table-system` | `shared/data-preview-table/`, Step 2/3/4 |
+| A15 | Einheitliches Tabellen/Listen-System | Konzept | In Feature-Branch | `feat/a15-table-system` | `shared/data-preview-table/`, Step 2/3/4 |
 
 ---
 
@@ -148,7 +148,8 @@ Quick Wins ohne Abhängigkeit, die sich parallel zum Fundament wegräumen lassen
 ---
 
 ## A5 – Zusammengehöriges räumlich gruppieren
-**Typ:** Konzept · **Miro:** Parameter Location, Aufbereitung Rework · **Status:** TODO · **Branch:** `feat/a5-gruppierung`
+**Typ:** Konzept · **Miro:** Parameter Location, Aufbereitung Rework · **Status:** In Feature-Branch · **Branch:** `feat/a5-gruppierung`
+**Erweiterter Umfang:** die Methodenbox klappt in-place auf (Höhe animiert, Breite konstant) und ist im nicht-aufgeklappten Zustand vollständig geschlossen; Reset je Box. Der Schritt-3-Tabellenteil von A5 wurde bewusst nicht hier, sondern im Zuge von A15 (Schritt-3-Redesign) behandelt.
 **Befunde:** C-S3-01, C-S4-07, S-S4-03
 
 **Problem:** Projektionsparameter liegen außerhalb ihres Methodenkastens (willkürlich platziert); Datenkonfiguration überladen, Spaltenzuordnung nicht erkennbar. *(Vom Nutzer als teils trivial markiert: Parameter in die zugehörige Parameterbox verschieben.)*
@@ -250,7 +251,7 @@ Quick Wins ohne Abhängigkeit, die sich parallel zum Fundament wegräumen lassen
 ---
 
 ## A13 – Schrittlogik klären und neu ordnen
-**Typ:** Konzept · **Miro:** Aufbereitung Rework, Neuer Schritt 4 Anpassung · **Status:** TODO · **Branch:** `feat/a13-schrittlogik`
+**Typ:** Konzept · **Miro:** Aufbereitung Rework, Neuer Schritt 4 Anpassung · **Status:** In Feature-Branch · **Branch:** `feat/a13-schrittlogik`
 **Befund:** K-02
 
 **Problem:** Aufgabe der Schritte 2/3/4 und Bedeutung der jeweiligen Spaltenauswahl konzeptionell nicht getrennt.
@@ -274,7 +275,8 @@ Quick Wins ohne Abhängigkeit, die sich parallel zum Fundament wegräumen lassen
 ---
 
 ## A15 – Einheitliches Tabellen- und Listen-Designsystem
-**Typ:** Konzept · **Miro:** Tabellen/Listen · **Status:** TODO · **Branch:** `feat/a15-table-system`
+**Typ:** Konzept · **Miro:** Tabellen/Listen · **Status:** In Feature-Branch · **Branch:** `feat/a15-table-system`
+**Erweiterter Umfang:** zusätzlich Schritt-3-Redesign (Option 1d: Master-Rail + eingelassenes Konfigurations-Well mit Breadcrumb und Fehlwert-Badges) sowie Überarbeitung der Schritt-4-Feature-Liste (funktionale Suche/Typ-Filter, Drag-and-drop-Reihenfolge, Drop-in aus der Available-Liste, Höhenlimit mit Scroll) — Letzteres überschneidet sich mit A9.
 **Befund:** K-04
 
 **Problem:** Wiederkehrende Tabellen/Listen (Spaltenauswahl, Datenkonfiguration, Feature-Auswahl) sind funktional gleich, aber uneinheitlich gestaltet.
