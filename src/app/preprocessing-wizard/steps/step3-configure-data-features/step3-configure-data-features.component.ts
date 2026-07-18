@@ -37,7 +37,7 @@ interface ColumnConfigState {
 })
 export class Step3ConfigureDataFeaturesComponent implements OnInit, WizardStep {
   readonly primaryLabel = 'Continue to Visualization Settings';
-  readonly disabledHint = 'Please include at least one column in projection to continue.';
+  readonly disabledHint = '';
 
   columns: ColumnConfigState[] = [];
   filteredColumns: ColumnConfigState[] = [];
@@ -309,19 +309,6 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit, WizardStep {
     });
   }
 
-  toggleProjection(columnName: string): void {
-    const colState = this.columns.find(c => c.column.name === columnName);
-    if (colState) {
-      const newValue = !colState.config.includeInProjection;
-      // Update service
-      this.preprocessingService.updateColumnConfig(columnName, {
-        includeInProjection: newValue,
-      });
-      // Update local state to trigger template re-render
-      colState.config.includeInProjection = newValue;
-    }
-  }
-
   toggleRemoveDuplicates(): void {
     this.cleaningConfig.removeDuplicates = !this.cleaningConfig.removeDuplicates;
     this.preprocessingService.updateCleaningConfig({
@@ -424,13 +411,10 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit, WizardStep {
     return state.dataProfile.columns.map(c => c.name);
   }
 
-  getProjectionCount(): number {
-    return this.columns.filter(c => c.config.includeInProjection).length;
-  }
-
   canProceed(): boolean {
-    // At least one column must be included in projection
-    return this.getProjectionCount() > 0;
+    // Data configuration always has valid defaults; column selection for the
+    // projection now happens in Step 4 (Visualization Settings).
+    return true;
   }
 
   proceed(): void {

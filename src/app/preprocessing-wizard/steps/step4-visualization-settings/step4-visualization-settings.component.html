@@ -281,8 +281,60 @@
       </div>
     </div>
 
-    <!-- ====== Projection Methods (two-column grid) ====== -->
-    <div class="config-panel projection-panel">
+    <!-- ====== Projection Options (columns + method, two-column layout) ====== -->
+    <div class="projection-options-two-col">
+      <!-- LEFT: Columns feeding the projection -->
+      <div class="config-panel projection-columns-panel">
+        <div class="projection-columns-header">
+          <h3>
+            <span class="material-icons">view_column</span>
+            Projection Columns
+            <app-help-tooltip [helpText]="HELP_TEXT.general.projection"></app-help-tooltip>
+          </h3>
+          <span class="projection-count">{{ getProjectionCount() }} / {{ projectionColumns.length }} included</span>
+        </div>
+        <p class="panel-description">Choose which columns feed the dimensionality reduction.</p>
+
+        <div class="projection-columns-list-header">
+          <input
+            type="checkbox"
+            class="master-checkbox"
+            [checked]="allColumnsInProjection()"
+            [indeterminate]="someColumnsInProjection()"
+            (change)="onToggleAllProjection()"
+            title="Select all columns"
+          />
+          <span class="master-label">All columns</span>
+        </div>
+
+        <div class="projection-columns-list">
+          @for (entry of projectionColumns; track entry.column.name) {
+            <label
+              class="projection-column-item"
+              [class.selected]="entry.config.includeInProjection"
+              [class.excluded]="!entry.config.includeInProjection"
+            >
+              <input
+                type="checkbox"
+                [checked]="entry.config.includeInProjection"
+                (change)="toggleColumnProjection(entry.column.name)"
+              />
+              <span class="col-name">{{ entry.column.name }}</span>
+              <app-data-type-badge [dataType]="entry.column.dataType"></app-data-type-badge>
+            </label>
+          }
+        </div>
+
+        @if (getProjectionCount() === 0) {
+          <div class="validation-warning">
+            <span class="material-icons">warning</span>
+            <span>Select at least one column for the projection</span>
+          </div>
+        }
+      </div>
+
+      <!-- RIGHT: Projection method selection -->
+      <div class="config-panel projection-panel">
       <div class="projection-panel-header">
         <h3>
           <span class="material-icons">settings</span>
@@ -391,6 +443,7 @@
           </div>
         }
       }
+      </div>
     </div>
   </div>
 </div>
