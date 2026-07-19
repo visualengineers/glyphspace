@@ -302,6 +302,34 @@
           <span>{{ getDatasetRowCount() | number }} rows in dataset</span>
         </p>
 
+        <!-- Search + type filter (mirrors the glyph feature filter bar) -->
+        <div class="feature-filter-bar">
+          <div class="search-box">
+            <span class="material-icons">search</span>
+            <input
+              type="text"
+              [(ngModel)]="projectionColumnSearch"
+              placeholder="Search columns…"
+              class="search-input"
+            />
+            @if (projectionColumnSearch) {
+              <button class="clear-search" (click)="projectionColumnSearch = ''">
+                <span class="material-icons">close</span>
+              </button>
+            }
+          </div>
+          <select [(ngModel)]="projectionColumnTypeFilter" class="filter-select">
+            <option value="all">All Types</option>
+            <option [value]="DataType.Numeric">Numeric</option>
+            <option [value]="DataType.Categorical">Categorical</option>
+            <option [value]="DataType.Text">Text</option>
+            <option [value]="DataType.Date">Date</option>
+            <option [value]="DataType.Boolean">Boolean</option>
+            <option [value]="DataType.Coordinate">Coordinate</option>
+            <option [value]="DataType.ID">ID</option>
+          </select>
+        </div>
+
         <div class="projection-columns-list-header">
           <input
             type="checkbox"
@@ -312,23 +340,74 @@
             title="Select all columns"
           />
           <span class="master-label">All columns</span>
+          @if (hasProjectionColumnFilter()) {
+            <span class="showing-count">Showing {{ filteredProjectionColumns.length }} of {{ projectionColumns.length }}</span>
+          }
         </div>
 
         <div class="projection-columns-list">
-          @for (entry of projectionColumns; track entry.column.name) {
-            <label
+          @for (entry of filteredProjectionColumns; track entry.column.name) {
+            <div
               class="projection-column-item"
               [class.selected]="entry.config.includeInProjection"
               [class.excluded]="!entry.config.includeInProjection"
+              [class.details-open]="isProjectionDetailsExpanded(entry.column.name)"
             >
-              <input
-                type="checkbox"
-                [checked]="entry.config.includeInProjection"
-                (change)="toggleColumnProjection(entry.column.name)"
-              />
-              <span class="col-name">{{ entry.column.name }}</span>
-              <app-data-type-badge [dataType]="entry.column.dataType"></app-data-type-badge>
-            </label>
+              <label class="projection-column-row">
+                <input
+                  type="checkbox"
+                  [checked]="entry.config.includeInProjection"
+                  (change)="toggleColumnProjection(entry.column.name)"
+                />
+                <span class="col-name">{{ entry.column.name }}</span>
+                <app-data-type-badge [dataType]="entry.column.dataType"></app-data-type-badge>
+                <button
+                  type="button"
+                  class="btn-details-toggle"
+                  [title]="isProjectionDetailsExpanded(entry.column.name) ? 'Hide details' : 'Show details'"
+                  (click)="toggleProjectionDetails(entry.column.name, $event)"
+                >
+                  <span class="material-icons">
+                    {{ isProjectionDetailsExpanded(entry.column.name) ? 'expand_less' : 'expand_more' }}
+                  </span>
+                </button>
+              </label>
+
+              @if (isProjectionDetailsExpanded(entry.column.name)) {
+                <div class="projection-column-details">
+                  <div class="detail-row">
+                    <span class="detail-key">Encoding</span>
+                    <span class="detail-val">{{ getEncodingLabel(entry.config.encodingMethod) }}</span>
+                  </div>
+                  <div class="detail-row">
+                    <span class="detail-key">Scaling</span>
+                    <span class="detail-val">
+                      @if (entry.column.dataType === DataType.Numeric || entry.column.dataType === DataType.Date) {
+                        {{ getScalingLabel(entry.config.scalingMethod) }}
+                      } @else {
+                        N/A
+                      }
+                    </span>
+                  </div>
+                  <div class="detail-row">
+                    <span class="detail-key">Missing</span>
+                    <span class="detail-val">{{ getMissingLabel(entry.config.missingValueStrategy) }}</span>
+                  </div>
+                  <div class="detail-hint">
+                    <span class="material-icons">edit</span>
+                    <span>Adjust these in step “Configure Data &amp; Features”.</span>
+                  </div>
+                </div>
+              }
+            </div>
+          }
+          @if (filteredProjectionColumns.length === 0) {
+            <div class="available-empty">
+              <span>No columns match</span>
+              @if (hasProjectionColumnFilter()) {
+                <button class="btn-clear-inline" (click)="clearProjectionColumnFilters()">Clear filters</button>
+              }
+            </div>
           }
         </div>
 
@@ -341,8 +420,8 @@
       </div>
 
       <!-- RIGHT: Projection method selection -->
-      <span id="wizard-anchor-methods" class="scroll-anchor"></span>
       <div class="config-panel projection-panel">
+      <span id="wizard-anchor-methods" class="scroll-anchor"></span>
       <div class="projection-panel-header">
         <h3>
           <span class="material-icons">settings</span>

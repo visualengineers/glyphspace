@@ -5,7 +5,12 @@ import { PreprocessingService } from '../../services/preprocessing.service';
 import { WizardStep, WIZARD_STEP } from '../../shared/wizard-step';
 import { ColumnConfig, ProjectionConfig } from '../../models/column-config';
 import { ColumnStatistics } from '../../models/column-statistics';
-import { DataType } from '../../models/data-type.enum';
+import {
+  DataType,
+  MissingValueStrategy,
+  getEncodingLabel as encodingLabelFn,
+  getScalingLabel as scalingLabelFn,
+} from '../../models/data-type.enum';
 import { HelpTooltipComponent } from '../../shared/help-tooltip/help-tooltip.component';
 import { HELP_TEXT } from '../../shared/constants/help-text';
 import { STEP_INFO } from '../../shared/constants/step-info';
@@ -74,6 +79,16 @@ export class Step4VisualizationSettingsComponent implements OnInit, AfterViewIni
 
   // Projection column selection (which features feed the dimensionality reduction)
   projectionColumns: ProjectionColumnState[] = [];
+
+  // Search + type filter for the projection column list (mirrors the glyph feature filter).
+  projectionColumnSearch = '';
+  projectionColumnTypeFilter: DataType | 'all' = 'all';
+  // Names of columns whose per-column details (encoding/scaling/missing) are expanded.
+  private expandedProjectionDetails = new Set<string>();
+
+  // Label helpers for the per-column details toggle.
+  readonly getEncodingLabel = encodingLabelFn;
+  readonly getScalingLabel = scalingLabelFn;
 
   // Color feature selection
   columns: ColumnStatistics[] = [];
@@ -623,6 +638,55 @@ export class Step4VisualizationSettingsComponent implements OnInit, AfterViewIni
 
   isColumnInProjection(columnName: string): boolean {
     return this.projectionColumns.find(c => c.column.name === columnName)?.config.includeInProjection ?? false;
+  }
+
+  /** Projection columns filtered by the search box and the type filter. */
+  get filteredProjectionColumns(): ProjectionColumnState[] {
+    const term = this.projectionColumnSearch.trim().toLowerCase();
+    return this.projectionColumns.filter(entry => {
+      if (term && !entry.column.name.toLowerCase().includes(term)) return false;
+      if (this.projectionColumnTypeFilter !== 'all' && entry.column.dataType !== this.projectionColumnTypeFilter) {
+        return false;
+      }
+      return true;
+    });
+  }
+
+  hasProjectionColumnFilter(): boolean {
+    return this.projectionColumnSearch.trim() !== '' || this.projectionColumnTypeFilter !== 'all';
+  }
+
+  clearProjectionColumnFilters(): void {
+    this.projectionColumnSearch = '';
+    this.projectionColumnTypeFilter = 'all';
+  }
+
+  /** Toggle the per-column details panel (encoding/scaling/missing) for progressive disclosure. */
+  toggleProjectionDetails(columnName: string, event?: Event): void {
+    event?.stopPropagation();
+    event?.preventDefault();
+    if (this.expandedProjectionDetails.has(columnName)) {
+      this.expandedProjectionDetails.delete(columnName);
+    } else {
+      this.expandedProjectionDetails.add(columnName);
+    }
+  }
+
+  isProjectionDetailsExpanded(columnName: string): boolean {
+    return this.expandedProjectionDetails.has(columnName);
+  }
+
+  /** Human-readable label for the configured missing-value strategy. */
+  getMissingLabel(strategy: MissingValueStrategy): string {
+    const labels: Record<MissingValueStrategy, string> = {
+      [MissingValueStrategy.Keep]: 'Keep',
+      [MissingValueStrategy.RemoveRows]: 'Remove rows',
+      [MissingValueStrategy.FillMean]: 'Fill mean',
+      [MissingValueStrategy.FillMedian]: 'Fill median',
+      [MissingValueStrategy.FillMode]: 'Fill mode',
+      [MissingValueStrategy.FillValue]: 'Fill value',
+    };
+    return labels[strategy] ?? 'Keep';
   }
 
   getProjectionCount(): number {

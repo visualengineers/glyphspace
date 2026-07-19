@@ -32,7 +32,7 @@
         border: 1px solid v.$gray-300;
         border-radius: 4px;
 
-        // A6: edit/jump affordance per summary card
+        // A6: edit/jump affordance per summary card — uniform, borderless icon button
         .card-edit-btn {
           margin-left: auto;
           align-self: flex-start;
@@ -43,22 +43,20 @@
           height: 28px;
           padding: 0;
           background: transparent;
-          border: 1px solid v.$gray-300;
+          border: none;
           border-radius: 4px;
-          color: v.$gray-600;
+          color: v.$gray-500;
           cursor: pointer;
           transition:
             color 0.15s ease,
-            border-color 0.15s ease,
             background 0.15s ease;
 
           .material-icons {
-            font-size: 16px;
+            font-size: 18px;
           }
 
           &:hover {
             color: v.$status-info;
-            border-color: v.$active-color;
             background: rgba(v.$active-color, 0.1);
           }
 
