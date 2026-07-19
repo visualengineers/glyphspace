@@ -130,6 +130,8 @@
 
   tbody tr.column-row {
     transition: background-color 0.15s ease;
+    // A14: shared fixed row height so row N lines up with the Step 3 rail item N.
+    height: wizard.$wizard-list-row-height;
 
     &.disabled {
       opacity: 0.5;

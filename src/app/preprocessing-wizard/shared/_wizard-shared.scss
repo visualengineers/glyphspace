@@ -334,6 +334,11 @@ $wizard-header-row-height: 40px;
 $wizard-rail-width: 320px;
 $wizard-list-viewport-height: 420px;
 $wizard-list-row-padding: 10px 12px;
+// A14: One fixed row height for BOTH the Step 2 table rows and the Step 3 rail
+// items so column N sits at the same y-position in both steps (row N in step 2
+// morphs to row N in step 3 with minimal vertical movement). Sized to fit the
+// Step 3 two-line item (name/type + config summary) without clipping.
+$wizard-list-row-height: 56px;
 
 @mixin list-header-row {
   display: flex;
