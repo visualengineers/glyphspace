@@ -26,6 +26,17 @@
         }
       </div>
 
+      <select [(ngModel)]="filterType" class="type-filter" title="Filter by data type">
+        <option value="all">All Types</option>
+        <option [value]="DataType.Numeric">Numeric</option>
+        <option [value]="DataType.Categorical">Categorical</option>
+        <option [value]="DataType.Text">Text</option>
+        <option [value]="DataType.Date">Date</option>
+        <option [value]="DataType.Boolean">Boolean</option>
+        <option [value]="DataType.Coordinate">Coordinate</option>
+        <option [value]="DataType.ID">ID</option>
+      </select>
+
       <div class="selection-controls">
         <span class="selection-count">{{ enabledCount }} of {{ columns.length }} selected</span>
       </div>
@@ -36,7 +47,7 @@
       @if (filteredColumns.length === 0) {
         <div class="no-results">
           <span class="material-icons">search_off</span>
-          <p>No columns match your search</p>
+          <p>No columns match your search or filter</p>
         </div>
       } @else {
         <table class="columns-table">
@@ -95,7 +106,6 @@
                     type="checkbox"
                     [checked]="isColumnEnabled(column.name)"
                     (click)="onCheckboxClick(i, column.name, $event)"
-                    (change)="toggleColumn(column.name)"
                     [id]="'col-' + column.name"
                     title="Shift-click to select a range"
                   />

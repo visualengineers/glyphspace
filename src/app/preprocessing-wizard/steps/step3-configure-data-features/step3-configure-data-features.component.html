@@ -207,17 +207,17 @@
                     <div class="section-header">
                       <span class="section-label">Encoding</span>
                       <app-help-tooltip [helpText]="HELP_TEXT.tableHeaders.encoding" position="bottom"></app-help-tooltip>
-                      @if (isEncodingModified(selectedColumn)) {
-                        <button
-                          class="btn-reset-field"
-                          type="button"
-                          (click)="resetEncoding(selectedColumn)"
-                          title="Reset encoding to smart default"
-                        >
-                          <span class="material-icons">restart_alt</span>
-                          Reset
-                        </button>
-                      }
+                      <button
+                        class="btn-reset-field"
+                        type="button"
+                        [class.is-hidden]="!isEncodingModified(selectedColumn)"
+                        [disabled]="!isEncodingModified(selectedColumn)"
+                        (click)="resetEncoding(selectedColumn)"
+                        title="Reset encoding to smart default"
+                      >
+                        <span class="material-icons">restart_alt</span>
+                        Reset
+                      </button>
                     </div>
                     <select
                       class="config-select"
@@ -237,17 +237,17 @@
                     <div class="section-header">
                       <span class="section-label">Scaling</span>
                       <app-help-tooltip [helpText]="HELP_TEXT.tableHeaders.scaling" position="bottom"></app-help-tooltip>
-                      @if (isScalingModified(selectedColumn)) {
-                        <button
-                          class="btn-reset-field"
-                          type="button"
-                          (click)="resetScaling(selectedColumn)"
-                          title="Reset scaling to smart default"
-                        >
-                          <span class="material-icons">restart_alt</span>
-                          Reset
-                        </button>
-                      }
+                      <button
+                        class="btn-reset-field"
+                        type="button"
+                        [class.is-hidden]="!isScalingModified(selectedColumn)"
+                        [disabled]="!isScalingModified(selectedColumn)"
+                        (click)="resetScaling(selectedColumn)"
+                        title="Reset scaling to smart default"
+                      >
+                        <span class="material-icons">restart_alt</span>
+                        Reset
+                      </button>
                     </div>
                     <select
                       class="config-select"
@@ -275,17 +275,17 @@
                         [helpText]="HELP_TEXT.tableHeaders.missingValues"
                         position="bottom"
                       ></app-help-tooltip>
-                      @if (isMissingModified(selectedColumn)) {
-                        <button
-                          class="btn-reset-field"
-                          type="button"
-                          (click)="resetMissing(selectedColumn)"
-                          title="Reset missing-value handling to smart default"
-                        >
-                          <span class="material-icons">restart_alt</span>
-                          Reset
-                        </button>
-                      }
+                      <button
+                        class="btn-reset-field"
+                        type="button"
+                        [class.is-hidden]="!isMissingModified(selectedColumn)"
+                        [disabled]="!isMissingModified(selectedColumn)"
+                        (click)="resetMissing(selectedColumn)"
+                        title="Reset missing-value handling to smart default"
+                      >
+                        <span class="material-icons">restart_alt</span>
+                        Reset
+                      </button>
                     </div>
                     <select
                       class="config-select"
@@ -321,22 +321,23 @@
                         <span class="section-count">{{ selectedColumn.outlierCount }} detected</span>
                       }
                       <app-help-tooltip [helpText]="HELP_TEXT.tableHeaders.outliers" position="bottom"></app-help-tooltip>
-                      @if (isOutlierModified(selectedColumn)) {
-                        <button
-                          class="btn-reset-field"
-                          type="button"
-                          (click)="resetOutliers(selectedColumn)"
-                          [disabled]="selectedColumn.isLoadingOutliers"
-                          title="Reset outlier handling to smart default"
-                        >
-                          <span class="material-icons">restart_alt</span>
-                          Reset
-                        </button>
-                      }
                     </div>
                     <div class="outlier-controls">
                       <div class="control-group">
-                        <label for="step3-outlier-method">Detection Method</label>
+                        <div class="cg-label-row">
+                          <label for="step3-outlier-method">Detection Method</label>
+                          <button
+                            class="btn-reset-field"
+                            type="button"
+                            [class.is-hidden]="!isOutlierMethodModified(selectedColumn)"
+                            [disabled]="!isOutlierMethodModified(selectedColumn) || selectedColumn.isLoadingOutliers"
+                            (click)="resetOutlierMethod(selectedColumn)"
+                            title="Reset detection method to smart default"
+                          >
+                            <span class="material-icons">restart_alt</span>
+                            Reset
+                          </button>
+                        </div>
                         <select
                           id="step3-outlier-method"
                           class="config-select"
@@ -350,7 +351,20 @@
                         </select>
                       </div>
                       <div class="control-group">
-                        <label for="step3-outlier-strategy">Strategy</label>
+                        <div class="cg-label-row">
+                          <label for="step3-outlier-strategy">Strategy</label>
+                          <button
+                            class="btn-reset-field"
+                            type="button"
+                            [class.is-hidden]="!isOutlierStrategyModified(selectedColumn)"
+                            [disabled]="!isOutlierStrategyModified(selectedColumn) || selectedColumn.isLoadingOutliers"
+                            (click)="resetOutlierStrategy(selectedColumn)"
+                            title="Reset strategy to smart default"
+                          >
+                            <span class="material-icons">restart_alt</span>
+                            Reset
+                          </button>
+                        </div>
                         <select
                           id="step3-outlier-strategy"
                           class="config-select"
@@ -370,16 +384,63 @@
                 <!-- Bulk apply to same-type columns (A9) -->
                 @if (getSameTypeColumns(selectedColumn).length > 0) {
                   <div class="bulk-apply">
-                    <button
-                      class="btn-bulk-apply"
-                      type="button"
-                      (click)="applyToSameType(selectedColumn)"
-                      title="Copy these settings to every other column of the same type"
-                    >
-                      <span class="material-icons">library_add_check</span>
-                      Apply to all {{ getSameTypeColumns(selectedColumn).length }}
-                      {{ getTypeLabel(selectedColumn.column.dataType) }} columns
-                    </button>
+                    <div class="bulk-actions">
+                      <button
+                        class="btn-bulk-apply"
+                        type="button"
+                        (click)="applyToSameType(selectedColumn)"
+                        title="Copy these settings to every other column of the same type"
+                      >
+                        <span class="material-icons">library_add_check</span>
+                        Apply to {{ getSameTypeColumns(selectedColumn).length }} other
+                        {{ getTypeLabel(selectedColumn.column.dataType) }} columns
+                      </button>
+                      <button
+                        class="btn-bulk-toggle"
+                        type="button"
+                        (click)="toggleBulkTargets()"
+                        [attr.aria-expanded]="showBulkTargets"
+                      >
+                        <span class="material-icons">{{ showBulkTargets ? 'expand_less' : 'expand_more' }}</span>
+                        Which columns?
+                      </button>
+                    </div>
+
+                    @if (showBulkTargets) {
+                      <div class="bulk-targets">
+                        <span class="bulk-targets-hint">
+                          Copies <em>{{ getBulkSettingsSummary(selectedColumn) }}</em> to:
+                        </span>
+                        <ul>
+                          @for (target of getSameTypeColumns(selectedColumn); track target.column.name) {
+                            <li>
+                              <span class="material-icons">chevron_right</span>
+                              <span class="target-name">{{ target.column.name }}</span>
+                              @if (target.column.missingCount === 0) {
+                                <span class="target-note">no missing values</span>
+                              }
+                            </li>
+                          }
+                        </ul>
+                      </div>
+                    }
+
+                    @if (bulkApplyResult) {
+                      <div class="bulk-result" role="status">
+                        <span class="material-icons">check_circle</span>
+                        <div class="bulk-result-body">
+                          <strong
+                            >Applied to {{ bulkApplyResult.columnNames.length }}
+                            {{ bulkApplyResult.typeLabel }} column(s)</strong
+                          >
+                          <span class="bulk-result-settings">{{ bulkApplyResult.settingsSummary }}</span>
+                          <span class="bulk-result-cols">{{ bulkApplyResult.columnNames.join(', ') }}</span>
+                        </div>
+                        <button class="bulk-result-close" type="button" (click)="dismissBulkResult()" title="Dismiss">
+                          <span class="material-icons">close</span>
+                        </button>
+                      </div>
+                    }
                   </div>
                 }
               </div>

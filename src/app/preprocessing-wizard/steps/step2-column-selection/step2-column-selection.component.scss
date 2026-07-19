@@ -36,6 +36,13 @@
   position: relative;
 }
 
+.type-filter {
+  @include wizard.select;
+  flex-shrink: 0;
+  font-size: 13px;
+  padding: 8px 28px 8px 10px;
+}
+
 .selection-controls {
   display: flex;
   gap: 12px;

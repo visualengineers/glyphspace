@@ -5,7 +5,7 @@ import { PreprocessingService } from '../../services/preprocessing.service';
 import { MiniHistogramComponent } from '../../../shared/components/mini-histogram/mini-histogram.component';
 import { ColumnStatistics, HistogramData } from '../../models/column-statistics';
 import { ColumnConfig } from '../../models/column-config';
-import { getDataTypeColor, getDataTypeBgColor } from '../../models/data-type.enum';
+import { DataType, getDataTypeColor, getDataTypeBgColor } from '../../models/data-type.enum';
 import { HelpTooltipComponent } from '../../shared/help-tooltip/help-tooltip.component';
 import { HELP_TEXT } from '../../shared/constants/help-text';
 import { STEP_INFO } from '../../shared/constants/step-info';
@@ -29,7 +29,11 @@ export class Step2ColumnSelectionComponent implements OnInit, WizardStep {
   columns: ColumnStatistics[] = [];
   columnConfigs = new Map<string, ColumnConfig>();
   searchTerm = '';
+  filterType: DataType | 'all' = 'all';
   columnHistogramCache = new Map<string, HistogramData>();
+
+  // Enum reference for the template's type-filter <select>.
+  DataType = DataType;
 
   // Anchor index (into the currently filtered list) for shift-click range select.
   private lastCheckedIndex: number | null = null;
@@ -61,13 +65,21 @@ export class Step2ColumnSelectionComponent implements OnInit, WizardStep {
   }
 
   get filteredColumns(): ColumnStatistics[] {
-    if (!this.searchTerm) {
-      return this.columns;
+    let cols = this.columns;
+    if (this.filterType !== 'all') {
+      cols = cols.filter(col => col.dataType === this.filterType);
     }
-    const term = this.searchTerm.toLowerCase();
-    return this.columns.filter(
-      col => col.name.toLowerCase().includes(term) || col.dataType.toLowerCase().includes(term)
-    );
+    if (this.searchTerm) {
+      const term = this.searchTerm.toLowerCase();
+      cols = cols.filter(
+        col => col.name.toLowerCase().includes(term) || col.dataType.toLowerCase().includes(term)
+      );
+    }
+    return cols;
+  }
+
+  get hasActiveFilter(): boolean {
+    return !!this.searchTerm || this.filterType !== 'all';
   }
 
   get enabledCount(): number {
@@ -88,22 +100,28 @@ export class Step2ColumnSelectionComponent implements OnInit, WizardStep {
   }
 
   /**
-   * Handle a click on a row checkbox. A plain click toggles the single row (the
-   * default checkbox behaviour + the (change) handler). A shift-click extends the
-   * selection: every row between the previous checkbox click and this one (on the
-   * currently filtered list) is set to the state the clicked row is toggling to.
+   * Single click handler for a row checkbox. It fully owns the checkbox state: the
+   * native toggle is prevented so the one-way [checked] binding stays authoritative
+   * and no second (change) handler can double-toggle the clicked row.
+   *
+   * Plain click toggles that one row. Shift-click sets every row between the
+   * previous checkbox click and this one (inclusive of both ends, on the currently
+   * filtered list) to the state the clicked row is toggling to.
    */
   onCheckboxClick(index: number, columnName: string, event: MouseEvent): void {
+    event.preventDefault();
+
     if (event.shiftKey && this.lastCheckedIndex !== null && this.lastCheckedIndex !== index) {
-      // Prevent the default toggle so the range logic fully controls the states.
-      event.preventDefault();
       const targetState = !this.isColumnEnabled(columnName);
       const lo = Math.min(this.lastCheckedIndex, index);
       const hi = Math.max(this.lastCheckedIndex, index);
       const names = this.filteredColumns.slice(lo, hi + 1).map(col => col.name);
       this.preprocessingService.setColumnsEnabled(names, targetState);
-      this.columnConfigs = this.preprocessingService.currentState.columnConfigs;
+    } else {
+      this.preprocessingService.toggleColumnEnabled(columnName);
     }
+
+    this.columnConfigs = this.preprocessingService.currentState.columnConfigs;
     // Update anchor for the next shift-click.
     this.lastCheckedIndex = index;
   }
