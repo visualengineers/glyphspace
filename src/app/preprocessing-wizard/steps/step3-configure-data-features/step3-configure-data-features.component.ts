@@ -1,4 +1,4 @@
-import { Component, OnInit, forwardRef } from '@angular/core';
+import { Component, OnInit, forwardRef, ViewChild, ElementRef, HostListener } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { PreprocessingService } from '../../services/preprocessing.service';
 import { WizardStep, WIZARD_STEP } from '../../shared/wizard-step';
@@ -39,14 +39,13 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit, WizardStep {
   readonly primaryLabel = 'Continue to Visualization Settings';
   readonly disabledHint = '';
 
+  @ViewChild('railSearchInput') railSearchInput?: ElementRef<HTMLInputElement>;
+
   columns: ColumnConfigState[] = [];
   filteredColumns: ColumnConfigState[] = [];
 
   // Selection state for list+detail panel
   selectedColumnName: string | null = null;
-
-  // UI state
-  showInfoBox = true;
 
   // Duplicate handling
   duplicateCount = 0;
@@ -322,6 +321,140 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit, WizardStep {
 
   selectColumn(name: string): void {
     this.selectedColumnName = name;
+  }
+
+  // ============================================================================
+  // A2 – Smart defaults: deviation detection + reversible reset
+  // ============================================================================
+
+  /** Smart-default values for a column, derived from its data type. */
+  private getDefaults(colState: ColumnConfigState): Partial<ColumnConfig> {
+    return this.preprocessingService.getColumnDefaults(colState.column.name) ?? {};
+  }
+
+  isEncodingModified(colState: ColumnConfigState): boolean {
+    return colState.config.encodingMethod !== this.getDefaults(colState).encodingMethod;
+  }
+
+  isScalingModified(colState: ColumnConfigState): boolean {
+    return colState.config.scalingMethod !== this.getDefaults(colState).scalingMethod;
+  }
+
+  isMissingModified(colState: ColumnConfigState): boolean {
+    const def = this.getDefaults(colState);
+    return (
+      colState.config.missingValueStrategy !== def.missingValueStrategy ||
+      (colState.config.missingValueStrategy === MissingValueStrategy.FillValue &&
+        !!colState.config.missingValueFillValue)
+    );
+  }
+
+  isOutlierModified(colState: ColumnConfigState): boolean {
+    const def = this.getDefaults(colState);
+    return (
+      colState.config.outlierMethod !== def.outlierMethod ||
+      colState.config.outlierStrategy !== def.outlierStrategy
+    );
+  }
+
+  /** True when any setting of the column deviates from its smart default. */
+  isColumnModified(colState: ColumnConfigState): boolean {
+    return (
+      this.isEncodingModified(colState) ||
+      this.isScalingModified(colState) ||
+      this.isMissingModified(colState) ||
+      this.isOutlierModified(colState)
+    );
+  }
+
+  resetEncoding(colState: ColumnConfigState): void {
+    const method = this.getDefaults(colState).encodingMethod;
+    if (method === undefined) return;
+    colState.config.encodingMethod = method;
+    this.preprocessingService.updateColumnConfig(colState.column.name, { encodingMethod: method });
+  }
+
+  resetScaling(colState: ColumnConfigState): void {
+    const method = this.getDefaults(colState).scalingMethod;
+    if (method === undefined) return;
+    colState.config.scalingMethod = method;
+    this.preprocessingService.updateColumnConfig(colState.column.name, { scalingMethod: method });
+  }
+
+  resetMissing(colState: ColumnConfigState): void {
+    const strategy = this.getDefaults(colState).missingValueStrategy;
+    if (strategy === undefined) return;
+    colState.config.missingValueStrategy = strategy;
+    colState.config.missingValueFillValue = undefined;
+    this.preprocessingService.updateColumnConfig(colState.column.name, {
+      missingValueStrategy: strategy,
+      missingValueFillValue: undefined,
+    });
+  }
+
+  async resetOutliers(colState: ColumnConfigState): Promise<void> {
+    const def = this.getDefaults(colState);
+    if (def.outlierMethod === undefined || def.outlierStrategy === undefined) return;
+    colState.config.outlierMethod = def.outlierMethod;
+    colState.config.outlierStrategy = def.outlierStrategy;
+    this.preprocessingService.updateColumnConfig(colState.column.name, {
+      outlierMethod: def.outlierMethod,
+      outlierStrategy: def.outlierStrategy,
+    });
+    await this.detectOutliersForColumn(colState);
+  }
+
+  /** Reset every setting of the selected column back to its smart default. */
+  resetColumnToDefault(colState: ColumnConfigState): void {
+    this.resetEncoding(colState);
+    this.resetScaling(colState);
+    this.resetMissing(colState);
+    void this.resetOutliers(colState);
+  }
+
+  // ============================================================================
+  // A9 – Bulk apply settings to all columns of the same type
+  // ============================================================================
+
+  getSameTypeColumns(colState: ColumnConfigState): ColumnConfigState[] {
+    return this.columns.filter(
+      c => c.column.dataType === colState.column.dataType && c.column.name !== colState.column.name
+    );
+  }
+
+  applyToSameType(source: ColumnConfigState): void {
+    const targets = this.getSameTypeColumns(source);
+    if (targets.length === 0) return;
+
+    const updates: Partial<ColumnConfig> = {
+      encodingMethod: source.config.encodingMethod,
+      scalingMethod: source.config.scalingMethod,
+      missingValueStrategy: source.config.missingValueStrategy,
+      missingValueFillValue: source.config.missingValueFillValue,
+      outlierMethod: source.config.outlierMethod,
+      outlierStrategy: source.config.outlierStrategy,
+    };
+
+    for (const target of targets) {
+      Object.assign(target.config, updates);
+      this.preprocessingService.updateColumnConfig(target.column.name, updates);
+      if (this.shouldShowOutliers(target)) {
+        void this.detectOutliersForColumn(target);
+      }
+    }
+  }
+
+  /** Focus the column search field when the user presses "/" (unless already typing). */
+  @HostListener('document:keydown', ['$event'])
+  onKeyDown(event: KeyboardEvent): void {
+    if (event.key !== '/') return;
+    const target = event.target as HTMLElement | null;
+    const tag = target?.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target?.isContentEditable) {
+      return;
+    }
+    event.preventDefault();
+    this.railSearchInput?.nativeElement.focus();
   }
 
   getConfigSummary(colState: ColumnConfigState): string {

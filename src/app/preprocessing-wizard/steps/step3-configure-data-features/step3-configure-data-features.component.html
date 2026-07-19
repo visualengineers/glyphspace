@@ -6,20 +6,6 @@
         {{ error }}
       </div>
     } @else {
-      <!-- Dismissible Info Box -->
-      @if (showInfoBox) {
-        <div class="info-box">
-          <span class="material-icons">auto_fix_high</span>
-          <span
-            ><strong>Smart defaults applied</strong> — review and adjust settings as needed.
-            <app-help-tooltip [helpText]="HELP_TEXT.general.smartDefaults"></app-help-tooltip>
-          </span>
-          <button class="dismiss-btn" (click)="showInfoBox = false">
-            <span class="material-icons">close</span>
-          </button>
-        </div>
-      }
-
       <!-- Master rail + recessed detail well -->
       <div class="config-shell">
         <!-- LEFT RAIL: dataset columns -->
@@ -30,10 +16,11 @@
             <div class="search-box">
               <span class="material-icons">search</span>
               <input
+                #railSearchInput
                 type="text"
                 [(ngModel)]="filterText"
                 (ngModelChange)="onFilterChange()"
-                placeholder="Search columns…"
+                placeholder="Search columns… (press /)"
                 class="search-input"
               />
               @if (filterText) {
@@ -122,6 +109,17 @@
                 <div class="card-title-row">
                   <h3 [title]="selectedColumn.column.name">{{ selectedColumn.column.name }}</h3>
                   <span class="type-pill">{{ getTypeLabel(selectedColumn.column.dataType) }}</span>
+                  @if (isColumnModified(selectedColumn)) {
+                    <button
+                      class="btn-reset-column"
+                      type="button"
+                      (click)="resetColumnToDefault(selectedColumn)"
+                      title="Reset all settings of this column to smart defaults"
+                    >
+                      <span class="material-icons">restart_alt</span>
+                      Reset to defaults
+                    </button>
+                  }
                 </div>
               </div>
 
@@ -209,6 +207,17 @@
                     <div class="section-header">
                       <span class="section-label">Encoding</span>
                       <app-help-tooltip [helpText]="HELP_TEXT.tableHeaders.encoding" position="bottom"></app-help-tooltip>
+                      @if (isEncodingModified(selectedColumn)) {
+                        <button
+                          class="btn-reset-field"
+                          type="button"
+                          (click)="resetEncoding(selectedColumn)"
+                          title="Reset encoding to smart default"
+                        >
+                          <span class="material-icons">restart_alt</span>
+                          Reset
+                        </button>
+                      }
                     </div>
                     <select
                       class="config-select"
@@ -228,6 +237,17 @@
                     <div class="section-header">
                       <span class="section-label">Scaling</span>
                       <app-help-tooltip [helpText]="HELP_TEXT.tableHeaders.scaling" position="bottom"></app-help-tooltip>
+                      @if (isScalingModified(selectedColumn)) {
+                        <button
+                          class="btn-reset-field"
+                          type="button"
+                          (click)="resetScaling(selectedColumn)"
+                          title="Reset scaling to smart default"
+                        >
+                          <span class="material-icons">restart_alt</span>
+                          Reset
+                        </button>
+                      }
                     </div>
                     <select
                       class="config-select"
@@ -255,6 +275,17 @@
                         [helpText]="HELP_TEXT.tableHeaders.missingValues"
                         position="bottom"
                       ></app-help-tooltip>
+                      @if (isMissingModified(selectedColumn)) {
+                        <button
+                          class="btn-reset-field"
+                          type="button"
+                          (click)="resetMissing(selectedColumn)"
+                          title="Reset missing-value handling to smart default"
+                        >
+                          <span class="material-icons">restart_alt</span>
+                          Reset
+                        </button>
+                      }
                     </div>
                     <select
                       class="config-select"
@@ -290,6 +321,18 @@
                         <span class="section-count">{{ selectedColumn.outlierCount }} detected</span>
                       }
                       <app-help-tooltip [helpText]="HELP_TEXT.tableHeaders.outliers" position="bottom"></app-help-tooltip>
+                      @if (isOutlierModified(selectedColumn)) {
+                        <button
+                          class="btn-reset-field"
+                          type="button"
+                          (click)="resetOutliers(selectedColumn)"
+                          [disabled]="selectedColumn.isLoadingOutliers"
+                          title="Reset outlier handling to smart default"
+                        >
+                          <span class="material-icons">restart_alt</span>
+                          Reset
+                        </button>
+                      }
                     </div>
                     <div class="outlier-controls">
                       <div class="control-group">
@@ -321,6 +364,22 @@
                         </select>
                       </div>
                     </div>
+                  </div>
+                }
+
+                <!-- Bulk apply to same-type columns (A9) -->
+                @if (getSameTypeColumns(selectedColumn).length > 0) {
+                  <div class="bulk-apply">
+                    <button
+                      class="btn-bulk-apply"
+                      type="button"
+                      (click)="applyToSameType(selectedColumn)"
+                      title="Copy these settings to every other column of the same type"
+                    >
+                      <span class="material-icons">library_add_check</span>
+                      Apply to all {{ getSameTypeColumns(selectedColumn).length }}
+                      {{ getTypeLabel(selectedColumn.column.dataType) }} columns
+                    </button>
                   </div>
                 }
               </div>

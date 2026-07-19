@@ -13,9 +13,10 @@
       <div class="search-box">
         <span class="material-icons">search</span>
         <input
+          #searchInput
           type="text"
           [(ngModel)]="searchTerm"
-          placeholder="Search by name or type (e.g., 'numeric')..."
+          placeholder="Search by name or type (e.g., 'numeric')... (press / to focus)"
           class="search-input"
         />
         @if (searchTerm) {
@@ -44,10 +45,10 @@
               <th class="col-checkbox">
                 <input
                   type="checkbox"
-                  [checked]="enabledCount === columns.length"
-                  [indeterminate]="enabledCount > 0 && enabledCount < columns.length"
+                  [checked]="allFilteredSelected"
+                  [indeterminate]="someFilteredSelected"
                   (change)="toggleAllColumns()"
-                  title="Toggle all columns"
+                  title="Toggle all visible columns"
                 />
               </th>
               <th class="col-name">Column Name</th>
@@ -82,7 +83,7 @@
             </tr>
           </thead>
           <tbody>
-            @for (column of filteredColumns; track column.name) {
+            @for (column of filteredColumns; track column.name; let i = $index) {
               <tr
                 class="column-row"
                 [class.disabled]="!isColumnEnabled(column.name)"
@@ -93,8 +94,10 @@
                   <input
                     type="checkbox"
                     [checked]="isColumnEnabled(column.name)"
+                    (click)="onCheckboxClick(i, column.name, $event)"
                     (change)="toggleColumn(column.name)"
                     [id]="'col-' + column.name"
+                    title="Shift-click to select a range"
                   />
                 </td>
 

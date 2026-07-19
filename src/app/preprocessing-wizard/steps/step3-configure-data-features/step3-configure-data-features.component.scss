@@ -14,31 +14,6 @@
     @include w.step-header;
   }
 
-  .info-box {
-    @include w.info-box;
-    position: relative;
-
-    .dismiss-btn {
-      position: absolute;
-      top: 8px;
-      right: 8px;
-      background: none;
-      border: none;
-      cursor: pointer;
-      color: v.$gray-500;
-      padding: 2px;
-      display: flex;
-
-      &:hover {
-        color: v.$gray-800;
-      }
-
-      .material-icons {
-        font-size: 16px;
-      }
-    }
-  }
-
   .error-message {
     @include w.message-error;
   }
@@ -294,6 +269,29 @@
         text-transform: uppercase;
         color: v.$gray-500;
       }
+
+      .btn-reset-column {
+        @include w.btn-base;
+        margin-left: auto;
+        flex-shrink: 0;
+        background: white;
+        border: 1px solid v.$gray-300;
+        color: v.$gray-600;
+        font-size: 11px;
+        font-weight: 600;
+        padding: 3px 10px;
+        gap: 4px;
+
+        .material-icons {
+          font-size: 14px;
+        }
+
+        &:hover {
+          background: v.$gray-100;
+          border-color: v.$active-color;
+          color: v.$active-color;
+        }
+      }
     }
   }
 
@@ -400,6 +398,68 @@
         &.spinning {
           animation: spin 1s linear infinite;
         }
+      }
+    }
+
+    // Per-setting reset, only rendered when the value deviates from the smart
+    // default (A2). Mirrors the reset control in Step 4's projection params.
+    .btn-reset-field {
+      @include w.btn-base;
+      margin-left: auto;
+      flex-shrink: 0;
+      background: white;
+      border: 1px solid v.$gray-300;
+      color: v.$gray-600;
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 8px;
+      gap: 3px;
+
+      .material-icons {
+        font-size: 13px;
+      }
+
+      &:hover:not(:disabled) {
+        background: v.$gray-100;
+        border-color: v.$active-color;
+        color: v.$active-color;
+      }
+
+      &:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+    }
+
+    // When a warning count already claims the right edge, sit next to it.
+    .section-count + .btn-reset-field {
+      margin-left: 4px;
+    }
+  }
+
+  .bulk-apply {
+    padding-top: 14px;
+    margin-top: 2px;
+
+    .btn-bulk-apply {
+      @include w.btn-base;
+      width: 100%;
+      justify-content: center;
+      background: rgba(v.$active-color, 0.08);
+      border: 1px solid rgba(v.$active-color, 0.5);
+      color: v.$status-info;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 8px 12px;
+      gap: 6px;
+
+      .material-icons {
+        font-size: 16px;
+      }
+
+      &:hover {
+        background: rgba(v.$active-color, 0.14);
+        border-color: v.$active-color;
       }
     }
   }
