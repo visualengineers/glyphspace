@@ -10,7 +10,12 @@ import { Step3ConfigureDataFeaturesComponent } from './steps/step3-configure-dat
 import { Step4VisualizationSettingsComponent } from './steps/step4-visualization-settings/step4-visualization-settings.component';
 import { Step5ReviewProcessingComponent } from './steps/step5-review-processing/step5-review-processing.component';
 import { PreprocessingState } from './models/preprocessing-state';
-import { stepTransition } from './animations/step-transition.animations';
+import { gsap } from 'gsap';
+import { Flip } from 'gsap/Flip';
+
+// A14: Register the Flip plugin once at module load. Flip morphs elements across
+// the step2 -> step3 @switch component swap by matching `data-flip-id`.
+gsap.registerPlugin(Flip);
 
 @Component({
   selector: 'app-preprocessing-wizard',
@@ -25,7 +30,6 @@ import { stepTransition } from './animations/step-transition.animations';
   ],
   templateUrl: './preprocessing-wizard.component.html',
   styleUrl: './preprocessing-wizard.component.scss',
-  animations: [stepTransition],
 })
 export class PreprocessingWizardComponent implements OnInit, OnDestroy {
   @Output() wizardClose = new EventEmitter<void>();
@@ -43,12 +47,17 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
   isProcessing = false;
   error: string | null = null;
 
-  // A14: When the user prefers reduced motion, the step 2 -> 3 transition is
+  // A14: When the user prefers reduced motion, the step 2 -> 3 morph is
   // skipped (Angular renders the switch instantly). Read once at init.
   reduceMotion =
     typeof window !== 'undefined' &&
     typeof window.matchMedia === 'function' &&
     window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // A14: Cached natural height of `.step-container` captured just before the
+  // step2 -> step3 swap, used to animate the container height during the morph
+  // so there is no vertical jump.
+  private morphOldHeight = 0;
 
   // Labels and descriptions come from STEP_INFO so the sidebar stays the single
   // source of truth for step titles/purposes (no duplication in the work area).
@@ -67,7 +76,17 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
     // Subscribe to state changes
     this.subscription.add(
       this.preprocessingService.state$.subscribe(state => {
-        this.currentStep = state.currentStep;
+        const previousStep = this.currentStep;
+        const nextStep = state.currentStep;
+
+        // A14: Only the forward Step 2 -> Step 3 transition morphs. Capture the
+        // Flip state while step2 is still rendered (this subscriber runs
+        // synchronously before Angular re-renders the @switch), then trigger the
+        // morph after the new DOM is in place.
+        const shouldMorph = previousStep === 1 && nextStep === 2 && !this.reduceMotion;
+        const flipState = shouldMorph ? this.captureMorphState() : null;
+
+        this.currentStep = nextStep;
         this.isProcessing = state.isProcessing;
         this.error = state.error;
 
@@ -78,6 +97,10 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
 
         // Update step completion based on state
         this.updateStepCompletion(state);
+
+        if (flipState) {
+          this.runStepMorph(flipState);
+        }
       })
     );
 
@@ -103,6 +126,102 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
       }
       // Also scroll the window/document in case wizard is in a scrollable container
       window.scrollTo({ top: 0, behavior: 'instant' });
+    }, 0);
+  }
+
+  private get stepContainer(): HTMLElement | null {
+    return this.wizardContent?.nativeElement?.querySelector('.step-container') ?? null;
+  }
+
+  /**
+   * A14: Capture the GSAP Flip state of the step-2 column list + search box
+   * (matched across the swap via `data-flip-id`) plus the stat columns that are
+   * about to leave. Must run while step 2 is still in the DOM.
+   */
+  private captureMorphState(): Flip.FlipState | null {
+    const container = this.stepContainer;
+    if (!container) {
+      return null;
+    }
+
+    // Matched, morphing elements (column rows + search box) share a data-flip-id
+    // with their step-3 counterparts. The stat cells + select-all header cell are
+    // captured too so Flip can animate them out via onLeave (they only exist in
+    // step 2, so their DOM nodes get disconnected by the swap).
+    const morphTargets = Array.from(container.querySelectorAll('[data-flip-id]'));
+    const leaveTargets = Array.from(
+      container.querySelectorAll(
+        '.col-type, .col-count, .col-unique, .col-missing, .col-distribution, thead .col-checkbox'
+      )
+    );
+
+    this.morphOldHeight = container.offsetHeight;
+    return Flip.getState([...morphTargets, ...leaveTargets]);
+  }
+
+  /**
+   * A14: After Angular has rendered step 3, morph from the captured state:
+   * matched column rows/search box glide from table to master-rail geometry,
+   * stat columns collapse to the left (onLeave), and the detail well + type
+   * filter enter from the right (onEnter). The container height is tweened in
+   * the same timeline to avoid a vertical jump.
+   */
+  private runStepMorph(state: Flip.FlipState): void {
+    // setTimeout(0) fires after Angular's change detection has swapped the DOM,
+    // mirroring the existing scrollToTop pattern.
+    setTimeout(() => {
+      const container = this.stepContainer;
+      if (!container) {
+        return;
+      }
+
+      const timeline = Flip.from(state, {
+        targets: container.querySelectorAll('[data-flip-id]'),
+        duration: 0.5,
+        ease: 'power2.inOut',
+        absolute: true,
+        // Stat columns / select-all: retract to the left and fade out.
+        onLeave: leaving =>
+          gsap.to(leaving, {
+            xPercent: -30,
+            scaleX: 0,
+            transformOrigin: 'left center',
+            autoAlpha: 0,
+            duration: 0.4,
+            ease: 'power2.in',
+          }),
+      });
+
+      // onEnter (step-3 only): detail/config well slides in from the right, the
+      // type filter fades in. These have no data-flip-id, so they are driven as
+      // explicit tweens layered onto the Flip timeline at the same start time.
+      const well = container.querySelector('.detail-well');
+      if (well) {
+        timeline.from(well, { xPercent: 40, autoAlpha: 0, duration: 0.5, ease: 'power2.out' }, 0);
+      }
+      const railFilters = container.querySelector('.rail-filters');
+      if (railFilters) {
+        timeline.from(railFilters, { autoAlpha: 0, y: -6, duration: 0.3, ease: 'power2.out' }, 0.15);
+      }
+
+      // Animate the container height old -> new to prevent a vertical jump, then
+      // release the inline height so flex layout resumes.
+      const newHeight = container.offsetHeight;
+      if (this.morphOldHeight > 0 && Math.abs(this.morphOldHeight - newHeight) > 1) {
+        timeline.fromTo(
+          container,
+          { height: this.morphOldHeight },
+          {
+            height: newHeight,
+            duration: 0.5,
+            ease: 'power2.inOut',
+            onComplete: () => {
+              container.style.height = '';
+            },
+          },
+          0
+        );
+      }
     }, 0);
   }
 

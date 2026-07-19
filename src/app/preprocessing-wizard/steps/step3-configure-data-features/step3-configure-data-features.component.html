@@ -27,7 +27,7 @@
           <div class="rail-header">
             <span class="rail-title">DATASET COLUMNS</span>
 
-            <div class="search-box">
+            <div class="search-box" data-flip-id="col-search">
               <span class="material-icons">search</span>
               <input
                 type="text"
@@ -67,6 +67,7 @@
             @for (colState of filteredColumns; track colState.column.name) {
               <div
                 class="column-item"
+                [attr.data-flip-id]="'colrow-' + colState.column.name"
                 [class.selected]="selectedColumnName === colState.column.name"
                 (click)="selectColumn(colState.column.name)"
                 (keydown.enter)="selectColumn(colState.column.name)"
@@ -208,7 +209,10 @@
                   <div class="config-section">
                     <div class="section-header">
                       <span class="section-label">Encoding</span>
-                      <app-help-tooltip [helpText]="HELP_TEXT.tableHeaders.encoding" position="bottom"></app-help-tooltip>
+                      <app-help-tooltip
+                        [helpText]="HELP_TEXT.tableHeaders.encoding"
+                        position="bottom"
+                      ></app-help-tooltip>
                     </div>
                     <select
                       class="config-select"
@@ -227,7 +231,10 @@
                   <div class="config-section">
                     <div class="section-header">
                       <span class="section-label">Scaling</span>
-                      <app-help-tooltip [helpText]="HELP_TEXT.tableHeaders.scaling" position="bottom"></app-help-tooltip>
+                      <app-help-tooltip
+                        [helpText]="HELP_TEXT.tableHeaders.scaling"
+                        position="bottom"
+                      ></app-help-tooltip>
                     </div>
                     <select
                       class="config-select"
@@ -289,7 +296,10 @@
                       } @else if (hasOutliers(selectedColumn)) {
                         <span class="section-count">{{ selectedColumn.outlierCount }} detected</span>
                       }
-                      <app-help-tooltip [helpText]="HELP_TEXT.tableHeaders.outliers" position="bottom"></app-help-tooltip>
+                      <app-help-tooltip
+                        [helpText]="HELP_TEXT.tableHeaders.outliers"
+                        position="bottom"
+                      ></app-help-tooltip>
                     </div>
                     <div class="outlier-controls">
                       <div class="control-group">

@@ -122,8 +122,9 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
-  // A14: Anker für die absolut positionierten Ein-/Ausgangs-Schritte während
-  // der Übergangsanimation. Ohne Animation bleibt das Layout unverändert.
+  // A14: Bezugselement (offset parent) für die absolut positionierten Elemente,
+  // die GSAP Flip während des Step-2->Step-3-Morphs erzeugt. Im Ruhezustand
+  // bleibt das Layout unverändert.
   position: relative;
 
   > * {
@@ -131,14 +132,6 @@
     display: flex;
     flex-direction: column;
     min-height: 0;
-  }
-
-  // A14: Deckender Hintergrund, damit der austretende Schritt 2 während des
-  // Morphs (Curtain) den darunterliegenden Schritt 3 sauber verdeckt, bis er
-  // per clip-path nach links eingezogen ist. Im Ruhezustand ohne Effekt.
-  > app-step2-column-selection,
-  > app-step3-configure-data-features {
-    background: v.$wizard-content-bg;
   }
 }
 

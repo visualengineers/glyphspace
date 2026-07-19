@@ -10,7 +10,7 @@
     </div>
 
     <div class="column-actions">
-      <div class="search-box">
+      <div class="search-box" data-flip-id="col-search">
         <span class="material-icons">search</span>
         <input
           type="text"
@@ -85,6 +85,7 @@
             @for (column of filteredColumns; track column.name) {
               <tr
                 class="column-row"
+                [attr.data-flip-id]="'colrow-' + column.name"
                 [class.disabled]="!isColumnEnabled(column.name)"
                 [class.has-issues]="hasIssues(column)"
               >
