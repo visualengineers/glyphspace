@@ -132,6 +132,14 @@
     flex-direction: column;
     min-height: 0;
   }
+
+  // A14: Deckender Hintergrund, damit der austretende Schritt 2 während des
+  // Morphs (Curtain) den darunterliegenden Schritt 3 sauber verdeckt, bis er
+  // per clip-path nach links eingezogen ist. Im Ruhezustand ohne Effekt.
+  > app-step2-column-selection,
+  > app-step3-configure-data-features {
+    background: v.$wizard-content-bg;
+  }
 }
 
 // Centralized navigation bar for steps 1–4, pinned to the bottom of the work area
