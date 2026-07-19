@@ -32,6 +32,42 @@
         border: 1px solid v.$gray-300;
         border-radius: 4px;
 
+        // A6: edit/jump affordance per summary card
+        .card-edit-btn {
+          margin-left: auto;
+          align-self: flex-start;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 28px;
+          height: 28px;
+          padding: 0;
+          background: transparent;
+          border: 1px solid v.$gray-300;
+          border-radius: 4px;
+          color: v.$gray-600;
+          cursor: pointer;
+          transition:
+            color 0.15s ease,
+            border-color 0.15s ease,
+            background 0.15s ease;
+
+          .material-icons {
+            font-size: 16px;
+          }
+
+          &:hover {
+            color: v.$status-info;
+            border-color: v.$active-color;
+            background: rgba(v.$active-color, 0.1);
+          }
+
+          &:focus-visible {
+            outline: 2px solid v.$active-color;
+            outline-offset: 1px;
+          }
+        }
+
         .card-icon {
           display: flex;
           align-items: center;

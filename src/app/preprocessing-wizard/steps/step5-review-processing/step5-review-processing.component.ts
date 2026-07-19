@@ -357,6 +357,12 @@ export class Step5ReviewProcessingComponent implements OnInit, OnDestroy {
     this.preprocessingService.previousStep();
   }
 
+  // A6: jump from a review summary card back to the step that owns that setting
+  // and scroll the relevant section into view.
+  editSetting(step: number, targetId: string): void {
+    this.preprocessingService.goToStepWithScroll(step, targetId);
+  }
+
   startOver(): void {
     if (confirm('Are you sure you want to start over? All current configuration will be lost.')) {
       // Terminate any running background projection workers

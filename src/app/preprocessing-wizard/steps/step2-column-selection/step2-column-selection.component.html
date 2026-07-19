@@ -9,6 +9,7 @@
       </div>
     </div>
 
+    <span id="wizard-anchor-columns" class="scroll-anchor"></span>
     <div class="column-actions">
       <div class="search-box">
         <span class="material-icons">search</span>
@@ -134,7 +135,7 @@
                       <span class="missing-percent warn">({{ column.missingPercentage.toFixed(1) }}%)</span>
                     </div>
                   } @else {
-                    <span class="text-muted">—</span>
+                    <span class="missing-count-zero">0</span>
                   }
                 </td>
 

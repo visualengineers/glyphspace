@@ -3,6 +3,13 @@
 @use '../../../../styles/variables' as v;
 @use '../../../../styles/mixins' as m;
 
+// A6: invisible scroll anchor used by the review step's deep-links
+.scroll-anchor {
+  display: block;
+  height: 0;
+  scroll-margin-top: 12px;
+}
+
 .step4-visualization-settings {
   display: flex;
   flex-direction: column;
@@ -773,6 +780,21 @@
     display: flex;
     flex-direction: column;
     max-height: 420px;
+
+    // A8: total dataset row count for context
+    .dataset-row-count {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      color: v.$gray-600;
+      margin: -4px 0 10px;
+
+      .material-icons {
+        font-size: 14px;
+        color: v.$gray-500;
+      }
+    }
 
     .projection-columns-header {
       @include w.list-header-row;

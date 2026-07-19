@@ -1,4 +1,4 @@
-import { Component, OnInit, forwardRef } from '@angular/core';
+import { Component, OnInit, AfterViewInit, forwardRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PreprocessingService } from '../../services/preprocessing.service';
@@ -68,7 +68,7 @@ interface ProjectionMethodUI {
   styleUrl: './step4-visualization-settings.component.scss',
   providers: [{ provide: WIZARD_STEP, useExisting: forwardRef(() => Step4VisualizationSettingsComponent) }],
 })
-export class Step4VisualizationSettingsComponent implements OnInit, WizardStep {
+export class Step4VisualizationSettingsComponent implements OnInit, AfterViewInit, WizardStep {
   readonly primaryLabel = 'Continue to Review';
   readonly disabledHint = 'Select at least one projection column and 3-12 glyph features to continue.';
 
@@ -293,6 +293,18 @@ export class Step4VisualizationSettingsComponent implements OnInit, WizardStep {
   readonly stepInfo = STEP_INFO[3]; // Step 4 (index 3)
 
   constructor(public preprocessingService: PreprocessingService) {}
+
+  // A6: if the review step requested a jump to a specific setting, scroll its
+  // anchor into view once this step has rendered. The delay lets the shell's
+  // scroll-to-top run first so it does not override this.
+  ngAfterViewInit(): void {
+    const target = this.preprocessingService.consumeScrollTarget();
+    if (target) {
+      setTimeout(() => {
+        document.getElementById(target)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 120);
+    }
+  }
 
   ngOnInit(): void {
     const state = this.preprocessingService.currentState;

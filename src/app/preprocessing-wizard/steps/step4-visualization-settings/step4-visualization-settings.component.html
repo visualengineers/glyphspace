@@ -1,6 +1,7 @@
 <div class="step4-visualization-settings">
   <div class="step-content">
     <!-- ====== Color Feature (single row) ====== -->
+    <span id="wizard-anchor-color" class="scroll-anchor"></span>
     <div class="config-panel color-feature-panel">
       <div class="panel-header-row">
         <div class="form-group">
@@ -26,6 +27,7 @@
     </div>
 
     <!-- ====== Two-Column: Glyph Features + Live Preview ====== -->
+    <span id="wizard-anchor-glyph" class="scroll-anchor"></span>
     <div class="glyph-section-two-col">
       <!-- LEFT: Feature Selection -->
       <div class="config-panel glyph-features-panel">
@@ -282,6 +284,7 @@
     </div>
 
     <!-- ====== Projection Options (columns + method, two-column layout) ====== -->
+    <span id="wizard-anchor-projection-columns" class="scroll-anchor"></span>
     <div class="projection-options-two-col">
       <!-- LEFT: Columns feeding the projection -->
       <div class="config-panel projection-columns-panel">
@@ -294,6 +297,10 @@
           <span class="projection-count">{{ getProjectionCount() }} / {{ projectionColumns.length }} included</span>
         </div>
         <p class="panel-description">Choose which columns feed the dimensionality reduction.</p>
+        <p class="dataset-row-count">
+          <span class="material-icons">table_rows</span>
+          <span>{{ getDatasetRowCount() | number }} rows in dataset</span>
+        </p>
 
         <div class="projection-columns-list-header">
           <input
@@ -334,6 +341,7 @@
       </div>
 
       <!-- RIGHT: Projection method selection -->
+      <span id="wizard-anchor-methods" class="scroll-anchor"></span>
       <div class="config-panel projection-panel">
       <div class="projection-panel-header">
         <h3>
