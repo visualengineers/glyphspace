@@ -10,6 +10,7 @@ import { Step3ConfigureDataFeaturesComponent } from './steps/step3-configure-dat
 import { Step4VisualizationSettingsComponent } from './steps/step4-visualization-settings/step4-visualization-settings.component';
 import { Step5ReviewProcessingComponent } from './steps/step5-review-processing/step5-review-processing.component';
 import { PreprocessingState } from './models/preprocessing-state';
+import { stepTransition } from './animations/step-transition.animations';
 
 @Component({
   selector: 'app-preprocessing-wizard',
@@ -24,6 +25,7 @@ import { PreprocessingState } from './models/preprocessing-state';
   ],
   templateUrl: './preprocessing-wizard.component.html',
   styleUrl: './preprocessing-wizard.component.scss',
+  animations: [stepTransition],
 })
 export class PreprocessingWizardComponent implements OnInit, OnDestroy {
   @Output() wizardClose = new EventEmitter<void>();
@@ -40,6 +42,13 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
   highestStepVisited = 0; // Track highest step to enable forward navigation
   isProcessing = false;
   error: string | null = null;
+
+  // A14: When the user prefers reduced motion, the step 2 -> 3 transition is
+  // skipped (Angular renders the switch instantly). Read once at init.
+  reduceMotion =
+    typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   // Labels and descriptions come from STEP_INFO so the sidebar stays the single
   // source of truth for step titles/purposes (no duplication in the work area).
