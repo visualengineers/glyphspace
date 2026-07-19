@@ -25,6 +25,23 @@
         }
       </div>
 
+      <!-- Type filter (A14): mirrors Step 3's master-rail type filter -->
+      <select
+        class="filter-select"
+        [(ngModel)]="filterType"
+        data-flip-id="col-typefilter"
+        aria-label="Filter by data type"
+      >
+        <option value="all">All Types</option>
+        <option [value]="DataType.Numeric">Numeric</option>
+        <option [value]="DataType.Categorical">Categorical</option>
+        <option [value]="DataType.Text">Text</option>
+        <option [value]="DataType.Date">Date</option>
+        <option [value]="DataType.Boolean">Boolean</option>
+        <option [value]="DataType.Coordinate">Coordinate</option>
+        <option [value]="DataType.ID">ID</option>
+      </select>
+
       <div class="selection-controls">
         <span class="selection-count">{{ enabledCount }} of {{ columns.length }} selected</span>
       </div>
@@ -41,6 +58,7 @@
         <table class="columns-table">
           <thead>
             <tr>
+              <!-- Left band: select-all + name + missing (matches Step 3 rail) -->
               <th class="col-checkbox">
                 <input
                   type="checkbox"
@@ -51,6 +69,13 @@
                 />
               </th>
               <th class="col-name">Column Name</th>
+              <th class="col-missing">
+                <span class="header-with-tooltip">
+                  Missing
+                  <app-help-tooltip [helpText]="HELP_TEXT.tableHeaders.missing" position="bottom"></app-help-tooltip>
+                </span>
+              </th>
+              <!-- Stat columns: collapse away during the Step 2 -> 3 morph -->
               <th class="col-type">
                 <span class="header-with-tooltip">
                   Data Type
@@ -62,12 +87,6 @@
                 <span class="header-with-tooltip">
                   Unique
                   <app-help-tooltip [helpText]="HELP_TEXT.tableHeaders.unique" position="bottom"></app-help-tooltip>
-                </span>
-              </th>
-              <th class="col-missing">
-                <span class="header-with-tooltip">
-                  Missing
-                  <app-help-tooltip [helpText]="HELP_TEXT.tableHeaders.missing" position="bottom"></app-help-tooltip>
                 </span>
               </th>
               <th class="col-distribution">
@@ -109,6 +128,18 @@
                   </div>
                 </td>
 
+                <!-- Missing (part of the left band) -->
+                <td class="col-missing">
+                  @if (column.missingCount > 0) {
+                    <div class="missing-cell">
+                      <span class="missing-count">{{ column.missingCount | number }}</span>
+                      <span class="missing-percent warn">({{ column.missingPercentage.toFixed(1) }}%)</span>
+                    </div>
+                  } @else {
+                    <span class="text-muted">—</span>
+                  }
+                </td>
+
                 <!-- Data Type -->
                 <td class="col-type">
                   <app-data-type-badge [dataType]="column.dataType"></app-data-type-badge>
@@ -125,18 +156,6 @@
                     <span class="unique-count">{{ column.uniqueCount | number }}</span>
                     <span class="unique-percent">({{ getUniquePercent(column) }}%)</span>
                   </div>
-                </td>
-
-                <!-- Missing -->
-                <td class="col-missing">
-                  @if (column.missingCount > 0) {
-                    <div class="missing-cell">
-                      <span class="missing-count">{{ column.missingCount | number }}</span>
-                      <span class="missing-percent warn">({{ column.missingPercentage.toFixed(1) }}%)</span>
-                    </div>
-                  } @else {
-                    <span class="text-muted">—</span>
-                  }
                 </td>
 
                 <!-- Distribution -->

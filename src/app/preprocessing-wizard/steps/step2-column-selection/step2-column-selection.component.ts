@@ -5,7 +5,7 @@ import { PreprocessingService } from '../../services/preprocessing.service';
 import { MiniHistogramComponent } from '../../../shared/components/mini-histogram/mini-histogram.component';
 import { ColumnStatistics, HistogramData } from '../../models/column-statistics';
 import { ColumnConfig } from '../../models/column-config';
-import { getDataTypeColor, getDataTypeBgColor } from '../../models/data-type.enum';
+import { DataType, getDataTypeColor, getDataTypeBgColor } from '../../models/data-type.enum';
 import { HelpTooltipComponent } from '../../shared/help-tooltip/help-tooltip.component';
 import { HELP_TEXT } from '../../shared/constants/help-text';
 import { STEP_INFO } from '../../shared/constants/step-info';
@@ -27,7 +27,13 @@ export class Step2ColumnSelectionComponent implements OnInit, WizardStep {
   columns: ColumnStatistics[] = [];
   columnConfigs = new Map<string, ColumnConfig>();
   searchTerm = '';
+  // A14: Type filter, mirroring Step 3's master-rail type filter so both steps
+  // share the same header controls (enables the minimal Flip morph).
+  filterType: DataType | 'all' = 'all';
   columnHistogramCache = new Map<string, HistogramData>();
+
+  // Enum reference for the template type-filter <select>.
+  DataType = DataType;
 
   // Distribution bars use the single cyan accent (A15) instead of per-type colors.
   // These mirror $active-color (#00bcd4) / $status-info (#00838f); the mini-histogram
@@ -56,13 +62,18 @@ export class Step2ColumnSelectionComponent implements OnInit, WizardStep {
   }
 
   get filteredColumns(): ColumnStatistics[] {
-    if (!this.searchTerm) {
-      return this.columns;
-    }
-    const term = this.searchTerm.toLowerCase();
-    return this.columns.filter(
-      col => col.name.toLowerCase().includes(term) || col.dataType.toLowerCase().includes(term)
-    );
+    const term = this.searchTerm.trim().toLowerCase();
+    return this.columns.filter(col => {
+      // Type filter (A14): restrict to a single data type when selected.
+      if (this.filterType !== 'all' && col.dataType !== this.filterType) {
+        return false;
+      }
+      // Text filter: match by column name or data type.
+      if (term && !col.name.toLowerCase().includes(term) && !col.dataType.toLowerCase().includes(term)) {
+        return false;
+      }
+      return true;
+    });
   }
 
   get enabledCount(): number {

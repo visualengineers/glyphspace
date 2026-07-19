@@ -57,9 +57,12 @@
   }
 
   // ── Left rail ────────────────────────────────────────────────────────────
+  // A14: width + list-viewport height come from shared wizard values so this
+  // rail and Step 2's left column band are identical (minimal Flip morph).
   .master-rail {
-    width: 320px;
+    width: w.$wizard-rail-width;
     flex-shrink: 0;
+    align-self: flex-start;
     display: flex;
     flex-direction: column;
     background: white;
@@ -123,7 +126,7 @@
   }
 
   .column-list {
-    flex: 1;
+    height: w.$wizard-list-viewport-height;
     overflow-y: auto;
   }
 

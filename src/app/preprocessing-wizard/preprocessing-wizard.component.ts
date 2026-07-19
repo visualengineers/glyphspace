@@ -144,15 +144,15 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
       return null;
     }
 
-    // Matched, morphing elements (column rows + search box) share a data-flip-id
-    // with their step-3 counterparts. The stat cells + select-all header cell are
-    // captured too so Flip can animate them out via onLeave (they only exist in
-    // step 2, so their DOM nodes get disconnected by the swap).
+    // Matched, morphing elements (column rows + search box + type filter) share a
+    // data-flip-id with their step-3 counterparts. The stat cells + select-all
+    // header cell are captured too so Flip can animate them out via onLeave (they
+    // only exist in step 2, so their DOM nodes get disconnected by the swap).
+    // NOTE: `.col-missing` is part of the left band now (it morphs with the row),
+    // so it is NOT in the leave set.
     const morphTargets = Array.from(container.querySelectorAll('[data-flip-id]'));
     const leaveTargets = Array.from(
-      container.querySelectorAll(
-        '.col-type, .col-count, .col-unique, .col-missing, .col-distribution, thead .col-checkbox'
-      )
+      container.querySelectorAll('.col-type, .col-count, .col-unique, .col-distribution, thead .col-checkbox')
     );
 
     this.morphOldHeight = container.offsetHeight;
@@ -161,10 +161,11 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
 
   /**
    * A14: After Angular has rendered step 3, morph from the captured state:
-   * matched column rows/search box glide from table to master-rail geometry,
-   * stat columns collapse to the left (onLeave), and the detail well + type
-   * filter enter from the right (onEnter). The container height is tweened in
-   * the same timeline to avoid a vertical jump.
+   * matched left-band rows / search box / type filter glide from the table into
+   * the master-rail geometry (small delta since both steps now share the rail
+   * width, header controls and list height), the stat columns collapse away
+   * (onLeave), and the detail well enters from the right (onEnter). The container
+   * height is tweened in the same timeline only if a residual mismatch remains.
    */
   private runStepMorph(state: Flip.FlipState): void {
     // setTimeout(0) fires after Angular's change detection has swapped the DOM,
@@ -180,28 +181,22 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
         duration: 0.5,
         ease: 'power2.inOut',
         absolute: true,
-        // Stat columns / select-all: retract to the left and fade out.
+        // Stat columns / select-all: fade out with a small rightward drift as the
+        // detail well slides in over that area.
         onLeave: leaving =>
           gsap.to(leaving, {
-            xPercent: -30,
-            scaleX: 0,
-            transformOrigin: 'left center',
+            x: 24,
             autoAlpha: 0,
-            duration: 0.4,
+            duration: 0.3,
             ease: 'power2.in',
           }),
       });
 
-      // onEnter (step-3 only): detail/config well slides in from the right, the
-      // type filter fades in. These have no data-flip-id, so they are driven as
-      // explicit tweens layered onto the Flip timeline at the same start time.
+      // onEnter (step-3 only): the detail/config well slides in from the right.
+      // The type filter now morphs (shared data-flip-id) instead of appearing.
       const well = container.querySelector('.detail-well');
       if (well) {
         timeline.from(well, { xPercent: 40, autoAlpha: 0, duration: 0.5, ease: 'power2.out' }, 0);
-      }
-      const railFilters = container.querySelector('.rail-filters');
-      if (railFilters) {
-        timeline.from(railFilters, { autoAlpha: 0, y: -6, duration: 0.3, ease: 'power2.out' }, 0.15);
       }
 
       // Animate the container height old -> new to prevent a vertical jump, then

@@ -44,7 +44,12 @@
             </div>
 
             <div class="rail-filters">
-              <select [(ngModel)]="filterType" (ngModelChange)="onFilterChange()" class="filter-select">
+              <select
+                [(ngModel)]="filterType"
+                (ngModelChange)="onFilterChange()"
+                class="filter-select"
+                data-flip-id="col-typefilter"
+              >
                 <option value="all">All Types</option>
                 <option [value]="DataType.Numeric">Numeric</option>
                 <option [value]="DataType.Categorical">Categorical</option>
