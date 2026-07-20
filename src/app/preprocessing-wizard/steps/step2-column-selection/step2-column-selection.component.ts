@@ -1,4 +1,12 @@
-import { Component, OnInit, forwardRef, ViewChild, ElementRef, HostListener } from '@angular/core';
+import {
+  Component,
+  OnInit,
+  AfterViewInit,
+  forwardRef,
+  ViewChild,
+  ElementRef,
+  HostListener,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PreprocessingService } from '../../services/preprocessing.service';
@@ -20,7 +28,7 @@ import { WizardStep, WIZARD_STEP } from '../../shared/wizard-step';
   styleUrl: './step2-column-selection.component.scss',
   providers: [{ provide: WIZARD_STEP, useExisting: forwardRef(() => Step2ColumnSelectionComponent) }],
 })
-export class Step2ColumnSelectionComponent implements OnInit, WizardStep {
+export class Step2ColumnSelectionComponent implements OnInit, AfterViewInit, WizardStep {
   readonly primaryLabel = 'Continue to Configure Data & Features';
   readonly disabledHint = 'Please select at least one column to continue';
 
@@ -51,6 +59,17 @@ export class Step2ColumnSelectionComponent implements OnInit, WizardStep {
   readonly stepInfo = STEP_INFO[1]; // Step 2 (index 1)
 
   constructor(private preprocessingService: PreprocessingService) {}
+
+  // A6: scroll the requested setting into view when arriving via a review deep-link.
+  // The delay lets the shell's scroll-to-top run first so it does not override this.
+  ngAfterViewInit(): void {
+    const target = this.preprocessingService.consumeScrollTarget();
+    if (target) {
+      setTimeout(() => {
+        document.getElementById(target)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 120);
+    }
+  }
 
   ngOnInit(): void {
     const state = this.preprocessingService.currentState;

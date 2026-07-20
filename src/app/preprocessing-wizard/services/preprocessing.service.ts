@@ -29,6 +29,10 @@ export class PreprocessingService {
   private progressSubject = new Subject<ProcessingProgress>();
   public progress$ = this.progressSubject.asObservable();
 
+  // A6: pending scroll anchor id set by the review step's deep-links. The target
+  // step component consumes it once after it renders and scrolls into view.
+  private scrollTargetSubject = new BehaviorSubject<string | null>(null);
+
   constructor(
     private dataProcessor: DataProcessorService,
     private dataLoader: DataLoaderService
@@ -95,6 +99,22 @@ export class PreprocessingService {
     if (step >= 0 && step <= 4) {
       this.updateState({ currentStep: step });
     }
+  }
+
+  // A6: navigate to a step and remember an anchor id so the target step can
+  // scroll the relevant setting into view after it renders.
+  public goToStepWithScroll(step: number, targetId: string): void {
+    this.goToStep(step);
+    this.scrollTargetSubject.next(targetId);
+  }
+
+  // A6: read and clear the pending scroll anchor. Returns null if none is set.
+  public consumeScrollTarget(): string | null {
+    const target = this.scrollTargetSubject.getValue();
+    if (target) {
+      this.scrollTargetSubject.next(null);
+    }
+    return target;
   }
 
   public nextStep(): void {
