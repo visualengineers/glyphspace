@@ -8,6 +8,11 @@
 
   .step-content {
     @include w.step-content;
+    // A14: gleicher zentrierter Container wie Schritt 2, damit die linke Kante
+    // der master-rail deckungsgleich mit der Name-Spalte in Schritt 2 liegt und
+    // beim Morph kein horizontaler Grund-Offset pro Zeile entsteht.
+    max-width: 1150px;
+    margin: 0 auto;
   }
 
   .step-header {

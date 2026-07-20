@@ -27,7 +27,7 @@
           <div class="rail-header">
             <span class="rail-title">DATASET COLUMNS</span>
 
-            <div class="search-box" data-flip-id="col-search">
+            <div class="search-box">
               <span class="material-icons">search</span>
               <input
                 type="text"
@@ -44,12 +44,7 @@
             </div>
 
             <div class="rail-filters">
-              <select
-                [(ngModel)]="filterType"
-                (ngModelChange)="onFilterChange()"
-                class="filter-select"
-                data-flip-id="col-typefilter"
-              >
+              <select [(ngModel)]="filterType" (ngModelChange)="onFilterChange()" class="filter-select">
                 <option value="all">All Types</option>
                 <option [value]="DataType.Numeric">Numeric</option>
                 <option [value]="DataType.Categorical">Categorical</option>

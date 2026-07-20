@@ -10,7 +10,7 @@
     </div>
 
     <div class="column-actions">
-      <div class="search-box" data-flip-id="col-search">
+      <div class="search-box">
         <span class="material-icons">search</span>
         <input
           type="text"
@@ -26,12 +26,7 @@
       </div>
 
       <!-- Type filter (A14): mirrors Step 3's master-rail type filter -->
-      <select
-        class="filter-select"
-        [(ngModel)]="filterType"
-        data-flip-id="col-typefilter"
-        aria-label="Filter by data type"
-      >
+      <select class="filter-select" [(ngModel)]="filterType" aria-label="Filter by data type">
         <option value="all">All Types</option>
         <option [value]="DataType.Numeric">Numeric</option>
         <option [value]="DataType.Categorical">Categorical</option>
@@ -104,7 +99,6 @@
             @for (column of filteredColumns; track column.name) {
               <tr
                 class="column-row"
-                [attr.data-flip-id]="'colrow-' + column.name"
                 [class.disabled]="!isColumnEnabled(column.name)"
                 [class.has-issues]="hasIssues(column)"
               >

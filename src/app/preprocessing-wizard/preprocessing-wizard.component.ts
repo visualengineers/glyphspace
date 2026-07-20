@@ -2,7 +2,7 @@ import { Component, OnInit, OnDestroy, Output, EventEmitter, ViewChild, ElementR
 import { Subscription, distinctUntilChanged, map } from 'rxjs';
 import { PreprocessingService } from './services/preprocessing.service';
 import { ProgressStepperComponent, Step } from './shared/progress-stepper/progress-stepper.component';
-import { WIZARD_STEP } from './shared/wizard-step';
+import { WIZARD_STEP, WizardStep } from './shared/wizard-step';
 import { STEP_INFO } from './shared/constants/step-info';
 import { Step1UploadComponent } from './steps/step1-upload/step1-upload.component';
 import { Step2ColumnSelectionComponent } from './steps/step2-column-selection/step2-column-selection.component';
@@ -11,11 +11,15 @@ import { Step4VisualizationSettingsComponent } from './steps/step4-visualization
 import { Step5ReviewProcessingComponent } from './steps/step5-review-processing/step5-review-processing.component';
 import { PreprocessingState } from './models/preprocessing-state';
 import { gsap } from 'gsap';
-import { Flip } from 'gsap/Flip';
 
-// A14: Register the Flip plugin once at module load. Flip morphs elements across
-// the step2 -> step3 @switch component swap by matching `data-flip-id`.
-gsap.registerPlugin(Flip);
+// A14: Shared rail width (mirrors `$wizard-rail-width` in _wizard-shared.scss).
+// Step 2's table collapses to exactly this width before the swap so the leftover
+// name band lines up 1:1 with Step 3's master rail.
+const WIZARD_RAIL_WIDTH = 320;
+
+// Global speed factor for the Step 2 -> 3 morph (1 = production; lower = slower,
+// useful for frame-by-frame inspection).
+const MORPH_TIMESCALE = 1;
 
 @Component({
   selector: 'app-preprocessing-wizard',
@@ -79,12 +83,10 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
         const previousStep = this.currentStep;
         const nextStep = state.currentStep;
 
-        // A14: Only the forward Step 2 -> Step 3 transition morphs. Capture the
-        // Flip state while step2 is still rendered (this subscriber runs
-        // synchronously before Angular re-renders the @switch), then trigger the
-        // morph after the new DOM is in place.
+        // A14: Only the forward Step 2 -> Step 3 transition is animated. Phase 1
+        // (collapsing Step 2's table to the rail width) already ran in onProceed
+        // before this state change fired; here we run Phase 2 after the swap.
         const shouldMorph = previousStep === 1 && nextStep === 2 && !this.reduceMotion;
-        const flipState = shouldMorph ? this.captureMorphState() : null;
 
         this.currentStep = nextStep;
         this.isProcessing = state.isProcessing;
@@ -98,8 +100,8 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
         // Update step completion based on state
         this.updateStepCompletion(state);
 
-        if (flipState) {
-          this.runStepMorph(flipState);
+        if (shouldMorph) {
+          this.runDetailEntrance();
         }
       })
     );
@@ -134,40 +136,74 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * A14: Capture the GSAP Flip state of the step-2 column list + search box
-   * (matched across the swap via `data-flip-id`) plus the stat columns that are
-   * about to leave. Must run while step 2 is still in the DOM.
+   * A14: Central handler for the primary "continue" button. For the Step 2 -> 3
+   * transition (with motion enabled) it first collapses Step 2's table down to
+   * the rail width (Phase 1) and only then advances the wizard, so the swap
+   * happens while both steps share the same narrow geometry. Every other step
+   * proceeds immediately.
    */
-  private captureMorphState(): Flip.FlipState | null {
-    const container = this.stepContainer;
-    if (!container) {
-      return null;
+  onProceed(step: WizardStep): void {
+    if (this.currentStep === 1 && !this.reduceMotion) {
+      this.collapseStep2Then(() => step.proceed());
+      return;
     }
-
-    // Matched, morphing elements (column rows + search box + type filter) share a
-    // data-flip-id with their step-3 counterparts. The stat cells + select-all
-    // header cell are captured too so Flip can animate them out via onLeave (they
-    // only exist in step 2, so their DOM nodes get disconnected by the swap).
-    // NOTE: `.col-missing` is part of the left band now (it morphs with the row),
-    // so it is NOT in the leave set.
-    const morphTargets = Array.from(container.querySelectorAll('[data-flip-id]'));
-    const leaveTargets = Array.from(
-      container.querySelectorAll('.col-type, .col-count, .col-unique, .col-distribution, thead .col-checkbox')
-    );
-
-    this.morphOldHeight = container.offsetHeight;
-    return Flip.getState([...morphTargets, ...leaveTargets]);
+    step.proceed();
   }
 
   /**
-   * A14: After Angular has rendered step 3, morph from the captured state:
-   * matched left-band rows / search box / type filter glide from the table into
-   * the master-rail geometry (small delta since both steps now share the rail
-   * width, header controls and list height), the stat columns collapse away
-   * (onLeave), and the detail well enters from the right (onEnter). The container
-   * height is tweened in the same timeline only if a residual mismatch remains.
+   * A14 Phase 1: collapse Step 2 on the *live* table (before the component swap),
+   * so the movement reads as one directed wave from right to left. The table and
+   * the search/filter bar shrink from full width down to the rail width; the stat
+   * columns are clipped away at the right edge (overflow hidden). When the wave
+   * finishes we snapshot the height and run `proceed()`, which triggers Phase 2.
    */
-  private runStepMorph(state: Flip.FlipState): void {
+  private collapseStep2Then(proceed: () => void): void {
+    const container = this.stepContainer;
+    const table = container?.querySelector<HTMLElement>('.columns-table-container');
+    const actions = container?.querySelector<HTMLElement>('.column-actions');
+    if (!container || !table) {
+      proceed();
+      return;
+    }
+
+    const startWidth = table.getBoundingClientRect().width;
+    const timeline = gsap.timeline({
+      onComplete: () => {
+        // Height the collapsed table occupies right before Step 3 replaces it;
+        // Phase 2 tweens from here to Step 3's natural height (no vertical jump).
+        this.morphOldHeight = container.offsetHeight;
+        proceed();
+      },
+    });
+    timeline.timeScale(MORPH_TIMESCALE);
+
+    // The table narrows to the rail width; stat columns are wiped off the right.
+    timeline.fromTo(
+      table,
+      { width: startWidth, overflow: 'hidden' },
+      { width: WIZARD_RAIL_WIDTH, duration: 0.6, ease: 'power2.inOut' },
+      0
+    );
+
+    // The search/filter bar shrinks in lockstep and fades so its reflow (filter
+    // wrapping under the search) is not visible.
+    if (actions) {
+      timeline.fromTo(
+        actions,
+        { maxWidth: startWidth, overflow: 'hidden' },
+        { maxWidth: WIZARD_RAIL_WIDTH, autoAlpha: 0, duration: 0.5, ease: 'power2.in' },
+        0
+      );
+    }
+  }
+
+  /**
+   * A14 Phase 2: after Angular has rendered Step 3, the detail/config well slides
+   * in from the right as one block while the rail list fades in over the (already
+   * collapsed) name band. The container height is tweened old -> new to avoid a
+   * vertical jump, then the inline height is released so flex layout resumes.
+   */
+  private runDetailEntrance(): void {
     // setTimeout(0) fires after Angular's change detection has swapped the DOM,
     // mirroring the existing scrollToTop pattern.
     setTimeout(() => {
@@ -176,31 +212,19 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
         return;
       }
 
-      const timeline = Flip.from(state, {
-        targets: container.querySelectorAll('[data-flip-id]'),
-        duration: 0.5,
-        ease: 'power2.inOut',
-        absolute: true,
-        // Stat columns / select-all: fade out with a small rightward drift as the
-        // detail well slides in over that area.
-        onLeave: leaving =>
-          gsap.to(leaving, {
-            x: 24,
-            autoAlpha: 0,
-            duration: 0.3,
-            ease: 'power2.in',
-          }),
-      });
+      const timeline = gsap.timeline();
+      timeline.timeScale(MORPH_TIMESCALE);
 
-      // onEnter (step-3 only): the detail/config well slides in from the right.
-      // The type filter now morphs (shared data-flip-id) instead of appearing.
-      const well = container.querySelector('.detail-well');
-      if (well) {
-        timeline.from(well, { xPercent: 40, autoAlpha: 0, duration: 0.5, ease: 'power2.out' }, 0);
+      const list = container.querySelector('.column-list');
+      if (list) {
+        timeline.from(list, { autoAlpha: 0, duration: 0.3, ease: 'power1.out' }, 0);
       }
 
-      // Animate the container height old -> new to prevent a vertical jump, then
-      // release the inline height so flex layout resumes.
+      const well = container.querySelector('.detail-well');
+      if (well) {
+        timeline.from(well, { xPercent: 40, autoAlpha: 0, duration: 0.6, ease: 'power2.out' }, 0.1);
+      }
+
       const newHeight = container.offsetHeight;
       if (this.morphOldHeight > 0 && Math.abs(this.morphOldHeight - newHeight) > 1) {
         timeline.fromTo(
@@ -208,7 +232,7 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
           { height: this.morphOldHeight },
           {
             height: newHeight,
-            duration: 0.5,
+            duration: 0.6,
             ease: 'power2.inOut',
             onComplete: () => {
               container.style.height = '';

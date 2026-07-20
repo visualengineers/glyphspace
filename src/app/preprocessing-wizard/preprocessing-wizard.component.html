@@ -70,7 +70,7 @@
               </div>
             }
 
-            <button class="btn-primary" (click)="step.proceed()" [disabled]="!step.canProceed()">
+            <button class="btn-primary" (click)="onProceed(step)" [disabled]="!step.canProceed()">
               <span>{{ step.primaryLabel }}</span>
               <span class="material-icons">arrow_forward</span>
             </button>
