@@ -135,8 +135,8 @@ export function classifyProcessingError(raw: string): WizardIssue {
       code: '',
       severity: 'blocking',
       title: "We couldn't finish processing your data",
-      why: 'The exact cause was reported by the processing engine (see technical details below).',
-      fix: 'Review your column and method settings, then start processing again. If it keeps failing, remove the most complex methods in Step 4.',
+      why: 'Something in the current combination of columns, cleaning rules and methods stopped the projection from finishing. This is almost always a settings issue, not a problem with your data — and your upload and settings are still here.',
+      fix: 'Start processing again. If it keeps failing, deselect any text-heavy or mostly-empty columns in Step 2, then turn off the more advanced methods (t-SNE, UMAP, Sammon) in Step 4 and try once more.',
       step: 3,
       anchorId: 'wizard-anchor-methods',
     };

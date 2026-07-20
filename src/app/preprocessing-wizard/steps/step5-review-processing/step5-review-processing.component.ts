@@ -364,12 +364,14 @@ export class Step5ReviewProcessingComponent implements OnInit, OnDestroy {
         this.toastService.success(`${name} projection ready! (${(result.computeTime / 1000).toFixed(1)}s)`, 4000);
       });
     } catch (error: unknown) {
+      const raw = error instanceof Error ? error.message : String(error);
       console.error(`${name} projection failed:`, error);
       this.ngZone.run(() => {
-        this.toastService.error(
-          `${name} projection failed: ${error instanceof Error ? error.message : String(error)}`,
-          6000
-        );
+        // A3 review fix: never surface the raw technical message in the toast.
+        // Use the classified, everyday-language title; the full WHY/FIX and the
+        // raw detail live in the partial-issue card's collapsible section.
+        const issue = classifyBackgroundFailure(name, raw);
+        this.toastService.error(issue.title, 6000);
       });
     }
   }
@@ -555,8 +557,26 @@ export class Step5ReviewProcessingComponent implements OnInit, OnDestroy {
     return this.expandedTechnical.has(id);
   }
 
-  /** Retry after a blocking error, keeping all uploaded data and settings. */
+  /**
+   * Retry / reprocess, keeping all uploaded data and settings. Reachable from
+   * both the blocking-error screen and the success screen.
+   *
+   * A3 review fix: the earlier version only called startProcessing(), so a fast
+   * run looked like a brief flash with no confirmation that anything happened.
+   * We now announce the retry with a toast and force the processing hero to show
+   * (isProcessing/showProcessing) before the async work begins, so the user
+   * clearly sees the spinner + progress + method status while it re-runs.
+   */
   retryProcessing(): void {
+    this.toastService.info('Verarbeitung wird erneut gestartet…', 3000);
+    // Make the processing state visible immediately, even before startProcessing's
+    // own reset runs, so the transition is never just a flicker.
+    this.showProcessing = true;
+    this.isProcessing = true;
+    this.processingComplete = false;
+    this.blockingIssue = null;
+    this.processingStep = 'Restarting processing…';
+    this.cdr.detectChanges();
     this.startProcessing();
   }
 }

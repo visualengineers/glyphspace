@@ -365,6 +365,14 @@
         <span>Process Another Dataset</span>
       </button>
       <div class="buttons-right">
+        <button
+          class="btn-secondary"
+          title="Run the projections again with the current settings"
+          (click)="retryProcessing()"
+        >
+          <span class="material-icons">replay</span>
+          <span>Reprocess</span>
+        </button>
         <button class="btn-primary" (click)="goToDashboard()">
           <span class="material-icons">dashboard</span>
           <span>Open in Glyphspace</span>
