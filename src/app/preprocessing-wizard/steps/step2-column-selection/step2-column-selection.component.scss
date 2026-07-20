@@ -195,6 +195,18 @@
   font-style: italic;
 }
 
+// A8: an explicit "0" for zero missing values (calm, not alarming)
+.missing-count-zero {
+  color: v.$gray-500;
+}
+
+// A6: invisible scroll anchor used by the review step's deep-links
+.scroll-anchor {
+  display: block;
+  height: 0;
+  scroll-margin-top: 12px;
+}
+
 // No Results
 .no-results {
   @include wizard.no-content($padding: 48px 24px, $text-size: 14px);

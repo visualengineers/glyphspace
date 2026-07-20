@@ -1,11 +1,16 @@
-import { Component, OnInit, forwardRef } from '@angular/core';
+import { Component, OnInit, AfterViewInit, forwardRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PreprocessingService } from '../../services/preprocessing.service';
 import { WizardStep, WIZARD_STEP } from '../../shared/wizard-step';
 import { ColumnConfig, ProjectionConfig } from '../../models/column-config';
 import { ColumnStatistics } from '../../models/column-statistics';
-import { DataType } from '../../models/data-type.enum';
+import {
+  DataType,
+  MissingValueStrategy,
+  getEncodingLabel as encodingLabelFn,
+  getScalingLabel as scalingLabelFn,
+} from '../../models/data-type.enum';
 import { HelpTooltipComponent } from '../../shared/help-tooltip/help-tooltip.component';
 import { HELP_TEXT } from '../../shared/constants/help-text';
 import { STEP_INFO } from '../../shared/constants/step-info';
@@ -68,12 +73,22 @@ interface ProjectionMethodUI {
   styleUrl: './step4-visualization-settings.component.scss',
   providers: [{ provide: WIZARD_STEP, useExisting: forwardRef(() => Step4VisualizationSettingsComponent) }],
 })
-export class Step4VisualizationSettingsComponent implements OnInit, WizardStep {
+export class Step4VisualizationSettingsComponent implements OnInit, AfterViewInit, WizardStep {
   readonly primaryLabel = 'Continue to Review';
   readonly disabledHint = 'Select at least one projection column and 3-12 glyph features to continue.';
 
   // Projection column selection (which features feed the dimensionality reduction)
   projectionColumns: ProjectionColumnState[] = [];
+
+  // Search + type filter for the projection column list (mirrors the glyph feature filter).
+  projectionColumnSearch = '';
+  projectionColumnTypeFilter: DataType | 'all' = 'all';
+  // Names of columns whose per-column details (encoding/scaling/missing) are expanded.
+  private expandedProjectionDetails = new Set<string>();
+
+  // Label helpers for the per-column details toggle.
+  readonly getEncodingLabel = encodingLabelFn;
+  readonly getScalingLabel = scalingLabelFn;
 
   // Color feature selection
   columns: ColumnStatistics[] = [];
@@ -293,6 +308,18 @@ export class Step4VisualizationSettingsComponent implements OnInit, WizardStep {
   readonly stepInfo = STEP_INFO[3]; // Step 4 (index 3)
 
   constructor(public preprocessingService: PreprocessingService) {}
+
+  // A6: if the review step requested a jump to a specific setting, scroll its
+  // anchor into view once this step has rendered. The delay lets the shell's
+  // scroll-to-top run first so it does not override this.
+  ngAfterViewInit(): void {
+    const target = this.preprocessingService.consumeScrollTarget();
+    if (target) {
+      setTimeout(() => {
+        document.getElementById(target)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 120);
+    }
+  }
 
   ngOnInit(): void {
     const state = this.preprocessingService.currentState;
@@ -611,6 +638,55 @@ export class Step4VisualizationSettingsComponent implements OnInit, WizardStep {
 
   isColumnInProjection(columnName: string): boolean {
     return this.projectionColumns.find(c => c.column.name === columnName)?.config.includeInProjection ?? false;
+  }
+
+  /** Projection columns filtered by the search box and the type filter. */
+  get filteredProjectionColumns(): ProjectionColumnState[] {
+    const term = this.projectionColumnSearch.trim().toLowerCase();
+    return this.projectionColumns.filter(entry => {
+      if (term && !entry.column.name.toLowerCase().includes(term)) return false;
+      if (this.projectionColumnTypeFilter !== 'all' && entry.column.dataType !== this.projectionColumnTypeFilter) {
+        return false;
+      }
+      return true;
+    });
+  }
+
+  hasProjectionColumnFilter(): boolean {
+    return this.projectionColumnSearch.trim() !== '' || this.projectionColumnTypeFilter !== 'all';
+  }
+
+  clearProjectionColumnFilters(): void {
+    this.projectionColumnSearch = '';
+    this.projectionColumnTypeFilter = 'all';
+  }
+
+  /** Toggle the per-column details panel (encoding/scaling/missing) for progressive disclosure. */
+  toggleProjectionDetails(columnName: string, event?: Event): void {
+    event?.stopPropagation();
+    event?.preventDefault();
+    if (this.expandedProjectionDetails.has(columnName)) {
+      this.expandedProjectionDetails.delete(columnName);
+    } else {
+      this.expandedProjectionDetails.add(columnName);
+    }
+  }
+
+  isProjectionDetailsExpanded(columnName: string): boolean {
+    return this.expandedProjectionDetails.has(columnName);
+  }
+
+  /** Human-readable label for the configured missing-value strategy. */
+  getMissingLabel(strategy: MissingValueStrategy): string {
+    const labels: Record<MissingValueStrategy, string> = {
+      [MissingValueStrategy.Keep]: 'Keep',
+      [MissingValueStrategy.RemoveRows]: 'Remove rows',
+      [MissingValueStrategy.FillMean]: 'Fill mean',
+      [MissingValueStrategy.FillMedian]: 'Fill median',
+      [MissingValueStrategy.FillMode]: 'Fill mode',
+      [MissingValueStrategy.FillValue]: 'Fill value',
+    };
+    return labels[strategy] ?? 'Keep';
   }
 
   getProjectionCount(): number {

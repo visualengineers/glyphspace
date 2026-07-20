@@ -13,6 +13,14 @@
               <span class="card-label">Columns Selected</span>
               <span class="card-value">{{ enabledColumns }} / {{ totalColumns }}</span>
             </div>
+            <button
+              type="button"
+              class="card-edit-btn"
+              title="Edit column selection"
+              (click)="editSetting(1, 'wizard-anchor-columns')"
+            >
+              <span class="material-icons">edit</span>
+            </button>
           </div>
 
           <div class="summary-card">
@@ -21,6 +29,14 @@
               <span class="card-label">Projection Features</span>
               <span class="card-value">{{ projectionColumns }}</span>
             </div>
+            <button
+              type="button"
+              class="card-edit-btn"
+              title="Edit projection columns"
+              (click)="editSetting(3, 'wizard-anchor-projection-columns')"
+            >
+              <span class="material-icons">edit</span>
+            </button>
           </div>
 
           <div class="summary-card">
@@ -29,6 +45,14 @@
               <span class="card-label">Color Feature</span>
               <span class="card-value">{{ colorFeature || 'None' }}</span>
             </div>
+            <button
+              type="button"
+              class="card-edit-btn"
+              title="Edit color feature"
+              (click)="editSetting(3, 'wizard-anchor-color')"
+            >
+              <span class="material-icons">edit</span>
+            </button>
           </div>
 
           <div class="summary-card">
@@ -37,6 +61,14 @@
               <span class="card-label">Glyph Features</span>
               <span class="card-value">{{ selectedGlyphFeatures.length }}</span>
             </div>
+            <button
+              type="button"
+              class="card-edit-btn"
+              title="Edit glyph features"
+              (click)="editSetting(3, 'wizard-anchor-glyph')"
+            >
+              <span class="material-icons">edit</span>
+            </button>
           </div>
 
           <div class="summary-card">
@@ -45,6 +77,14 @@
               <span class="card-label">Projection Methods</span>
               <span class="card-value">{{ enabledMethods.join(', ') }}</span>
             </div>
+            <button
+              type="button"
+              class="card-edit-btn"
+              title="Edit projection methods"
+              (click)="editSetting(3, 'wizard-anchor-methods')"
+            >
+              <span class="material-icons">edit</span>
+            </button>
           </div>
         </div>
 
