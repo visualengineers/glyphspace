@@ -79,7 +79,14 @@
     .form-group {
       @include m.form-group;
 
-      select,
+      // Native select must read as a dropdown (chevron affordance), not a
+      // plain text input (C-S4-02).
+      select {
+        @include w.select;
+        width: 200px;
+        display: block;
+      }
+
       app-color-scale-selector {
         width: 200px;
         display: block;

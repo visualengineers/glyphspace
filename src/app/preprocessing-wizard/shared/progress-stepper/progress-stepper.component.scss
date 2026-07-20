@@ -45,7 +45,7 @@
       }
 
       &.active {
-        background: rgba(68, 138, 255, 0.1);
+        background: rgba(v.$active-color, 0.12);
       }
     }
 
@@ -135,8 +135,15 @@
   width: 110px;
   flex-shrink: 0;
 
+  // Reachable steps read as enabled/interactive (accent outline), not greyed
+  // out like the disabled future steps.
   &.clickable {
     cursor: pointer;
+
+    .step-circle {
+      border-color: v.$active-color;
+      color: v.$active-color;
+    }
 
     &:hover .step-circle {
       opacity: 0.8;
@@ -183,6 +190,10 @@
   color: v.$gray-600;
   text-align: center;
   line-height: 1.3;
+
+  .clickable & {
+    color: v.$gray-700;
+  }
 
   .active & {
     color: v.$active-color;
