@@ -1,4 +1,5 @@
 import { Component, OnInit, OnDestroy, ChangeDetectorRef, NgZone, Output, EventEmitter } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { Subscription } from 'rxjs';
 import { PreprocessingService } from '../../services/preprocessing.service';
 import { DataLoaderService } from '../../../services/data-loader.service';
@@ -8,11 +9,27 @@ import { ColumnConfig, ProjectionConfig } from '../../models/column-config';
 import { DataType, getEncodingLabel as encLabelFn, getScalingLabel as scaleLabelFn } from '../../models/data-type.enum';
 import { STEP_INFO } from '../../shared/constants/step-info';
 import { DataTypeBadgeComponent } from '../../shared/data-type-badge/data-type-badge.component';
+import { WizardIssueCardComponent } from '../../shared/wizard-issue-card/wizard-issue-card.component';
+import {
+  WizardIssue,
+  STEP_NAMES,
+  classifyProcessingError,
+  classifyBackgroundFailure,
+  detectPreflightIssues,
+} from '../../shared/constants/wizard-error-classes';
+
+/** One entry in the method status bar (FastMap / PCA / UMAP / …). */
+interface MethodStatus {
+  name: string;
+  role: string;
+  status: 'ready' | 'computing' | 'queued' | 'failed';
+  statusLabel: string;
+}
 
 @Component({
   selector: 'app-step5-review-processing',
   standalone: true,
-  imports: [DataTypeBadgeComponent],
+  imports: [NgTemplateOutlet, DataTypeBadgeComponent, WizardIssueCardComponent],
   templateUrl: './step5-review-processing.component.html',
   styleUrl: './step5-review-processing.component.scss',
 })
@@ -40,7 +57,16 @@ export class Step5ReviewProcessingComponent implements OnInit, OnDestroy {
   showProcessing = false;
 
   // Background projection status
-  backgroundProjections = new Map<string, { status: string; progress: number; message: string }>();
+  backgroundProjections = new Map<string, { status: string; progress: number; message: string; error?: string }>();
+
+  // A3: structured, persistent issues.
+  preflightIssues: WizardIssue[] = []; // shown on the review screen before processing
+  blockingIssue: WizardIssue | null = null; // primary (hard) failure — replaces the old bare "error" string
+  partialIssues: WizardIssue[] = []; // degraded: some background projections failed (dismissable)
+  private dismissedMethods = new Set<string>();
+  private expandedTechnical = new Set<string>();
+
+  readonly STEP_NAMES = STEP_NAMES;
 
   // Capture dataset info for background projections (survives wizard reset)
   private backgroundDatasetName = '';
@@ -78,6 +104,35 @@ export class Step5ReviewProcessingComponent implements OnInit, OnDestroy {
 
     // Prepare review data
     this.prepareReviewData();
+
+    // A3: pre-flight — surface likely failures from signals already in the state.
+    this.preflightIssues = detectPreflightIssues(state);
+
+    // A3 / A11 (P-S5-02, P-S5-03): restore the persistent result/status on re-entry.
+    // The service is a root singleton, so background statuses and the processed
+    // dataset survive closing the wizard. Re-subscribe to keep the method bar and
+    // partial-failure detection alive after reopening.
+    this.backgroundStatusSubscription = this.projectionService.backgroundStatusObservable.subscribe(statusMap => {
+      this.ngZone.run(() => {
+        this.syncBackgroundStatus(statusMap);
+        this.cdr.detectChanges();
+      });
+    });
+
+    if (state.error) {
+      // A previous run failed and the error survived in the singleton state.
+      // Show it as a persistent, classified error screen instead of a stale banner.
+      this.blockingIssue = classifyProcessingError(state.error);
+      this.showProcessing = true;
+      this.isProcessing = false;
+      this.processingComplete = false;
+    } else if (state.processedDataset) {
+      // Processing already finished in an earlier session of this wizard instance:
+      // restore the success/result screen rather than the "Start Processing" view.
+      this.showProcessing = true;
+      this.processingComplete = true;
+      this.isProcessing = false;
+    }
   }
 
   ngOnDestroy(): void {
@@ -126,6 +181,12 @@ export class Step5ReviewProcessingComponent implements OnInit, OnDestroy {
     this.processingStep = '';
     this.error = null;
     this.showProcessing = false;
+    this.blockingIssue = null;
+    this.partialIssues = [];
+    this.dismissedMethods.clear();
+    this.expandedTechnical.clear();
+    // Clear any stale error left in the singleton state (P-S5-03).
+    this.preprocessingService.clearError();
   }
 
   private updateProcessingUI(step: string, progress: number): void {
@@ -179,8 +240,12 @@ export class Step5ReviewProcessingComponent implements OnInit, OnDestroy {
     } catch (error: unknown) {
       console.error('Processing failed:', error);
       this.ngZone.run(() => {
-        this.error = error instanceof Error ? error.message : 'Processing failed';
+        const raw = error instanceof Error ? error.message : String(error);
+        this.error = raw;
+        // A3: classify into a persistent, actionable issue (cause + fix + target step).
+        this.blockingIssue = classifyProcessingError(raw);
         this.isProcessing = false;
+        this.processingComplete = false;
         this.cdr.detectChanges();
       });
     } finally {
@@ -199,19 +264,8 @@ export class Step5ReviewProcessingComponent implements OnInit, OnDestroy {
     this.backgroundDatasetName = state.datasetName;
     this.backgroundTimestamp = state.timestamp;
 
-    this.backgroundStatusSubscription = this.projectionService.backgroundStatusObservable.subscribe(statusMap => {
-      this.ngZone.run(() => {
-        this.backgroundProjections.clear();
-        statusMap.forEach((status, method) => {
-          this.backgroundProjections.set(method, {
-            status: status.status,
-            progress: status.progress,
-            message: status.message,
-          });
-        });
-        this.cdr.detectChanges();
-      });
-    });
+    // Note: the background-status subscription is created once in ngOnInit so it
+    // also restores the method bar after the wizard is reopened.
 
     // Data-driven projection registry: each entry maps a config flag to its runner
     const projections: { enabled: boolean; name: string; run: () => Promise<ProjectionResult> }[] = [
@@ -385,5 +439,124 @@ export class Step5ReviewProcessingComponent implements OnInit, OnDestroy {
       result.push({ method: key, ...value });
     });
     return result;
+  }
+
+  // ============================================================================
+  // A3: persistent status/error screen
+  // ============================================================================
+
+  /** Copy the latest background status into the local map and rebuild the
+   *  degraded/partial issue list from any failed background projections. */
+  private syncBackgroundStatus(statusMap: Map<string, { status: string; progress: number; message: string; error?: string }>): void {
+    this.backgroundProjections.clear();
+    statusMap.forEach((status, method) => {
+      this.backgroundProjections.set(method, {
+        status: status.status,
+        progress: status.progress,
+        message: status.message,
+        error: status.error,
+      });
+    });
+
+    this.partialIssues = [];
+    this.backgroundProjections.forEach((value, method) => {
+      if (value.status === 'error' && !this.dismissedMethods.has(method)) {
+        this.partialIssues.push(classifyBackgroundFailure(method, value.error || value.message));
+      }
+    });
+  }
+
+  /** True once processing succeeded but at least one background projection failed. */
+  get isPartialResult(): boolean {
+    return this.processingComplete && !this.isProcessing && this.partialIssues.length > 0;
+  }
+
+  /** True when the primary run failed (hard, blocking error screen). */
+  get isErrorScreen(): boolean {
+    return !!this.blockingIssue && !this.isProcessing;
+  }
+
+  /** Method status bar (FastMap primary + enabled background methods). */
+  get methodStatuses(): MethodStatus[] {
+    const roleFor = (name: string): string => {
+      if (name.startsWith('FastMap')) return 'Primary';
+      if (name === 'PCA') return 'Instant';
+      if (name === 't-SNE' || name === 'Sammon') return 'Slow';
+      return 'Background';
+    };
+
+    return this.enabledMethods.map(label => {
+      const isPrimary = label.startsWith('FastMap');
+      // Background status keys are lowercase alphanumeric ids (e.g. "tsne").
+      const key = label.replace(' (Primary)', '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      let status: MethodStatus['status'];
+
+      if (isPrimary) {
+        if (this.blockingIssue) status = 'failed';
+        else if (this.processingComplete) status = 'ready';
+        else if (this.isProcessing) status = 'computing';
+        else status = 'queued';
+      } else {
+        const bg = this.backgroundProjections.get(key);
+        if (bg) {
+          if (bg.status === 'complete') status = 'ready';
+          else if (bg.status === 'running') status = 'computing';
+          else if (bg.status === 'error') status = 'failed';
+          else status = 'queued';
+        } else {
+          // Not tracked via the worker status stream (e.g. PCA runs instantly):
+          // assume ready once the primary run has finished, otherwise queued.
+          status = this.processingComplete ? 'ready' : 'queued';
+        }
+      }
+
+      const labels: Record<MethodStatus['status'], string> = {
+        ready: 'Ready',
+        computing: 'Computing…',
+        queued: 'Queued',
+        failed: 'Failed',
+      };
+
+      return { name: label.replace(' (Primary)', ''), role: roleFor(label), status, statusLabel: labels[status] };
+    });
+  }
+
+  /** "Fix in Schritt N" — reuse the A6 jump/scroll logic and confirm with a toast. */
+  fixInStep(issue: WizardIssue): void {
+    const stepNumber = issue.step + 1;
+    const stepName = STEP_NAMES[issue.step] ?? '';
+    if (issue.anchorId) {
+      this.preprocessingService.goToStepWithScroll(issue.step, issue.anchorId);
+    } else {
+      this.preprocessingService.goToStep(issue.step);
+    }
+    this.toastService.info(`Opening Step ${stepNumber} · ${stepName}`, 2500);
+  }
+
+  /** Dismiss a partial (optional) issue so the degraded notice can be cleared. */
+  dismissIssue(issue: WizardIssue): void {
+    const method = this.getMethodForPartialIssue(issue);
+    if (method) this.dismissedMethods.add(method);
+    this.partialIssues = this.partialIssues.filter(i => i !== issue);
+  }
+
+  private getMethodForPartialIssue(issue: WizardIssue): string | null {
+    // Titles are "<METHOD> could not be computed".
+    const match = issue.title.match(/^(\S+) could not be computed/);
+    return match ? match[1].toLowerCase() : null;
+  }
+
+  toggleTechnical(id: string): void {
+    if (this.expandedTechnical.has(id)) this.expandedTechnical.delete(id);
+    else this.expandedTechnical.add(id);
+  }
+
+  isTechnicalExpanded(id: string): boolean {
+    return this.expandedTechnical.has(id);
+  }
+
+  /** Retry after a blocking error, keeping all uploaded data and settings. */
+  retryProcessing(): void {
+    this.startProcessing();
   }
 }

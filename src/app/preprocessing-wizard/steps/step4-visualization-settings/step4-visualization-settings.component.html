@@ -96,7 +96,13 @@
         @if (selectedGlyphFeatures.length > 0 && selectedGlyphFeatures.length < MIN_GLYPH_FEATURES) {
           <div class="validation-warning">
             <span class="material-icons">warning</span>
-            <span>{{ MIN_GLYPH_FEATURES - selectedGlyphFeatures.length }} more needed</span>
+            <span>{{ MIN_GLYPH_FEATURES - selectedGlyphFeatures.length }} more needed (a glyph needs 3–12 features)</span>
+          </div>
+        }
+        @if (selectedGlyphFeatures.length > MAX_GLYPH_FEATURES) {
+          <div class="validation-warning">
+            <span class="material-icons">error_outline</span>
+            <span>Remove {{ selectedGlyphFeatures.length - MAX_GLYPH_FEATURES }} — a glyph takes at most {{ MAX_GLYPH_FEATURES }} features</span>
           </div>
         }
 
@@ -525,6 +531,12 @@
                         class="number-input"
                       />
                     </div>
+                    @if (neighborParamError(param)) {
+                      <div class="param-inline-error">
+                        <span class="material-icons">error_outline</span>
+                        <span>{{ neighborParamError(param) }}</span>
+                      </div>
+                    }
                   </div>
                 }
                 @if (method.key === 'enableTSNE' && shouldShowTSNEWarning()) {

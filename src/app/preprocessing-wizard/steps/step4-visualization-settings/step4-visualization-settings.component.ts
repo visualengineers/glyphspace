@@ -736,6 +736,30 @@ export class Step4VisualizationSettingsComponent implements OnInit, AfterViewIni
     this.updateProjectionConfig();
   }
 
+  /**
+   * A3 / C-S4-05: field-near validation for neighbour parameters (error class K4).
+   * A neighbour count at or above the row count makes IsoMap / LLE / LTSA / UMAP
+   * fail during processing; we flag it right at the parameter instead of only
+   * surfacing a cryptic error later in Step 5. Returns null when valid.
+   * (0 means "auto" for IsoMap/LLE/LTSA and is always valid.)
+   */
+  neighborParamError(param: ProjectionParam): string | null {
+    const neighborKeys: (keyof ProjectionConfig)[] = [
+      'isomapNeighbors',
+      'lleNeighbors',
+      'ltsaNeighbors',
+      'umapNeighbors',
+    ];
+    if (!neighborKeys.includes(param.configKey)) return null;
+
+    const value = this.projectionConfig[param.configKey] as number;
+    const rows = this.getDatasetRowCount();
+    if (value > 0 && rows > 0 && value >= rows) {
+      return `Only ${rows} rows available — set neighbours below ${rows}, or this method will fail during processing.`;
+    }
+    return null;
+  }
+
   onParamChange(configKey: keyof ProjectionConfig, value: number, min: number, max: number): void {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (this.projectionConfig as any)[configKey] = Math.max(min, Math.min(max, value));
