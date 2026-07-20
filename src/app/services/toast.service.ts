@@ -1,11 +1,17 @@
 import { Injectable } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
 
+export interface ToastAction {
+  label: string;
+  handler: () => void;
+}
+
 export interface Toast {
   id: number;
   message: string;
   type: 'success' | 'error' | 'info' | 'warning';
   duration?: number;
+  action?: ToastAction; // optional inline action button (e.g. "Rückgängig")
 }
 
 @Injectable({
@@ -16,12 +22,13 @@ export class ToastService {
   public toasts$ = this.toastsSubject.asObservable();
   private nextId = 0;
 
-  show(message: string, type: Toast['type'] = 'info', duration = 5000): void {
+  show(message: string, type: Toast['type'] = 'info', duration = 5000, action?: ToastAction): void {
     const toast: Toast = {
       id: this.nextId++,
       message,
       type,
       duration,
+      action,
     };
 
     const currentToasts = this.toastsSubject.getValue();
@@ -33,6 +40,14 @@ export class ToastService {
         this.remove(toast.id);
       }, duration);
     }
+  }
+
+  /**
+   * Confirmation toast for a reversible action, with an inline "Rückgängig" button.
+   * Defaults to a 6s window before auto-dismiss.
+   */
+  showUndo(message: string, undoHandler: () => void, duration = 6000): void {
+    this.show(message, 'info', duration, { label: 'Rückgängig', handler: undoHandler });
   }
 
   success(message: string, duration?: number): void {

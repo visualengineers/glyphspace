@@ -18,6 +18,7 @@ import { HelpTooltipComponent } from '../../shared/help-tooltip/help-tooltip.com
 import { HELP_TEXT } from '../../shared/constants/help-text';
 import { STEP_INFO } from '../../shared/constants/step-info';
 import { DataPreviewTableComponent } from '../../shared/data-preview-table/data-preview-table.component';
+import { ToastService } from '../../../services/toast.service';
 
 interface ColumnConfigState {
   column: ColumnStatistics;
@@ -127,7 +128,10 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit, WizardStep {
   readonly HELP_TEXT = HELP_TEXT;
   readonly stepInfo = STEP_INFO[2]; // Step 3 (index 2)
 
-  constructor(public preprocessingService: PreprocessingService) {
+  constructor(
+    public preprocessingService: PreprocessingService,
+    private toastService: ToastService
+  ) {
     this.cleaningConfig = this.preprocessingService.currentState.cleaningConfig;
   }
 
@@ -268,10 +272,29 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit, WizardStep {
   }
 
   clearFilters(): void {
+    // A4: filters are view-only state (not part of preprocessing-state), so this
+    // action is made reversible via a toast whose undo restores the local values,
+    // rather than through the global snapshot stack.
+    const previous = {
+      filterText: this.filterText,
+      filterType: this.filterType,
+      showIssuesOnly: this.showIssuesOnly,
+    };
+    const hadActiveFilter = !!this.filterText || this.filterType !== 'all' || this.showIssuesOnly;
+
     this.filterText = '';
     this.filterType = 'all';
     this.showIssuesOnly = false;
     this.applyFilters();
+
+    if (hadActiveFilter) {
+      this.toastService.showUndo('Filter zurückgesetzt', () => {
+        this.filterText = previous.filterText;
+        this.filterType = previous.filterType;
+        this.showIssuesOnly = previous.showIssuesOnly;
+        this.applyFilters();
+      });
+    }
   }
 
   // ============================================================================

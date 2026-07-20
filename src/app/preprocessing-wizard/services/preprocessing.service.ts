@@ -3,6 +3,7 @@ import { BehaviorSubject, Observable, Subject } from 'rxjs';
 import {
   PreprocessingState,
   ProcessingProgress,
+  HistoryStatus,
   DEFAULT_CLEANING_CONFIG,
   DEFAULT_PROJECTION_CONFIG,
 } from '../models/preprocessing-state';
@@ -19,6 +20,31 @@ import {
 import { DataProcessorService } from '../../services/data-processor';
 import { DataLoaderService } from '../../services/data-loader.service';
 
+/**
+ * A4 – Undo/Redo. The subset of PreprocessingState that undo restores. Transient
+ * UI fields (currentStep, isProcessing, error, processedDataset, …) are left out
+ * so undoing a data-config change never yanks the user to another step or discards
+ * an in-flight processing run.
+ */
+interface HistorySnapshot {
+  rawFileName: string | null;
+  dataProfile: DataProfile | null;
+  columnConfigs: Map<string, ColumnConfig>;
+  cleaningConfig: CleaningConfig;
+  projectionConfig: ProjectionConfig;
+  datasetName: string;
+  timestamp: string;
+  glyphFeatures: string[];
+  tooltipFeatures: string[];
+  colorScaleMode: 'continuous' | 'categorical';
+  colorScaleId: number;
+}
+
+interface HistoryEntry {
+  label: string; // human-readable description of the action this snapshot precedes
+  snapshot: HistorySnapshot;
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -32,6 +58,27 @@ export class PreprocessingService {
   // A6: pending scroll anchor id set by the review step's deep-links. The target
   // step component consumes it once after it renders and scrolls into view.
   private scrollTargetSubject = new BehaviorSubject<string | null>(null);
+
+  // ── A4: Undo/Redo history ────────────────────────────────────────────────
+  // Full state-snapshot stack over the undoable portion of the preprocessing
+  // state. Each completed, state-changing action pushes a snapshot before it
+  // runs; undo()/redo() move snapshots between the two stacks and reinstall them.
+  private undoStack: HistoryEntry[] = [];
+  private redoStack: HistoryEntry[] = [];
+  private readonly MAX_HISTORY = 50;
+
+  private historySubject = new BehaviorSubject<HistoryStatus>({
+    canUndo: false,
+    canRedo: false,
+    undoLabel: null,
+    redoLabel: null,
+  });
+  public history$ = this.historySubject.asObservable();
+
+  // Emitted after undo()/redo() reinstall a snapshot so the shell can refresh the
+  // currently rendered step (steps read state once in ngOnInit and cache locally).
+  private stateRestoredSubject = new Subject<void>();
+  public stateRestored$ = this.stateRestoredSubject.asObservable();
 
   constructor(
     private dataProcessor: DataProcessorService,
@@ -154,6 +201,9 @@ export class PreprocessingService {
       const datasetName = this.getUniqueDatasetName(baseName);
       const timestamp = new Date().toISOString().split('T')[0].replace(/-/g, '');
 
+      // A4: snapshot the prior data before it is replaced, so a re-upload is undoable.
+      this.pushHistory(this.currentState.dataProfile !== null ? 'Datei ersetzt' : 'Datei geladen');
+
       this.updateState({
         dataProfile: profile,
         rawFileName: fileName,
@@ -220,6 +270,14 @@ export class PreprocessingService {
 
   // Column configuration
   public updateColumnConfig(columnName: string, updates: Partial<ColumnConfig>): void {
+    this.pushHistory('Spalteneinstellung geändert');
+    this.applyColumnConfig(columnName, updates);
+  }
+
+  // Applies a column-config change without touching the undo history. Used both by
+  // the public updateColumnConfig (which pushes first) and by other actions that
+  // manage their own history entry, so a single action never records twice.
+  private applyColumnConfig(columnName: string, updates: Partial<ColumnConfig>): void {
     const configs = this.currentState.columnConfigs;
     const existing = configs.get(columnName);
 
@@ -326,7 +384,8 @@ export class PreprocessingService {
   public toggleColumnEnabled(columnName: string): void {
     const config = this.currentState.columnConfigs.get(columnName);
     if (config) {
-      this.updateColumnConfig(columnName, { enabled: !config.enabled });
+      this.pushHistory(config.enabled ? 'Spalte abgewählt' : 'Spalte ausgewählt');
+      this.applyColumnConfig(columnName, { enabled: !config.enabled });
     }
   }
 
@@ -335,6 +394,7 @@ export class PreprocessingService {
    * Step 2 range-select (shift-click) and "select all filtered".
    */
   public setColumnsEnabled(columnNames: string[], enabled: boolean): void {
+    this.pushHistory('Spaltenauswahl geändert');
     const configs = this.currentState.columnConfigs;
     columnNames.forEach(name => {
       const config = configs.get(name);
@@ -347,6 +407,7 @@ export class PreprocessingService {
   }
 
   public selectAllColumns(): void {
+    this.pushHistory('Alle Spalten ausgewählt');
     const configs = this.currentState.columnConfigs;
     configs.forEach(config => (config.enabled = true));
     this.updateState({ columnConfigs: new Map(configs) });
@@ -354,6 +415,7 @@ export class PreprocessingService {
   }
 
   public deselectAllColumns(): void {
+    this.pushHistory('Alle Spalten abgewählt');
     const configs = this.currentState.columnConfigs;
     configs.forEach(config => {
       if (config.originalType !== DataType.ID) {
@@ -366,6 +428,7 @@ export class PreprocessingService {
 
   // Cleaning configuration
   public updateCleaningConfig(updates: Partial<CleaningConfig>): void {
+    this.pushHistory('Bereinigung geändert');
     this.updateState({
       cleaningConfig: { ...this.currentState.cleaningConfig, ...updates },
     });
@@ -374,6 +437,7 @@ export class PreprocessingService {
 
   // Projection configuration
   public updateProjectionConfig(updates: Partial<ProjectionConfig>): void {
+    this.pushHistory('Projektionsparameter geändert');
     this.updateState({
       projectionConfig: { ...this.currentState.projectionConfig, ...updates },
     });
@@ -547,7 +611,111 @@ export class PreprocessingService {
 
   public resetState(): void {
     this.stateSubject.next(this.getInitialState());
+    this.undoStack = [];
+    this.redoStack = [];
+    this.emitHistoryStatus();
     this.clearStateFromStorage();
+  }
+
+  // ── A4: Undo/Redo history ────────────────────────────────────────────────
+
+  /**
+   * Record a snapshot of the current state before a state-changing action runs.
+   * `label` describes the action (e.g. "Smart Defaults angewendet") and drives the
+   * toolbar tooltip. Pushing a new action clears the redo stack, as usual.
+   * Granularity is per completed action (one call per action), never per keystroke.
+   */
+  public pushHistory(label: string): void {
+    this.undoStack.push({ label, snapshot: this.captureSnapshot() });
+    if (this.undoStack.length > this.MAX_HISTORY) {
+      this.undoStack.shift();
+    }
+    this.redoStack = [];
+    this.emitHistoryStatus();
+  }
+
+  public get canUndo(): boolean {
+    return this.undoStack.length > 0;
+  }
+
+  public get canRedo(): boolean {
+    return this.redoStack.length > 0;
+  }
+
+  /** Revert the most recent action; returns its label, or null if nothing to undo. */
+  public undo(): string | null {
+    const entry = this.undoStack.pop();
+    if (!entry) return null;
+
+    // Preserve the current state on the redo stack under the same label so redo
+    // can re-apply the reverted action.
+    this.redoStack.push({ label: entry.label, snapshot: this.captureSnapshot() });
+    this.restoreSnapshot(entry.snapshot);
+    this.emitHistoryStatus();
+    this.stateRestoredSubject.next();
+    this.saveStateToStorage();
+    return entry.label;
+  }
+
+  /** Re-apply the most recently undone action; returns its label, or null. */
+  public redo(): string | null {
+    const entry = this.redoStack.pop();
+    if (!entry) return null;
+
+    this.undoStack.push({ label: entry.label, snapshot: this.captureSnapshot() });
+    this.restoreSnapshot(entry.snapshot);
+    this.emitHistoryStatus();
+    this.stateRestoredSubject.next();
+    this.saveStateToStorage();
+    return entry.label;
+  }
+
+  private emitHistoryStatus(): void {
+    this.historySubject.next({
+      canUndo: this.undoStack.length > 0,
+      canRedo: this.redoStack.length > 0,
+      undoLabel: this.undoStack.length > 0 ? this.undoStack[this.undoStack.length - 1].label : null,
+      redoLabel: this.redoStack.length > 0 ? this.redoStack[this.redoStack.length - 1].label : null,
+    });
+  }
+
+  /** Deep-copy the undoable slice of state so later in-place edits cannot mutate it. */
+  private captureSnapshot(): HistorySnapshot {
+    const s = this.currentState;
+    return {
+      rawFileName: s.rawFileName,
+      dataProfile: s.dataProfile, // replaced wholesale on re-upload; reference is safe
+      columnConfigs: this.cloneColumnConfigs(s.columnConfigs),
+      cleaningConfig: { ...s.cleaningConfig },
+      projectionConfig: { ...s.projectionConfig },
+      datasetName: s.datasetName,
+      timestamp: s.timestamp,
+      glyphFeatures: [...s.glyphFeatures],
+      tooltipFeatures: [...s.tooltipFeatures],
+      colorScaleMode: s.colorScaleMode,
+      colorScaleId: s.colorScaleId,
+    };
+  }
+
+  /** Install a snapshot, deep-copying again so the stored entry stays pristine. */
+  private restoreSnapshot(snap: HistorySnapshot): void {
+    this.updateState({
+      rawFileName: snap.rawFileName,
+      dataProfile: snap.dataProfile,
+      columnConfigs: this.cloneColumnConfigs(snap.columnConfigs),
+      cleaningConfig: { ...snap.cleaningConfig },
+      projectionConfig: { ...snap.projectionConfig },
+      datasetName: snap.datasetName,
+      timestamp: snap.timestamp,
+      glyphFeatures: [...snap.glyphFeatures],
+      tooltipFeatures: [...snap.tooltipFeatures],
+      colorScaleMode: snap.colorScaleMode,
+      colorScaleId: snap.colorScaleId,
+    });
+  }
+
+  private cloneColumnConfigs(configs: Map<string, ColumnConfig>): Map<string, ColumnConfig> {
+    return new Map(Array.from(configs.entries()).map(([name, config]) => [name, { ...config }]));
   }
 
   // Persistence

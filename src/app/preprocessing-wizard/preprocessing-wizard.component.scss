@@ -79,6 +79,50 @@
   min-height: 0;
 }
 
+// A4: undo/redo toolbar — a thin strip at the top of the work area, right-aligned.
+// Deliberately separated from the bottom step navigation (position + curved icons)
+// so it never reads as "Back/Next".
+.wizard-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.375rem 1rem;
+  background: v.$wizard-content-bg;
+  border-bottom: 1px solid v.$gray-200;
+  flex-shrink: 0;
+}
+
+.btn-history {
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  color: v.$status-info;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+
+  .material-icons {
+    font-size: 1.25rem;
+  }
+
+  &:hover:not(:disabled) {
+    background: rgba(v.$active-color, 0.12);
+    border-color: rgba(v.$active-color, 0.4);
+  }
+
+  &:disabled {
+    color: v.$gray-400;
+    cursor: default;
+  }
+}
+
 .wizard-content {
   flex: 1;
   overflow-y: auto;

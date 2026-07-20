@@ -1,6 +1,17 @@
-import { Component, OnInit, OnDestroy, Output, EventEmitter, ViewChild, ElementRef, viewChild } from '@angular/core';
+import {
+  Component,
+  OnInit,
+  OnDestroy,
+  Output,
+  EventEmitter,
+  ViewChild,
+  ElementRef,
+  viewChild,
+  HostListener,
+} from '@angular/core';
 import { Subscription, distinctUntilChanged, map } from 'rxjs';
 import { PreprocessingService } from './services/preprocessing.service';
+import { HistoryStatus } from './models/preprocessing-state';
 import { ProgressStepperComponent, Step } from './shared/progress-stepper/progress-stepper.component';
 import { WIZARD_STEP } from './shared/wizard-step';
 import { STEP_INFO } from './shared/constants/step-info';
@@ -40,6 +51,12 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
   highestStepVisited = 0; // Track highest step to enable forward navigation
   isProcessing = false;
   error: string | null = null;
+
+  // A4: undo/redo history state, driven by the service's history$ stream.
+  history: HistoryStatus = { canUndo: false, canRedo: false, undoLabel: null, redoLabel: null };
+  // Toggled off/on to force the current step to re-instantiate after an undo/redo,
+  // so steps that cache state in ngOnInit re-read the restored snapshot.
+  stepVisible = true;
 
   // Labels and descriptions come from STEP_INFO so the sidebar stays the single
   // source of truth for step titles/purposes (no duplication in the work area).
@@ -83,6 +100,82 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
           this.scrollToTop();
         })
     );
+
+    // A4: keep the undo/redo toolbar in sync with the history stack.
+    this.subscription.add(
+      this.preprocessingService.history$.subscribe(status => {
+        this.history = status;
+      })
+    );
+
+    // A4: after an undo/redo reinstalls a snapshot, force the visible step to
+    // rebuild so it reflects the restored state (steps read state once on init).
+    this.subscription.add(
+      this.preprocessingService.stateRestored$.subscribe(() => {
+        this.reloadCurrentStep();
+      })
+    );
+  }
+
+  // ── A4: Undo/Redo ─────────────────────────────────────────────────────────
+
+  undo(): void {
+    this.preprocessingService.undo();
+  }
+
+  redo(): void {
+    this.preprocessingService.redo();
+  }
+
+  get undoTooltip(): string {
+    return this.history.canUndo && this.history.undoLabel
+      ? `Rückgängig: ${this.history.undoLabel}`
+      : 'Nichts rückgängig zu machen';
+  }
+
+  get redoTooltip(): string {
+    return this.history.canRedo && this.history.redoLabel
+      ? `Wiederherstellen: ${this.history.redoLabel}`
+      : 'Nichts wiederherzustellen';
+  }
+
+  /**
+   * Global wizard shortcuts: Strg+Z = undo, Strg+Umschalt+Z (or Strg+Y) = redo.
+   * When focus is inside a text input/textarea/contenteditable we do nothing and
+   * let the browser's native field-level undo run instead.
+   */
+  @HostListener('document:keydown', ['$event'])
+  onKeyDown(event: KeyboardEvent): void {
+    const ctrl = event.ctrlKey || event.metaKey;
+    if (!ctrl) return;
+
+    const key = event.key.toLowerCase();
+    const isUndo = key === 'z' && !event.shiftKey;
+    const isRedo = (key === 'z' && event.shiftKey) || key === 'y';
+    if (!isUndo && !isRedo) return;
+
+    if (this.isEditableTarget(event.target)) return;
+
+    event.preventDefault();
+    if (isRedo) {
+      this.redo();
+    } else {
+      this.undo();
+    }
+  }
+
+  private isEditableTarget(target: EventTarget | null): boolean {
+    const el = target as HTMLElement | null;
+    if (!el) return false;
+    const tag = el.tagName;
+    return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable;
+  }
+
+  private reloadCurrentStep(): void {
+    this.stepVisible = false;
+    setTimeout(() => {
+      this.stepVisible = true;
+    }, 0);
   }
 
   private scrollToTop(): void {

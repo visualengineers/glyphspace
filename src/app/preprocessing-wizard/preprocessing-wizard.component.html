@@ -23,6 +23,32 @@
     </aside>
 
     <div class="wizard-main">
+      <!-- A4: persistent undo/redo controls at the top of the work area. Curved
+           icons and a top-right position keep them visually distinct from the
+           Back/Weiter step navigation pinned to the bottom. -->
+      <div class="wizard-toolbar">
+        <button
+          class="btn-history"
+          type="button"
+          (click)="undo()"
+          [disabled]="!history.canUndo"
+          [title]="undoTooltip"
+          aria-label="Rückgängig"
+        >
+          <span class="material-icons">undo</span>
+        </button>
+        <button
+          class="btn-history"
+          type="button"
+          (click)="redo()"
+          [disabled]="!history.canRedo"
+          [title]="redoTooltip"
+          aria-label="Wiederherstellen"
+        >
+          <span class="material-icons">redo</span>
+        </button>
+      </div>
+
       <div class="wizard-content" #wizardContent>
         @if (error) {
           <div class="error-banner">
@@ -34,25 +60,27 @@
           </div>
         }
 
-        <div class="step-container">
-          @switch (currentStep) {
-            @case (0) {
-              <app-step1-upload></app-step1-upload>
+        @if (stepVisible) {
+          <div class="step-container">
+            @switch (currentStep) {
+              @case (0) {
+                <app-step1-upload></app-step1-upload>
+              }
+              @case (1) {
+                <app-step2-column-selection></app-step2-column-selection>
+              }
+              @case (2) {
+                <app-step3-configure-data-features></app-step3-configure-data-features>
+              }
+              @case (3) {
+                <app-step4-visualization-settings></app-step4-visualization-settings>
+              }
+              @case (4) {
+                <app-step5-review-processing (wizardFinish)="onWizardComplete()"></app-step5-review-processing>
+              }
             }
-            @case (1) {
-              <app-step2-column-selection></app-step2-column-selection>
-            }
-            @case (2) {
-              <app-step3-configure-data-features></app-step3-configure-data-features>
-            }
-            @case (3) {
-              <app-step4-visualization-settings></app-step4-visualization-settings>
-            }
-            @case (4) {
-              <app-step5-review-processing (wizardFinish)="onWizardComplete()"></app-step5-review-processing>
-            }
-          }
-        </div>
+          </div>
+        }
       </div>
 
       @if (activeStep(); as step) {
