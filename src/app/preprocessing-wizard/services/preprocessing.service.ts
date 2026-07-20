@@ -177,6 +177,10 @@ export class PreprocessingService {
   private createDefaultColumnConfig(col: ColumnStatistics): ColumnConfig {
     const capabilities = DATA_TYPE_CONFIG[col.dataType] ?? DATA_TYPE_CONFIG[DataType.Unknown];
 
+    // Smart default: obviously unsuitable columns (mostly missing or constant)
+    // start deselected. Users can re-enable them in Step 2 at any time.
+    const hasIssues = col.missingPercentage > 50 || col.uniqueCount === 1;
+
     return {
       name: col.name,
       originalType: col.dataType,
@@ -188,8 +192,29 @@ export class PreprocessingService {
       missingValueStrategy: MissingValueStrategy.Keep,
       outlierMethod: OutlierMethod.IQR_1_5,
       outlierStrategy: OutlierStrategy.Keep,
-      enabled: true,
-      hasIssues: col.missingPercentage > 50 || col.uniqueCount === 1,
+      enabled: !hasIssues,
+      hasIssues,
+    };
+  }
+
+  /**
+   * Returns the smart-default configuration values for a column, derived from its
+   * original data type (see DATA_TYPE_CONFIG). Used by Step 3 to detect deviations
+   * and offer a reversible "reset to default" control.
+   */
+  public getColumnDefaults(columnName: string): Partial<ColumnConfig> | null {
+    const config = this.currentState.columnConfigs.get(columnName);
+    if (!config) return null;
+
+    const capabilities = DATA_TYPE_CONFIG[config.originalType] ?? DATA_TYPE_CONFIG[DataType.Unknown];
+    return {
+      encodingMethod: capabilities.defaultEncoding,
+      scalingMethod: capabilities.defaultScaling,
+      includeInProjection: capabilities.defaultIncludeInProjection,
+      missingValueStrategy: MissingValueStrategy.Keep,
+      missingValueFillValue: undefined,
+      outlierMethod: OutlierMethod.IQR_1_5,
+      outlierStrategy: OutlierStrategy.Keep,
     };
   }
 
@@ -303,6 +328,22 @@ export class PreprocessingService {
     if (config) {
       this.updateColumnConfig(columnName, { enabled: !config.enabled });
     }
+  }
+
+  /**
+   * Set the enabled state for a specific set of columns in one update. Used by
+   * Step 2 range-select (shift-click) and "select all filtered".
+   */
+  public setColumnsEnabled(columnNames: string[], enabled: boolean): void {
+    const configs = this.currentState.columnConfigs;
+    columnNames.forEach(name => {
+      const config = configs.get(name);
+      if (config) {
+        config.enabled = enabled;
+      }
+    });
+    this.updateState({ columnConfigs: new Map(configs) });
+    this.saveStateToStorage();
   }
 
   public selectAllColumns(): void {
