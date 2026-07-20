@@ -37,6 +37,8 @@ export class Step2ColumnSelectionComponent implements OnInit, WizardStep {
 
   // Anchor index (into the currently filtered list) for shift-click range select.
   private lastCheckedIndex: number | null = null;
+  // Whether Shift was held during the click that precedes the next (change).
+  private pendingShift = false;
 
   // Distribution bars use the single cyan accent (A15) instead of per-type colors.
   // These mirror $active-color (#00bcd4) / $status-info (#00838f); the mini-histogram
@@ -100,30 +102,36 @@ export class Step2ColumnSelectionComponent implements OnInit, WizardStep {
   }
 
   /**
-   * Single click handler for a row checkbox. It fully owns the checkbox state: the
-   * native toggle is prevented so the one-way [checked] binding stays authoritative
-   * and no second (change) handler can double-toggle the clicked row.
-   *
-   * Plain click toggles that one row. Shift-click sets every row between the
-   * previous checkbox click and this one (inclusive of both ends, on the currently
-   * filtered list) to the state the clicked row is toggling to.
+   * Records whether Shift was held for the click that is about to trigger a
+   * (change). It does NOT toggle anything and does NOT preventDefault — the native
+   * checkbox performs the real toggle, so single selection works and is rendered
+   * correctly via [checked]. The flag is consumed by onCheckboxChange().
    */
-  onCheckboxClick(index: number, columnName: string, event: MouseEvent): void {
-    event.preventDefault();
+  onCheckboxClick(event: MouseEvent): void {
+    this.pendingShift = event.shiftKey;
+  }
 
-    if (event.shiftKey && this.lastCheckedIndex !== null && this.lastCheckedIndex !== index) {
-      const targetState = !this.isColumnEnabled(columnName);
+  /**
+   * Native change handler. The clicked row has already been toggled by the browser;
+   * `newState` is its resulting checked value. We commit that single toggle, and if
+   * Shift was held with a valid anchor, we extend the SAME state across the whole
+   * inclusive range [min(anchor,current) .. max(anchor,current)] on the filtered list.
+   */
+  onCheckboxChange(index: number, columnName: string, event: Event): void {
+    const newState = (event.target as HTMLInputElement).checked;
+
+    if (this.pendingShift && this.lastCheckedIndex !== null && this.lastCheckedIndex !== index) {
       const lo = Math.min(this.lastCheckedIndex, index);
       const hi = Math.max(this.lastCheckedIndex, index);
       const names = this.filteredColumns.slice(lo, hi + 1).map(col => col.name);
-      this.preprocessingService.setColumnsEnabled(names, targetState);
+      this.preprocessingService.setColumnsEnabled(names, newState);
     } else {
-      this.preprocessingService.toggleColumnEnabled(columnName);
+      this.preprocessingService.setColumnsEnabled([columnName], newState);
     }
 
     this.columnConfigs = this.preprocessingService.currentState.columnConfigs;
-    // Update anchor for the next shift-click.
     this.lastCheckedIndex = index;
+    this.pendingShift = false;
   }
 
   // ── Select-all operates on the currently filtered/visible set (A9) ──────────

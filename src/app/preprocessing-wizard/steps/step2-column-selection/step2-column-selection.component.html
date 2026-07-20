@@ -105,7 +105,8 @@
                   <input
                     type="checkbox"
                     [checked]="isColumnEnabled(column.name)"
-                    (click)="onCheckboxClick(i, column.name, $event)"
+                    (click)="onCheckboxClick($event)"
+                    (change)="onCheckboxChange(i, column.name, $event)"
                     [id]="'col-' + column.name"
                     title="Shift-click to select a range"
                   />
