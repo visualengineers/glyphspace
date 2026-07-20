@@ -45,6 +45,57 @@ interface HistoryEntry {
   snapshot: HistorySnapshot;
 }
 
+/**
+ * A4: result of an undo()/redo() call. Beyond the action label it names the single
+ * setting that changed (settingLabel) and where it lives (step index + scroll anchor),
+ * so the shell can show a precise toast and offer a "jump to change" deep-link.
+ */
+export interface UndoRedoInfo {
+  actionLabel: string; // original history label of the reverted/re-applied action
+  settingLabel: string; // human name of the changed setting (e.g. "Encoding")
+  step: number | null; // wizard step index (0–4) that holds the setting, or null
+  anchorId: string | null; // scroll anchor id inside that step, or null
+}
+
+/**
+ * A4: maps a diff key (top-level snapshot key or `columnConfigs.<field>`) to a
+ * human-readable setting name plus the step index and scroll anchor where the
+ * setting is edited. Step indices are 0-based (0=Upload, 1=Spaltenauswahl,
+ * 2=Datenkonfiguration, 3=Visualisierung, 4=Review). Anchors mirror the ids used
+ * by the review step's deep-links (wizard-anchor-*).
+ */
+interface SettingMeta {
+  label: string;
+  step: number | null;
+  anchorId: string | null;
+}
+
+const SETTING_META: Record<string, SettingMeta> = {
+  // Step 2 – Spaltenauswahl
+  'columnConfigs.enabled': { label: 'Spaltenauswahl', step: 1, anchorId: 'wizard-anchor-columns' },
+  // Step 3 – Datenkonfiguration (per-column features + cleaning)
+  'columnConfigs.encodingMethod': { label: 'Encoding', step: 2, anchorId: 'wizard-anchor-features' },
+  'columnConfigs.scalingMethod': { label: 'Skalierung', step: 2, anchorId: 'wizard-anchor-features' },
+  'columnConfigs.targetType': { label: 'Datentyp', step: 2, anchorId: 'wizard-anchor-features' },
+  'columnConfigs.missingValueStrategy': { label: 'Fehlende Werte', step: 2, anchorId: 'wizard-anchor-features' },
+  'columnConfigs.missingValueFillValue': { label: 'Fehlende Werte', step: 2, anchorId: 'wizard-anchor-features' },
+  'columnConfigs.outlierMethod': { label: 'Ausreißerbehandlung', step: 2, anchorId: 'wizard-anchor-features' },
+  'columnConfigs.outlierStrategy': { label: 'Ausreißerbehandlung', step: 2, anchorId: 'wizard-anchor-features' },
+  cleaningConfig: { label: 'Datenbereinigung', step: 2, anchorId: 'wizard-anchor-cleaning' },
+  // Step 4 – Visualisierung (color / glyph / projection live here)
+  'columnConfigs.includeInProjection': { label: 'Projektionsspalten', step: 3, anchorId: 'wizard-anchor-projection-columns' },
+  'columnConfigs.isColorFeature': { label: 'Farbattribut', step: 3, anchorId: 'wizard-anchor-color' },
+  isColorFeature: { label: 'Farbattribut', step: 3, anchorId: 'wizard-anchor-color' },
+  colorScaleId: { label: 'Farbskala', step: 3, anchorId: 'wizard-anchor-color' },
+  colorScaleMode: { label: 'Farbmodus', step: 3, anchorId: 'wizard-anchor-color' },
+  glyphFeatures: { label: 'Glyph-Merkmale', step: 3, anchorId: 'wizard-anchor-glyph' },
+  tooltipFeatures: { label: 'Tooltip-Merkmale', step: 3, anchorId: 'wizard-anchor-glyph' },
+  projectionConfig: { label: 'Projektionsparameter', step: 3, anchorId: 'wizard-anchor-methods' },
+  // Step 1 – Upload
+  rawFileName: { label: 'Datei', step: 0, anchorId: null },
+  datasetName: { label: 'Datensatzname', step: 0, anchorId: null },
+};
+
 @Injectable({
   providedIn: 'root',
 })
@@ -386,6 +437,7 @@ export class PreprocessingService {
     if (config) {
       this.pushHistory(config.enabled ? 'Spalte abgewählt' : 'Spalte ausgewählt');
       this.applyColumnConfig(columnName, { enabled: !config.enabled });
+      this.validateDependentReferences();
     }
   }
 
@@ -403,6 +455,7 @@ export class PreprocessingService {
       }
     });
     this.updateState({ columnConfigs: new Map(configs) });
+    this.validateDependentReferences();
     this.saveStateToStorage();
   }
 
@@ -411,6 +464,7 @@ export class PreprocessingService {
     const configs = this.currentState.columnConfigs;
     configs.forEach(config => (config.enabled = true));
     this.updateState({ columnConfigs: new Map(configs) });
+    this.validateDependentReferences();
     this.saveStateToStorage();
   }
 
@@ -423,6 +477,61 @@ export class PreprocessingService {
       }
     });
     this.updateState({ columnConfigs: new Map(configs) });
+    this.validateDependentReferences();
+    this.saveStateToStorage();
+  }
+
+  /**
+   * A4/cross-field: after any change to which columns are enabled, remove references
+   * that would otherwise dangle on now-disabled columns. Concretely: a disabled
+   * column can no longer be the color feature, and glyph/tooltip mappings drop
+   * features whose underlying column is disabled. If the color feature was cleared,
+   * the color scale falls back to the numeric default so the review/step 4 UI does
+   * not keep showing a scale for a column that is gone.
+   *
+   * Runs after the enable change (and after pushHistory captured the pre-change
+   * snapshot), so a single undo reverts both the enable change and this cleanup as
+   * one atomic action, while the redo snapshot holds the already-cleaned state.
+   */
+  private validateDependentReferences(): void {
+    const configs = this.currentState.columnConfigs;
+    let changed = false;
+    let colorFeatureCleared = false;
+
+    // Drop color-feature flag from disabled columns.
+    configs.forEach(config => {
+      if (!config.enabled && config.isColorFeature) {
+        config.isColorFeature = false;
+        colorFeatureCleared = true;
+        changed = true;
+      }
+    });
+
+    // Glyph/tooltip mappings may only reference features of still-enabled columns.
+    // predictEncodedFeatureNames() already restricts itself to enabled columns and
+    // handles one-hot expansion, so it is the source of truth for valid names.
+    const validFeatures = new Set(this.predictEncodedFeatureNames());
+    const glyphFeatures = this.currentState.glyphFeatures.filter(f => validFeatures.has(f));
+    const tooltipFeatures = this.currentState.tooltipFeatures.filter(f => validFeatures.has(f));
+    const glyphChanged = glyphFeatures.length !== this.currentState.glyphFeatures.length;
+    const tooltipChanged = tooltipFeatures.length !== this.currentState.tooltipFeatures.length;
+
+    if (!changed && !glyphChanged && !tooltipChanged) {
+      return;
+    }
+
+    const updates: Partial<PreprocessingState> = {
+      columnConfigs: new Map(configs),
+    };
+    if (glyphChanged) updates.glyphFeatures = glyphFeatures;
+    if (tooltipChanged) updates.tooltipFeatures = tooltipFeatures;
+    // When the color feature is gone, reset the color scale to the numeric default.
+    if (colorFeatureCleared) {
+      updates.colorScaleId = 0;
+      updates.colorScaleMode = 'continuous';
+    }
+
+    this.updateState(updates);
     this.saveStateToStorage();
   }
 
@@ -642,32 +751,107 @@ export class PreprocessingService {
     return this.redoStack.length > 0;
   }
 
-  /** Revert the most recent action; returns its label, or null if nothing to undo. */
-  public undo(): string | null {
+  /** Revert the most recent action; returns info about the change, or null. */
+  public undo(): UndoRedoInfo | null {
     const entry = this.undoStack.pop();
     if (!entry) return null;
 
+    // Diff the current (about-to-be-reverted) state against the target snapshot to
+    // name the setting that changes, before we replace the state.
+    const before = this.captureSnapshot();
+    const info = this.describeDiff(entry.label, before, entry.snapshot);
+
     // Preserve the current state on the redo stack under the same label so redo
     // can re-apply the reverted action.
-    this.redoStack.push({ label: entry.label, snapshot: this.captureSnapshot() });
+    this.redoStack.push({ label: entry.label, snapshot: before });
     this.restoreSnapshot(entry.snapshot);
     this.emitHistoryStatus();
     this.stateRestoredSubject.next();
     this.saveStateToStorage();
-    return entry.label;
+    return info;
   }
 
-  /** Re-apply the most recently undone action; returns its label, or null. */
-  public redo(): string | null {
+  /** Re-apply the most recently undone action; returns info about the change, or null. */
+  public redo(): UndoRedoInfo | null {
     const entry = this.redoStack.pop();
     if (!entry) return null;
 
-    this.undoStack.push({ label: entry.label, snapshot: this.captureSnapshot() });
+    const before = this.captureSnapshot();
+    const info = this.describeDiff(entry.label, before, entry.snapshot);
+
+    this.undoStack.push({ label: entry.label, snapshot: before });
     this.restoreSnapshot(entry.snapshot);
     this.emitHistoryStatus();
     this.stateRestoredSubject.next();
     this.saveStateToStorage();
-    return entry.label;
+    return info;
+  }
+
+  /**
+   * Build the toast/deep-link descriptor for an undo/redo by diffing the state
+   * before against the snapshot being installed and looking up the changed key in
+   * SETTING_META. Falls back to the raw action label when nothing maps cleanly.
+   */
+  private describeDiff(actionLabel: string, before: HistorySnapshot, after: HistorySnapshot): UndoRedoInfo {
+    const key = this.diffSnapshots(before, after);
+    const meta = key ? SETTING_META[key] : undefined;
+    return {
+      actionLabel,
+      settingLabel: meta?.label ?? actionLabel,
+      step: meta?.step ?? null,
+      anchorId: meta?.anchorId ?? null,
+    };
+  }
+
+  /**
+   * Return the diff key for the first differing field between two snapshots, or
+   * null if they are equal. Keys are either a top-level snapshot key or, for
+   * column configs, `columnConfigs.<field>`. Order roughly follows the wizard steps.
+   */
+  private diffSnapshots(a: HistorySnapshot, b: HistorySnapshot): string | null {
+    if (a.rawFileName !== b.rawFileName) return 'rawFileName';
+    if (a.datasetName !== b.datasetName) return 'datasetName';
+
+    const columnKey = this.diffColumnConfigs(a.columnConfigs, b.columnConfigs);
+    if (columnKey) return columnKey;
+
+    if (JSON.stringify(a.cleaningConfig) !== JSON.stringify(b.cleaningConfig)) return 'cleaningConfig';
+    if (JSON.stringify(a.projectionConfig) !== JSON.stringify(b.projectionConfig)) return 'projectionConfig';
+    if (!this.arraysEqual(a.glyphFeatures, b.glyphFeatures)) return 'glyphFeatures';
+    if (!this.arraysEqual(a.tooltipFeatures, b.tooltipFeatures)) return 'tooltipFeatures';
+    if (a.colorScaleMode !== b.colorScaleMode) return 'colorScaleMode';
+    if (a.colorScaleId !== b.colorScaleId) return 'colorScaleId';
+    return null;
+  }
+
+  /** Per-field diff over the column-config maps; returns `columnConfigs.<field>`. */
+  private diffColumnConfigs(a: Map<string, ColumnConfig>, b: Map<string, ColumnConfig>): string | null {
+    const fields: (keyof ColumnConfig)[] = [
+      'enabled',
+      'isColorFeature',
+      'targetType',
+      'encodingMethod',
+      'scalingMethod',
+      'includeInProjection',
+      'missingValueStrategy',
+      'missingValueFillValue',
+      'outlierMethod',
+      'outlierStrategy',
+    ];
+    const names = new Set([...a.keys(), ...b.keys()]);
+    for (const name of names) {
+      const ca = a.get(name);
+      const cb = b.get(name);
+      if (!ca || !cb) return 'columnConfigs.enabled'; // column added/removed ~ selection change
+      for (const field of fields) {
+        if (ca[field] !== cb[field]) return `columnConfigs.${field}`;
+      }
+    }
+    return null;
+  }
+
+  private arraysEqual(a: string[], b: string[]): boolean {
+    return a.length === b.length && a.every((v, i) => v === b[i]);
   }
 
   private emitHistoryStatus(): void {

@@ -10,8 +10,9 @@ import {
   HostListener,
 } from '@angular/core';
 import { Subscription, distinctUntilChanged, map } from 'rxjs';
-import { PreprocessingService } from './services/preprocessing.service';
+import { PreprocessingService, UndoRedoInfo } from './services/preprocessing.service';
 import { HistoryStatus } from './models/preprocessing-state';
+import { ToastService } from '../services/toast.service';
 import { ProgressStepperComponent, Step } from './shared/progress-stepper/progress-stepper.component';
 import { WIZARD_STEP } from './shared/wizard-step';
 import { STEP_INFO } from './shared/constants/step-info';
@@ -69,7 +70,10 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
       completed: false,
     }));
 
-  constructor(private preprocessingService: PreprocessingService) {}
+  constructor(
+    private preprocessingService: PreprocessingService,
+    private toastService: ToastService
+  ) {}
 
   ngOnInit(): void {
     // Subscribe to state changes
@@ -120,11 +124,34 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
   // ── A4: Undo/Redo ─────────────────────────────────────────────────────────
 
   undo(): void {
-    this.preprocessingService.undo();
+    const info = this.preprocessingService.undo();
+    if (info) {
+      this.showHistoryToast(info, 'zurückgesetzt');
+    }
   }
 
   redo(): void {
-    this.preprocessingService.redo();
+    const info = this.preprocessingService.redo();
+    if (info) {
+      this.showHistoryToast(info, 'wiederhergestellt');
+    }
+  }
+
+  /**
+   * A4: dezenter, nicht stapelnder Toast nach Undo/Redo. Nennt die konkret geänderte
+   * Einstellung und bietet – sofern ein Zielanker bekannt ist – eine "Änderung
+   * anzeigen"-Aktion, die direkt zum betroffenen Feld springt.
+   */
+  private showHistoryToast(info: UndoRedoInfo, verb: 'zurückgesetzt' | 'wiederhergestellt'): void {
+    const message = `${info.settingLabel} wurde ${verb}`;
+    const action =
+      info.step !== null && info.anchorId
+        ? {
+            label: 'Änderung anzeigen',
+            handler: () => this.preprocessingService.goToStepWithScroll(info.step as number, info.anchorId as string),
+          }
+        : undefined;
+    this.toastService.showUndoRedo(message, action);
   }
 
   get undoTooltip(): string {

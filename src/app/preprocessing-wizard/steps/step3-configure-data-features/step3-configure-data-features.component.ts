@@ -1,4 +1,4 @@
-import { Component, OnInit, forwardRef, ViewChild, ElementRef, HostListener } from '@angular/core';
+import { Component, OnInit, AfterViewInit, forwardRef, ViewChild, ElementRef, HostListener } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { PreprocessingService } from '../../services/preprocessing.service';
 import { WizardStep, WIZARD_STEP } from '../../shared/wizard-step';
@@ -36,7 +36,7 @@ interface ColumnConfigState {
   styleUrl: './step3-configure-data-features.component.scss',
   providers: [{ provide: WIZARD_STEP, useExisting: forwardRef(() => Step3ConfigureDataFeaturesComponent) }],
 })
-export class Step3ConfigureDataFeaturesComponent implements OnInit, WizardStep {
+export class Step3ConfigureDataFeaturesComponent implements OnInit, AfterViewInit, WizardStep {
   readonly primaryLabel = 'Continue to Visualization Settings';
   readonly disabledHint = '';
 
@@ -138,6 +138,18 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit, WizardStep {
   ngOnInit(): void {
     this.loadData();
     this.detectDuplicates();
+  }
+
+  // A4/A6: scroll the requested setting into view when arriving via a deep-link
+  // (undo/redo "Änderung anzeigen" or a review edit-link). The delay lets the
+  // shell's scroll-to-top run first so it does not override this.
+  ngAfterViewInit(): void {
+    const target = this.preprocessingService.consumeScrollTarget();
+    if (target) {
+      setTimeout(() => {
+        document.getElementById(target)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 120);
+    }
   }
 
   private loadData(): void {
