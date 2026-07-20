@@ -35,9 +35,27 @@ export class ProgressStepperComponent {
   }
 
   isStepClickable(index: number): boolean {
-    // Allow clicking on:
-    // 1. Any previous step (go back)
-    // 2. Any completed step (including forward navigation to re-visit completed steps)
-    return index <= this.currentStep || this.steps[index]?.completed;
+    // Reachable steps are:
+    // 1. The current step and every step before it (go back at will)
+    // 2. Any step already completed
+    // 3. The step directly after the furthest completed step, so the next
+    //    step to fill in stays reachable even after navigating backwards
+    if (index <= this.currentStep) {
+      return true;
+    }
+    if (this.steps[index]?.completed) {
+      return true;
+    }
+    return index <= this.lastCompletedStepIndex() + 1;
+  }
+
+  private lastCompletedStepIndex(): number {
+    let last = -1;
+    for (let i = 0; i < this.steps.length; i++) {
+      if (this.steps[i]?.completed) {
+        last = i;
+      }
+    }
+    return last;
   }
 }

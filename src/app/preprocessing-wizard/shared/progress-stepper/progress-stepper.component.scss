@@ -135,31 +135,30 @@
   width: 110px;
   flex-shrink: 0;
 
-  // Reachable steps read as enabled/interactive (accent outline), not greyed
-  // out like the disabled future steps.
+  // Reachable steps stay interactive (pointer + subtle hover); the three
+  // visual states below are driven purely by completed/active, not clickability.
   &.clickable {
     cursor: pointer;
 
-    .step-circle {
-      border-color: v.$active-color;
-      color: v.$active-color;
-    }
-
     &:hover .step-circle {
-      opacity: 0.8;
+      opacity: 0.85;
     }
   }
 
-  &.active .step-circle {
+  // Completed: cyan-filled circle with a white check mark.
+  &.completed .step-circle {
     background: v.$active-color;
     color: v.$white;
     border-color: v.$active-color;
   }
 
-  &.completed .step-circle {
-    background: v.$gray-600;
-    color: v.$white;
-    border-color: v.$gray-600;
+  // Active: the step number on a white circle framed by a cyan ring. Declared
+  // after .completed so a revisited (already completed) step still shows this
+  // ring while it is the current step.
+  &.active .step-circle {
+    background: v.$white;
+    color: v.$active-color;
+    border-color: v.$active-color;
   }
 }
 
@@ -223,7 +222,7 @@
   transition: background 0.2s ease;
 
   &.completed {
-    background: v.$gray-600;
+    background: v.$active-color;
   }
 }
 
