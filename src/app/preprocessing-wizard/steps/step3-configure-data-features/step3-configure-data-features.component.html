@@ -206,7 +206,10 @@
                   <div class="config-section">
                     <div class="section-header">
                       <span class="section-label">Encoding</span>
-                      <app-help-tooltip [helpText]="HELP_TEXT.tableHeaders.encoding" position="bottom"></app-help-tooltip>
+                      <app-help-tooltip
+                        [helpText]="HELP_TEXT.tableHeaders.encoding"
+                        position="bottom"
+                      ></app-help-tooltip>
                       <button
                         class="btn-reset-field"
                         type="button"
@@ -236,7 +239,10 @@
                   <div class="config-section">
                     <div class="section-header">
                       <span class="section-label">Scaling</span>
-                      <app-help-tooltip [helpText]="HELP_TEXT.tableHeaders.scaling" position="bottom"></app-help-tooltip>
+                      <app-help-tooltip
+                        [helpText]="HELP_TEXT.tableHeaders.scaling"
+                        position="bottom"
+                      ></app-help-tooltip>
                       <button
                         class="btn-reset-field"
                         type="button"
@@ -320,7 +326,10 @@
                       } @else if (hasOutliers(selectedColumn)) {
                         <span class="section-count">{{ selectedColumn.outlierCount }} detected</span>
                       }
-                      <app-help-tooltip [helpText]="HELP_TEXT.tableHeaders.outliers" position="bottom"></app-help-tooltip>
+                      <app-help-tooltip
+                        [helpText]="HELP_TEXT.tableHeaders.outliers"
+                        position="bottom"
+                      ></app-help-tooltip>
                     </div>
                     <div class="outlier-controls">
                       <div class="control-group">

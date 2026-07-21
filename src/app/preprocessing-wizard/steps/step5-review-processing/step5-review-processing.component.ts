@@ -474,7 +474,9 @@ export class Step5ReviewProcessingComponent implements OnInit, OnDestroy {
 
   /** Copy the latest background status into the local map and rebuild the
    *  degraded/partial issue list from any failed background projections. */
-  private syncBackgroundStatus(statusMap: Map<string, { status: string; progress: number; message: string; error?: string }>): void {
+  private syncBackgroundStatus(
+    statusMap: Map<string, { status: string; progress: number; message: string; error?: string }>
+  ): void {
     this.backgroundProjections.clear();
     statusMap.forEach((status, method) => {
       this.backgroundProjections.set(method, {
@@ -515,7 +517,10 @@ export class Step5ReviewProcessingComponent implements OnInit, OnDestroy {
     return this.enabledMethods.map(label => {
       const isPrimary = label.startsWith('FastMap');
       // Background status keys are lowercase alphanumeric ids (e.g. "tsne").
-      const key = label.replace(' (Primary)', '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const key = label
+        .replace(' (Primary)', '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '');
       let status: MethodStatus['status'];
 
       if (isPrimary) {

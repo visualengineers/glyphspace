@@ -324,6 +324,22 @@ $selection-col-pad-left: 12px;
 // ============================================================================
 $wizard-header-row-height: 40px;
 
+// ============================================================================
+// A14: Shared master-list geometry
+// Step 2's left "column band" and Step 3's master rail share the same width,
+// list-viewport height and row padding so the GSAP Flip morph between the two
+// steps is minimal (matched elements barely move). Keep these values in ONE
+// place so both steps stay in lockstep.
+// ============================================================================
+$wizard-rail-width: 320px;
+$wizard-list-viewport-height: 420px;
+$wizard-list-row-padding: 10px 12px;
+// A14: One fixed row height for BOTH the Step 2 table rows and the Step 3 rail
+// items so column N sits at the same y-position in both steps (row N in step 2
+// morphs to row N in step 3 with minimal vertical movement). Sized to fit the
+// Step 3 two-line item (name/type + config summary) without clipping.
+$wizard-list-row-height: 56px;
+
 @mixin list-header-row {
   display: flex;
   align-items: center;

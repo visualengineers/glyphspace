@@ -96,13 +96,18 @@
         @if (selectedGlyphFeatures.length > 0 && selectedGlyphFeatures.length < MIN_GLYPH_FEATURES) {
           <div class="validation-warning">
             <span class="material-icons">warning</span>
-            <span>{{ MIN_GLYPH_FEATURES - selectedGlyphFeatures.length }} more needed (a glyph needs 3–12 features)</span>
+            <span
+              >{{ MIN_GLYPH_FEATURES - selectedGlyphFeatures.length }} more needed (a glyph needs 3–12 features)</span
+            >
           </div>
         }
         @if (selectedGlyphFeatures.length > MAX_GLYPH_FEATURES) {
           <div class="validation-warning">
             <span class="material-icons">error_outline</span>
-            <span>Remove {{ selectedGlyphFeatures.length - MAX_GLYPH_FEATURES }} — a glyph takes at most {{ MAX_GLYPH_FEATURES }} features</span>
+            <span
+              >Remove {{ selectedGlyphFeatures.length - MAX_GLYPH_FEATURES }} — a glyph takes at most
+              {{ MAX_GLYPH_FEATURES }} features</span
+            >
           </div>
         }
 
@@ -119,12 +124,7 @@
         <div class="feature-filter-bar">
           <div class="search-box">
             <span class="material-icons">search</span>
-            <input
-              type="text"
-              [(ngModel)]="featureSearch"
-              placeholder="Search features…"
-              class="search-input"
-            />
+            <input type="text" [(ngModel)]="featureSearch" placeholder="Search features…" class="search-input" />
             @if (featureSearch) {
               <button class="clear-search" (click)="featureSearch = ''">
                 <span class="material-icons">close</span>
@@ -347,7 +347,9 @@
           />
           <span class="master-label">All columns</span>
           @if (hasProjectionColumnFilter()) {
-            <span class="showing-count">Showing {{ filteredProjectionColumns.length }} of {{ projectionColumns.length }}</span>
+            <span class="showing-count"
+              >Showing {{ filteredProjectionColumns.length }} of {{ projectionColumns.length }}</span
+            >
           }
         </div>
 
@@ -427,135 +429,138 @@
 
       <!-- RIGHT: Projection method selection -->
       <div class="config-panel projection-panel">
-      <span id="wizard-anchor-methods" class="scroll-anchor"></span>
-      <div class="projection-panel-header">
-        <h3>
-          <span class="material-icons">settings</span>
-          Projection Methods
-          <app-help-tooltip [helpText]="HELP_TEXT.general.projection"></app-help-tooltip>
-        </h3>
-        <div class="primary-badge">
-          <span class="material-icons">bolt</span>
-          <span>FastMap</span>
-          <span class="speed-badge badge-primary">Primary</span>
+        <span id="wizard-anchor-methods" class="scroll-anchor"></span>
+        <div class="projection-panel-header">
+          <h3>
+            <span class="material-icons">settings</span>
+            Projection Methods
+            <app-help-tooltip [helpText]="HELP_TEXT.general.projection"></app-help-tooltip>
+          </h3>
+          <div class="primary-badge">
+            <span class="material-icons">bolt</span>
+            <span>FastMap</span>
+            <span class="speed-badge badge-primary">Primary</span>
+          </div>
         </div>
-      </div>
 
-      <div class="projection-grid">
-        @for (method of projectionMethods; track method.key) {
-          <div
-            class="projection-card"
-            [class.enabled]="projectionConfig[method.key]"
-            [class.has-warning]="shouldShowLargeDatasetWarning(method)"
-            [class.expanded]="methodHasParams(method) && projectionConfig[method.key] && isMethodParamsExpanded(method.key)"
-            (click)="isMethodDisabled(method) ? null : toggleProjectionMethod(method)"
-            (keydown.enter)="isMethodDisabled(method) ? null : toggleProjectionMethod(method)"
-            tabindex="0"
-          >
-            <div class="card-row">
-              <input
-                type="checkbox"
-                [checked]="projectionConfig[method.key]"
-                [disabled]="isMethodDisabled(method)"
-                (click)="$event.stopPropagation()"
-                (change)="toggleProjectionMethod(method)"
-              />
-              <span class="method-name">{{ method.name }}</span>
-              @if (method.badge) {
-                <span class="speed-badge" [ngClass]="'badge-' + method.badge!.toLowerCase().split(' ').join('-')">{{
-                  method.badge
-                }}</span>
-              }
-              @if (method.sizeHint) {
-                <span class="size-hint">{{ method.sizeHint }}</span>
-              }
-              @if (shouldShowLargeDatasetWarning(method)) {
-                <span class="material-icons warning-icon" title="May be slow with large datasets">warning</span>
-              }
+        <div class="projection-grid">
+          @for (method of projectionMethods; track method.key) {
+            <div
+              class="projection-card"
+              [class.enabled]="projectionConfig[method.key]"
+              [class.has-warning]="shouldShowLargeDatasetWarning(method)"
+              [class.expanded]="
+                methodHasParams(method) && projectionConfig[method.key] && isMethodParamsExpanded(method.key)
+              "
+              (click)="isMethodDisabled(method) ? null : toggleProjectionMethod(method)"
+              (keydown.enter)="isMethodDisabled(method) ? null : toggleProjectionMethod(method)"
+              tabindex="0"
+            >
+              <div class="card-row">
+                <input
+                  type="checkbox"
+                  [checked]="projectionConfig[method.key]"
+                  [disabled]="isMethodDisabled(method)"
+                  (click)="$event.stopPropagation()"
+                  (change)="toggleProjectionMethod(method)"
+                />
+                <span class="method-name">{{ method.name }}</span>
+                @if (method.badge) {
+                  <span class="speed-badge" [ngClass]="'badge-' + method.badge!.toLowerCase().split(' ').join('-')">{{
+                    method.badge
+                  }}</span>
+                }
+                @if (method.sizeHint) {
+                  <span class="size-hint">{{ method.sizeHint }}</span>
+                }
+                @if (shouldShowLargeDatasetWarning(method)) {
+                  <span class="material-icons warning-icon" title="May be slow with large datasets">warning</span>
+                }
+                @if (methodHasParams(method) && projectionConfig[method.key]) {
+                  <button
+                    class="btn-expand-params"
+                    (click)="toggleMethodParams(method.key); $event.stopPropagation()"
+                    title="Configure parameters"
+                  >
+                    <span class="material-icons">
+                      {{ isMethodParamsExpanded(method.key) ? 'expand_less' : 'tune' }}
+                    </span>
+                  </button>
+                }
+              </div>
+              <div class="card-desc">{{ method.description }}</div>
+
+              <!-- Parameters grouped inside their own method box (grows in place) -->
               @if (methodHasParams(method) && projectionConfig[method.key]) {
-                <button
-                  class="btn-expand-params"
-                  (click)="toggleMethodParams(method.key); $event.stopPropagation()"
-                  title="Configure parameters"
-                >
-                  <span class="material-icons">
-                    {{ isMethodParamsExpanded(method.key) ? 'expand_less' : 'tune' }}
-                  </span>
-                </button>
+                <div class="params-wrapper" [class.open]="isMethodParamsExpanded(method.key)">
+                  <div class="params-clip">
+                    <div class="inline-params" (click)="$event.stopPropagation()" (keydown)="$event.stopPropagation()">
+                      <div class="params-header">
+                        <span class="params-label">{{ method.name }} Parameters</span>
+                        <button
+                          class="btn-reset-params"
+                          type="button"
+                          (click)="resetMethodParams(method); $event.stopPropagation()"
+                          [disabled]="!methodParamsChanged(method)"
+                          title="Reset parameters to default"
+                        >
+                          <span class="material-icons">restart_alt</span>
+                          Reset
+                        </button>
+                      </div>
+                      @for (param of method.params; track param.configKey) {
+                        <div class="param-field">
+                          <label [for]="'step4-param-' + param.configKey">
+                            {{ param.label }}
+                            <app-help-tooltip [helpText]="$any(HELP_TEXT.parameters)[param.helpKey]"></app-help-tooltip>
+                          </label>
+                          <div class="input-group">
+                            <input
+                              [id]="'step4-param-' + param.configKey"
+                              type="range"
+                              [min]="param.min"
+                              [max]="param.max"
+                              [step]="param.step || 1"
+                              [value]="projectionConfig[param.configKey]"
+                              (input)="onParamChange(param.configKey, +$any($event.target).value, param.min, param.max)"
+                              class="range-input"
+                            />
+                            <input
+                              type="number"
+                              [min]="param.min"
+                              [max]="param.max"
+                              [step]="param.step || 1"
+                              [value]="projectionConfig[param.configKey]"
+                              (input)="onParamChange(param.configKey, +$any($event.target).value, param.min, param.max)"
+                              class="number-input"
+                            />
+                          </div>
+                          @if (neighborParamError(param)) {
+                            <div class="param-inline-error">
+                              <span class="material-icons">error_outline</span>
+                              <span>{{ neighborParamError(param) }}</span>
+                            </div>
+                          }
+                        </div>
+                      }
+                      @if (method.key === 'enableTSNE' && shouldShowTSNEWarning()) {
+                        <div class="warning-box">
+                          <span class="material-icons">warning</span>
+                          <div>
+                            <p>
+                              <strong>{{ getTSNETimeEstimate() }}</strong>
+                            </p>
+                            <p>t-SNE will run in the background. Explore with FastMap while waiting.</p>
+                          </div>
+                        </div>
+                      }
+                    </div>
+                  </div>
+                </div>
               }
             </div>
-            <div class="card-desc">{{ method.description }}</div>
-
-            <!-- Parameters grouped inside their own method box (grows in place) -->
-            @if (methodHasParams(method) && projectionConfig[method.key]) {
-              <div class="params-wrapper" [class.open]="isMethodParamsExpanded(method.key)">
-                <div class="params-clip">
-                  <div class="inline-params" (click)="$event.stopPropagation()" (keydown)="$event.stopPropagation()">
-                    <div class="params-header">
-                  <span class="params-label">{{ method.name }} Parameters</span>
-                  <button
-                    class="btn-reset-params"
-                    type="button"
-                    (click)="resetMethodParams(method); $event.stopPropagation()"
-                    [disabled]="!methodParamsChanged(method)"
-                    title="Reset parameters to default"
-                  >
-                    <span class="material-icons">restart_alt</span>
-                    Reset
-                  </button>
-                </div>
-                @for (param of method.params; track param.configKey) {
-                  <div class="param-field">
-                    <label [for]="'step4-param-' + param.configKey">
-                      {{ param.label }}
-                      <app-help-tooltip [helpText]="$any(HELP_TEXT.parameters)[param.helpKey]"></app-help-tooltip>
-                    </label>
-                    <div class="input-group">
-                      <input
-                        [id]="'step4-param-' + param.configKey"
-                        type="range"
-                        [min]="param.min"
-                        [max]="param.max"
-                        [step]="param.step || 1"
-                        [value]="projectionConfig[param.configKey]"
-                        (input)="onParamChange(param.configKey, +$any($event.target).value, param.min, param.max)"
-                        class="range-input"
-                      />
-                      <input
-                        type="number"
-                        [min]="param.min"
-                        [max]="param.max"
-                        [step]="param.step || 1"
-                        [value]="projectionConfig[param.configKey]"
-                        (input)="onParamChange(param.configKey, +$any($event.target).value, param.min, param.max)"
-                        class="number-input"
-                      />
-                    </div>
-                    @if (neighborParamError(param)) {
-                      <div class="param-inline-error">
-                        <span class="material-icons">error_outline</span>
-                        <span>{{ neighborParamError(param) }}</span>
-                      </div>
-                    }
-                  </div>
-                }
-                @if (method.key === 'enableTSNE' && shouldShowTSNEWarning()) {
-                  <div class="warning-box">
-                    <span class="material-icons">warning</span>
-                    <div>
-                      <p>
-                        <strong>{{ getTSNETimeEstimate() }}</strong>
-                      </p>
-                      <p>t-SNE will run in the background. Explore with FastMap while waiting.</p>
-                    </div>
-                  </div>
-                }
-                  </div>
-                </div>
-              </div>
-            }
-          </div>
-        }
+          }
+        </div>
       </div>
     </div>
   </div>

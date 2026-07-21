@@ -106,9 +106,9 @@ describe('classifyProcessingError', () => {
 
   it('K7 names the offending column and wins over the generic memory class', () => {
     const raw =
-      "Failed to process data: These columns have too many distinct values to one-hot encode: " +
+      'Failed to process data: These columns have too many distinct values to one-hot encode: ' +
       "'title' (9000 distinct values). Each would expand into that many feature columns, which " +
-      "exceeds the in-browser memory. Deselect them in the column step, or switch their encoding to label.";
+      'exceeds the in-browser memory. Deselect them in the column step, or switch their encoding to label.';
     const issue = classifyProcessingError(raw);
     // Even though the raw mentions "memory" (would match K6), the more specific
     // K7 is checked first and wins.
@@ -123,7 +123,7 @@ describe('classifyProcessingError', () => {
 
   it('K7 lists every offending column when several are near-unique', () => {
     const raw =
-      "These columns have too many distinct values to one-hot encode: " +
+      'These columns have too many distinct values to one-hot encode: ' +
       "'show_id' (9000 distinct values), 'title' (9000 distinct values), 'cast' (8281 distinct values).";
     const issue = classifyProcessingError(raw);
     expect(issue.code).toBe('K7');

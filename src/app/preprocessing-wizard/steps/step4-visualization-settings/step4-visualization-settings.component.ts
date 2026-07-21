@@ -260,7 +260,14 @@ export class Step4VisualizationSettingsComponent implements OnInit, AfterViewIni
       sizeHint: 'up to 100K rows',
       largeDatasetWarning: true,
       params: [
-        { label: 'Number of Neighbors', helpKey: 'umapNeighbors', configKey: 'umapNeighbors', min: 2, max: 200, default: 15 },
+        {
+          label: 'Number of Neighbors',
+          helpKey: 'umapNeighbors',
+          configKey: 'umapNeighbors',
+          min: 2,
+          max: 200,
+          default: 15,
+        },
         {
           label: 'Minimum Distance',
           helpKey: 'umapMinDist',

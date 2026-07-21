@@ -241,7 +241,9 @@
             <span class="material-icons">check_circle</span>
             <div>
               <h3>Your visualization is ready</h3>
-              <p>FastMap is loaded — open Glyphspace to start exploring. Additional projections finish in the background.</p>
+              <p>
+                FastMap is loaded — open Glyphspace to start exploring. Additional projections finish in the background.
+              </p>
             </div>
           </div>
 
@@ -265,8 +267,12 @@
             </div>
           } @else {
             <div class="success-stats">
-              <div class="stat-item"><span class="material-icons">check</span><span>{{ enabledColumns }} columns processed</span></div>
-              <div class="stat-item"><span class="material-icons">check</span><span>FastMap projection ready</span></div>
+              <div class="stat-item">
+                <span class="material-icons">check</span><span>{{ enabledColumns }} columns processed</span>
+              </div>
+              <div class="stat-item">
+                <span class="material-icons">check</span><span>FastMap projection ready</span>
+              </div>
               <div class="stat-item"><span class="material-icons">check</span><span>Data cleaning applied</span></div>
             </div>
           }
@@ -286,17 +292,23 @@
                     <div class="status-header">
                       <span class="method-name">{{ proj.method.toUpperCase() }}</span>
                       @if (proj.status === 'running') {
-                        <span class="status-badge status-running"><span class="material-icons spinning">sync</span>Running</span>
+                        <span class="status-badge status-running"
+                          ><span class="material-icons spinning">sync</span>Running</span
+                        >
                       }
                       @if (proj.status === 'complete') {
-                        <span class="status-badge status-complete"><span class="material-icons">check_circle</span>Complete</span>
+                        <span class="status-badge status-complete"
+                          ><span class="material-icons">check_circle</span>Complete</span
+                        >
                       }
                       @if (proj.status === 'error') {
                         <span class="status-badge status-error"><span class="material-icons">error</span>Failed</span>
                       }
                     </div>
                     @if (proj.status === 'running') {
-                      <div class="progress-bar-small"><div class="progress-fill-small" [style.width.%]="proj.progress"></div></div>
+                      <div class="progress-bar-small">
+                        <div class="progress-fill-small" [style.width.%]="proj.progress"></div>
+                      </div>
                       <p class="status-message">{{ proj.message }}</p>
                     }
                     @if (proj.status === 'complete') {
