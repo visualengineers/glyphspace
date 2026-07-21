@@ -34,7 +34,7 @@
           </div>
         }
 
-        <div class="step-container">
+        <div class="step-container" [class.morphing]="morphing">
           @switch (currentStep) {
             @case (0) {
               <app-step1-upload></app-step1-upload>

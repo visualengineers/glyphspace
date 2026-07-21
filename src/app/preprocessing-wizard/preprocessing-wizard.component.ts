@@ -1,4 +1,14 @@
-import { Component, OnInit, OnDestroy, Output, EventEmitter, ViewChild, ElementRef, viewChild } from '@angular/core';
+import {
+  Component,
+  OnInit,
+  OnDestroy,
+  Output,
+  EventEmitter,
+  ViewChild,
+  ElementRef,
+  viewChild,
+  ChangeDetectorRef,
+} from '@angular/core';
 import { Subscription, distinctUntilChanged, map } from 'rxjs';
 import { PreprocessingService } from './services/preprocessing.service';
 import { ProgressStepperComponent, Step } from './shared/progress-stepper/progress-stepper.component';
@@ -52,6 +62,11 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
   isProcessing = false;
   error: string | null = null;
 
+  // A14: true only while the Step 2 -> 3 morph runs. Tints the step-container
+  // backdrop grey so the areas revealed by the collapse / behind the sliding
+  // detail well are never a white flash.
+  morphing = false;
+
   // A14: When the user prefers reduced motion, the step 2 -> 3 morph is
   // skipped (Angular renders the switch instantly). Read once at init.
   reduceMotion =
@@ -70,20 +85,21 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
       completed: false,
     }));
 
-  constructor(private preprocessingService: PreprocessingService) {}
+  constructor(
+    private preprocessingService: PreprocessingService,
+    private cdr: ChangeDetectorRef
+  ) {}
 
   ngOnInit(): void {
     // Subscribe to state changes
     this.subscription.add(
       this.preprocessingService.state$.subscribe(state => {
-        const previousStep = this.currentStep;
         const nextStep = state.currentStep;
 
-        // A14: Only the forward Step 2 -> Step 3 transition is animated. Phase 1
-        // (collapsing Step 2's table to the rail width) already ran in onProceed
-        // before this state change fired; here we run Phase 2 after the swap.
-        const shouldMorph = previousStep === 1 && nextStep === 2 && !this.reduceMotion;
-
+        // A14: The forward Step 2 -> 3 morph is driven entirely from onProceed
+        // (Phase 1 collapse -> swap -> Phase 2 entrance, all in one flow) so the
+        // entrance can be set up synchronously right after the swap. This
+        // subscription just tracks state; it no longer triggers the animation.
         this.currentStep = nextStep;
         this.isProcessing = state.isProcessing;
         this.error = state.error;
@@ -95,10 +111,6 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
 
         // Update step completion based on state
         this.updateStepCompletion(state);
-
-        if (shouldMorph) {
-          this.runDetailEntrance();
-        }
       })
     );
 
@@ -140,6 +152,7 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
    */
   onProceed(step: WizardStep): void {
     if (this.currentStep === 1 && !this.reduceMotion) {
+      this.morphing = true;
       this.collapseStep2Then(() => step.proceed());
       return;
     }
@@ -149,16 +162,13 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
   /**
    * A14 Phase 1: collapse Step 2 on the *live* table (before the component swap).
    * The only motion is horizontal: the table narrows from full width to the rail
-   * width, clipping the stat columns off the right edge (overflow hidden). In the
-   * second half the whole Step 2 content (table + top bar) fades out, so Step 3
-   * can cross-fade in during Phase 2. No vertical motion is introduced, since the
-   * two boxes share the same height and any residual position difference is
-   * absorbed by the cross-fade rather than a (jarring) vertical glide.
+   * width, clipping the stat columns off the right edge (overflow hidden). Step 2
+   * stays fully opaque the whole time (no fade), so there is no transparent frame.
+   * On completion we swap to Step 3 and start Phase 2 synchronously.
    */
   private collapseStep2Then(proceed: () => void): void {
     const container = this.stepContainer;
     const table = container?.querySelector<HTMLElement>('.columns-table-container');
-    const actions = container?.querySelector<HTMLElement>('.column-actions');
     if (!container || !table) {
       proceed();
       return;
@@ -166,7 +176,16 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
 
     const startWidth = table.getBoundingClientRect().width;
 
-    const timeline = gsap.timeline({ onComplete: proceed });
+    const timeline = gsap.timeline({
+      onComplete: () => {
+        // Swap to Step 3, force Angular to render it into the DOM *now*, then set
+        // up the entrance synchronously (still inside GSAP's pre-paint tick) so
+        // Step 3's start state is applied before the first paint.
+        proceed();
+        this.cdr.detectChanges();
+        this.animateStep3Entrance();
+      },
+    });
     timeline.timeScale(MORPH_TIMESCALE);
 
     // The table narrows to the rail width (shared token); stat columns are wiped
@@ -177,46 +196,33 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
       { width: WIZARD_RAIL_WIDTH, duration: 0.6, ease: 'power2.inOut' },
       0
     );
-
-    // Second half: Step 2 content fades out (cross-fades with Step 3 in Phase 2).
-    const fading = [table, actions].filter((el): el is HTMLElement => !!el);
-    timeline.to(fading, { autoAlpha: 0, duration: 0.3, ease: 'power1.in' }, 0.3);
   }
 
   /**
-   * A14 Phase 2: after Angular has rendered Step 3, cross-fade the config shell in
-   * (completing the dissolve from Step 2) and slide the detail well in from the
-   * right. The only motion is the horizontal detail slide; the rail simply fades,
-   * so there is no vertical jump/glide. The two step boxes share the same height,
-   * so the box does not grow.
+   * A14 Phase 2: Step 3 appears fully opaque immediately (NO opacity fade) so
+   * there is never a transparent/white frame during the component swap. The only
+   * entrance motion is the detail well sliding in from the right; its start state
+   * is applied synchronously (right after detectChanges, before the browser
+   * paints) so there is no one-frame flash of it at its final position.
    */
-  private runDetailEntrance(): void {
-    // requestAnimationFrame (not setTimeout) so the entering elements are set to
-    // their hidden start state BEFORE the browser first paints Step 3 -> no white
-    // flash of the fully-rendered step between the swap and the animation start.
-    requestAnimationFrame(() => {
-      const container = this.stepContainer;
-      if (!container) {
-        return;
-      }
-
-      const timeline = gsap.timeline();
-      timeline.timeScale(MORPH_TIMESCALE);
-
-      // The whole config shell fades in, cross-fading with the faded-out Step 2
-      // content -> the header/rows change reads as a dissolve, not a hard pop.
-      const shell = container.querySelector<HTMLElement>('.config-shell');
-      if (shell) {
-        timeline.from(shell, { autoAlpha: 0, duration: 0.35, ease: 'power1.out' }, 0);
-      }
-
-      // The detail/config well slides in from the right as one block (the liked
-      // right-to-left motion); its fade rides on the shell fade above.
-      const well = container.querySelector('.detail-well');
-      if (well) {
-        timeline.from(well, { xPercent: 40, duration: 0.6, ease: 'power2.out' }, 0.1);
-      }
+  private animateStep3Entrance(): void {
+    const container = this.stepContainer;
+    const well = container?.querySelector<HTMLElement>('.detail-well');
+    const endMorph = () => {
+      this.morphing = false;
+      this.cdr.detectChanges();
+    };
+    if (!well) {
+      endMorph();
+      return;
+    }
+    const tween = gsap.from(well, {
+      xPercent: 40,
+      duration: 0.6,
+      ease: 'power2.out',
+      onComplete: endMorph,
     });
+    tween.timeScale(MORPH_TIMESCALE);
   }
 
   ngOnDestroy(): void {

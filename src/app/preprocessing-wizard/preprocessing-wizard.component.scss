@@ -122,10 +122,14 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
-  // A14: Bezugselement (offset parent) für die absolut positionierten Elemente,
-  // die GSAP Flip während des Step-2->Step-3-Morphs erzeugt. Im Ruhezustand
-  // bleibt das Layout unverändert.
   position: relative;
+
+  // A14: while the Step 2 -> 3 morph runs, tint the backdrop the same grey as the
+  // detail well. The areas revealed by the collapsing table and behind the
+  // sliding detail well then show grey instead of a white flash. Reset when idle.
+  &.morphing {
+    background: #eceff2;
+  }
 
   > * {
     flex: 1;
