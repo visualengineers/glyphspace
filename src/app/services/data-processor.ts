@@ -216,7 +216,10 @@ export class DataProcessorService {
         if (msg.type === 'error') {
           clearTimeout(timer);
           sub.unsubscribe();
-          reject(msg.message);
+          // Wrap the worker message in an Error so the real cause survives the
+          // `instanceof Error` check downstream (was rejected as a bare string,
+          // which forced the generic "Processing failed" fallback).
+          reject(new Error(typeof msg.message === 'string' ? msg.message : 'Worker reported an error'));
         } else if (msg.type === type && matchFn(msg as T)) {
           clearTimeout(timer);
           sub.unsubscribe();

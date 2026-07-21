@@ -39,7 +39,6 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
   currentStep = 0;
   highestStepVisited = 0; // Track highest step to enable forward navigation
   isProcessing = false;
-  error: string | null = null;
 
   // Labels and descriptions come from STEP_INFO so the sidebar stays the single
   // source of truth for step titles/purposes (no duplication in the work area).
@@ -60,7 +59,6 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
       this.preprocessingService.state$.subscribe(state => {
         this.currentStep = state.currentStep;
         this.isProcessing = state.isProcessing;
-        this.error = state.error;
 
         // Track highest step visited for navigation
         if (state.currentStep > this.highestStepVisited) {

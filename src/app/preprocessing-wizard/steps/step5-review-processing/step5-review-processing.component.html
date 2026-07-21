@@ -1,11 +1,19 @@
 <div class="step5-review-processing">
   <div class="step-content">
+    <!-- Persistence signifier: reassures that data + settings survive every state -->
+    @if (showProcessing) {
+      <div class="persistence-pill" title="Your uploaded data and all settings are kept">
+        <span class="material-icons">save</span>
+        <span>Your work is saved</span>
+      </div>
+    }
+
     <!-- ========================================================================== -->
-    <!-- REVIEW SECTION -->
+    <!-- REVIEW SECTION (pre-flight) -->
     <!-- ========================================================================== -->
     @if (!showProcessing) {
       <div class="review-section">
-        <!-- Configuration Summary -->
+        <!-- Configuration Summary (metric tiles + A6 edit jumps) -->
         <div class="summary-cards">
           <div class="summary-card">
             <div class="card-icon"><span class="material-icons">view_column</span></div>
@@ -88,6 +96,27 @@
           </div>
         </div>
 
+        <!-- Pre-flight banner + possible issues -->
+        @if (preflightIssues.length > 0) {
+          <div class="preflight-banner">
+            <span class="material-icons">info</span>
+            <div>
+              <strong>Heads up</strong> — {{ preflightIssues.length }}
+              {{ preflightIssues.length === 1 ? 'thing' : 'things' }} could cause processing to fail. You can start
+              anyway, or fix them first.
+            </div>
+          </div>
+          <div class="issue-list">
+            @for (issue of preflightIssues; track issue.code + issue.title) {
+              <app-wizard-issue-card
+                [issue]="issue"
+                severityLabel="Possible issue"
+                (fix)="fixInStep($event)"
+              ></app-wizard-issue-card>
+            }
+          </div>
+        }
+
         <!-- Column Details Table -->
         <div class="columns-table">
           <table>
@@ -149,120 +178,154 @@
           <div>
             <strong>Processing Info:</strong> Processing time depends on your dataset size and enabled projection
             methods. FastMap loads immediately, allowing you to explore your data right away. Additional projections
-            compute in the background.
+            compute in the background. If anything fails, it appears here with a fix — never a blank screen.
           </div>
         </div>
       </div>
     }
 
     <!-- ========================================================================== -->
-    <!-- PROCESSING SECTION -->
+    <!-- PROCESSING / RESULT / ERROR SECTION -->
     <!-- ========================================================================== -->
     @if (showProcessing) {
+      <!-- PROCESSING -->
       @if (isProcessing) {
-        <!-- Processing View -->
-        <div class="processing-view">
-          <div class="processing-card">
-            <div class="processing-icon">
-              <span class="material-icons spinning">sync</span>
+        <div class="status-panel">
+          <div class="status-hero processing">
+            <span class="material-icons spinning">sync</span>
+            <div>
+              <h3>{{ processingStep || 'FastMap is computing your primary layout…' }}</h3>
+              <p>
+                FastMap loads first so you can explore right away. Other projections keep computing in the background —
+                if a problem comes up, it shows here, not on a blank page.
+              </p>
             </div>
+          </div>
 
-            <h3>Processing Your Data</h3>
-            <p class="processing-message">{{ processingStep || 'Applying your preprocessing configuration...' }}</p>
+          <div class="progress-bar">
+            <div class="progress-fill" [style.width.%]="processingProgress"></div>
+          </div>
+          <div class="progress-text">{{ processingProgress }}%</div>
 
-            <div class="progress-bar">
-              <div class="progress-fill" [style.width.%]="processingProgress"></div>
+          <ng-container *ngTemplateOutlet="methodBar"></ng-container>
+        </div>
+      }
+
+      <!-- BLOCKING ERROR -->
+      @if (isErrorScreen && blockingIssue) {
+        <div class="status-panel">
+          <div class="status-hero error">
+            <span class="material-icons">error_outline</span>
+            <div>
+              <h3>We couldn't finish your visualization — but this is fixable.</h3>
+              <p>Deine hochgeladenen Daten und alle Einstellungen sind noch da — nichts ging verloren.</p>
             </div>
+          </div>
 
-            <div class="progress-text">{{ processingProgress }}%</div>
+          <ng-container *ngTemplateOutlet="methodBar"></ng-container>
+
+          <div class="issue-list">
+            <app-wizard-issue-card
+              [issue]="blockingIssue"
+              severityLabel="Blocking"
+              (fix)="fixInStep($event)"
+            ></app-wizard-issue-card>
           </div>
         </div>
       }
 
+      <!-- SUCCESS / PARTIAL -->
       @if (processingComplete && !isProcessing) {
-        <!-- Success View -->
-        <div class="success-view">
-          <div class="success-card">
-            <div class="success-icon">
-              <span class="material-icons">check_circle</span>
+        <div class="status-panel">
+          <div class="success-banner">
+            <span class="material-icons">check_circle</span>
+            <div>
+              <h3>Your visualization is ready</h3>
+              <p>FastMap is loaded — open Glyphspace to start exploring. Additional projections finish in the background.</p>
             </div>
+          </div>
 
-            <h3>Processing Complete!</h3>
-            <p class="success-message">Your dataset has been successfully processed and is ready for visualization.</p>
-
+          @if (isPartialResult) {
+            <div class="partial-notice">
+              <span class="material-icons">warning</span>
+              <div>
+                {{ partialIssues.length }} of {{ enabledMethods.length }} projections could not be computed. Your
+                visualization still works with the ones that succeeded.
+              </div>
+            </div>
+            <div class="issue-list">
+              @for (issue of partialIssues; track issue.title) {
+                <app-wizard-issue-card
+                  [issue]="issue"
+                  severityLabel="Warning"
+                  (fix)="fixInStep($event)"
+                  (dismiss)="dismissIssue($event)"
+                ></app-wizard-issue-card>
+              }
+            </div>
+          } @else {
             <div class="success-stats">
-              <div class="stat-item">
-                <span class="material-icons">check</span>
-                <span>{{ enabledColumns }} columns processed</span>
-              </div>
-              <div class="stat-item">
-                <span class="material-icons">check</span>
-                <span>FastMap projection ready</span>
-              </div>
-              <div class="stat-item">
-                <span class="material-icons">check</span>
-                <span>Data cleaning applied</span>
-              </div>
+              <div class="stat-item"><span class="material-icons">check</span><span>{{ enabledColumns }} columns processed</span></div>
+              <div class="stat-item"><span class="material-icons">check</span><span>FastMap projection ready</span></div>
+              <div class="stat-item"><span class="material-icons">check</span><span>Data cleaning applied</span></div>
             </div>
+          }
 
-            <!-- Background Projection Status -->
-            @if (getBackgroundProjectionsArray().length > 0) {
-              <div class="background-status-section">
-                <h4>
-                  <span class="material-icons">schedule</span>
-                  Background Projections
-                </h4>
-                <div class="projection-status-list">
-                  @for (proj of getBackgroundProjectionsArray(); track proj.method) {
-                    <div class="projection-status-item" [class]="'status-' + proj.status">
-                      <div class="status-header">
-                        <span class="method-name">{{ proj.method.toUpperCase() }}</span>
-                        @if (proj.status === 'running') {
-                          <span class="status-badge status-running">
-                            <span class="material-icons spinning">sync</span>
-                            Running
-                          </span>
-                        }
-                        @if (proj.status === 'complete') {
-                          <span class="status-badge status-complete">
-                            <span class="material-icons">check_circle</span>
-                            Complete
-                          </span>
-                        }
-                        @if (proj.status === 'error') {
-                          <span class="status-badge status-error">
-                            <span class="material-icons">error</span>
-                            Error
-                          </span>
-                        }
-                      </div>
+          <ng-container *ngTemplateOutlet="methodBar"></ng-container>
+
+          <!-- Detailed background projection progress -->
+          @if (getBackgroundProjectionsArray().length > 0) {
+            <div class="background-status-section">
+              <h4>
+                <span class="material-icons">schedule</span>
+                Background Projections
+              </h4>
+              <div class="projection-status-list">
+                @for (proj of getBackgroundProjectionsArray(); track proj.method) {
+                  <div class="projection-status-item" [class]="'status-' + proj.status">
+                    <div class="status-header">
+                      <span class="method-name">{{ proj.method.toUpperCase() }}</span>
                       @if (proj.status === 'running') {
-                        <div class="progress-bar-small">
-                          <div class="progress-fill-small" [style.width.%]="proj.progress"></div>
-                        </div>
-                        <p class="status-message">{{ proj.message }}</p>
+                        <span class="status-badge status-running"><span class="material-icons spinning">sync</span>Running</span>
                       }
                       @if (proj.status === 'complete') {
-                        <p class="status-message">Available in Glyphspace dropdown</p>
+                        <span class="status-badge status-complete"><span class="material-icons">check_circle</span>Complete</span>
+                      }
+                      @if (proj.status === 'error') {
+                        <span class="status-badge status-error"><span class="material-icons">error</span>Failed</span>
                       }
                     </div>
-                  }
-                </div>
+                    @if (proj.status === 'running') {
+                      <div class="progress-bar-small"><div class="progress-fill-small" [style.width.%]="proj.progress"></div></div>
+                      <p class="status-message">{{ proj.message }}</p>
+                    }
+                    @if (proj.status === 'complete') {
+                      <p class="status-message">Available in Glyphspace dropdown</p>
+                    }
+                  </div>
+                }
               </div>
-            }
-          </div>
-        </div>
-      }
-
-      @if (error) {
-        <!-- Error Message -->
-        <div class="error-message">
-          <span class="material-icons">error</span>
-          <div class="message-content"><strong>Error:</strong> {{ error }}</div>
+            </div>
+          }
         </div>
       }
     }
   </div>
+
+  <!-- Method status bar template (reused across processing / error / result) -->
+  <ng-template #methodBar>
+    <div class="method-bar">
+      @for (m of methodStatuses; track m.name) {
+        <div class="method-chip" [class]="'chip-' + m.status">
+          <div class="chip-top">
+            <span class="chip-name">{{ m.name }}</span>
+            <span class="chip-role">{{ m.role }}</span>
+          </div>
+          <span class="chip-status">{{ m.statusLabel }}</span>
+        </div>
+      }
+    </div>
+  </ng-template>
 
   <!-- Action Buttons -->
   @if (!showProcessing) {
@@ -271,11 +334,25 @@
         <span class="material-icons">arrow_back</span>
         <span>Back</span>
       </button>
-
       <div class="buttons-right">
         <button class="btn-primary" (click)="startProcessing()">
           <span class="material-icons">play_arrow</span>
           <span>Start Processing</span>
+        </button>
+      </div>
+    </div>
+  }
+
+  @if (isErrorScreen) {
+    <div class="action-buttons">
+      <button class="btn-secondary" (click)="goBack()">
+        <span class="material-icons">arrow_back</span>
+        <span>Back to settings</span>
+      </button>
+      <div class="buttons-right">
+        <button class="btn-primary" (click)="retryProcessing()">
+          <span class="material-icons">refresh</span>
+          <span>Try again</span>
         </button>
       </div>
     </div>
@@ -287,8 +364,15 @@
         <span class="material-icons">refresh</span>
         <span>Process Another Dataset</span>
       </button>
-
       <div class="buttons-right">
+        <button
+          class="btn-secondary"
+          title="Run the projections again with the current settings"
+          (click)="retryProcessing()"
+        >
+          <span class="material-icons">replay</span>
+          <span>Reprocess</span>
+        </button>
         <button class="btn-primary" (click)="goToDashboard()">
           <span class="material-icons">dashboard</span>
           <span>Open in Glyphspace</span>

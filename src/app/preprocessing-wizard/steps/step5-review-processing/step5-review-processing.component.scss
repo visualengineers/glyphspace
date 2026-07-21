@@ -313,6 +313,327 @@
     }
   }
 
+  // A3: persistence signifier pill
+  .persistence-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    align-self: flex-start;
+    margin-bottom: 14px;
+    padding: 4px 10px;
+    background: rgba(v.$active-color, 0.1);
+    border: 1px solid rgba(v.$active-color, 0.4);
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    color: v.$status-info;
+
+    .material-icons {
+      font-size: 15px;
+    }
+  }
+
+  // A3: pre-flight banner (amber)
+  .preflight-banner {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 12px 14px;
+    margin-bottom: 12px;
+    background: #fffdf9;
+    border: 1px solid #f2dcb6;
+    border-radius: 6px;
+    font-size: 13px;
+    color: v.$gray-700;
+    line-height: 1.45;
+
+    .material-icons {
+      color: #d08a1e;
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+  }
+
+  .issue-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  // A3: persistent status/error/result panel
+  .status-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 20px;
+    background: white;
+    border: 1px solid v.$gray-300;
+    border-radius: 8px;
+
+    .status-hero {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 16px;
+      border-radius: 6px;
+
+      .material-icons {
+        font-size: 40px;
+        flex-shrink: 0;
+
+        &.spinning {
+          animation: spin 1s linear infinite;
+        }
+      }
+
+      h3 {
+        font-size: 17px;
+        font-weight: 700;
+        margin: 0 0 4px;
+        color: v.$gray-800;
+      }
+
+      p {
+        font-size: 13px;
+        color: v.$gray-600;
+        margin: 0;
+        line-height: 1.45;
+      }
+
+      &.processing {
+        background: rgba(v.$active-color, 0.08);
+        .material-icons {
+          color: v.$active-color;
+        }
+      }
+
+      &.error {
+        background: #fffafa;
+        border: 1px solid #f0d3cf;
+        .material-icons {
+          color: #d64541;
+        }
+      }
+    }
+
+    .success-banner {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 16px;
+      background: #f1faf2;
+      border: 1px solid #c8ead0;
+      border-radius: 6px;
+
+      .material-icons {
+        font-size: 40px;
+        color: #2a9d4a;
+        flex-shrink: 0;
+      }
+
+      h3 {
+        font-size: 17px;
+        font-weight: 700;
+        margin: 0 0 4px;
+        color: v.$gray-800;
+      }
+
+      p {
+        font-size: 13px;
+        color: v.$gray-600;
+        margin: 0;
+        line-height: 1.45;
+      }
+    }
+
+    .partial-notice {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      padding: 12px 14px;
+      background: #fffdf9;
+      border: 1px solid #f2dcb6;
+      border-radius: 6px;
+      font-size: 13px;
+      color: v.$gray-700;
+      line-height: 1.45;
+
+      .material-icons {
+        color: #d08a1e;
+        font-size: 20px;
+        flex-shrink: 0;
+      }
+    }
+
+    .progress-bar {
+      @include w.progress-bar;
+      width: 100%;
+      height: 8px;
+    }
+
+    .progress-fill {
+      @include w.progress-fill;
+    }
+
+    .progress-text {
+      font-size: 16px;
+      font-weight: 700;
+      color: v.$active-color;
+      text-align: center;
+    }
+
+    .success-stats {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+
+      .stat-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 14px;
+        color: v.$gray-700;
+
+        .material-icons {
+          font-size: 18px;
+          color: #2a9d4a;
+        }
+      }
+    }
+
+    // Method status bar
+    .method-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+
+      .method-chip {
+        flex: 1 1 140px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        padding: 10px 12px;
+        border: 1px solid v.$gray-200;
+        border-radius: 6px;
+        background: v.$gray-100;
+
+        .chip-top {
+          display: flex;
+          align-items: baseline;
+          gap: 6px;
+
+          .chip-name {
+            font-size: 13px;
+            font-weight: 700;
+            color: v.$gray-800;
+          }
+
+          .chip-role {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            color: v.$gray-500;
+          }
+        }
+
+        .chip-status {
+          font-size: 12px;
+          font-weight: 600;
+          color: v.$gray-600;
+        }
+
+        &.chip-ready {
+          background: #f1faf2;
+          border-color: #c8ead0;
+          .chip-status {
+            color: #2a9d4a;
+          }
+        }
+
+        &.chip-computing {
+          background: rgba(v.$active-color, 0.08);
+          border-color: rgba(v.$active-color, 0.35);
+          .chip-status {
+            color: v.$status-info;
+          }
+        }
+
+        &.chip-failed {
+          background: #fffafa;
+          border-color: #f0d3cf;
+          .chip-status {
+            color: #d64541;
+          }
+        }
+      }
+    }
+
+    .background-status-section {
+      padding-top: 8px;
+      border-top: 1px solid v.$gray-200;
+
+      h4 {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        color: v.$gray-700;
+        margin: 0 0 12px;
+
+        .material-icons {
+          font-size: 18px;
+        }
+      }
+
+      .projection-status-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+
+        .projection-status-item {
+          padding: 10px;
+          background: v.$gray-100;
+          border-radius: 4px;
+
+          .status-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 6px;
+
+            .method-name {
+              font-size: 13px;
+              font-weight: 600;
+              color: v.$gray-800;
+            }
+
+            .status-badge {
+              @include w.status-badge;
+            }
+          }
+
+          .progress-bar-small {
+            @include w.progress-bar;
+            height: 4px;
+            margin-bottom: 4px;
+
+            .progress-fill-small {
+              @include w.progress-fill;
+            }
+          }
+
+          .status-message {
+            font-size: 12px;
+            color: v.$gray-600;
+            margin: 0;
+          }
+        }
+      }
+    }
+  }
+
   .error-message {
     @include w.message-error;
   }

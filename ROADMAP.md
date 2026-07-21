@@ -116,7 +116,10 @@ Quick Wins ohne Abhängigkeit, die sich parallel zum Fundament wegräumen lassen
 **Wo umsetzen:**
 - Smart-Default-Logik/State in `services/preprocessing.service.ts` (Kennzeichnung „vom Default abweichend", Reset-Funktion).
 - Vorauswahl beim Spalten-Import in `steps/step2-column-selection/` (offensichtlich ungeeignete Spalten vorab abwählen; vgl. `missingPercentage > 50 || uniqueCount === 1`).
+- Vorauswahl erweitern um Hochkardinalität: Spalten mit (nahezu) 100 % Uniqueness (`uniqueCount === totalRows` bzw. `uniqueCount / totalRows` nahe 1 — typisch IDs, Titel, Namen, Freitext) beim Import automatisch abwählen, sichtbar gekennzeichnet und wie jeder Default umkehrbar. Ergänzt die bestehende Heuristik um den Fall, der bisher erst zur Laufzeit auffällt.
 - Sichtbare Kennzeichnung + „Smart Defaults zurücksetzen/erneut anwenden"-Button in `steps/step3-configure-data-features/` und `steps/step4-visualization-settings/`.
+
+**Bezug (aus A3 / Fehlerklasse K7):** In A3 wurde der *reaktive* Teil dieses Problems abgedeckt — der Prozessor bricht bei einer One-Hot-Explosion früh und verständlich ab (`src/assets/preprocessing_processor_config.py`, Schwelle `MAX_ONEHOT_UNIQUE`), und die Fehlerklasse K7 (`shared/constants/wizard-error-classes.ts`) benennt die betroffenen Spalten und schlägt Abwählen bzw. Label-Encoding vor. Konkreter Auslöser war `streaming_titles.csv` mit fünf pro Zeile einzigartigen Spalten (`show_id`, `title`, `director`, `cast`, `description`): One-Hot hätte daraus ~43.750 Spalten erzeugt und den (Pyodide-)Speicher gesprengt. A2 soll denselben Fall *proaktiv* entschärfen — solche Spalten gar nicht erst standardmäßig aktiv lassen, statt den Nutzer erst im Fehlerfall (K7) gegensteuern zu lassen.
 
 ---
 
