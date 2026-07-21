@@ -80,7 +80,7 @@
             >
               <span class="material-icons drag-handle" title="Drag to reorder">drag_indicator</span>
               <span class="feature-order">{{ i + 1 }}</span>
-              <span class="feature-name">{{ feature }}</span>
+              <span class="feature-name" [title]="feature">{{ feature }}</span>
               @if (getFeatureVariance(feature) !== null) {
                 <span class="variance-bar" title="Relative variance: {{ getFeatureVariance(feature)?.toFixed(4) }}">
                   <span class="variance-fill" [style.width.%]="getFeatureVariancePercent(feature)"></span>
@@ -150,7 +150,7 @@
               (dragend)="onDragEnd($event)"
             >
               <span class="material-icons add-icon">add</span>
-              <span class="feature-name">{{ feature }}</span>
+              <span class="feature-name" [title]="feature">{{ feature }}</span>
               @if (getFeatureVariance(feature) !== null) {
                 <span class="variance-bar" title="Relative variance: {{ getFeatureVariance(feature)?.toFixed(4) }}">
                   <span class="variance-fill" [style.width.%]="getFeatureVariancePercent(feature)"></span>
@@ -359,7 +359,7 @@
                   [checked]="entry.config.includeInProjection"
                   (change)="toggleColumnProjection(entry.column.name)"
                 />
-                <span class="col-name">{{ entry.column.name }}</span>
+                <span class="col-name" [title]="entry.column.name">{{ entry.column.name }}</span>
                 <app-data-type-badge [dataType]="entry.column.dataType"></app-data-type-badge>
                 <button
                   type="button"
