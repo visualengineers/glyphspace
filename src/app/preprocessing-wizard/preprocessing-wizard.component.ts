@@ -12,7 +12,6 @@ import {
 import { Subscription, distinctUntilChanged, map } from 'rxjs';
 import { PreprocessingService, UndoRedoInfo } from './services/preprocessing.service';
 import { HistoryStatus } from './models/preprocessing-state';
-import { ToastService } from '../services/toast.service';
 import { ProgressStepperComponent, Step } from './shared/progress-stepper/progress-stepper.component';
 import { WIZARD_STEP } from './shared/wizard-step';
 import { STEP_INFO } from './shared/constants/step-info';
@@ -59,6 +58,13 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
   // so steps that cache state in ngOnInit re-read the restored snapshot.
   stepVisible = true;
 
+  // A4: dezenter Undo/Redo-Hinweis, in die untere Navigationsleiste eingebettet
+  // (statt eines schwebenden Toasts). Single-Slot: ein neuer Hinweis ersetzt den
+  // vorherigen, ein Timer blendet ihn nach kurzer Zeit wieder aus.
+  historyHint: { message: string; step: number | null; anchorId: string | null } | null = null;
+  private historyHintTimer: ReturnType<typeof setTimeout> | null = null;
+  private readonly HISTORY_HINT_MS = 5000;
+
   // Labels and descriptions come from STEP_INFO so the sidebar stays the single
   // source of truth for step titles/purposes (no duplication in the work area).
   steps: Step[] = Object.keys(STEP_INFO)
@@ -70,10 +76,7 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
       completed: false,
     }));
 
-  constructor(
-    private preprocessingService: PreprocessingService,
-    private toastService: ToastService
-  ) {}
+  constructor(private preprocessingService: PreprocessingService) {}
 
   ngOnInit(): void {
     // Subscribe to state changes
@@ -126,32 +129,51 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
   undo(): void {
     const info = this.preprocessingService.undo();
     if (info) {
-      this.showHistoryToast(info, 'zurückgesetzt');
+      this.showHistoryHint(info, 'zurückgesetzt');
     }
   }
 
   redo(): void {
     const info = this.preprocessingService.redo();
     if (info) {
-      this.showHistoryToast(info, 'wiederhergestellt');
+      this.showHistoryHint(info, 'wiederhergestellt');
     }
   }
 
   /**
-   * A4: dezenter, nicht stapelnder Toast nach Undo/Redo. Nennt die konkret geänderte
-   * Einstellung und bietet – sofern ein Zielanker bekannt ist – eine "Änderung
-   * anzeigen"-Aktion, die direkt zum betroffenen Feld springt.
+   * A4: zeigt einen dezenten, nicht stapelnden Hinweis in der Navigationsleiste.
+   * Nennt die konkret geänderte Einstellung; der Timer blendet ihn wieder aus.
    */
-  private showHistoryToast(info: UndoRedoInfo, verb: 'zurückgesetzt' | 'wiederhergestellt'): void {
-    const message = `${info.settingLabel} wurde ${verb}`;
-    const action =
-      info.step !== null && info.anchorId
-        ? {
-            label: 'Änderung anzeigen',
-            handler: () => this.preprocessingService.goToStepWithScroll(info.step as number, info.anchorId as string),
-          }
-        : undefined;
-    this.toastService.showUndoRedo(message, action);
+  private showHistoryHint(info: UndoRedoInfo, verb: 'zurückgesetzt' | 'wiederhergestellt'): void {
+    this.historyHint = {
+      message: `${info.settingLabel} wurde ${verb}`,
+      step: info.step,
+      anchorId: info.anchorId,
+    };
+    if (this.historyHintTimer) {
+      clearTimeout(this.historyHintTimer);
+    }
+    this.historyHintTimer = setTimeout(() => {
+      this.historyHint = null;
+      this.historyHintTimer = null;
+    }, this.HISTORY_HINT_MS);
+  }
+
+  /** Deep-link from the hint to the changed setting, then dismiss the hint. */
+  showHistoryChange(): void {
+    const hint = this.historyHint;
+    if (hint && hint.step !== null && hint.anchorId) {
+      this.preprocessingService.goToStepWithScroll(hint.step, hint.anchorId);
+    }
+    this.dismissHistoryHint();
+  }
+
+  private dismissHistoryHint(): void {
+    this.historyHint = null;
+    if (this.historyHintTimer) {
+      clearTimeout(this.historyHintTimer);
+      this.historyHintTimer = null;
+    }
   }
 
   get undoTooltip(): string {
@@ -219,6 +241,9 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.subscription.unsubscribe();
+    if (this.historyHintTimer) {
+      clearTimeout(this.historyHintTimer);
+    }
   }
 
   private updateStepCompletion(state: PreprocessingState): void {
