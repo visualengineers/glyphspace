@@ -62,11 +62,6 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
   isProcessing = false;
   error: string | null = null;
 
-  // A14: true only while the Step 2 -> 3 morph runs. Tints the step-container
-  // backdrop grey so the areas revealed by the collapse / behind the sliding
-  // detail well are never a white flash.
-  morphing = false;
-
   // A14: When the user prefers reduced motion, the step 2 -> 3 morph is
   // skipped (Angular renders the switch instantly). Read once at init.
   reduceMotion =
@@ -152,7 +147,6 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
    */
   onProceed(step: WizardStep): void {
     if (this.currentStep === 1 && !this.reduceMotion) {
-      this.morphing = true;
       this.collapseStep2Then(() => step.proceed());
       return;
     }
@@ -176,6 +170,20 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
 
     const startWidth = table.getBoundingClientRect().width;
 
+    // Keep the box at full width but give it the grey detail-well tone and grow
+    // its right padding: the table (kept at its natural width, clipped by overflow
+    // hidden) is squeezed to the rail width from the right, and the vacated area
+    // shows the box's own grey. Because the table fully covers the box at the
+    // start, the grey is only ever revealed BY the collapse — never a white flash,
+    // and no surrounding element changes colour (so no white->grey->white). This
+    // element is destroyed at the swap, so nothing needs resetting.
+    gsap.set(table, {
+      backgroundColor: '#eceff2',
+      overflow: 'hidden',
+      width: startWidth,
+      boxSizing: 'border-box',
+    });
+
     const timeline = gsap.timeline({
       onComplete: () => {
         // Swap to Step 3, force Angular to render it into the DOM *now*, then set
@@ -188,12 +196,13 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
     });
     timeline.timeScale(MORPH_TIMESCALE);
 
-    // The table narrows to the rail width (shared token); stat columns are wiped
-    // off the right edge -> the one directed right-to-left wave.
+    // Grow the right padding so the visible table width shrinks to the rail width
+    // -> the stat columns are clipped off the right in one directed right-to-left
+    // wave, revealing the box's grey where the detail well will slide in.
     timeline.fromTo(
       table,
-      { width: startWidth, overflow: 'hidden' },
-      { width: WIZARD_RAIL_WIDTH, duration: 0.6, ease: 'power2.inOut' },
+      { paddingRight: 0 },
+      { paddingRight: Math.max(0, startWidth - WIZARD_RAIL_WIDTH), duration: 0.6, ease: 'power2.inOut' },
       0
     );
   }
@@ -208,20 +217,10 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
   private animateStep3Entrance(): void {
     const container = this.stepContainer;
     const well = container?.querySelector<HTMLElement>('.detail-well');
-    const endMorph = () => {
-      this.morphing = false;
-      this.cdr.detectChanges();
-    };
     if (!well) {
-      endMorph();
       return;
     }
-    const tween = gsap.from(well, {
-      xPercent: 40,
-      duration: 0.6,
-      ease: 'power2.out',
-      onComplete: endMorph,
-    });
+    const tween = gsap.from(well, { xPercent: 40, duration: 0.6, ease: 'power2.out' });
     tween.timeScale(MORPH_TIMESCALE);
   }
 
