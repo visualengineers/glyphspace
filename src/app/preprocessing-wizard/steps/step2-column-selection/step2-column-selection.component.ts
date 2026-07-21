@@ -1,4 +1,4 @@
-import { Component, OnInit, forwardRef } from '@angular/core';
+import { Component, OnInit, AfterViewInit, forwardRef, ViewChild, ElementRef, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PreprocessingService } from '../../services/preprocessing.service';
@@ -20,9 +20,11 @@ import { WizardStep, WIZARD_STEP } from '../../shared/wizard-step';
   styleUrl: './step2-column-selection.component.scss',
   providers: [{ provide: WIZARD_STEP, useExisting: forwardRef(() => Step2ColumnSelectionComponent) }],
 })
-export class Step2ColumnSelectionComponent implements OnInit, WizardStep {
+export class Step2ColumnSelectionComponent implements OnInit, AfterViewInit, WizardStep {
   readonly primaryLabel = 'Continue to Configure Data & Features';
   readonly disabledHint = 'Please select at least one column to continue';
+
+  @ViewChild('searchInput') searchInput?: ElementRef<HTMLInputElement>;
 
   columns: ColumnStatistics[] = [];
   columnConfigs = new Map<string, ColumnConfig>();
@@ -32,8 +34,13 @@ export class Step2ColumnSelectionComponent implements OnInit, WizardStep {
   filterType: DataType | 'all' = 'all';
   columnHistogramCache = new Map<string, HistogramData>();
 
-  // Enum reference for the template type-filter <select>.
+  // Enum reference for the template's type-filter <select>.
   DataType = DataType;
+
+  // Anchor index (into the currently filtered list) for shift-click range select.
+  private lastCheckedIndex: number | null = null;
+  // Whether Shift was held during the click that precedes the next (change).
+  private pendingShift = false;
 
   // Distribution bars use the single cyan accent (A15) instead of per-type colors.
   // These mirror $active-color (#00bcd4) / $status-info (#00838f); the mini-histogram
@@ -46,6 +53,17 @@ export class Step2ColumnSelectionComponent implements OnInit, WizardStep {
   readonly stepInfo = STEP_INFO[1]; // Step 2 (index 1)
 
   constructor(private preprocessingService: PreprocessingService) {}
+
+  // A6: scroll the requested setting into view when arriving via a review deep-link.
+  // The delay lets the shell's scroll-to-top run first so it does not override this.
+  ngAfterViewInit(): void {
+    const target = this.preprocessingService.consumeScrollTarget();
+    if (target) {
+      setTimeout(() => {
+        document.getElementById(target)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 120);
+    }
+  }
 
   ngOnInit(): void {
     const state = this.preprocessingService.currentState;
@@ -76,6 +94,10 @@ export class Step2ColumnSelectionComponent implements OnInit, WizardStep {
     });
   }
 
+  get hasActiveFilter(): boolean {
+    return !!this.searchTerm || this.filterType !== 'all';
+  }
+
   get enabledCount(): number {
     return Array.from(this.columnConfigs.values()).filter(c => c.enabled).length;
   }
@@ -93,22 +115,69 @@ export class Step2ColumnSelectionComponent implements OnInit, WizardStep {
     this.columnConfigs = this.preprocessingService.currentState.columnConfigs;
   }
 
-  toggleAllColumns(): void {
-    if (this.enabledCount === this.columns.length) {
-      this.deselectAll();
+  /**
+   * Records whether Shift was held for the click that is about to trigger a
+   * (change). It does NOT toggle anything and does NOT preventDefault — the native
+   * checkbox performs the real toggle, so single selection works and is rendered
+   * correctly via [checked]. The flag is consumed by onCheckboxChange().
+   */
+  onCheckboxClick(event: MouseEvent): void {
+    this.pendingShift = event.shiftKey;
+  }
+
+  /**
+   * Native change handler. The clicked row has already been toggled by the browser;
+   * `newState` is its resulting checked value. We commit that single toggle, and if
+   * Shift was held with a valid anchor, we extend the SAME state across the whole
+   * inclusive range [min(anchor,current) .. max(anchor,current)] on the filtered list.
+   */
+  onCheckboxChange(index: number, columnName: string, event: Event): void {
+    const newState = (event.target as HTMLInputElement).checked;
+
+    if (this.pendingShift && this.lastCheckedIndex !== null && this.lastCheckedIndex !== index) {
+      const lo = Math.min(this.lastCheckedIndex, index);
+      const hi = Math.max(this.lastCheckedIndex, index);
+      const names = this.filteredColumns.slice(lo, hi + 1).map(col => col.name);
+      this.preprocessingService.setColumnsEnabled(names, newState);
     } else {
-      this.selectAll();
+      this.preprocessingService.setColumnsEnabled([columnName], newState);
     }
+
+    this.columnConfigs = this.preprocessingService.currentState.columnConfigs;
+    this.lastCheckedIndex = index;
+    this.pendingShift = false;
   }
 
-  selectAll(): void {
-    this.preprocessingService.selectAllColumns();
+  // ── Select-all operates on the currently filtered/visible set (A9) ──────────
+  get filteredEnabledCount(): number {
+    return this.filteredColumns.filter(col => this.isColumnEnabled(col.name)).length;
+  }
+
+  get allFilteredSelected(): boolean {
+    return this.filteredColumns.length > 0 && this.filteredEnabledCount === this.filteredColumns.length;
+  }
+
+  get someFilteredSelected(): boolean {
+    return this.filteredEnabledCount > 0 && this.filteredEnabledCount < this.filteredColumns.length;
+  }
+
+  toggleAllColumns(): void {
+    const names = this.filteredColumns.map(col => col.name);
+    this.preprocessingService.setColumnsEnabled(names, !this.allFilteredSelected);
     this.columnConfigs = this.preprocessingService.currentState.columnConfigs;
   }
 
-  deselectAll(): void {
-    this.preprocessingService.deselectAllColumns();
-    this.columnConfigs = this.preprocessingService.currentState.columnConfigs;
+  /** Focus the column search field when the user presses "/" (unless already typing). */
+  @HostListener('document:keydown', ['$event'])
+  onKeyDown(event: KeyboardEvent): void {
+    if (event.key !== '/') return;
+    const target = event.target as HTMLElement | null;
+    const tag = target?.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target?.isContentEditable) {
+      return;
+    }
+    event.preventDefault();
+    this.searchInput?.nativeElement.focus();
   }
 
   canProceed(): boolean {

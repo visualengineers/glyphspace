@@ -29,6 +29,10 @@ export class PreprocessingService {
   private progressSubject = new Subject<ProcessingProgress>();
   public progress$ = this.progressSubject.asObservable();
 
+  // A6: pending scroll anchor id set by the review step's deep-links. The target
+  // step component consumes it once after it renders and scrolls into view.
+  private scrollTargetSubject = new BehaviorSubject<string | null>(null);
+
   constructor(
     private dataProcessor: DataProcessorService,
     private dataLoader: DataLoaderService
@@ -97,6 +101,22 @@ export class PreprocessingService {
     }
   }
 
+  // A6: navigate to a step and remember an anchor id so the target step can
+  // scroll the relevant setting into view after it renders.
+  public goToStepWithScroll(step: number, targetId: string): void {
+    this.goToStep(step);
+    this.scrollTargetSubject.next(targetId);
+  }
+
+  // A6: read and clear the pending scroll anchor. Returns null if none is set.
+  public consumeScrollTarget(): string | null {
+    const target = this.scrollTargetSubject.getValue();
+    if (target) {
+      this.scrollTargetSubject.next(null);
+    }
+    return target;
+  }
+
   public nextStep(): void {
     const current = this.currentState.currentStep;
     if (current < 4) {
@@ -148,7 +168,7 @@ export class PreprocessingService {
     } catch (error: unknown) {
       this.updateState({
         isProcessing: false,
-        error: error instanceof Error ? error.message : 'Failed to load data file',
+        error: this.toErrorMessage(error, 'Failed to load data file'),
       });
       throw error;
     }
@@ -156,6 +176,10 @@ export class PreprocessingService {
 
   private createDefaultColumnConfig(col: ColumnStatistics): ColumnConfig {
     const capabilities = DATA_TYPE_CONFIG[col.dataType] ?? DATA_TYPE_CONFIG[DataType.Unknown];
+
+    // Smart default: obviously unsuitable columns (mostly missing or constant)
+    // start deselected. Users can re-enable them in Step 2 at any time.
+    const hasIssues = col.missingPercentage > 50 || col.uniqueCount === 1;
 
     return {
       name: col.name,
@@ -168,8 +192,29 @@ export class PreprocessingService {
       missingValueStrategy: MissingValueStrategy.Keep,
       outlierMethod: OutlierMethod.IQR_1_5,
       outlierStrategy: OutlierStrategy.Keep,
-      enabled: true,
-      hasIssues: col.missingPercentage > 50 || col.uniqueCount === 1,
+      enabled: !hasIssues,
+      hasIssues,
+    };
+  }
+
+  /**
+   * Returns the smart-default configuration values for a column, derived from its
+   * original data type (see DATA_TYPE_CONFIG). Used by Step 3 to detect deviations
+   * and offer a reversible "reset to default" control.
+   */
+  public getColumnDefaults(columnName: string): Partial<ColumnConfig> | null {
+    const config = this.currentState.columnConfigs.get(columnName);
+    if (!config) return null;
+
+    const capabilities = DATA_TYPE_CONFIG[config.originalType] ?? DATA_TYPE_CONFIG[DataType.Unknown];
+    return {
+      encodingMethod: capabilities.defaultEncoding,
+      scalingMethod: capabilities.defaultScaling,
+      includeInProjection: capabilities.defaultIncludeInProjection,
+      missingValueStrategy: MissingValueStrategy.Keep,
+      missingValueFillValue: undefined,
+      outlierMethod: OutlierMethod.IQR_1_5,
+      outlierStrategy: OutlierStrategy.Keep,
     };
   }
 
@@ -285,6 +330,22 @@ export class PreprocessingService {
     }
   }
 
+  /**
+   * Set the enabled state for a specific set of columns in one update. Used by
+   * Step 2 range-select (shift-click) and "select all filtered".
+   */
+  public setColumnsEnabled(columnNames: string[], enabled: boolean): void {
+    const configs = this.currentState.columnConfigs;
+    columnNames.forEach(name => {
+      const config = configs.get(name);
+      if (config) {
+        config.enabled = enabled;
+      }
+    });
+    this.updateState({ columnConfigs: new Map(configs) });
+    this.saveStateToStorage();
+  }
+
   public selectAllColumns(): void {
     const configs = this.currentState.columnConfigs;
     configs.forEach(config => (config.enabled = true));
@@ -388,9 +449,27 @@ export class PreprocessingService {
     } catch (error: unknown) {
       this.updateState({
         isProcessing: false,
-        error: error instanceof Error ? error.message : 'Processing failed',
+        error: this.toErrorMessage(error, 'Processing failed'),
       });
       throw error;
+    }
+  }
+
+  /** Extract a human-readable message from an unknown thrown value without
+   *  discarding string rejections (the old `instanceof Error` check dropped
+   *  the real worker cause and fell back to a generic string). */
+  private toErrorMessage(error: unknown, fallback: string): string {
+    if (error instanceof Error) return error.message;
+    if (typeof error === 'string' && error.trim().length > 0) return error;
+    return fallback;
+  }
+
+  /** Clear a lingering processing error. The error flag lives in the root
+   *  singleton state and previously survived closing/reopening the wizard,
+   *  so a stale "Processing failed" reappeared on re-entry (P-S5-03). */
+  public clearError(): void {
+    if (this.currentState.error !== null) {
+      this.updateState({ error: null });
     }
   }
 

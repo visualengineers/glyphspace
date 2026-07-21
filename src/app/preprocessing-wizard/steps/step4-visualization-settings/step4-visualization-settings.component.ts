@@ -1,11 +1,16 @@
-import { Component, OnInit, forwardRef } from '@angular/core';
+import { Component, OnInit, AfterViewInit, forwardRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PreprocessingService } from '../../services/preprocessing.service';
 import { WizardStep, WIZARD_STEP } from '../../shared/wizard-step';
 import { ColumnConfig, ProjectionConfig } from '../../models/column-config';
 import { ColumnStatistics } from '../../models/column-statistics';
-import { DataType } from '../../models/data-type.enum';
+import {
+  DataType,
+  MissingValueStrategy,
+  getEncodingLabel as encodingLabelFn,
+  getScalingLabel as scalingLabelFn,
+} from '../../models/data-type.enum';
 import { HelpTooltipComponent } from '../../shared/help-tooltip/help-tooltip.component';
 import { HELP_TEXT } from '../../shared/constants/help-text';
 import { STEP_INFO } from '../../shared/constants/step-info';
@@ -68,12 +73,22 @@ interface ProjectionMethodUI {
   styleUrl: './step4-visualization-settings.component.scss',
   providers: [{ provide: WIZARD_STEP, useExisting: forwardRef(() => Step4VisualizationSettingsComponent) }],
 })
-export class Step4VisualizationSettingsComponent implements OnInit, WizardStep {
+export class Step4VisualizationSettingsComponent implements OnInit, AfterViewInit, WizardStep {
   readonly primaryLabel = 'Continue to Review';
   readonly disabledHint = 'Select at least one projection column and 3-12 glyph features to continue.';
 
   // Projection column selection (which features feed the dimensionality reduction)
   projectionColumns: ProjectionColumnState[] = [];
+
+  // Search + type filter for the projection column list (mirrors the glyph feature filter).
+  projectionColumnSearch = '';
+  projectionColumnTypeFilter: DataType | 'all' = 'all';
+  // Names of columns whose per-column details (encoding/scaling/missing) are expanded.
+  private expandedProjectionDetails = new Set<string>();
+
+  // Label helpers for the per-column details toggle.
+  readonly getEncodingLabel = encodingLabelFn;
+  readonly getScalingLabel = scalingLabelFn;
 
   // Color feature selection
   columns: ColumnStatistics[] = [];
@@ -245,7 +260,14 @@ export class Step4VisualizationSettingsComponent implements OnInit, WizardStep {
       sizeHint: 'up to 100K rows',
       largeDatasetWarning: true,
       params: [
-        { label: 'Number of Neighbors', helpKey: 'umapNeighbors', configKey: 'umapNeighbors', min: 2, max: 200, default: 15 },
+        {
+          label: 'Number of Neighbors',
+          helpKey: 'umapNeighbors',
+          configKey: 'umapNeighbors',
+          min: 2,
+          max: 200,
+          default: 15,
+        },
         {
           label: 'Minimum Distance',
           helpKey: 'umapMinDist',
@@ -293,6 +315,18 @@ export class Step4VisualizationSettingsComponent implements OnInit, WizardStep {
   readonly stepInfo = STEP_INFO[3]; // Step 4 (index 3)
 
   constructor(public preprocessingService: PreprocessingService) {}
+
+  // A6: if the review step requested a jump to a specific setting, scroll its
+  // anchor into view once this step has rendered. The delay lets the shell's
+  // scroll-to-top run first so it does not override this.
+  ngAfterViewInit(): void {
+    const target = this.preprocessingService.consumeScrollTarget();
+    if (target) {
+      setTimeout(() => {
+        document.getElementById(target)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 120);
+    }
+  }
 
   ngOnInit(): void {
     const state = this.preprocessingService.currentState;
@@ -613,6 +647,55 @@ export class Step4VisualizationSettingsComponent implements OnInit, WizardStep {
     return this.projectionColumns.find(c => c.column.name === columnName)?.config.includeInProjection ?? false;
   }
 
+  /** Projection columns filtered by the search box and the type filter. */
+  get filteredProjectionColumns(): ProjectionColumnState[] {
+    const term = this.projectionColumnSearch.trim().toLowerCase();
+    return this.projectionColumns.filter(entry => {
+      if (term && !entry.column.name.toLowerCase().includes(term)) return false;
+      if (this.projectionColumnTypeFilter !== 'all' && entry.column.dataType !== this.projectionColumnTypeFilter) {
+        return false;
+      }
+      return true;
+    });
+  }
+
+  hasProjectionColumnFilter(): boolean {
+    return this.projectionColumnSearch.trim() !== '' || this.projectionColumnTypeFilter !== 'all';
+  }
+
+  clearProjectionColumnFilters(): void {
+    this.projectionColumnSearch = '';
+    this.projectionColumnTypeFilter = 'all';
+  }
+
+  /** Toggle the per-column details panel (encoding/scaling/missing) for progressive disclosure. */
+  toggleProjectionDetails(columnName: string, event?: Event): void {
+    event?.stopPropagation();
+    event?.preventDefault();
+    if (this.expandedProjectionDetails.has(columnName)) {
+      this.expandedProjectionDetails.delete(columnName);
+    } else {
+      this.expandedProjectionDetails.add(columnName);
+    }
+  }
+
+  isProjectionDetailsExpanded(columnName: string): boolean {
+    return this.expandedProjectionDetails.has(columnName);
+  }
+
+  /** Human-readable label for the configured missing-value strategy. */
+  getMissingLabel(strategy: MissingValueStrategy): string {
+    const labels: Record<MissingValueStrategy, string> = {
+      [MissingValueStrategy.Keep]: 'Keep',
+      [MissingValueStrategy.RemoveRows]: 'Remove rows',
+      [MissingValueStrategy.FillMean]: 'Fill mean',
+      [MissingValueStrategy.FillMedian]: 'Fill median',
+      [MissingValueStrategy.FillMode]: 'Fill mode',
+      [MissingValueStrategy.FillValue]: 'Fill value',
+    };
+    return labels[strategy] ?? 'Keep';
+  }
+
   getProjectionCount(): number {
     return this.projectionColumns.filter(c => c.config.includeInProjection).length;
   }
@@ -658,6 +741,30 @@ export class Step4VisualizationSettingsComponent implements OnInit, WizardStep {
     if (this.isMethodDisabled(method)) return;
     this.projectionConfig[method.key] = !this.projectionConfig[method.key];
     this.updateProjectionConfig();
+  }
+
+  /**
+   * A3 / C-S4-05: field-near validation for neighbour parameters (error class K4).
+   * A neighbour count at or above the row count makes IsoMap / LLE / LTSA / UMAP
+   * fail during processing; we flag it right at the parameter instead of only
+   * surfacing a cryptic error later in Step 5. Returns null when valid.
+   * (0 means "auto" for IsoMap/LLE/LTSA and is always valid.)
+   */
+  neighborParamError(param: ProjectionParam): string | null {
+    const neighborKeys: (keyof ProjectionConfig)[] = [
+      'isomapNeighbors',
+      'lleNeighbors',
+      'ltsaNeighbors',
+      'umapNeighbors',
+    ];
+    if (!neighborKeys.includes(param.configKey)) return null;
+
+    const value = this.projectionConfig[param.configKey] as number;
+    const rows = this.getDatasetRowCount();
+    if (value > 0 && rows > 0 && value >= rows) {
+      return `Only ${rows} rows available — set neighbours below ${rows}, or this method will fail during processing.`;
+    }
+    return null;
   }
 
   onParamChange(configKey: keyof ProjectionConfig, value: number, min: number, max: number): void {

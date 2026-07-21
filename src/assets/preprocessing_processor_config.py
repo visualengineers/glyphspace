@@ -154,6 +154,36 @@ def apply_feature_engineering(df, config):
     feature_cols = [col for col in df.columns if col != 'ID']
     enabled_cols = [col for col in feature_cols if column_configs.get(col, {}).get('enabled', True)]
 
+    # Guard against the one-hot explosion (wizard error class K7): a text column
+    # that is near-unique (an ID, title, name or free-text field) would expand
+    # into one feature column per distinct value and exhaust the browser's
+    # (Pyodide) memory. Detect these up front and fail fast with a clear,
+    # actionable message naming every offending column, instead of an opaque
+    # numpy MemoryError deep inside pandas.concat.
+    MAX_ONEHOT_UNIQUE = 500
+    onehot_offenders = []
+    for col in enabled_cols:
+        col_config = column_configs.get(col, {})
+        encoding = col_config.get('encoding', 'none')
+        data_type = col_config.get('dataType', 'unknown')
+        col_data = df[col]
+        is_onehot = encoding == 'onehot' or (
+            encoding == 'none'
+            and data_type not in ('date', 'boolean')
+            and not pd.api.types.is_numeric_dtype(col_data)
+        )
+        if is_onehot:
+            n_unique = col_data.fillna('missing').astype(str).nunique()
+            if n_unique > MAX_ONEHOT_UNIQUE:
+                onehot_offenders.append((col, n_unique))
+    if onehot_offenders:
+        listed = ", ".join(f"'{name}' ({n} distinct values)" for name, n in onehot_offenders)
+        raise Exception(
+            f"These columns have too many distinct values to one-hot encode: {listed}. "
+            f"Each would expand into that many feature columns, which exceeds the in-browser memory. "
+            f"Deselect them in the column step, or switch their encoding to label."
+        )
+
     # PHASE 1: Encoding - collect all encoded columns in a list
     encoded_dfs = []
     feature_names = []

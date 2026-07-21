@@ -9,13 +9,15 @@
       </div>
     </div>
 
+    <span id="wizard-anchor-columns" class="scroll-anchor"></span>
     <div class="column-actions">
       <div class="search-box">
         <span class="material-icons">search</span>
         <input
+          #searchInput
           type="text"
           [(ngModel)]="searchTerm"
-          placeholder="Search by name or type (e.g., 'numeric')..."
+          placeholder="Search by name or type (e.g., 'numeric')... (press / to focus)"
           class="search-input"
         />
         @if (searchTerm) {
@@ -26,7 +28,12 @@
       </div>
 
       <!-- Type filter (A14): mirrors Step 3's master-rail type filter -->
-      <select class="filter-select" [(ngModel)]="filterType" aria-label="Filter by data type">
+      <select
+        class="filter-select"
+        [(ngModel)]="filterType"
+        aria-label="Filter by data type"
+        title="Filter by data type"
+      >
         <option value="all">All Types</option>
         <option [value]="DataType.Numeric">Numeric</option>
         <option [value]="DataType.Categorical">Categorical</option>
@@ -47,7 +54,7 @@
       @if (filteredColumns.length === 0) {
         <div class="no-results">
           <span class="material-icons">search_off</span>
-          <p>No columns match your search</p>
+          <p>No columns match your search or filter</p>
         </div>
       } @else {
         <table class="columns-table">
@@ -57,10 +64,10 @@
               <th class="col-checkbox">
                 <input
                   type="checkbox"
-                  [checked]="enabledCount === columns.length"
-                  [indeterminate]="enabledCount > 0 && enabledCount < columns.length"
+                  [checked]="allFilteredSelected"
+                  [indeterminate]="someFilteredSelected"
                   (change)="toggleAllColumns()"
-                  title="Toggle all columns"
+                  title="Toggle all visible columns"
                 />
               </th>
               <th class="col-name">Column Name</th>
@@ -96,7 +103,7 @@
             </tr>
           </thead>
           <tbody>
-            @for (column of filteredColumns; track column.name) {
+            @for (column of filteredColumns; track column.name; let i = $index) {
               <tr
                 class="column-row"
                 [class.disabled]="!isColumnEnabled(column.name)"
@@ -107,8 +114,10 @@
                   <input
                     type="checkbox"
                     [checked]="isColumnEnabled(column.name)"
-                    (change)="toggleColumn(column.name)"
+                    (click)="onCheckboxClick($event)"
+                    (change)="onCheckboxChange(i, column.name, $event)"
                     [id]="'col-' + column.name"
+                    title="Shift-click to select a range"
                   />
                 </td>
 
@@ -130,7 +139,7 @@
                       <span class="missing-percent warn">({{ column.missingPercentage.toFixed(1) }}%)</span>
                     </div>
                   } @else {
-                    <span class="text-muted">—</span>
+                    <span class="missing-count-zero">0</span>
                   }
                 </td>
 

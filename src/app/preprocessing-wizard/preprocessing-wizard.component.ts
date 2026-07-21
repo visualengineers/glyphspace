@@ -60,7 +60,6 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
   currentStep = 0;
   highestStepVisited = 0; // Track highest step to enable forward navigation
   isProcessing = false;
-  error: string | null = null;
 
   // A14: When the user prefers reduced motion, the step 2 -> 3 morph is
   // skipped (Angular renders the switch instantly). Read once at init.
@@ -97,7 +96,6 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
         // subscription just tracks state; it no longer triggers the animation.
         this.currentStep = nextStep;
         this.isProcessing = state.isProcessing;
-        this.error = state.error;
 
         // Track highest step visited for navigation
         if (state.currentStep > this.highestStepVisited) {

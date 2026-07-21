@@ -3,6 +3,13 @@
 @use '../../../../styles/variables' as v;
 @use '../../../../styles/mixins' as m;
 
+// A6: invisible scroll anchor used by the review step's deep-links
+.scroll-anchor {
+  display: block;
+  height: 0;
+  scroll-margin-top: 12px;
+}
+
 .step4-visualization-settings {
   display: flex;
   flex-direction: column;
@@ -72,7 +79,14 @@
     .form-group {
       @include m.form-group;
 
-      select,
+      // Native select must read as a dropdown (chevron affordance), not a
+      // plain text input (C-S4-02).
+      select {
+        @include w.select;
+        width: 200px;
+        display: block;
+      }
+
       app-color-scale-selector {
         width: 200px;
         display: block;
@@ -707,6 +721,23 @@
         flex: 1 1 100%;
         min-width: 0;
 
+        // A3 / C-S4-05: field-near validation message (error class K4).
+        .param-inline-error {
+          display: flex;
+          align-items: flex-start;
+          gap: 5px;
+          margin-top: 5px;
+          font-size: 11px;
+          line-height: 1.4;
+          color: v.$status-error-dark;
+
+          .material-icons {
+            font-size: 14px;
+            color: #d64541;
+            flex-shrink: 0;
+          }
+        }
+
         label {
           display: flex;
           align-items: center;
@@ -759,13 +790,16 @@
 
   .projection-options-two-col {
     display: grid;
+    // Always side-by-side (columns left, methods right), even at narrower widths.
     grid-template-columns: 2fr 3fr;
     gap: 16px;
     align-items: start;
 
-    // Panels inside the grid should not add their own bottom margin
-    .config-panel {
+    // Panels inside the grid should not add their own bottom margin and must be
+    // allowed to shrink so long column names never force the grid to wrap.
+    > .config-panel {
       margin-bottom: 0;
+      min-width: 0;
     }
   }
 
@@ -773,6 +807,21 @@
     display: flex;
     flex-direction: column;
     max-height: 420px;
+
+    // A8: total dataset row count for context
+    .dataset-row-count {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      color: v.$gray-600;
+      margin: -4px 0 10px;
+
+      .material-icons {
+        font-size: 14px;
+        color: v.$gray-500;
+      }
+    }
 
     .projection-columns-header {
       @include w.list-header-row;
@@ -799,6 +848,28 @@
       }
     }
 
+    // Search + type filter (same visual language as the glyph feature filter)
+    .feature-filter-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+
+      .search-box {
+        @include w.search-box($padding: 4px 8px, $icon-size: 16px);
+        flex: 1;
+        min-width: 0;
+      }
+
+      .filter-select {
+        @include w.select;
+        font-size: 12px;
+        padding: 4px 24px 4px 8px;
+        flex-shrink: 0;
+        max-width: 120px;
+      }
+    }
+
     .projection-columns-list-header {
       @include w.list-header-row;
       gap: 8px;
@@ -822,6 +893,14 @@
         letter-spacing: 0.3px;
         text-transform: uppercase;
       }
+
+      .showing-count {
+        margin-left: auto;
+        font-size: 11px;
+        font-weight: 600;
+        color: v.$active-color;
+        white-space: nowrap;
+      }
     }
 
     .projection-columns-list {
@@ -833,16 +912,14 @@
       min-height: 0;
     }
 
+    // Compact row wrapper: holds the selectable row plus an optional details panel.
     .projection-column-item {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 5px 8px;
       border: 1px solid v.$gray-200;
       border-radius: 6px;
-      cursor: pointer;
       font-size: 12px;
-      transition: all 0.15s ease;
+      transition:
+        border-color 0.15s ease,
+        background 0.15s ease;
 
       &:hover {
         border-color: v.$gray-400;
@@ -853,9 +930,23 @@
         border-color: rgba(v.$active-color, 0.3);
       }
 
+      &.details-open {
+        border-color: rgba(v.$active-color, 0.3);
+      }
+
       &.excluded .col-name {
         color: v.$gray-500;
         text-decoration: line-through;
+      }
+
+      // The clickable row itself is dense (compact padding to save width).
+      .projection-column-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 3px 6px;
+        cursor: pointer;
+        margin: 0;
       }
 
       input[type='checkbox'] {
@@ -871,6 +962,88 @@
         font-weight: 500;
         color: v.$gray-800;
         @include m.text-truncate;
+      }
+
+      .btn-details-toggle {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 22px;
+        height: 22px;
+        padding: 0;
+        background: transparent;
+        border: none;
+        border-radius: 4px;
+        color: v.$gray-500;
+        cursor: pointer;
+        flex-shrink: 0;
+
+        .material-icons {
+          font-size: 18px;
+        }
+
+        &:hover {
+          color: v.$status-info;
+          background: rgba(v.$active-color, 0.1);
+        }
+      }
+
+      // Progressive-disclosure details: encoding / scaling / missing per column.
+      .projection-column-details {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        padding: 6px 8px 8px;
+        border-top: 1px dashed v.$gray-200;
+        margin-top: 2px;
+
+        .detail-row {
+          display: flex;
+          justify-content: space-between;
+          gap: 8px;
+
+          .detail-key {
+            color: v.$gray-500;
+            text-transform: uppercase;
+            font-size: 10px;
+            letter-spacing: 0.3px;
+          }
+
+          .detail-val {
+            color: v.$gray-800;
+            font-weight: 500;
+          }
+        }
+
+        .detail-hint {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          margin-top: 2px;
+          color: v.$gray-500;
+          font-size: 10px;
+
+          .material-icons {
+            font-size: 12px;
+          }
+        }
+      }
+    }
+
+    // Empty state when search/filter matches nothing
+    .available-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      padding: 16px 8px;
+      color: v.$gray-500;
+      font-size: 12px;
+
+      .btn-clear-inline {
+        @include w.btn-text;
+        font-size: 11px;
+        padding: 3px 8px;
       }
     }
 

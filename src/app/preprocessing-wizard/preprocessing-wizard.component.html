@@ -24,16 +24,6 @@
 
     <div class="wizard-main">
       <div class="wizard-content" #wizardContent>
-        @if (error) {
-          <div class="error-banner">
-            <span class="material-icons">error</span>
-            <span>{{ error }}</span>
-            <button class="btn-close" (click)="error = null">
-              <span class="material-icons">close</span>
-            </button>
-          </div>
-        }
-
         <div class="step-container">
           @switch (currentStep) {
             @case (0) {

@@ -27,19 +27,19 @@ Integrations-Branch `feature/wizard-redesign` von `main` abzweigen. Pro Ticket e
 | Ticket | Kurztitel | Typ | Status | Branch | Hauptort im Code |
 |--------|-----------|-----|--------|--------|------------------|
 | A1 | Fachbegriffe/Optionen erklären | Konzept | TODO | `feat/a1-erklaertexte` | `shared/constants/help-text.ts`, `shared/help-tooltip/`, Step 3+4 |
-| A2 | Voreinstellungen sichtbar/umkehrbar | Konzept | TODO | `feat/a2-smart-defaults` | Step 2+3, `services/preprocessing.service.ts` |
+| A2 | Voreinstellungen sichtbar/umkehrbar | Konzept | In Feature-Branch | `feat/a2-smart-defaults` | Step 2+3, `services/preprocessing.service.ts` |
 | A3 | Fehlermeldungen inline/verständlich | Konzept | TODO | `feat/a3-fehleranzeige` | Step 4+5 |
 | A4 | Undo/Zurücksetzen | Konzept | TODO | `feat/a4-undo-historie` | `services/preprocessing.service.ts`, Step 1+4 |
 | A5 | Zusammengehöriges gruppieren | Konzept | In Feature-Branch | `feat/a5-gruppierung` | Step 3+4 |
-| A6 | Review-Navigation (Direktsprünge) | Konzept | TODO | `feat/a6-direct-links` | Step 5, `shared/progress-stepper/` |
+| A6 | Review-Navigation (Direktsprünge) | Konzept | In Feature-Branch | `feat/a6-direct-links` | Step 5, `shared/progress-stepper/` |
 | A7 | Ehrliche/konsistente Signifier | trivial | TODO | `feat/a7-signifier` | Step 1/2/4, `shared/progress-stepper/` |
-| A8 | Systemstatus/Datenanzeige korrekt | trivial | TODO | `feat/a8-datenanzeige` | Step 2+4 |
-| A9 | Beschleuniger für Power-Nutzer | Konzept | TODO | `feat/a9-power-shortcuts` | Step 2/3/4 |
+| A8 | Systemstatus/Datenanzeige korrekt | trivial | In Feature-Branch | `feat/a8-datenanzeige` | Step 2+4 |
+| A9 | Beschleuniger für Power-Nutzer | Konzept | In Feature-Branch | `feat/a9-power-shortcuts` | Step 2/3/4 |
 | A10 | Layout gegen lange/viele Inhalte | Konzept | TODO | `feat/a10-layout-robust` | Step 1+4, `shared/_wizard-shared.scss` |
 | A11 | Technische Defekte beheben | trivial | TODO | `feat/a11-bugfixes` | siehe Ticket |
 | A12 | Zweispaltiges Layout | Konzept | In Feature-Branch | `feat/a12-two-column` | `preprocessing-wizard.component.*`, `shared/progress-stepper/` |
 | A13 | Schrittlogik klären/neu ordnen | Konzept | In Feature-Branch | `feat/a13-schrittlogik` | Step 2/3/4, `shared/constants/step-info.ts` |
-| A14 | Übergänge sichtbar (Animation) | Konzept | TODO | `feat/a14-animation` | Step 2↔3, `shared/data-preview-table/` |
+| A14 | Übergänge sichtbar (Animation) | Konzept | In Progress | `feat/a14-animation` | Step 2↔3, `shared/data-preview-table/` |
 | A15 | Einheitliches Tabellen/Listen-System | Konzept | In Feature-Branch | `feat/a15-table-system` | `shared/data-preview-table/`, Step 2/3/4 |
 
 ---
@@ -108,7 +108,7 @@ Quick Wins ohne Abhängigkeit, die sich parallel zum Fundament wegräumen lassen
 ---
 
 ## A2 – Voreinstellungen sichtbar und umkehrbar machen
-**Typ:** Konzept · **Miro:** Smart Defaults Button · **Status:** TODO · **Branch:** `feat/a2-smart-defaults`
+**Typ:** Konzept · **Miro:** Smart Defaults Button · **Status:** In Feature-Branch · **Branch:** `feat/a2-a9-defaults-power`
 **Befunde:** C-S2-01, C-S3-02, S-S3-01, P-S3-04
 
 **Problem:** Smart Defaults sind unsichtbar; unklar was automatisch gesetzt wurde; geänderte Defaults sind nicht reaktivierbar; in der Spaltenauswahl fehlt eine sinnvolle Vorauswahl.
@@ -116,7 +116,10 @@ Quick Wins ohne Abhängigkeit, die sich parallel zum Fundament wegräumen lassen
 **Wo umsetzen:**
 - Smart-Default-Logik/State in `services/preprocessing.service.ts` (Kennzeichnung „vom Default abweichend", Reset-Funktion).
 - Vorauswahl beim Spalten-Import in `steps/step2-column-selection/` (offensichtlich ungeeignete Spalten vorab abwählen; vgl. `missingPercentage > 50 || uniqueCount === 1`).
+- Vorauswahl erweitern um Hochkardinalität: Spalten mit (nahezu) 100 % Uniqueness (`uniqueCount === totalRows` bzw. `uniqueCount / totalRows` nahe 1 — typisch IDs, Titel, Namen, Freitext) beim Import automatisch abwählen, sichtbar gekennzeichnet und wie jeder Default umkehrbar. Ergänzt die bestehende Heuristik um den Fall, der bisher erst zur Laufzeit auffällt.
 - Sichtbare Kennzeichnung + „Smart Defaults zurücksetzen/erneut anwenden"-Button in `steps/step3-configure-data-features/` und `steps/step4-visualization-settings/`.
+
+**Bezug (aus A3 / Fehlerklasse K7):** In A3 wurde der *reaktive* Teil dieses Problems abgedeckt — der Prozessor bricht bei einer One-Hot-Explosion früh und verständlich ab (`src/assets/preprocessing_processor_config.py`, Schwelle `MAX_ONEHOT_UNIQUE`), und die Fehlerklasse K7 (`shared/constants/wizard-error-classes.ts`) benennt die betroffenen Spalten und schlägt Abwählen bzw. Label-Encoding vor. Konkreter Auslöser war `streaming_titles.csv` mit fünf pro Zeile einzigartigen Spalten (`show_id`, `title`, `director`, `cast`, `description`): One-Hot hätte daraus ~43.750 Spalten erzeugt und den (Pyodide-)Speicher gesprengt. A2 soll denselben Fall *proaktiv* entschärfen — solche Spalten gar nicht erst standardmäßig aktiv lassen, statt den Nutzer erst im Fehlerfall (K7) gegensteuern zu lassen.
 
 ---
 
@@ -163,7 +166,7 @@ Quick Wins ohne Abhängigkeit, die sich parallel zum Fundament wegräumen lassen
 ---
 
 ## A6 – Navigation und Bearbeitung im Review-Schritt
-**Typ:** Konzept · **Miro:** Direct Links · **Status:** TODO · **Branch:** `feat/a6-direct-links`
+**Typ:** Konzept · **Miro:** Direct Links · **Status:** In Feature-Branch · **Branch:** `feat/a6-a8-review-datenanzeige`
 **Befunde:** C-S5-01, S-S5-01
 
 **Problem:** Im Review lässt sich nichts direkt bearbeiten; Nutzer müssen sich merken, in welchem Schritt eine Einstellung lag.
@@ -188,7 +191,7 @@ Quick Wins ohne Abhängigkeit, die sich parallel zum Fundament wegräumen lassen
 ---
 
 ## A8 – Systemstatus und Datenanzeige korrekt sichtbar machen
-**Typ:** trivial · **Miro:** — · **Status:** TODO · **Branch:** `feat/a8-datenanzeige`
+**Typ:** trivial · **Miro:** — · **Status:** In Feature-Branch · **Branch:** `feat/a6-a8-review-datenanzeige`
 **Befunde:** C-S4-06, C-S2-03
 
 **Problem:** Zeilenanzahl ohne Gesamtkontext; fehlende Werte als „-" statt „0".
@@ -200,7 +203,7 @@ Quick Wins ohne Abhängigkeit, die sich parallel zum Fundament wegräumen lassen
 ---
 
 ## A9 – Beschleuniger für Power-Nutzer
-**Typ:** Konzept · **Miro:** Glyph Feature Search Filter · **Status:** TODO · **Branch:** `feat/a9-power-shortcuts`
+**Typ:** Konzept · **Miro:** Glyph Feature Search Filter · **Status:** In Feature-Branch · **Branch:** `feat/a2-a9-defaults-power`
 **Befunde:** P-S2-02, P-S3-02, P-S3-03, P-S4-01
 
 **Problem:** Fehlende Tastenkürzel (Shift-Klick, Strg+F), keine gemeinsame Bearbeitung gleichartiger Spalten, kein „alle auswählen" bei aktivem Filter, keine Drag-and-drop-Reihenfolge der Features.
@@ -264,7 +267,7 @@ Quick Wins ohne Abhängigkeit, die sich parallel zum Fundament wegräumen lassen
 ---
 
 ## A14 – Übergänge zwischen den Schritten sichtbar machen
-**Typ:** Konzept · **Miro:** Animation · **Status:** TODO · **Branch:** `feat/a14-animation`
+**Typ:** Konzept · **Miro:** Animation · **Status:** In Progress · **Branch:** `feat/a14-animation`
 **Befund:** K-03
 
 **Problem:** Zusammenhang der Tabellen von Schritt 2 und 3 nicht sichtbar; unklar, wie die Auswahl übernommen wird.
