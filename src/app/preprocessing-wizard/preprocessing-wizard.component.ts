@@ -169,20 +169,21 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
     }
 
     const startWidth = table.getBoundingClientRect().width;
+    const coverWidth = Math.max(0, startWidth - WIZARD_RAIL_WIDTH);
 
-    // Keep the box at full width but give it the grey detail-well tone and grow
-    // its right padding: the table (kept at its natural width, clipped by overflow
-    // hidden) is squeezed to the rail width from the right, and the vacated area
-    // shows the box's own grey. Because the table fully covers the box at the
-    // start, the grey is only ever revealed BY the collapse — never a white flash,
-    // and no surrounding element changes colour (so no white->grey->white). This
-    // element is destroyed at the swap, so nothing needs resetting.
-    gsap.set(table, {
-      backgroundColor: '#eceff2',
-      overflow: 'hidden',
-      width: startWidth,
-      boxSizing: 'border-box',
-    });
+    // A grey panel (same tone as Step 3's detail well) slides in from the right
+    // over the stat columns. Using a translated overlay means the collapse is a
+    // pure transform (GPU-composited) — the table itself never re-lays-out, so no
+    // per-frame reflow / lag (unlike animating width or padding). The overlay is
+    // part of the doomed Step 2 DOM, so it needs no cleanup after the swap.
+    gsap.set(table, { overflow: 'hidden', position: 'relative' });
+    const cover = document.createElement('div');
+    cover.style.cssText =
+      `position:absolute;top:0;right:0;bottom:0;width:${coverWidth}px;` +
+      // z-index above the sticky table header (z-index 10) so nothing shows
+      // through the grey panel.
+      `background:#eceff2;will-change:transform;pointer-events:none;z-index:15;`;
+    table.appendChild(cover);
 
     const timeline = gsap.timeline({
       onComplete: () => {
@@ -196,15 +197,10 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
     });
     timeline.timeScale(MORPH_TIMESCALE);
 
-    // Grow the right padding so the visible table width shrinks to the rail width
-    // -> the stat columns are clipped off the right in one directed right-to-left
-    // wave, revealing the box's grey where the detail well will slide in.
-    timeline.fromTo(
-      table,
-      { paddingRight: 0 },
-      { paddingRight: Math.max(0, startWidth - WIZARD_RAIL_WIDTH), duration: 0.6, ease: 'power2.inOut' },
-      0
-    );
+    // Slide the grey panel from fully off to the right (revealing nothing) to
+    // covering the stat columns down to the rail width -> one directed
+    // right-to-left wave, matching where the detail well then slides in.
+    timeline.fromTo(cover, { xPercent: 100 }, { xPercent: 0, duration: 0.6, ease: 'power2.inOut' }, 0);
   }
 
   /**
