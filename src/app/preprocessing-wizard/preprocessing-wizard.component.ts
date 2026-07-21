@@ -59,13 +59,6 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
     typeof window.matchMedia === 'function' &&
     window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  // A14: Runtime geometry captured just before the step2 -> step3 swap so Phase 2
-  // can animate the *measured* differences away instead of relying on hard-coded
-  // pixels: the bordered box height, the y of the first table row (to glide the
-  // rail list into place) and the Flip state of the search box + type filter.
-  private morphOldHeight = 0;
-  private morphRowTop = 0;
-
   // Labels and descriptions come from STEP_INFO so the sidebar stays the single
   // source of truth for step titles/purposes (no duplication in the work area).
   steps: Step[] = Object.keys(STEP_INFO)
@@ -154,17 +147,13 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * A14 Phase 1: collapse Step 2 on the *live* table (before the component swap),
-   * so the movement reads as one directed wave from right to left. The table
-   * narrows from full width to the measured left-band width (checkbox + name +
-   * missing); the stat columns are clipped off the right edge (overflow hidden).
-   * The whole top bar (search + filter + selection chip) and the table header
-   * fade out toward the end of the collapse; Step 3's rail header fades in in
-   * Phase 2, so the header change is a soft cross-fade across the swap instead of
-   * a hard vanish/reappear. (A true width glide is impossible here: Step 3's rail
-   * box is only the rail width with overflow hidden, so a full-width search box
-   * would just be clipped.) We also capture the box height and the first row's y
-   * so Phase 2 can animate those exact deltas away.
+   * A14 Phase 1: collapse Step 2 on the *live* table (before the component swap).
+   * The only motion is horizontal: the table narrows from full width to the rail
+   * width, clipping the stat columns off the right edge (overflow hidden). In the
+   * second half the whole Step 2 content (table + top bar) fades out, so Step 3
+   * can cross-fade in during Phase 2. No vertical motion is introduced, since the
+   * two boxes share the same height and any residual position difference is
+   * absorbed by the cross-fade rather than a (jarring) vertical glide.
    */
   private collapseStep2Then(proceed: () => void): void {
     const container = this.stepContainer;
@@ -175,26 +164,13 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // Collapse to the SAME width Step 3's rail uses (one shared token, so the
-    // box width does not pop at the swap). Only genuinely layout-dependent values
-    // (row-top, box height) are measured at runtime below.
-    const firstRow = table.querySelector<HTMLElement>('tbody tr.column-row');
-    this.morphRowTop = firstRow ? firstRow.getBoundingClientRect().top : 0;
-
     const startWidth = table.getBoundingClientRect().width;
-    const thead = table.querySelector<HTMLElement>('thead');
 
-    const timeline = gsap.timeline({
-      onComplete: () => {
-        // Height of the bordered box right before Step 3 replaces it; Phase 2
-        // tweens from here to Step 3's natural box height (no vertical jump).
-        this.morphOldHeight = table.getBoundingClientRect().height;
-        proceed();
-      },
-    });
+    const timeline = gsap.timeline({ onComplete: proceed });
     timeline.timeScale(MORPH_TIMESCALE);
 
-    // The table narrows to the rail width; stat columns are wiped off the right.
+    // The table narrows to the rail width (shared token); stat columns are wiped
+    // off the right edge -> the one directed right-to-left wave.
     timeline.fromTo(
       table,
       { width: startWidth, overflow: 'hidden' },
@@ -202,27 +178,23 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
       0
     );
 
-    // Top bar (search + filter + chip) and the table header fade out in the
-    // second half of the collapse; Step 3's rail header fades in in Phase 2, so
-    // the header change reads as a soft cross-fade across the swap rather than a
-    // hard vanish/reappear.
-    const fading = [actions, thead].filter((el): el is HTMLElement => !!el);
-    if (fading.length) {
-      timeline.to(fading, { autoAlpha: 0, duration: 0.3, ease: 'power1.in' }, 0.3);
-    }
+    // Second half: Step 2 content fades out (cross-fades with Step 3 in Phase 2).
+    const fading = [table, actions].filter((el): el is HTMLElement => !!el);
+    timeline.to(fading, { autoAlpha: 0, duration: 0.3, ease: 'power1.in' }, 0.3);
   }
 
   /**
-   * A14 Phase 2: after Angular has rendered Step 3, animate away the *measured*
-   * differences so nothing jumps: the rail header fades in (cross-fading the old
-   * top bar); the rail list slides up from the old row position; the bordered box
-   * grows from the old height to its natural one; and the detail well slides in
-   * from the right.
+   * A14 Phase 2: after Angular has rendered Step 3, cross-fade the config shell in
+   * (completing the dissolve from Step 2) and slide the detail well in from the
+   * right. The only motion is the horizontal detail slide; the rail simply fades,
+   * so there is no vertical jump/glide. The two step boxes share the same height,
+   * so the box does not grow.
    */
   private runDetailEntrance(): void {
-    // setTimeout(0) fires after Angular's change detection has swapped the DOM,
-    // mirroring the existing scrollToTop pattern.
-    setTimeout(() => {
+    // requestAnimationFrame (not setTimeout) so the entering elements are set to
+    // their hidden start state BEFORE the browser first paints Step 3 -> no white
+    // flash of the fully-rendered step between the swap and the animation start.
+    requestAnimationFrame(() => {
       const container = this.stepContainer;
       if (!container) {
         return;
@@ -231,47 +203,20 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
       const timeline = gsap.timeline();
       timeline.timeScale(MORPH_TIMESCALE);
 
-      // Rail header fades in, completing the cross-fade started in Phase 1.
-      const railHeader = container.querySelector<HTMLElement>('.rail-header');
-      if (railHeader) {
-        timeline.from(railHeader, { autoAlpha: 0, duration: 0.35, ease: 'power1.out' }, 0);
+      // The whole config shell fades in, cross-fading with the faded-out Step 2
+      // content -> the header/rows change reads as a dissolve, not a hard pop.
+      const shell = container.querySelector<HTMLElement>('.config-shell');
+      if (shell) {
+        timeline.from(shell, { autoAlpha: 0, duration: 0.35, ease: 'power1.out' }, 0);
       }
 
-      // Rail list slides up from where the Step 2 rows sat (measured delta), so
-      // the column names do not jump down by the rail-header height difference.
-      const list = container.querySelector<HTMLElement>('.column-list');
-      if (list) {
-        const delta = this.morphRowTop - list.getBoundingClientRect().top;
-        timeline.from(list, { y: delta, autoAlpha: 0, duration: 0.5, ease: 'power2.out' }, 0);
-      }
-
-      // The bordered box grows from the collapsed Step 2 height to Step 3's.
-      const box = container.querySelector<HTMLElement>('.config-shell');
-      if (box) {
-        const natural = box.getBoundingClientRect().height;
-        if (this.morphOldHeight > 0 && Math.abs(this.morphOldHeight - natural) > 1) {
-          timeline.fromTo(
-            box,
-            { height: this.morphOldHeight },
-            {
-              height: natural,
-              duration: 0.6,
-              ease: 'power2.inOut',
-              onComplete: () => {
-                box.style.height = '';
-              },
-            },
-            0
-          );
-        }
-      }
-
-      // The detail/config well slides in from the right as one block.
+      // The detail/config well slides in from the right as one block (the liked
+      // right-to-left motion); its fade rides on the shell fade above.
       const well = container.querySelector('.detail-well');
       if (well) {
-        timeline.from(well, { xPercent: 40, autoAlpha: 0, duration: 0.6, ease: 'power2.out' }, 0.1);
+        timeline.from(well, { xPercent: 40, duration: 0.6, ease: 'power2.out' }, 0.1);
       }
-    }, 0);
+    });
   }
 
   ngOnDestroy(): void {
