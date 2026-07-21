@@ -197,6 +197,24 @@ export class Step5ReviewProcessingComponent implements OnInit, OnDestroy {
     });
   }
 
+  /** Minimum time the loading hero stays on screen so a fast run -- or a fast
+   *  failure -- is actually perceivable instead of a one-frame flash. */
+  private readonly MIN_LOADING_MS = 600;
+
+  /** Resolve after the browser has had a chance to paint, so a state change
+   *  made right before heavy work is rendered first. */
+  private paintYield(): Promise<void> {
+    return new Promise<void>(resolve => requestAnimationFrame(() => setTimeout(resolve, 0)));
+  }
+
+  /** Hold until the loading hero has been visible for at least MIN_LOADING_MS. */
+  private async ensureMinVisible(startedAt: number): Promise<void> {
+    const remaining = this.MIN_LOADING_MS - (performance.now() - startedAt);
+    if (remaining > 0) {
+      await new Promise<void>(resolve => setTimeout(resolve, remaining));
+    }
+  }
+
   async startProcessing(): Promise<void> {
     this.resetProcessingState();
     this.showProcessing = true;
@@ -210,6 +228,11 @@ export class Step5ReviewProcessingComponent implements OnInit, OnDestroy {
         this.cdr.detectChanges();
       },
     });
+
+    // Keep the loading hero visible for a perceptible minimum, measured from
+    // here, and let the browser paint it before the heavy work begins.
+    const startedAt = performance.now();
+    await this.paintYield();
 
     try {
       await this.preprocessingService.processData();
@@ -228,6 +251,7 @@ export class Step5ReviewProcessingComponent implements OnInit, OnDestroy {
 
       await this.preprocessingService.addProjectionPositions('fastmap', fastmapResult.positions);
 
+      await this.ensureMinVisible(startedAt);
       this.ngZone.run(() => {
         this.processingProgress = 100;
         this.processingStep = `Dataset loaded with FastMap (${fastmapResult.computeTime}ms)`;
@@ -239,6 +263,7 @@ export class Step5ReviewProcessingComponent implements OnInit, OnDestroy {
       this.startBackgroundProjections(features, ids);
     } catch (error: unknown) {
       console.error('Processing failed:', error);
+      await this.ensureMinVisible(startedAt);
       this.ngZone.run(() => {
         const raw = error instanceof Error ? error.message : String(error);
         this.error = raw;

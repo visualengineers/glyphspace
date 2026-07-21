@@ -18,7 +18,7 @@ import {
 
 /**
  * A3 — unit tests for the error-classification and pre-flight-detection logic.
- * Covers the six user-relevant failure classes (K1–K6), the generic fallback,
+ * Covers the user-relevant failure classes (K1–K7), the generic fallback,
  * background (partial) failures and state-derived pre-flight warnings.
  */
 
@@ -78,6 +78,13 @@ describe('classifyProcessingError', () => {
       step: 3,
       anchorId: 'wizard-anchor-methods',
     },
+    {
+      name: 'K7 — column with too many distinct values (one-hot explosion)',
+      raw: "These columns have too many distinct values to one-hot encode: 'title' (9000 distinct values).",
+      code: 'K7',
+      step: 1,
+      anchorId: 'wizard-anchor-columns',
+    },
   ];
 
   cases.forEach(c => {
@@ -95,6 +102,36 @@ describe('classifyProcessingError', () => {
   it('is case-insensitive on the raw message', () => {
     expect(classifyProcessingError('COULD NOT CONVERT STRING to float').code).toBe('K1');
     expect(classifyProcessingError('Out Of Memory').code).toBe('K6');
+  });
+
+  it('K7 names the offending column and wins over the generic memory class', () => {
+    const raw =
+      "Failed to process data: These columns have too many distinct values to one-hot encode: " +
+      "'title' (9000 distinct values). Each would expand into that many feature columns, which " +
+      "exceeds the in-browser memory. Deselect them in the column step, or switch their encoding to label.";
+    const issue = classifyProcessingError(raw);
+    // Even though the raw mentions "memory" (would match K6), the more specific
+    // K7 is checked first and wins.
+    expect(issue.code).toBe('K7');
+    expect(issue.step).toBe(1);
+    expect(issue.anchorId).toBe('wizard-anchor-columns');
+    expect(issue.title).toContain('title');
+    expect(issue.why).toContain('title');
+    expect(issue.why).toContain('9000');
+    expectActionable(issue, raw);
+  });
+
+  it('K7 lists every offending column when several are near-unique', () => {
+    const raw =
+      "These columns have too many distinct values to one-hot encode: " +
+      "'show_id' (9000 distinct values), 'title' (9000 distinct values), 'cast' (8281 distinct values).";
+    const issue = classifyProcessingError(raw);
+    expect(issue.code).toBe('K7');
+    expect(issue.title).toContain('3 columns');
+    expect(issue.why).toContain('show_id');
+    expect(issue.why).toContain('title');
+    expect(issue.why).toContain('cast');
+    expectActionable(issue, raw);
   });
 
   it('falls back to a generic, still-actionable blocking issue for unmatched errors', () => {

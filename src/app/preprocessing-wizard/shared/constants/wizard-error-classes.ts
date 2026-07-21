@@ -103,6 +103,15 @@ const CLASS_TEMPLATES: Record<string, Omit<WizardIssue, 'raw'>> = {
     step: 3,
     anchorId: 'wizard-anchor-methods',
   },
+  K7: {
+    code: 'K7',
+    severity: 'blocking',
+    title: 'A column has too many distinct values to encode',
+    why: 'A selected text column has almost as many different values as there are rows (typical of an ID, title, name or free-text field). Encoding it would expand the data into thousands of columns — more than the in-browser engine can hold in memory.',
+    fix: 'Deselect that column in Step 2 (Select Columns), or set its encoding to Label in Step 3 (Configure Data & Features).',
+    step: 1,
+    anchorId: 'wizard-anchor-columns',
+  },
 };
 
 function template(code: string): WizardIssue {
@@ -118,7 +127,20 @@ export function classifyProcessingError(raw: string): WizardIssue {
   const msg = (raw || '').toLowerCase();
   let issue: WizardIssue;
 
-  if (/timed out|timeout|out of memory|memory|aborted/.test(msg)) {
+  if (/too many distinct values to one-?hot encode/.test(msg)) {
+    // K7 must be checked before K6: the underlying failure is a memory error,
+    // but the specific cause (a near-unique column blown up by one-hot) has a
+    // much more actionable fix than the generic "resource limit" advice.
+    issue = template('K7');
+    const pairs = [...raw.matchAll(/'([^']+)' \((\d+) distinct values\)/g)].map(m => `${m[1]} (${m[2]})`);
+    if (pairs.length === 1) {
+      issue.title = `The column ${pairs[0]} has too many distinct values`;
+      issue.why = `This column has almost as many different values as there are rows (typical of an ID, title, name or free-text field): ${pairs[0]}. Encoding it would expand the data into that many columns — more than the in-browser engine can hold in memory.`;
+    } else if (pairs.length > 1) {
+      issue.title = `${pairs.length} columns have too many distinct values`;
+      issue.why = `These columns have almost as many different values as there are rows (typical of IDs, titles, names or free-text): ${pairs.join(', ')}. Encoding them would expand the data into thousands of columns — more than the in-browser engine can hold in memory.`;
+    }
+  } else if (/timed out|timeout|out of memory|memory|aborted/.test(msg)) {
     issue = template('K6');
   } else if (/invalid numeric value|could not convert|non-?numeric|not a number|isnan|convert string/.test(msg)) {
     issue = template('K1');
