@@ -212,12 +212,27 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
    */
   private animateStep3Entrance(): void {
     const container = this.stepContainer;
-    const well = container?.querySelector<HTMLElement>('.detail-well');
-    if (!well) {
+    if (!container) {
       return;
     }
-    const tween = gsap.from(well, { xPercent: 40, duration: 0.6, ease: 'power2.out' });
-    tween.timeScale(MORPH_TIMESCALE);
+
+    const timeline = gsap.timeline();
+    timeline.timeScale(MORPH_TIMESCALE);
+
+    // Rail header (search + type filter) slides down from above into its slot,
+    // instead of just appearing. It starts translated fully up (clipped by the
+    // config-shell's overflow:hidden) so it emerges from the top edge. Transform
+    // only -> smooth; the start state is applied synchronously before the paint.
+    const railHeader = container.querySelector<HTMLElement>('.rail-header');
+    if (railHeader) {
+      timeline.from(railHeader, { yPercent: -100, duration: 0.5, ease: 'power2.out' }, 0);
+    }
+
+    // The detail/config well slides in from the right as one block.
+    const well = container.querySelector<HTMLElement>('.detail-well');
+    if (well) {
+      timeline.from(well, { xPercent: 40, duration: 0.6, ease: 'power2.out' }, 0);
+    }
   }
 
   ngOnDestroy(): void {
