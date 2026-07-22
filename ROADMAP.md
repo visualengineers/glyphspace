@@ -48,6 +48,7 @@ Integrations-Branch `feature/wizard-redesign` von `main` abzweigen. Pro Ticket e
 - Offen (TODO): keine.
 - Nächster Schritt: `feature/wizard-redesign` nach `main` mergen; danach werden alle Tickets auf `Finished` gesetzt.
 - Gebündelt umgesetzt: A7+A10 in `feat/a10-a7-polish`; A1+A11 in `feat/a1-a11-erklaerungen-defekte`.
+- Doku: Jedes Ticket hat einen „Umgesetzt"-Abschnitt mit PR-Verweis. Die Abschnitte für A2–A10 und A12–A15 wurden nach dem Merge aus Code und PR-Beschreibungen abgeleitet (A1/A11 direkt aus der Umsetzung).
 
 ---
 
@@ -136,6 +137,13 @@ Quick Wins ohne Abhängigkeit, die sich parallel zum Fundament wegräumen lassen
 
 **Bezug (aus A3 / Fehlerklasse K7):** In A3 wurde der *reaktive* Teil dieses Problems abgedeckt — der Prozessor bricht bei einer One-Hot-Explosion früh und verständlich ab (`src/assets/preprocessing_processor_config.py`, Schwelle `MAX_ONEHOT_UNIQUE`), und die Fehlerklasse K7 (`shared/constants/wizard-error-classes.ts`) benennt die betroffenen Spalten und schlägt Abwählen bzw. Label-Encoding vor. Konkreter Auslöser war `streaming_titles.csv` mit fünf pro Zeile einzigartigen Spalten (`show_id`, `title`, `director`, `cast`, `description`): One-Hot hätte daraus ~43.750 Spalten erzeugt und den (Pyodide-)Speicher gesprengt. A2 soll denselben Fall *proaktiv* entschärfen — solche Spalten gar nicht erst standardmäßig aktiv lassen, statt den Nutzer erst im Fehlerfall (K7) gegensteuern zu lassen.
 
+**Umgesetzt (PR #78, `feat/a2-a9-defaults-power`):**
+- Smart Defaults werden im Service aus `DATA_TYPE_CONFIG` abgeleitet (`getColumnDefaults`, `createDefaultColumnConfig` in `services/preprocessing.service.ts`); das alte „Smart defaults applied"-Banner in Schritt 3 wurde entfernt.
+- Abweichungserkennung je Einstellung in `steps/step3-configure-data-features/` (`isEncodingModified`, `isScalingModified`, `isMissingModified`, `isOutlierModified`, Sammel-Flag `isColumnModified`) mit sichtbarer Kennzeichnung.
+- Umkehrbarkeit: Reset je Einstellung (`resetEncoding/Scaling/Missing/Outliers`) plus „Reset to defaults" für die ganze Spalte (`resetColumnToDefault`).
+- Proaktive Vorauswahl beim Import: `createDefaultColumnConfig` setzt `enabled: !hasIssues` mit `hasIssues = missingPercentage > 50 || uniqueCount === 1`; solche Spalten starten abgewählt und sind in Schritt 2 reaktivierbar (entschärft One-Hot-Explosion proaktiv, Bezug K7).
+- Nicht umgesetzt: die zusätzlich geplante Hochkardinalitäts-Heuristik (`uniqueCount ≈ totalRows`, typische IDs/Freitext) fehlt in `hasIssues` — vorab abgewählt werden nur konstante bzw. überwiegend leere Spalten.
+
 ---
 
 ## A3 – Fehlermeldungen inline, verständlich und lösungsorientiert
@@ -148,6 +156,13 @@ Quick Wins ohne Abhängigkeit, die sich parallel zum Fundament wegräumen lassen
 - Feldnahe Inline-Validierung in `steps/step4-visualization-settings/` (Fehler am jeweiligen Parameter).
 - Verständliche, dauerhaft sichtbare Fehlermeldung im Review/Processing: `steps/step5-review-processing/` (Ursache + Lösung, kein verschwindendes Popup).
 - Analysegrundlage: `fehlerbehandlung-wizard-analyse.html`, `fehlerklassen-ableitbarkeit.html`.
+
+**Umgesetzt (PR #81, `feat/a3-fehleranzeige`):**
+- Neues Fehlerklassen-Modell in `shared/constants/wizard-error-classes.ts` (mit Spec): klassifiziert Worker-Fehler in verständliche, lösungsorientierte Meldungen (u. a. K4, K7).
+- Ursachen-Fix in `services/data-processor.ts`: Worker-Fehler werden als echte `Error` (statt String) weitergereicht, damit die Ursache erhalten bleibt; `clearError()` gegen den beim Wiedereinstieg „klebenden" Fehler.
+- Persistent Result Screen in `steps/step5-review-processing/` mit fünf Zuständen (Review/Pre-flight, Processing, blockierender Fehler, Partial, Success), „Your work is saved"-Pill und Methoden-Statusleiste; `ngOnInit` stellt Ergebnis/Fehler nach Wiedereinstieg wieder her (deckt P-S5-02/03 mit ab).
+- „Fix in Schritt N"-Sprung aus dem Fehlerscreen (über die A6-Sprunglogik) plus Toast.
+- Feldnahe Inline-Validierung in `steps/step4-visualization-settings/` (Meldung direkt unter den betroffenen Parametern bei K4; Glyph-Panel flaggt „zu viele" > 12).
 
 ---
 
@@ -179,6 +194,12 @@ Quick Wins ohne Abhängigkeit, die sich parallel zum Fundament wegräumen lassen
 
 **Hinweis:** Der Befund zu unerklärten Farbabweichungen bzw. zur „Farbauswahl" passt inhaltlich nicht zu A5 und wird nach A1 verschoben; dort ist er über einen erklärenden Text statt über ein Farb-Steuerelement zu lösen.
 
+**Umgesetzt (PR #74, `feat/a5-gruppierung`):**
+- Projektionsparameter liegen jetzt in der jeweiligen Methodenbox in `steps/step4-visualization-settings/` (Aufklapp-Button `btn-expand-params` → `toggleMethodParams`, Zustand `expandedMethodParams`/`isMethodParamsExpanded`).
+- In-place-Aufklappen: animierte Höhe bei konstanter Breite über `.params-wrapper`/`.params-clip` (Kollaps auf `0fr`); im geschlossenen Zustand vollständig zu.
+- Reset je Box: `resetMethodParams(method)`, Button nur aktiv bei Abweichung (`methodParamsChanged`).
+- Der Schritt-3-Tabellenteil wurde wie im Hinweis vermerkt nicht hier, sondern über A15 behandelt.
+
 ---
 
 ## A6 – Navigation und Bearbeitung im Review-Schritt
@@ -190,6 +211,11 @@ Quick Wins ohne Abhängigkeit, die sich parallel zum Fundament wegräumen lassen
 **Wo umsetzen:**
 - Direktsprünge je Einstellungsblock in `steps/step5-review-processing/step5-review-processing.component.html`.
 - Sprung-/Aktivierungslogik in `preprocessing-wizard.component.ts` bzw. `shared/progress-stepper/` (gezielt zu Schritt X wechseln).
+
+**Umgesetzt (PR #79, `feat/a6-a8-review-datenanzeige`):**
+- Pro Summary-Card in `steps/step5-review-processing/step5-review-processing.component.html` ein Edit-Icon-Button → `editSetting(step, anchorId)` → `goToStepWithScroll(...)`.
+- Scroll-to-Target über `scrollTargetSubject` (BehaviorSubject) in `preprocessing-wizard.component.ts`/`services/preprocessing.service.ts`; der Zielschritt scrollt per `scrollIntoView` zu unsichtbaren `scroll-anchor`-Ankern (additiv, keine URL-Deep-Links).
+- Mapping: Columns → Schritt 2; Projection Features / Color / Glyph / Methods → Schritt 4 (jeweiliges Panel).
 
 ---
 
@@ -204,6 +230,12 @@ Quick Wins ohne Abhängigkeit, die sich parallel zum Fundament wegräumen lassen
 - Auswahlfeld-Optik (Select statt Eingabe): `steps/step4-visualization-settings/`.
 - „Select All"-Zustand: `steps/step2-column-selection/`.
 
+**Umgesetzt (PR #80, `feat/a10-a7-polish`, gebündelt mit A10):**
+- Progress-Stepper: erreichbare/besuchte Schritte erscheinen in Akzent-Cyan statt ausgegraut, nur echte Zukunftsschritte bleiben grau (`shared/progress-stepper/progress-stepper.component.scss` + `.ts`).
+- Step 4: COLOR-ATTRIBUTE-Feld als Select mit Chevron gestaltet (nicht mehr wie ein Texteingabefeld), einheitliche Chevrons.
+- „Select All" (Step 2): Tri-State (indeterminate/checked) war bereits durch A9 korrekt — verifiziert, keine Änderung nötig.
+- C-S3-03 (unerklärte Farbabweichungen) bewusst ausgelassen; laut ROADMAP nach A1 verschoben und dort per Erklärtext behandelt.
+
 ---
 
 ## A8 – Systemstatus und Datenanzeige korrekt sichtbar machen
@@ -215,6 +247,10 @@ Quick Wins ohne Abhängigkeit, die sich parallel zum Fundament wegräumen lassen
 **Wo umsetzen:**
 - „-"→„0" bei fehlenden Werten: `steps/step2-column-selection/` bzw. `shared/data-preview-table/` (Missing-Spalte).
 - Zeilenanzahl im Gesamtkontext anzeigen: `steps/step4-visualization-settings/`.
+
+**Umgesetzt (PR #79, `feat/a6-a8-review-datenanzeige`, gebündelt mit A6):**
+- Missing-Count „—" → „0" gezielt nur in der Statistikspalte von `steps/step2-column-selection/`; Rohdatenzellen (`shared/data-preview-table/`) und Distribution-„—" bewusst unverändert.
+- Zeilenanzahl im Gesamtkontext: „N rows in dataset" (mit Tausendertrennung) im Projektionspanel von `steps/step4-visualization-settings/` (über das bestehende `getDatasetRowCount()`).
 
 ---
 
@@ -230,6 +266,13 @@ Quick Wins ohne Abhängigkeit, die sich parallel zum Fundament wegräumen lassen
 - Drag-and-drop-Reihenfolge der Features: `steps/step4-visualization-settings/`.
 - Such-/Filterfeld als Navigationshilfe (Miro „Glyph Feature Search Filter").
 
+**Umgesetzt (PR #78, `feat/a2-a9-defaults-power`):**
+- Shift-Klick-Range-Select in `steps/step2-column-selection/` (`pendingShift`/`lastCheckedIndex`, über die gefilterte Liste).
+- „Alle gefilterten auswählen": Select-All und Tri-State beziehen sich auf `filteredColumns`.
+- Bulk-Umstellung gleichartiger Spalten in `steps/step3-configure-data-features/` („Apply to all N <Type> columns" mit Vorschau-Liste und Bestätigung).
+- Drag-and-drop-Reihenfolge der Features in `steps/step4-visualization-settings/` (native DnD, `drag_indicator`-Handle; als eine Undo-Aktion).
+- Such-/Filterfeld in Schritt 2 und 3 plus Tastenkürzel `/`, das das Suchfeld fokussiert (ignoriert Eingaben in Feldern).
+
 ---
 
 ## A10 – Layout gegen lange Inhalte und viele Elemente absichern
@@ -241,6 +284,11 @@ Quick Wins ohne Abhängigkeit, die sich parallel zum Fundament wegräumen lassen
 **Wo umsetzen:**
 - Umbruch/Kürzung mit Tooltip für langen Text: `shared/_wizard-shared.scss`, `steps/step1-upload/`.
 - Platzsparende, durchsuchbare Feature-Liste: `steps/step4-visualization-settings/` (gemeinsam mit A9-Suchfeld).
+
+**Umgesetzt (PR #80, `feat/a10-a7-polish`, gebündelt mit A7):**
+- Step 1: Dateiname in der Stat-Card kürzt per Ellipsis und zeigt den vollen Namen als `[title]`-Tooltip, bricht nicht mehr aus dem Grid (`steps/step1-upload/`, Truncation-Mixin in `src/styles/_mixins.scss`).
+- `[title]`-Tooltips an Header- und Zellnamen der Data-Preview-Tabelle (`shared/data-preview-table/`) sowie an Feature-/Projektions-Spaltennamen in Step 4.
+- Die platzsparende, durchsuchbare Feature-Liste (Kern von P-S1-01/C-S4-11) wurde bereits über A15 umgesetzt; der A10-Restumfang war entsprechend klein.
 
 ---
 
@@ -275,6 +323,12 @@ Quick Wins ohne Abhängigkeit, die sich parallel zum Fundament wegräumen lassen
 - Grundlayout (Navigation links, Arbeitsbereich rechts): `preprocessing-wizard.component.html` + `.scss`.
 - Schritt-Navigation an den linken Rand: `shared/progress-stepper/`.
 
+**Umgesetzt (PR #72, `feat/a12-two-column`):**
+- Zweispaltiges Grundlayout in `preprocessing-wizard.component.html`/`.scss`: linke `wizard-sidebar` mit `app-progress-stepper` (Schritt-Navigation am linken Rand), rechts der Arbeitsbereich.
+- Navigationsleiste `.wizard-nav` in den rechten Arbeitsbereich integriert (nicht mehr über die volle Breite).
+- Redundante Schritt-Header aus den Steps entfernt; die Purpose-/Beschreibungstexte in die Sidebar verlagert.
+- Nutzt weiterhin die bestehende `shared/progress-stepper/`-Komponente (kein Neubau).
+
 ---
 
 ## A13 – Schrittlogik klären und neu ordnen
@@ -288,6 +342,12 @@ Quick Wins ohne Abhängigkeit, die sich parallel zum Fundament wegräumen lassen
 - Neuzuschnitt Schritt 4 (Spaltenauswahl neben Projektionsmethode): `steps/step4-visualization-settings/`.
 - Abgrenzung Schritt 2 (betrachtete Spalten) vs. Schritt 3 (in Dimensionsreduktion): `steps/step2-column-selection/`, `steps/step3-configure-data-features/`.
 
+**Umgesetzt (PR #73, `feat/a13-schrittlogik`):**
+- Auswahl „welche Spalten fließen in die Projektion" aus Schritt 3 entfernt; Schritt 3 ist jetzt reine Datenkonfiguration (keine „Include in projection"-Checkboxen/-Zähler mehr).
+- Neue Section „Projection Options" in `steps/step4-visualization-settings/` zweispaltig: links Panel „Projection Columns" (Checkbox-Liste je aktiver Spalte, Typ-Badge, Zähler „x / n included", Select-all/Clear, Suche), rechts das bestehende Methoden-Grid.
+- Schrittbeschreibungen in `shared/constants/step-info.ts` geschärft (Schritt 2 = betrachtete Spalten, Schritt 3 = Datenkonfiguration, Schritt 4 = Projektion: Spalten + Methode).
+- Validierung in Schritt 4: mindestens eine Projektionsspalte erforderlich (sonst Warnung + Weiter deaktiviert); `includeInProjection` lag bereits im Service (keine Datenfluss-/Modelländerung).
+
 ---
 
 ## A14 – Übergänge zwischen den Schritten sichtbar machen
@@ -298,6 +358,12 @@ Quick Wins ohne Abhängigkeit, die sich parallel zum Fundament wegräumen lassen
 
 **Wo umsetzen:**
 - Morphing-/Übergangsanimation Schritt 2↔3 (beidseitig): Übergang in `preprocessing-wizard.component.ts` orchestrieren, gemeinsame Tabellenkomponente `shared/data-preview-table/` als Träger der Animation.
+
+**Umgesetzt (PR #77, `feat/a14-animation`):**
+- Morph-Übergang Schritt 2 → 3 in `preprocessing-wizard.component.ts` mit GSAP-Timelines orchestriert (globaler Speed-Faktor `MORPH_TIMESCALE`).
+- Zwei Phasen: Phase 1 kollabiert die live Step-2-Tabelle per Transform-Overlay auf Rail-Breite (kein Layout-Ruckeln), dann Component-Swap; Phase 2 fährt Rail-Header (`yPercent`) und Detail-/Konfig-Well (`xPercent`) von außen herein.
+- `prefers-reduced-motion: reduce` schaltet den Morph ab (sofortiger Wechsel).
+- Einschränkung ggü. Ticket: nur der Vorwärts-Morph 2 → 3 ist animiert, nicht bidirektional (2↔3).
 
 ---
 
@@ -312,6 +378,13 @@ Quick Wins ohne Abhängigkeit, die sich parallel zum Fundament wegräumen lassen
 - Gemeinsames Muster in `shared/data-preview-table/` konsolidieren (Auswahl links, Umschalter „alle", Suchfeld, keine Typ-Farbcodierung, einheitliche blaue Akzentfarbe).
 - Anwendung in `steps/step2-column-selection/`, `steps/step3-configure-data-features/`, `steps/step4-visualization-settings/`.
 - Gemeinsame Styles: `shared/_wizard-shared.scss`.
+
+**Umgesetzt (PR #75, `feat/a15-table-system`):**
+- Gemeinsames Auswahl-Designsystem als geteilte Mixins in `shared/_wizard-shared.scss`, angewendet in Step 2/3/4: Auswahl-Checkbox links, Tri-State-„Select all" im Kopf (kein Extra-Button/Doppelzähler), Suchfeld, keine Typ-Farbcodierung der Zeilen; einheitliche Checkbox-Geometrie auf gemeinsamer vertikaler Linie.
+- Einheitlicher Akzent aus `_variables.scss` statt neuem Token: `$active-color` (#00bcd4) für Auswahl/Aktiv, `$status-info` (#00838f) für den Auswahl-Zähler „N of M selected".
+- Schritt-3-Redesign (Option 1d): Master-Rail links + eingelassenes Konfig-Well mit Breadcrumb; Duplikat-Vorschau nutzt die gemeinsame Tabellenkomponente.
+- Schritt-4-Feature-Liste überarbeitet (Überschneidung mit A9): funktionale Suche/Typ-Filter, Drag-and-drop-Reihenfolge, Drop-in aus der Available-Liste, Höhenlimit mit Scroll, Reihenfolge-Badges in Cyan.
+- Bewusst offengelassen: `data-type-badge`-Farben bleiben; die exakte Rot/Amber-Abstufung der Fehlwert-Badges wurde nicht nachgebaut.
 
 ---
 
