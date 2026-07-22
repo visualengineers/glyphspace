@@ -145,6 +145,7 @@ Quick Wins ohne Abhängigkeit, die sich parallel zum Fundament wegräumen lassen
 ## A4 – Rückgängigmachen und Zurücksetzen anbieten
 **Typ:** Konzept · **Miro:** Historie einführen · **Status:** In Progress (PR #82 offen und gepusht, noch nicht gemergt) · **Branch:** `feat/a4-undo-historie`
 **Befunde:** C-S1-02, C-S4-09, P-S3-01
+**Tests:** Automatisierte Tests für das Undo/Redo-Feature ergänzt (Testsuite grün).
 
 **Problem:** Folgenschwere Aktionen (erneuter Upload, Smart-Defaults-Klick, gesetzte Filter) sind nicht umkehrbar. Voraussetzung ist eine Aktionshistorie — im Code bisher **nicht vorhanden** (kein `undo`/`history` gefunden).
 

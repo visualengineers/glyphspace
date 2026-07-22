@@ -18,6 +18,7 @@ import { STEP_INFO } from '../../shared/constants/step-info';
 import { DataTypeBadgeComponent } from '../../shared/data-type-badge/data-type-badge.component';
 import { COLOR_SCALES, ColorScale, buildGroupedColorScales } from '../../../shared/interfaces/color-scale';
 import { ColorScaleSelectorComponent } from '../../../shared/components/color-scale-selector/color-scale-selector.component';
+import { ToastService } from '../../../services/toast.service';
 
 /** A dataset column paired with its live configuration, used for projection column selection. */
 interface ProjectionColumnState {
@@ -341,7 +342,15 @@ export class Step4VisualizationSettingsComponent implements OnInit, AfterViewIni
   readonly HELP_TEXT = HELP_TEXT;
   readonly stepInfo = STEP_INFO[3]; // Step 4 (index 3)
 
-  constructor(public preprocessingService: PreprocessingService) {}
+  // A4: guards the history push in saveGlyphFeatures so glyph writes during the
+  // initial load (ngOnInit) do not create spurious undo entries. Flipped true once
+  // the step has finished loading.
+  private historyReady = false;
+
+  constructor(
+    public preprocessingService: PreprocessingService,
+    private toastService: ToastService
+  ) {}
 
   // A6: if the review step requested a jump to a specific setting, scroll its
   // anchor into view once this step has rendered. The delay lets the shell's
@@ -402,6 +411,10 @@ export class Step4VisualizationSettingsComponent implements OnInit, AfterViewIni
     if (state.projectionConfig) {
       this.projectionConfig = { ...state.projectionConfig };
     }
+
+    // A4: from here on, glyph-feature writes are genuine user actions and should
+    // be recorded on the undo stack.
+    this.historyReady = true;
   }
 
   // ============================================================================
@@ -409,6 +422,12 @@ export class Step4VisualizationSettingsComponent implements OnInit, AfterViewIni
   // ============================================================================
 
   setColorFeature(columnName: string): void {
+    // A4: record the colour change so undo reverts the colour feature (and any
+    // auto-switched scale) as one action. Guarded by historyReady so the default
+    // colour assigned during ngOnInit does not create a spurious history entry.
+    if (this.historyReady) {
+      this.preprocessingService.pushHistory('Farbattribut geändert');
+    }
     this.colorFeature = columnName;
     this.preprocessingService.setColorFeature(columnName);
     // Sync selected scale ID after service auto-switches on type mismatch
@@ -420,6 +439,10 @@ export class Step4VisualizationSettingsComponent implements OnInit, AfterViewIni
   }
 
   selectColorScale(id: number): void {
+    // A4: same as the colour feature — record so a scale change is undoable.
+    if (this.historyReady) {
+      this.preprocessingService.pushHistory('Farbskala geändert');
+    }
     this.selectedColorScaleId = id;
     this.preprocessingService.setColorScaleId(id);
   }
@@ -501,6 +524,14 @@ export class Step4VisualizationSettingsComponent implements OnInit, AfterViewIni
   }
 
   removeGlyphFeature(index: number): void {
+    // A glyph needs at least MIN_GLYPH_FEATURES rays. Removing below that is not a
+    // persistable state (setGlyphFeatures rejects it), so block it here instead of
+    // letting the local selection drift out of sync with the service and skipping
+    // the history entry — that mismatch is what made undo restore several features.
+    if (this.selectedGlyphFeatures.length <= this.MIN_GLYPH_FEATURES) {
+      this.toastService.warning(`Mindestens ${this.MIN_GLYPH_FEATURES} Glyph-Merkmale erforderlich.`);
+      return;
+    }
     this.selectedGlyphFeatures.splice(index, 1);
     this.saveGlyphFeatures();
     this.regeneratePreviewData();
@@ -551,8 +582,24 @@ export class Step4VisualizationSettingsComponent implements OnInit, AfterViewIni
       this.selectedGlyphFeatures.length >= this.MIN_GLYPH_FEATURES &&
       this.selectedGlyphFeatures.length <= this.MAX_GLYPH_FEATURES
     ) {
+      // A4: every completed glyph edit (add/remove/reorder/apply-suggestions)
+      // funnels through here, so a single history push covers them all. Snapshot
+      // the state before the write so undo restores the previous feature set.
+      if (this.historyReady) {
+        this.preprocessingService.pushHistory('Glyph-Merkmale geändert');
+      }
       this.preprocessingService.setGlyphFeatures(this.selectedGlyphFeatures);
     }
+  }
+
+  /**
+   * A4: user-triggered "apply recommended features" (Smart Defaults). Applies the
+   * suggestions (which records a single history entry via saveGlyphFeatures) and
+   * shows a confirmation toast with a one-click undo.
+   */
+  applySuggestedFeaturesByUser(): void {
+    this.applySuggestedFeatures();
+    this.toastService.showUndo('Empfohlene Merkmale angewendet', () => this.preprocessingService.undo());
   }
 
   // Drag & Drop

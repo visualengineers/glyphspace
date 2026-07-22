@@ -1,6 +1,6 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ToastService } from '../../../services/toast.service';
+import { Toast, ToastService } from '../../../services/toast.service';
 
 @Component({
   selector: 'app-toast',
@@ -33,6 +33,11 @@ import { ToastService } from '../../../services/toast.service';
             }
           </span>
           <span class="toast-message">{{ toast.message }}</span>
+          @if (toast.action) {
+            <button class="toast-action" (click)="runAction(toast, $event)" type="button">
+              {{ toast.action.label }}
+            </button>
+          }
           <button class="toast-close" (click)="remove(toast.id)" type="button">×</button>
         </div>
       }
@@ -103,6 +108,25 @@ import { ToastService } from '../../../services/toast.service';
         line-height: 1.4;
       }
 
+      .toast-action {
+        background: rgba(255, 255, 255, 0.22);
+        border: 1px solid rgba(255, 255, 255, 0.6);
+        color: white;
+        font-size: 13px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        cursor: pointer;
+        padding: 5px 12px;
+        border-radius: 5px;
+        flex-shrink: 0;
+        transition: background-color 0.15s ease;
+      }
+
+      .toast-action:hover {
+        background: rgba(255, 255, 255, 0.35);
+      }
+
       .toast-close {
         background: none;
         border: none;
@@ -135,5 +159,12 @@ export class ToastComponent {
 
   remove(id: number): void {
     this.toastService.remove(id);
+  }
+
+  runAction(toast: Toast, event: Event): void {
+    // Prevent the container's click-to-dismiss from firing before the handler.
+    event.stopPropagation();
+    toast.action?.handler();
+    this.remove(toast.id);
   }
 }

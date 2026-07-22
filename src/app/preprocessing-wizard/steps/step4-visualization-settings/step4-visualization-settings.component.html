@@ -45,7 +45,7 @@
           </h3>
           <button
             class="btn-suggestion-compact"
-            (click)="applySuggestedFeatures()"
+            (click)="applySuggestedFeaturesByUser()"
             [disabled]="suggestedFeatures.length === 0 || !suggestionsWouldChange()"
           >
             <span class="material-icons">auto_awesome</span>

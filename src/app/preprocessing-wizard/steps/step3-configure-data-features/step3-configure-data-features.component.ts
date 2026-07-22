@@ -1,4 +1,4 @@
-import { Component, OnInit, forwardRef, ViewChild, ElementRef, HostListener } from '@angular/core';
+import { Component, OnInit, AfterViewInit, forwardRef, ViewChild, ElementRef, HostListener } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { PreprocessingService } from '../../services/preprocessing.service';
 import { WizardStep, WIZARD_STEP } from '../../shared/wizard-step';
@@ -18,6 +18,7 @@ import { HelpTooltipComponent } from '../../shared/help-tooltip/help-tooltip.com
 import { HELP_TEXT } from '../../shared/constants/help-text';
 import { STEP_INFO } from '../../shared/constants/step-info';
 import { DataPreviewTableComponent } from '../../shared/data-preview-table/data-preview-table.component';
+import { ToastService } from '../../../services/toast.service';
 
 interface ColumnConfigState {
   column: ColumnStatistics;
@@ -35,7 +36,7 @@ interface ColumnConfigState {
   styleUrl: './step3-configure-data-features.component.scss',
   providers: [{ provide: WIZARD_STEP, useExisting: forwardRef(() => Step3ConfigureDataFeaturesComponent) }],
 })
-export class Step3ConfigureDataFeaturesComponent implements OnInit, WizardStep {
+export class Step3ConfigureDataFeaturesComponent implements OnInit, AfterViewInit, WizardStep {
   readonly primaryLabel = 'Continue to Visualization Settings';
   readonly disabledHint = '';
 
@@ -127,13 +128,28 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit, WizardStep {
   readonly HELP_TEXT = HELP_TEXT;
   readonly stepInfo = STEP_INFO[2]; // Step 3 (index 2)
 
-  constructor(public preprocessingService: PreprocessingService) {
+  constructor(
+    public preprocessingService: PreprocessingService,
+    private toastService: ToastService
+  ) {
     this.cleaningConfig = this.preprocessingService.currentState.cleaningConfig;
   }
 
   ngOnInit(): void {
     this.loadData();
     this.detectDuplicates();
+  }
+
+  // A4/A6: scroll the requested setting into view when arriving via a deep-link
+  // (undo/redo "Änderung anzeigen" or a review edit-link). The delay lets the
+  // shell's scroll-to-top run first so it does not override this.
+  ngAfterViewInit(): void {
+    const target = this.preprocessingService.consumeScrollTarget();
+    if (target) {
+      setTimeout(() => {
+        document.getElementById(target)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 120);
+    }
   }
 
   private loadData(): void {
@@ -267,10 +283,29 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit, WizardStep {
   }
 
   clearFilters(): void {
+    // A4: filters are view-only state (not part of preprocessing-state), so this
+    // action is made reversible via a toast whose undo restores the local values,
+    // rather than through the global snapshot stack.
+    const previous = {
+      filterText: this.filterText,
+      filterType: this.filterType,
+      showIssuesOnly: this.showIssuesOnly,
+    };
+    const hadActiveFilter = !!this.filterText || this.filterType !== 'all' || this.showIssuesOnly;
+
     this.filterText = '';
     this.filterType = 'all';
     this.showIssuesOnly = false;
     this.applyFilters();
+
+    if (hadActiveFilter) {
+      this.toastService.showUndo('Filter zurückgesetzt', () => {
+        this.filterText = previous.filterText;
+        this.filterType = previous.filterType;
+        this.showIssuesOnly = previous.showIssuesOnly;
+        this.applyFilters();
+      });
+    }
   }
 
   // ============================================================================

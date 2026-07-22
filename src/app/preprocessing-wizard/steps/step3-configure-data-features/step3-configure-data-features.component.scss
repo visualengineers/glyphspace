@@ -2,6 +2,15 @@
 @use '../../../../styles/variables' as v;
 @use '../../../../styles/mixins' as m;
 
+// A4/A6: invisible scroll anchor used by deep-links (undo/redo "Änderung anzeigen"
+// and review edit-links) so a target setting scrolls into view without a sticky
+// header covering it.
+.scroll-anchor {
+  display: block;
+  height: 0;
+  scroll-margin-top: 12px;
+}
+
 .step3-configure-data-features {
   display: flex;
   flex-direction: column;

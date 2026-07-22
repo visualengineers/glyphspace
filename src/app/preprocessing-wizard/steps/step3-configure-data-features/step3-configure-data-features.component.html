@@ -6,6 +6,9 @@
         {{ error }}
       </div>
     } @else {
+      <!-- A4/A6: deep-link scroll target for per-column feature settings
+           (encoding, scaling, data type, missing values, outliers). -->
+      <span id="wizard-anchor-features" class="scroll-anchor"></span>
       <!-- Master rail + recessed detail well -->
       <div class="config-shell">
         <!-- LEFT RAIL: dataset columns -->
@@ -464,6 +467,8 @@
         </div>
       </div>
 
+      <!-- A4/A6: deep-link scroll target for data-cleaning settings. -->
+      <span id="wizard-anchor-cleaning" class="scroll-anchor"></span>
       <!-- Duplicate Rows Section (only shown when duplicates exist) -->
       @if (duplicateCount > 0) {
         <div class="duplicates-section">
