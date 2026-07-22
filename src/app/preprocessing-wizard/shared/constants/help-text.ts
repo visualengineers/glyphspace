@@ -417,7 +417,7 @@ export const HELP_TEXT = {
     colorFeature: `<strong>Color Feature</strong> determines the color of each glyph in the visualization.<br/><br/>
       • <strong>Numeric:</strong> Creates a continuous color gradient (e.g., blue to red)<br/>
       • <strong>Categorical:</strong> Assigns distinct colors to each category<br/><br/>
-      <em>Optional - leave unselected for uniform color across all glyphs</em>`,
+      A sensible attribute is selected automatically (a small categorical group, or the most varied numeric column) — change it anytime.`,
 
     colorScale: `<strong>Color Scale</strong> is the palette used to map the color feature onto the glyphs.<br/><br/>
       It is <strong>purely cosmetic</strong> — it only changes how the visualization looks, not the underlying data or the projection.<br/><br/>

@@ -202,6 +202,20 @@ export class Step2ColumnSelectionComponent implements OnInit, AfterViewInit, Wiz
   }
 
   /**
+   * True when a column was auto-deselected by a smart default (mostly missing,
+   * constant, or nearly all-unique) and has not been re-enabled by the user.
+   */
+  isAutoDeselected(columnName: string): boolean {
+    const config = this.columnConfigs.get(columnName);
+    return !!config && !config.enabled && !!config.issueDescription;
+  }
+
+  /** Human-readable reason a column was auto-deselected (for the marker tooltip). */
+  getDeselectReason(columnName: string): string {
+    return this.columnConfigs.get(columnName)?.issueDescription ?? '';
+  }
+
+  /**
    * Get unique value percentage
    */
   getUniquePercent(column: ColumnStatistics): string {

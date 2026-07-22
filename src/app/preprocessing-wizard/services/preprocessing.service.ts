@@ -83,7 +83,11 @@ const SETTING_META: Record<string, SettingMeta> = {
   'columnConfigs.outlierStrategy': { label: 'Ausreißerbehandlung', step: 2, anchorId: 'wizard-anchor-features' },
   cleaningConfig: { label: 'Datenbereinigung', step: 2, anchorId: 'wizard-anchor-cleaning' },
   // Step 4 – Visualisierung (color / glyph / projection live here)
-  'columnConfigs.includeInProjection': { label: 'Projektionsspalten', step: 3, anchorId: 'wizard-anchor-projection-columns' },
+  'columnConfigs.includeInProjection': {
+    label: 'Projektionsspalten',
+    step: 3,
+    anchorId: 'wizard-anchor-projection-columns',
+  },
   'columnConfigs.isColorFeature': { label: 'Farbattribut', step: 3, anchorId: 'wizard-anchor-color' },
   isColorFeature: { label: 'Farbattribut', step: 3, anchorId: 'wizard-anchor-color' },
   colorScaleId: { label: 'Farbskala', step: 3, anchorId: 'wizard-anchor-color' },
@@ -275,12 +279,48 @@ export class PreprocessingService {
     }
   }
 
+  private static readonly HIGH_CARDINALITY_RATIO = 0.9;
+  private static readonly HIGH_CARDINALITY_MIN_ROWS = 20;
+
+  /**
+   * A text/categorical/ID column counts as high-cardinality when nearly all of
+   * its values are unique (typical of IDs, titles or free text). Such columns
+   * carry little structure for a projection and would explode one-hot encoding,
+   * so they start deselected as a smart default. Numeric/date columns are exempt —
+   * near-unique values there are legitimate measurements.
+   */
+  private isHighCardinality(col: ColumnStatistics): boolean {
+    const eligible =
+      col.dataType === DataType.Text || col.dataType === DataType.Categorical || col.dataType === DataType.ID;
+    if (!eligible || col.count <= PreprocessingService.HIGH_CARDINALITY_MIN_ROWS) {
+      return false;
+    }
+    return col.uniqueCount / col.count >= PreprocessingService.HIGH_CARDINALITY_RATIO;
+  }
+
   private createDefaultColumnConfig(col: ColumnStatistics): ColumnConfig {
     const capabilities = DATA_TYPE_CONFIG[col.dataType] ?? DATA_TYPE_CONFIG[DataType.Unknown];
 
-    // Smart default: obviously unsuitable columns (mostly missing or constant)
-    // start deselected. Users can re-enable them in Step 2 at any time.
-    const hasIssues = col.missingPercentage > 50 || col.uniqueCount === 1;
+    // Smart defaults: obviously unsuitable columns start deselected; users can
+    // re-enable them in Step 2 at any time. issueDescription records WHY a column
+    // was auto-deselected so Step 2 can show a reason next to it.
+    const isMostlyMissing = col.missingPercentage > 50;
+    const isConstant = col.uniqueCount === 1;
+    const isHighCardinality = this.isHighCardinality(col);
+
+    // hasIssues drives the data-quality warning icon (mostly-missing / constant).
+    const hasIssues = isMostlyMissing || isConstant;
+    const autoDeselected = hasIssues || isHighCardinality;
+
+    let issueDescription: string | undefined;
+    if (isMostlyMissing) {
+      issueDescription = `Mostly empty (${Math.round(col.missingPercentage)}% missing)`;
+    } else if (isConstant) {
+      issueDescription = 'Only one unique value — nothing to distinguish rows';
+    } else if (isHighCardinality) {
+      const pct = Math.round((col.uniqueCount / col.count) * 100);
+      issueDescription = `Nearly all values are unique (${pct}%) — likely an ID, title or free-text column`;
+    }
 
     return {
       name: col.name,
@@ -293,8 +333,9 @@ export class PreprocessingService {
       missingValueStrategy: MissingValueStrategy.Keep,
       outlierMethod: OutlierMethod.IQR_1_5,
       outlierStrategy: OutlierStrategy.Keep,
-      enabled: !hasIssues,
+      enabled: !autoDeselected,
       hasIssues,
+      issueDescription,
     };
   }
 

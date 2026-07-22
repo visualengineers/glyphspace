@@ -387,11 +387,14 @@ export class Step4VisualizationSettingsComponent implements OnInit, AfterViewIni
     const colorCol = Array.from(state.columnConfigs.values()).find(c => c.isColorFeature);
     if (colorCol) {
       this.colorFeature = colorCol.name;
-    } else if (this.columns.length > 0) {
-      this.colorFeature = this.columns[0].name;
-      this.preprocessingService.setColorFeature(this.columns[0].name);
     } else {
-      this.colorFeature = null;
+      // Smart default: pick a meaningful colour attribute instead of just the
+      // first column (see pickDefaultColorFeature).
+      const pick = this.pickDefaultColorFeature();
+      this.colorFeature = pick;
+      if (pick) {
+        this.preprocessingService.setColorFeature(pick);
+      }
     }
     this.selectedColorScaleId = state.colorScaleId;
     this.groupedColorScales = buildGroupedColorScales();
@@ -432,6 +435,35 @@ export class Step4VisualizationSettingsComponent implements OnInit, AfterViewIni
     this.preprocessingService.setColorFeature(columnName);
     // Sync selected scale ID after service auto-switches on type mismatch
     this.selectedColorScaleId = this.preprocessingService.currentState.colorScaleId;
+  }
+
+  /**
+   * Smart default for the colour attribute. Prefers a low-cardinality
+   * categorical/boolean column (distinct, legible colour groups), then falls
+   * back to the numeric column with the most spread (a meaningful gradient),
+   * and only as a last resort to the first column. Returns null if there are
+   * no columns.
+   */
+  private pickDefaultColorFeature(): string | null {
+    if (this.columns.length === 0) return null;
+
+    const lowCardCategorical = this.columns
+      .filter(
+        c =>
+          (c.dataType === DataType.Categorical || c.dataType === DataType.Boolean) &&
+          c.uniqueCount >= 2 &&
+          c.uniqueCount <= 12
+      )
+      .sort((a, b) => a.uniqueCount - b.uniqueCount)[0];
+    if (lowCardCategorical) return lowCardCategorical.name;
+
+    const variance = (c: ColumnStatistics): number => c.variance ?? (c.stdDev ?? 0) ** 2;
+    const numericBySpread = this.columns
+      .filter(c => c.dataType === DataType.Numeric && variance(c) > 0)
+      .sort((a, b) => variance(b) - variance(a))[0];
+    if (numericBySpread) return numericBySpread.name;
+
+    return this.columns[0].name;
   }
 
   getSelectedColorScale(): ColorScale {

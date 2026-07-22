@@ -322,7 +322,9 @@ describe('PreprocessingService – Undo/Redo history', () => {
     function mutateColumn<K extends keyof ColumnConfig>(field: K, value: ColumnConfig[K]): void {
       const configs = new Map(service.currentState.columnConfigs);
       configs.set('alpha', { ...configs.get('alpha')!, [field]: value });
-      (service as unknown as { updateState(u: Partial<PreprocessingState>): void }).updateState({ columnConfigs: configs });
+      (service as unknown as { updateState(u: Partial<PreprocessingState>): void }).updateState({
+        columnConfigs: configs,
+      });
     }
 
     function setTop(updates: Partial<PreprocessingState>): void {
@@ -330,22 +332,118 @@ describe('PreprocessingService – Undo/Redo history', () => {
     }
 
     const cases: { name: string; mutate: () => void; label: string; step: number | null; anchor: string | null }[] = [
-      { name: 'rawFileName', mutate: () => setTop({ rawFileName: 'anders.csv' }), label: 'Datei', step: 0, anchor: null },
-      { name: 'datasetName', mutate: () => setTop({ datasetName: 'umbenannt' }), label: 'Datensatzname', step: 0, anchor: null },
-      { name: 'columnConfigs.enabled', mutate: () => mutateColumn('enabled', false), label: 'Spaltenauswahl', step: 1, anchor: 'wizard-anchor-columns' },
-      { name: 'columnConfigs.isColorFeature', mutate: () => mutateColumn('isColorFeature', true), label: 'Farbattribut', step: 3, anchor: 'wizard-anchor-color' },
-      { name: 'columnConfigs.targetType', mutate: () => mutateColumn('targetType', DataType.Categorical), label: 'Datentyp', step: 2, anchor: 'wizard-anchor-features' },
-      { name: 'columnConfigs.encodingMethod', mutate: () => mutateColumn('encodingMethod', EncodingMethod.Standardize), label: 'Encoding', step: 2, anchor: 'wizard-anchor-features' },
-      { name: 'columnConfigs.scalingMethod', mutate: () => mutateColumn('scalingMethod', ScalingMethod.Standard), label: 'Skalierung', step: 2, anchor: 'wizard-anchor-features' },
-      { name: 'columnConfigs.includeInProjection', mutate: () => mutateColumn('includeInProjection', false), label: 'Projektionsspalten', step: 3, anchor: 'wizard-anchor-projection-columns' },
-      { name: 'columnConfigs.missingValueStrategy', mutate: () => mutateColumn('missingValueStrategy', MissingValueStrategy.FillMean), label: 'Fehlende Werte', step: 2, anchor: 'wizard-anchor-features' },
-      { name: 'columnConfigs.outlierStrategy', mutate: () => mutateColumn('outlierStrategy', OutlierStrategy.Remove), label: 'Ausreißerbehandlung', step: 2, anchor: 'wizard-anchor-features' },
-      { name: 'cleaningConfig', mutate: () => setTop({ cleaningConfig: { removeDuplicates: true } }), label: 'Datenbereinigung', step: 2, anchor: 'wizard-anchor-cleaning' },
-      { name: 'projectionConfig', mutate: () => setTop({ projectionConfig: { ...service.currentState.projectionConfig, enablePCA: false } }), label: 'Projektionsparameter', step: 3, anchor: 'wizard-anchor-methods' },
-      { name: 'glyphFeatures', mutate: () => setTop({ glyphFeatures: ['alpha'] }), label: 'Glyph-Merkmale', step: 3, anchor: 'wizard-anchor-glyph' },
-      { name: 'tooltipFeatures', mutate: () => setTop({ tooltipFeatures: ['alpha'] }), label: 'Tooltip-Merkmale', step: 3, anchor: 'wizard-anchor-glyph' },
-      { name: 'colorScaleMode', mutate: () => setTop({ colorScaleMode: 'categorical' }), label: 'Farbmodus', step: 3, anchor: 'wizard-anchor-color' },
-      { name: 'colorScaleId', mutate: () => setTop({ colorScaleId: 5 }), label: 'Farbskala', step: 3, anchor: 'wizard-anchor-color' },
+      {
+        name: 'rawFileName',
+        mutate: () => setTop({ rawFileName: 'anders.csv' }),
+        label: 'Datei',
+        step: 0,
+        anchor: null,
+      },
+      {
+        name: 'datasetName',
+        mutate: () => setTop({ datasetName: 'umbenannt' }),
+        label: 'Datensatzname',
+        step: 0,
+        anchor: null,
+      },
+      {
+        name: 'columnConfigs.enabled',
+        mutate: () => mutateColumn('enabled', false),
+        label: 'Spaltenauswahl',
+        step: 1,
+        anchor: 'wizard-anchor-columns',
+      },
+      {
+        name: 'columnConfigs.isColorFeature',
+        mutate: () => mutateColumn('isColorFeature', true),
+        label: 'Farbattribut',
+        step: 3,
+        anchor: 'wizard-anchor-color',
+      },
+      {
+        name: 'columnConfigs.targetType',
+        mutate: () => mutateColumn('targetType', DataType.Categorical),
+        label: 'Datentyp',
+        step: 2,
+        anchor: 'wizard-anchor-features',
+      },
+      {
+        name: 'columnConfigs.encodingMethod',
+        mutate: () => mutateColumn('encodingMethod', EncodingMethod.Standardize),
+        label: 'Encoding',
+        step: 2,
+        anchor: 'wizard-anchor-features',
+      },
+      {
+        name: 'columnConfigs.scalingMethod',
+        mutate: () => mutateColumn('scalingMethod', ScalingMethod.Standard),
+        label: 'Skalierung',
+        step: 2,
+        anchor: 'wizard-anchor-features',
+      },
+      {
+        name: 'columnConfigs.includeInProjection',
+        mutate: () => mutateColumn('includeInProjection', false),
+        label: 'Projektionsspalten',
+        step: 3,
+        anchor: 'wizard-anchor-projection-columns',
+      },
+      {
+        name: 'columnConfigs.missingValueStrategy',
+        mutate: () => mutateColumn('missingValueStrategy', MissingValueStrategy.FillMean),
+        label: 'Fehlende Werte',
+        step: 2,
+        anchor: 'wizard-anchor-features',
+      },
+      {
+        name: 'columnConfigs.outlierStrategy',
+        mutate: () => mutateColumn('outlierStrategy', OutlierStrategy.Remove),
+        label: 'Ausreißerbehandlung',
+        step: 2,
+        anchor: 'wizard-anchor-features',
+      },
+      {
+        name: 'cleaningConfig',
+        mutate: () => setTop({ cleaningConfig: { removeDuplicates: true } }),
+        label: 'Datenbereinigung',
+        step: 2,
+        anchor: 'wizard-anchor-cleaning',
+      },
+      {
+        name: 'projectionConfig',
+        mutate: () => setTop({ projectionConfig: { ...service.currentState.projectionConfig, enablePCA: false } }),
+        label: 'Projektionsparameter',
+        step: 3,
+        anchor: 'wizard-anchor-methods',
+      },
+      {
+        name: 'glyphFeatures',
+        mutate: () => setTop({ glyphFeatures: ['alpha'] }),
+        label: 'Glyph-Merkmale',
+        step: 3,
+        anchor: 'wizard-anchor-glyph',
+      },
+      {
+        name: 'tooltipFeatures',
+        mutate: () => setTop({ tooltipFeatures: ['alpha'] }),
+        label: 'Tooltip-Merkmale',
+        step: 3,
+        anchor: 'wizard-anchor-glyph',
+      },
+      {
+        name: 'colorScaleMode',
+        mutate: () => setTop({ colorScaleMode: 'categorical' }),
+        label: 'Farbmodus',
+        step: 3,
+        anchor: 'wizard-anchor-color',
+      },
+      {
+        name: 'colorScaleId',
+        mutate: () => setTop({ colorScaleId: 5 }),
+        label: 'Farbskala',
+        step: 3,
+        anchor: 'wizard-anchor-color',
+      },
     ];
 
     cases.forEach(c => {
@@ -361,7 +459,9 @@ describe('PreprocessingService – Undo/Redo history', () => {
       service.pushHistory('irgendeine Aktion');
       const configs = new Map(service.currentState.columnConfigs);
       configs.delete('gamma');
-      (service as unknown as { updateState(u: Partial<PreprocessingState>): void }).updateState({ columnConfigs: configs });
+      (service as unknown as { updateState(u: Partial<PreprocessingState>): void }).updateState({
+        columnConfigs: configs,
+      });
       const info = service.undo()!;
       expect(info.settingLabel).toBe('Spaltenauswahl');
     });
@@ -429,7 +529,9 @@ describe('PreprocessingService – Undo/Redo history', () => {
     };
 
     function serviceWithLoader() {
-      const proc = { profileData: async () => profile } as unknown as ConstructorParameters<typeof PreprocessingService>[0];
+      const proc = { profileData: async () => profile } as unknown as ConstructorParameters<
+        typeof PreprocessingService
+      >[0];
       return new PreprocessingService(proc, dataLoaderStub);
     }
 
@@ -531,5 +633,86 @@ describe('PreprocessingService — error handling (A3)', () => {
       // No error present → no extra state emission.
       expect(emissions).toBe(before);
     });
+  });
+});
+
+/**
+ * A2-Nachtrag – smart defaults for the initial column selection.
+ *
+ * createDefaultColumnConfig is private and only reached via loadCSV (worker), so
+ * these tests call it directly through a cast to pin the auto-deselect heuristic:
+ * mostly-missing / constant columns, and the new high-cardinality rule for
+ * text/categorical/ID columns whose values are nearly all unique.
+ */
+describe('PreprocessingService – smart-default column selection', () => {
+  let service: PreprocessingService;
+
+  const dataProcessorStub = {} as unknown as ConstructorParameters<typeof PreprocessingService>[0];
+  const dataLoaderStub = {
+    getDataSetNames: () => [] as string[],
+  } as unknown as ConstructorParameters<typeof PreprocessingService>[1];
+
+  function col(overrides: Partial<ColumnStatistics>): ColumnStatistics {
+    return {
+      name: 'c',
+      dataType: DataType.Categorical,
+      count: 100,
+      missingCount: 0,
+      missingPercentage: 0,
+      uniqueCount: 5,
+      ...overrides,
+    };
+  }
+
+  function defaultConfig(c: ColumnStatistics): ColumnConfig {
+    return (
+      service as unknown as { createDefaultColumnConfig(c: ColumnStatistics): ColumnConfig }
+    ).createDefaultColumnConfig(c);
+  }
+
+  beforeEach(() => {
+    service = new PreprocessingService(dataProcessorStub, dataLoaderStub);
+  });
+
+  it('deselects a nearly all-unique text column (likely ID/free text)', () => {
+    const config = defaultConfig(col({ dataType: DataType.Text, count: 100, uniqueCount: 100 }));
+    expect(config.enabled).toBeFalse();
+    expect(config.hasIssues).toBeFalse(); // high cardinality is not a data-quality issue
+    expect(config.issueDescription).toContain('unique');
+  });
+
+  it('deselects a high-cardinality categorical column at the 90% threshold', () => {
+    const config = defaultConfig(col({ dataType: DataType.Categorical, count: 100, uniqueCount: 95 }));
+    expect(config.enabled).toBeFalse();
+  });
+
+  it('keeps a low-cardinality categorical column', () => {
+    const config = defaultConfig(col({ dataType: DataType.Categorical, count: 100, uniqueCount: 5 }));
+    expect(config.enabled).toBeTrue();
+    expect(config.issueDescription).toBeUndefined();
+  });
+
+  it('does not treat a near-unique numeric column as high cardinality', () => {
+    const config = defaultConfig(col({ dataType: DataType.Numeric, count: 100, uniqueCount: 100 }));
+    expect(config.enabled).toBeTrue();
+    expect(config.issueDescription).toBeUndefined();
+  });
+
+  it('ignores high uniqueness on tiny datasets (below the min-row guard)', () => {
+    const config = defaultConfig(col({ dataType: DataType.Text, count: 15, uniqueCount: 15 }));
+    expect(config.enabled).toBeTrue();
+  });
+
+  it('deselects a mostly-empty column and flags it as a quality issue', () => {
+    const config = defaultConfig(col({ missingPercentage: 80, uniqueCount: 5 }));
+    expect(config.enabled).toBeFalse();
+    expect(config.hasIssues).toBeTrue();
+    expect(config.issueDescription).toContain('missing');
+  });
+
+  it('deselects a constant column', () => {
+    const config = defaultConfig(col({ uniqueCount: 1 }));
+    expect(config.enabled).toBeFalse();
+    expect(config.hasIssues).toBeTrue();
   });
 });
