@@ -112,6 +112,7 @@
                 <div class="card-title-row">
                   <h3 [title]="selectedColumn.column.name">{{ selectedColumn.column.name }}</h3>
                   <span class="type-pill">{{ getTypeLabel(selectedColumn.column.dataType) }}</span>
+                  <app-help-tooltip [helpText]="HELP_TEXT.general.smartDefaults" position="bottom"></app-help-tooltip>
                   @if (isColumnModified(selectedColumn)) {
                     <button
                       class="btn-reset-column"

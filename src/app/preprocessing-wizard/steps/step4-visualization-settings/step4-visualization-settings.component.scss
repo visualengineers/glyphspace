@@ -593,6 +593,22 @@
           font-size: 13px;
         }
       }
+
+      // Animated method explainer (A1): help icon pinned to the far right of
+      // the card row. Uses auto margin so it stays right whether or not the
+      // parameter-toggle button is present.
+      .method-preview {
+        margin-left: auto;
+        flex-shrink: 0;
+        display: inline-flex;
+        align-items: center;
+      }
+
+      // When the parameter toggle is also shown, it should sit next to the
+      // preview icon rather than fighting it for the auto margin.
+      .btn-expand-params + .method-preview {
+        margin-left: 4px;
+      }
     }
 
     .speed-badge {

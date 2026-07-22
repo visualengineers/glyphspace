@@ -354,15 +354,20 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
     // instead of just appearing. It starts translated fully up (clipped by the
     // config-shell's overflow:hidden) so it emerges from the top edge. Transform
     // only -> smooth; the start state is applied synchronously before the paint.
+    // clearProps: 'transform' is essential — GSAP.from() otherwise leaves an
+    // inline transform on completion, and any element with a transform becomes
+    // the containing block for its position:fixed descendants. That would make
+    // the fixed help tooltips inside .detail-well position relative to the well
+    // (drifting into a corner) instead of the viewport.
     const railHeader = container.querySelector<HTMLElement>('.rail-header');
     if (railHeader) {
-      timeline.from(railHeader, { yPercent: -100, duration: 0.5, ease: 'power2.out' }, 0);
+      timeline.from(railHeader, { yPercent: -100, duration: 0.5, ease: 'power2.out', clearProps: 'transform' }, 0);
     }
 
     // The detail/config well slides in from the right as one block.
     const well = container.querySelector<HTMLElement>('.detail-well');
     if (well) {
-      timeline.from(well, { xPercent: 40, duration: 0.6, ease: 'power2.out' }, 0);
+      timeline.from(well, { xPercent: 40, duration: 0.6, ease: 'power2.out', clearProps: 'transform' }, 0);
     }
   }
 

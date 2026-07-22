@@ -5,7 +5,10 @@
     <div class="config-panel color-feature-panel">
       <div class="panel-header-row">
         <div class="form-group">
-          <label class="menu-label" for="step4-color-attribute">COLOR ATTRIBUTE</label>
+          <label class="menu-label" for="step4-color-attribute">
+            COLOR ATTRIBUTE
+            <app-help-tooltip [helpText]="HELP_TEXT.general.colorFeature"></app-help-tooltip>
+          </label>
           <select id="step4-color-attribute" [ngModel]="colorFeature" (ngModelChange)="setColorFeature($event)">
             @for (column of columns; track column.name) {
               <option [value]="column.name">{{ column.name }}</option>
@@ -14,7 +17,10 @@
         </div>
 
         <div class="form-group">
-          <label class="menu-label" for="step4-color-scale">COLOR SCALE</label>
+          <label class="menu-label" for="step4-color-scale">
+            COLOR SCALE
+            <app-help-tooltip [helpText]="HELP_TEXT.general.colorScale"></app-help-tooltip>
+          </label>
           <app-color-scale-selector
             id="step4-color-scale"
             [groupedColorScales]="groupedColorScales"
@@ -439,7 +445,8 @@
           <div class="primary-badge">
             <span class="material-icons">bolt</span>
             <span>FastMap</span>
-            <span class="speed-badge badge-primary">Primary</span>
+            <span class="speed-badge badge-primary">Always active</span>
+            <app-projection-preview class="method-preview" methodKey="fast" position="bottom"></app-projection-preview>
           </div>
         </div>
 
@@ -487,6 +494,13 @@
                     </span>
                   </button>
                 }
+                <app-projection-preview
+                  class="method-preview"
+                  [methodKey]="getPreviewKey(method)"
+                  position="left"
+                  (click)="$event.stopPropagation()"
+                  (keydown)="$event.stopPropagation()"
+                ></app-projection-preview>
               </div>
               <div class="card-desc">{{ method.description }}</div>
 

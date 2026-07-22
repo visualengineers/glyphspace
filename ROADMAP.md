@@ -26,27 +26,27 @@ Integrations-Branch `feature/wizard-redesign` von `main` abzweigen. Pro Ticket e
 
 | Ticket | Kurztitel | Typ | Status | Branch | Hauptort im Code |
 |--------|-----------|-----|--------|--------|------------------|
-| A1 | Fachbegriffe/Optionen erklären | Konzept | TODO | `feat/a1-erklaertexte` | `shared/constants/help-text.ts`, `shared/help-tooltip/`, Step 3+4 |
+| A1 | Fachbegriffe/Optionen erklären | Konzept | In Progress | `feat/a1-a11-erklaerungen-defekte` | `shared/constants/help-text.ts`, `shared/help-tooltip/`, `shared/projection-preview/`, Step 3+4 |
 | A2 | Voreinstellungen sichtbar/umkehrbar | Konzept | In Feature-Branch | `feat/a2-smart-defaults` | Step 2+3, `services/preprocessing.service.ts` |
 | A3 | Fehlermeldungen inline/verständlich | Konzept | In Feature-Branch | `feat/a3-fehleranzeige` | Step 4+5 |
-| A4 | Undo/Zurücksetzen | Konzept | In Progress | `feat/a4-undo-historie` | `services/preprocessing.service.ts`, Step 1+4 |
+| A4 | Undo/Zurücksetzen | Konzept | In Feature-Branch | `feat/a4-undo-historie` | `services/preprocessing.service.ts`, Step 1+4 |
 | A5 | Zusammengehöriges gruppieren | Konzept | In Feature-Branch | `feat/a5-gruppierung` | Step 3+4 |
 | A6 | Review-Navigation (Direktsprünge) | Konzept | In Feature-Branch | `feat/a6-direct-links` | Step 5, `shared/progress-stepper/` |
 | A7 | Ehrliche/konsistente Signifier | trivial | In Feature-Branch | `feat/a10-a7-polish` | Step 1/2/4, `shared/progress-stepper/` |
 | A8 | Systemstatus/Datenanzeige korrekt | trivial | In Feature-Branch | `feat/a8-datenanzeige` | Step 2+4 |
 | A9 | Beschleuniger für Power-Nutzer | Konzept | In Feature-Branch | `feat/a9-power-shortcuts` | Step 2/3/4 |
 | A10 | Layout gegen lange/viele Inhalte | Konzept | In Feature-Branch | `feat/a10-a7-polish` | Step 1+4, `shared/_wizard-shared.scss` |
-| A11 | Technische Defekte beheben | trivial | TODO | `feat/a11-bugfixes` | siehe Ticket |
+| A11 | Technische Defekte beheben | trivial | In Progress | `feat/a1-a11-erklaerungen-defekte` | siehe Ticket |
 | A12 | Zweispaltiges Layout | Konzept | In Feature-Branch | `feat/a12-two-column` | `preprocessing-wizard.component.*`, `shared/progress-stepper/` |
 | A13 | Schrittlogik klären/neu ordnen | Konzept | In Feature-Branch | `feat/a13-schrittlogik` | Step 2/3/4, `shared/constants/step-info.ts` |
 | A14 | Übergänge sichtbar (Animation) | Konzept | In Feature-Branch | `feat/a14-animation` | Step 2↔3, `shared/data-preview-table/` |
 | A15 | Einheitliches Tabellen/Listen-System | Konzept | In Feature-Branch | `feat/a15-table-system` | `shared/data-preview-table/`, Step 2/3/4 |
 
 **Aktueller Stand (Integrations-Branch `feature/wizard-redesign`):**
-- Gemergt (In Feature-Branch): A2, A3, A5, A6, A7, A8, A9, A10, A12, A13, A14, A15.
-- In Arbeit: A4 (PR #82 offen und gepusht, noch nicht gemergt).
-- Offen (TODO): A1 (Erklärtexte), A11 (technische Defekte — der Persistent-Result-Teil P-S5-02/03 wurde bereits über A3 abgedeckt).
-- A7 und A10 wurden gebündelt im gemeinsamen Branch `feat/a10-a7-polish` umgesetzt.
+- Gemergt (In Feature-Branch): A2, A3, A4, A5, A6, A7, A8, A9, A10, A12, A13, A14, A15.
+- In Arbeit: A1 und A11 (gebündelt in `feat/a1-a11-erklaerungen-defekte`, PR #83 offen).
+- Offen (TODO): keine — alle Tickets sind gemergt oder in Arbeit.
+- Gebündelt umgesetzt: A7+A10 in `feat/a10-a7-polish`; A1+A11 in `feat/a1-a11-erklaerungen-defekte`.
 
 ---
 
@@ -99,7 +99,7 @@ Quick Wins ohne Abhängigkeit, die sich parallel zum Fundament wegräumen lassen
 ---
 
 ## A1 – Fachbegriffe und Optionen verständlich erklären
-**Typ:** Konzept · **Miro:** Visual Tooltips Methoden · **Status:** TODO · **Branch:** `feat/a1-erklaertexte`
+**Typ:** Konzept · **Miro:** Visual Tooltips Methoden · **Status:** In Progress (PR #83 offen, gebündelt mit A11) · **Branch:** `feat/a1-a11-erklaerungen-defekte`
 **Befunde:** C-S4-01, C-S4-03, C-S4-08, C-S4-10, S-S3-02, S-S3-04, P-S3-04
 
 **Problem:** Fachbegriffe werden ohne Erklärung angeboten (Farbattribut, Projektionsmethoden, FastMap, Ausreißermethoden, Z-Wert-Standardisierung, Smart Defaults).
@@ -143,7 +143,7 @@ Quick Wins ohne Abhängigkeit, die sich parallel zum Fundament wegräumen lassen
 ---
 
 ## A4 – Rückgängigmachen und Zurücksetzen anbieten
-**Typ:** Konzept · **Miro:** Historie einführen · **Status:** In Progress (PR #82 offen und gepusht, noch nicht gemergt) · **Branch:** `feat/a4-undo-historie`
+**Typ:** Konzept · **Miro:** Historie einführen · **Status:** In Feature-Branch (PR #82 gemergt) · **Branch:** `feat/a4-undo-historie`
 **Befunde:** C-S1-02, C-S4-09, P-S3-01
 **Tests:** Automatisierte Tests für das Undo/Redo-Feature ergänzt (Testsuite grün).
 
@@ -236,7 +236,7 @@ Quick Wins ohne Abhängigkeit, die sich parallel zum Fundament wegräumen lassen
 ---
 
 ## A11 – Technische Defekte beheben
-**Typ:** trivial · **Miro:** Visual Tooltips Methoden, NEU: Persistent Result Screen + Errorhandling · **Status:** TODO · **Branch:** `feat/a11-bugfixes`
+**Typ:** trivial · **Miro:** Visual Tooltips Methoden, NEU: Persistent Result Screen + Errorhandling · **Status:** In Progress (PR #83 offen, gebündelt mit A1) · **Branch:** `feat/a1-a11-erklaerungen-defekte`
 **Befunde:** C-S3-04, C-S4-04, S-S4-02, P-S5-02, P-S5-03
 
 **Problem/Wo je Defekt:**
