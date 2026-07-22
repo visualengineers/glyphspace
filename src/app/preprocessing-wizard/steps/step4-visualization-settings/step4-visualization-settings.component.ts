@@ -388,6 +388,12 @@ export class Step4VisualizationSettingsComponent implements OnInit, AfterViewIni
   // ============================================================================
 
   setColorFeature(columnName: string): void {
+    // A4: record the colour change so undo reverts the colour feature (and any
+    // auto-switched scale) as one action. Guarded by historyReady so the default
+    // colour assigned during ngOnInit does not create a spurious history entry.
+    if (this.historyReady) {
+      this.preprocessingService.pushHistory('Farbattribut geändert');
+    }
     this.colorFeature = columnName;
     this.preprocessingService.setColorFeature(columnName);
     // Sync selected scale ID after service auto-switches on type mismatch
@@ -399,6 +405,10 @@ export class Step4VisualizationSettingsComponent implements OnInit, AfterViewIni
   }
 
   selectColorScale(id: number): void {
+    // A4: same as the colour feature — record so a scale change is undoable.
+    if (this.historyReady) {
+      this.preprocessingService.pushHistory('Farbskala geändert');
+    }
     this.selectedColorScaleId = id;
     this.preprocessingService.setColorScaleId(id);
   }
@@ -480,6 +490,14 @@ export class Step4VisualizationSettingsComponent implements OnInit, AfterViewIni
   }
 
   removeGlyphFeature(index: number): void {
+    // A glyph needs at least MIN_GLYPH_FEATURES rays. Removing below that is not a
+    // persistable state (setGlyphFeatures rejects it), so block it here instead of
+    // letting the local selection drift out of sync with the service and skipping
+    // the history entry — that mismatch is what made undo restore several features.
+    if (this.selectedGlyphFeatures.length <= this.MIN_GLYPH_FEATURES) {
+      this.toastService.warning(`Mindestens ${this.MIN_GLYPH_FEATURES} Glyph-Merkmale erforderlich.`);
+      return;
+    }
     this.selectedGlyphFeatures.splice(index, 1);
     this.saveGlyphFeatures();
     this.regeneratePreviewData();

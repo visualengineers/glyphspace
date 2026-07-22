@@ -1,0 +1,310 @@
+import { PreprocessingService } from './preprocessing.service';
+import { HistoryStatus, PreprocessingState } from '../models/preprocessing-state';
+import { ColumnConfig } from '../models/column-config';
+import { DataProfile, ColumnStatistics } from '../models/column-statistics';
+import {
+  DataType,
+  EncodingMethod,
+  ScalingMethod,
+  MissingValueStrategy,
+  OutlierMethod,
+  OutlierStrategy,
+} from '../models/data-type.enum';
+
+/**
+ * A4 – Undo/Redo history engine.
+ *
+ * These tests drive the history stack directly on the service (the single source
+ * of truth for undo/redo). They pin the invariants the wizard shell and the step
+ * components rely on: LIFO ordering, redo-stack invalidation, snapshot isolation
+ * (deep copy), the MAX_HISTORY cap, the diff-based settingLabel/deep-link mapping,
+ * and the cross-field cleanup that must undo as one atomic action.
+ */
+describe('PreprocessingService – Undo/Redo history', () => {
+  let service: PreprocessingService;
+
+  // Minimal stubs: the history engine never touches the worker or the data loader.
+  const dataProcessorStub = {} as unknown as ConstructorParameters<typeof PreprocessingService>[0];
+  const dataLoaderStub = {
+    getDataSetNames: () => [] as string[],
+  } as unknown as ConstructorParameters<typeof PreprocessingService>[1];
+
+  function makeColumn(name: string, dataType: DataType): ColumnStatistics {
+    return {
+      name,
+      dataType,
+      count: 100,
+      missingCount: 0,
+      missingPercentage: 0,
+      uniqueCount: 50,
+      mean: 10,
+      stdDev: 2,
+    };
+  }
+
+  function makeConfig(name: string, overrides: Partial<ColumnConfig> = {}): ColumnConfig {
+    return {
+      name,
+      originalType: DataType.Numeric,
+      targetType: DataType.Numeric,
+      encodingMethod: EncodingMethod.Normalize,
+      scalingMethod: ScalingMethod.MinMax,
+      includeInProjection: true,
+      isColorFeature: false,
+      missingValueStrategy: MissingValueStrategy.Keep,
+      outlierMethod: OutlierMethod.IQR_1_5,
+      outlierStrategy: OutlierStrategy.Keep,
+      enabled: true,
+      hasIssues: false,
+      ...overrides,
+    };
+  }
+
+  /** Seed the service with a realistic loaded-file state without running the worker. */
+  function seed(overrides: Partial<PreprocessingState> = {}): void {
+    const columns = ['alpha', 'beta', 'gamma'].map(n => makeColumn(n, DataType.Numeric));
+    const profile: DataProfile = {
+      totalRows: 100,
+      totalColumns: columns.length,
+      fileSize: 1000,
+      fileName: 'test.csv',
+      columns,
+      qualityScore: 90,
+      duplicateCount: 0,
+      previewRows: [],
+    };
+    const columnConfigs = new Map<string, ColumnConfig>();
+    columns.forEach(c => columnConfigs.set(c.name, makeConfig(c.name)));
+
+    // updateState is private but is the honest way to install a base state in a test.
+    (service as unknown as { updateState(u: Partial<PreprocessingState>): void }).updateState({
+      rawFileName: 'test.csv',
+      dataProfile: profile,
+      columnConfigs,
+      datasetName: 'test',
+      ...overrides,
+    });
+  }
+
+  function latestHistory(): HistoryStatus {
+    let status!: HistoryStatus;
+    service.history$.subscribe(s => (status = s)).unsubscribe();
+    return status;
+  }
+
+  beforeEach(() => {
+    localStorage.clear();
+    service = new PreprocessingService(dataProcessorStub, dataLoaderStub);
+    seed();
+  });
+
+  afterEach(() => {
+    localStorage.clear();
+  });
+
+  describe('empty history', () => {
+    it('starts with nothing to undo or redo', () => {
+      const status = latestHistory();
+      expect(status.canUndo).toBeFalse();
+      expect(status.canRedo).toBeFalse();
+      expect(status.undoLabel).toBeNull();
+      expect(status.redoLabel).toBeNull();
+      expect(service.canUndo).toBeFalse();
+      expect(service.canRedo).toBeFalse();
+    });
+
+    it('undo() and redo() return null and change nothing on an empty stack', () => {
+      const before = service.currentState;
+      expect(service.undo()).toBeNull();
+      expect(service.redo()).toBeNull();
+      expect(service.currentState).toBe(before);
+    });
+  });
+
+  describe('pushHistory', () => {
+    it('makes undo available and reports the action label', () => {
+      service.pushHistory('Aktion A');
+      const status = latestHistory();
+      expect(status.canUndo).toBeTrue();
+      expect(status.undoLabel).toBe('Aktion A');
+      expect(status.canRedo).toBeFalse();
+    });
+
+    it('caps the undo stack at MAX_HISTORY (50) entries', () => {
+      for (let i = 0; i < 60; i++) {
+        service.pushHistory(`Aktion ${i}`);
+      }
+      const stackLen = (service as unknown as { undoStack: unknown[] }).undoStack.length;
+      expect(stackLen).toBe(50);
+      // The oldest entries were dropped, the newest survives.
+      expect(latestHistory().undoLabel).toBe('Aktion 59');
+    });
+  });
+
+  describe('undo / redo round trip', () => {
+    it('reverts a column-enable toggle and re-applies it', () => {
+      service.toggleColumnEnabled('alpha'); // disable
+      expect(service.currentState.columnConfigs.get('alpha')!.enabled).toBeFalse();
+
+      const undoInfo = service.undo();
+      expect(undoInfo).not.toBeNull();
+      expect(service.currentState.columnConfigs.get('alpha')!.enabled).toBeTrue();
+
+      const redoInfo = service.redo();
+      expect(redoInfo).not.toBeNull();
+      expect(service.currentState.columnConfigs.get('alpha')!.enabled).toBeFalse();
+    });
+
+    it('reverts and re-applies a glyph-feature change', () => {
+      service.pushHistory('Glyph-Merkmale geändert');
+      service.setGlyphFeatures(['alpha', 'beta', 'gamma']);
+      expect(service.currentState.glyphFeatures).toEqual(['alpha', 'beta', 'gamma']);
+
+      service.undo();
+      expect(service.currentState.glyphFeatures).toEqual([]);
+
+      service.redo();
+      expect(service.currentState.glyphFeatures).toEqual(['alpha', 'beta', 'gamma']);
+    });
+
+    it('unwinds several actions in strict LIFO order', () => {
+      service.updateColumnConfig('alpha', { encodingMethod: EncodingMethod.Standardize });
+      service.updateColumnConfig('beta', { encodingMethod: EncodingMethod.Standardize });
+
+      // Undo the beta change first (most recent), then alpha.
+      service.undo();
+      expect(service.currentState.columnConfigs.get('beta')!.encodingMethod).toBe(EncodingMethod.Normalize);
+      expect(service.currentState.columnConfigs.get('alpha')!.encodingMethod).toBe(EncodingMethod.Standardize);
+
+      service.undo();
+      expect(service.currentState.columnConfigs.get('alpha')!.encodingMethod).toBe(EncodingMethod.Normalize);
+    });
+
+    it('keeps undo/redo labels in sync with the stacks', () => {
+      service.pushHistory('Aktion A');
+      service.pushHistory('Aktion B');
+      expect(latestHistory().undoLabel).toBe('Aktion B');
+
+      service.undo();
+      const afterUndo = latestHistory();
+      expect(afterUndo.undoLabel).toBe('Aktion A');
+      expect(afterUndo.redoLabel).toBe('Aktion B');
+      expect(afterUndo.canRedo).toBeTrue();
+    });
+  });
+
+  describe('redo-stack invalidation', () => {
+    it('clears the redo stack when a new action is pushed after an undo', () => {
+      service.pushHistory('Aktion A');
+      service.undo();
+      expect(latestHistory().canRedo).toBeTrue();
+
+      service.pushHistory('Aktion B');
+      const status = latestHistory();
+      expect(status.canRedo).toBeFalse();
+      expect(service.redo()).toBeNull();
+    });
+  });
+
+  describe('snapshot isolation', () => {
+    it('deep-copies column configs so a later in-place mutation cannot corrupt a snapshot', () => {
+      service.pushHistory('Vor Mutation');
+      // Mutate the live config object in place, bypassing the public API entirely.
+      const liveConfig = service.currentState.columnConfigs.get('alpha')!;
+      liveConfig.encodingMethod = EncodingMethod.Standardize;
+
+      service.undo();
+      // The snapshot must still hold the pre-mutation value.
+      expect(service.currentState.columnConfigs.get('alpha')!.encodingMethod).toBe(EncodingMethod.Normalize);
+    });
+
+    it('deep-copies glyph feature arrays', () => {
+      service.setGlyphFeatures(['alpha', 'beta', 'gamma']);
+      service.pushHistory('Vor Mutation');
+      // Push directly onto the live array reference.
+      service.currentState.glyphFeatures.push('delta');
+
+      service.undo();
+      expect(service.currentState.glyphFeatures).toEqual(['alpha', 'beta', 'gamma']);
+    });
+  });
+
+  describe('describeDiff – setting label and deep-link mapping', () => {
+    it('names an encoding change and points to step 3 (Datenkonfiguration)', () => {
+      service.updateColumnConfig('alpha', { encodingMethod: EncodingMethod.Standardize });
+      const info = service.undo()!;
+      expect(info.settingLabel).toBe('Encoding');
+      expect(info.step).toBe(2);
+      expect(info.anchorId).toBe('wizard-anchor-features');
+    });
+
+    it('names a glyph-feature change and points to step 4 (Visualisierung)', () => {
+      service.pushHistory('Glyph-Merkmale geändert');
+      service.setGlyphFeatures(['alpha', 'beta', 'gamma']);
+      const info = service.undo()!;
+      expect(info.settingLabel).toBe('Glyph-Merkmale');
+      expect(info.step).toBe(3);
+      expect(info.anchorId).toBe('wizard-anchor-glyph');
+    });
+
+    it('names a column-selection change', () => {
+      service.toggleColumnEnabled('alpha');
+      const info = service.undo()!;
+      expect(info.settingLabel).toBe('Spaltenauswahl');
+      expect(info.step).toBe(1);
+    });
+
+    it('falls back to the raw action label when no field maps cleanly', () => {
+      // Push twice over an identical state so the diff finds no changed field.
+      service.pushHistory('Freitext-Aktion');
+      const info = service.undo()!;
+      expect(info.actionLabel).toBe('Freitext-Aktion');
+      expect(info.settingLabel).toBe('Freitext-Aktion');
+      expect(info.step).toBeNull();
+    });
+  });
+
+  describe('cross-field cleanup is atomic under undo', () => {
+    it('restores the color feature, color scale AND glyph mapping with a single undo', () => {
+      // alpha is the color feature; glyph rays reference alpha + beta.
+      seed();
+      const configs = service.currentState.columnConfigs;
+      configs.get('alpha')!.isColorFeature = true;
+      (service as unknown as { updateState(u: Partial<PreprocessingState>): void }).updateState({
+        columnConfigs: new Map(configs),
+        colorScaleId: 2,
+        colorScaleMode: 'continuous',
+        glyphFeatures: ['alpha', 'beta'],
+      });
+
+      // Disabling alpha must cascade: clear color feature, reset scale, drop alpha from glyph.
+      service.toggleColumnEnabled('alpha');
+      expect(service.currentState.columnConfigs.get('alpha')!.isColorFeature).toBeFalse();
+      expect(service.currentState.colorScaleId).toBe(0);
+      expect(service.currentState.glyphFeatures).toEqual(['beta']);
+
+      // A single undo reverts the toggle and the whole cascade together.
+      service.undo();
+      const restored = service.currentState;
+      expect(restored.columnConfigs.get('alpha')!.enabled).toBeTrue();
+      expect(restored.columnConfigs.get('alpha')!.isColorFeature).toBeTrue();
+      expect(restored.colorScaleId).toBe(2);
+      expect(restored.glyphFeatures).toEqual(['alpha', 'beta']);
+    });
+  });
+
+  describe('resetState', () => {
+    it('clears both history stacks', () => {
+      service.pushHistory('Aktion A');
+      service.pushHistory('Aktion B');
+      service.undo();
+      expect(latestHistory().canUndo).toBeTrue();
+      expect(latestHistory().canRedo).toBeTrue();
+
+      service.resetState();
+      const status = latestHistory();
+      expect(status.canUndo).toBeFalse();
+      expect(status.canRedo).toBeFalse();
+    });
+  });
+});

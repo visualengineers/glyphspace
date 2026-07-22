@@ -396,7 +396,11 @@ export class PreprocessingService {
     if (features.length < 3 || features.length > 12) {
       throw new Error('3-12 glyph features required');
     }
-    this.updateState({ glyphFeatures: features });
+    // Store a copy, never the caller's array. Step 4 edits its local selection
+    // array in place (splice/push); if we kept that reference, later in-place edits
+    // would silently mutate the service state and corrupt undo snapshots taken
+    // before the next pushHistory.
+    this.updateState({ glyphFeatures: [...features] });
     this.saveStateToStorage();
   }
 
