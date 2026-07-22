@@ -226,3 +226,129 @@ describe('Step4VisualizationSettingsComponent – colour feature history', () =>
     expect(service.canUndo).toBeFalse();
   });
 });
+
+/**
+ * A4 – Step 4 drag & drop, smart suggestions and projection columns vs. undo.
+ *
+ * These paths also mutate the glyph selection or a column config; they must each
+ * be a single undoable action and stay in sync with the service state.
+ */
+describe('Step4VisualizationSettingsComponent – drag/drop, suggestions, projection', () => {
+  let component: Step4VisualizationSettingsComponent;
+  let service: PreprocessingService;
+  let toast: jasmine.SpyObj<ToastService>;
+
+  const dataProcessorStub = {} as unknown as ConstructorParameters<typeof PreprocessingService>[0];
+  const dataLoaderStub = {
+    getDataSetNames: () => [] as string[],
+  } as unknown as ConstructorParameters<typeof PreprocessingService>[1];
+
+  function makeConfig(name: string): ColumnConfig {
+    return {
+      name,
+      originalType: DataType.Numeric,
+      targetType: DataType.Numeric,
+      encodingMethod: EncodingMethod.Normalize,
+      scalingMethod: ScalingMethod.MinMax,
+      includeInProjection: true,
+      isColorFeature: false,
+      missingValueStrategy: MissingValueStrategy.Keep,
+      outlierMethod: OutlierMethod.IQR_1_5,
+      outlierStrategy: OutlierStrategy.Keep,
+      enabled: true,
+      hasIssues: false,
+    };
+  }
+
+  // Minimal DragEvent stand-in: only the members the handlers actually touch.
+  function dragEvent(): DragEvent {
+    return {
+      preventDefault: () => undefined,
+      stopPropagation: () => undefined,
+      dataTransfer: { effectAllowed: '', dropEffect: '', setData: () => undefined, getData: () => '' },
+    } as unknown as DragEvent;
+  }
+
+  function ready(): void {
+    (component as unknown as { historyReady: boolean }).historyReady = true;
+  }
+
+  beforeEach(() => {
+    localStorage.clear();
+    service = new PreprocessingService(dataProcessorStub, dataLoaderStub);
+    toast = jasmine.createSpyObj<ToastService>('ToastService', ['warning', 'success', 'showUndo', 'info', 'error']);
+    component = new Step4VisualizationSettingsComponent(service, toast);
+  });
+
+  afterEach(() => localStorage.clear());
+
+  it('reorders a glyph feature via drag as one undoable action', () => {
+    service.setGlyphFeatures(['a', 'b', 'c', 'd', 'e']);
+    component.selectedGlyphFeatures = ['a', 'b', 'c', 'd', 'e'];
+    ready();
+
+    component.onDragStart(dragEvent(), 'a', 'selected', 0);
+    component.onDropOnSelectedItem(dragEvent(), 2);
+    expect(component.selectedGlyphFeatures).toEqual(['b', 'c', 'a', 'd', 'e']);
+    expect(service.currentState.glyphFeatures).toEqual(['b', 'c', 'a', 'd', 'e']);
+
+    service.undo();
+    expect(service.currentState.glyphFeatures).toEqual(['a', 'b', 'c', 'd', 'e']);
+  });
+
+  it('adds a feature by dropping it into the selected list, undoable', () => {
+    service.setGlyphFeatures(['a', 'b', 'c']);
+    component.selectedGlyphFeatures = ['a', 'b', 'c'];
+    component.availableFeatures = ['a', 'b', 'c', 'd'];
+    ready();
+
+    component.onDragStart(dragEvent(), 'd', 'available', 0);
+    component.onDropInSelected(dragEvent());
+    expect(service.currentState.glyphFeatures).toEqual(['a', 'b', 'c', 'd']);
+
+    service.undo();
+    expect(service.currentState.glyphFeatures).toEqual(['a', 'b', 'c']);
+  });
+
+  it('removes a feature by dropping it onto the available area, undoable', () => {
+    service.setGlyphFeatures(['a', 'b', 'c', 'd']);
+    component.selectedGlyphFeatures = ['a', 'b', 'c', 'd'];
+    ready();
+
+    component.onDragStart(dragEvent(), 'd', 'selected', 3);
+    component.onDropInAvailable(dragEvent());
+    expect(service.currentState.glyphFeatures).toEqual(['a', 'b', 'c']);
+
+    service.undo();
+    expect(service.currentState.glyphFeatures).toEqual(['a', 'b', 'c', 'd']);
+  });
+
+  it('applies recommended features as one undoable action and offers a toast undo', () => {
+    component.suggestedFeatures = ['a', 'b', 'c', 'd', 'e'];
+    component.availableFeatures = ['a', 'b', 'c', 'd', 'e', 'f'];
+    ready();
+
+    component.applySuggestedFeaturesByUser();
+    expect(component.selectedGlyphFeatures).toEqual(['a', 'b', 'c', 'd', 'e']);
+    expect(service.currentState.glyphFeatures).toEqual(['a', 'b', 'c', 'd', 'e']);
+    expect(toast.showUndo).toHaveBeenCalled();
+
+    service.undo();
+    expect(service.currentState.glyphFeatures).toEqual([]);
+  });
+
+  it('toggles a projection column as one undoable action', () => {
+    const configs = new Map<string, ColumnConfig>([['x', makeConfig('x')]]);
+    (service as unknown as { updateState(u: Partial<PreprocessingState>): void }).updateState({ columnConfigs: configs });
+    component.projectionColumns = [
+      { column: { name: 'x' } as never, config: service.currentState.columnConfigs.get('x')! },
+    ] as never;
+
+    component.toggleColumnProjection('x');
+    expect(service.currentState.columnConfigs.get('x')!.includeInProjection).toBeFalse();
+    expect(service.canUndo).toBeTrue();
+
+    service.undo();
+    expect(service.currentState.columnConfigs.get('x')!.includeInProjection).toBeTrue();
+  });
+});

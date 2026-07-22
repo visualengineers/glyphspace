@@ -307,4 +307,156 @@ describe('PreprocessingService – Undo/Redo history', () => {
       expect(status.canRedo).toBeFalse();
     });
   });
+
+  describe('describeDiff – full SETTING_META mapping', () => {
+    // Change exactly one field, then undo, and check the reported setting/deep-link.
+    // pushHistory snapshots the pre-change state; the single mutation is the only diff.
+    function undoInfoAfter(mutate: () => void) {
+      service.pushHistory('irgendeine Aktion');
+      mutate();
+      return service.undo()!;
+    }
+
+    function mutateColumn<K extends keyof ColumnConfig>(field: K, value: ColumnConfig[K]): void {
+      const configs = new Map(service.currentState.columnConfigs);
+      configs.set('alpha', { ...configs.get('alpha')!, [field]: value });
+      (service as unknown as { updateState(u: Partial<PreprocessingState>): void }).updateState({ columnConfigs: configs });
+    }
+
+    function setTop(updates: Partial<PreprocessingState>): void {
+      (service as unknown as { updateState(u: Partial<PreprocessingState>): void }).updateState(updates);
+    }
+
+    const cases: { name: string; mutate: () => void; label: string; step: number | null; anchor: string | null }[] = [
+      { name: 'rawFileName', mutate: () => setTop({ rawFileName: 'anders.csv' }), label: 'Datei', step: 0, anchor: null },
+      { name: 'datasetName', mutate: () => setTop({ datasetName: 'umbenannt' }), label: 'Datensatzname', step: 0, anchor: null },
+      { name: 'columnConfigs.enabled', mutate: () => mutateColumn('enabled', false), label: 'Spaltenauswahl', step: 1, anchor: 'wizard-anchor-columns' },
+      { name: 'columnConfigs.isColorFeature', mutate: () => mutateColumn('isColorFeature', true), label: 'Farbattribut', step: 3, anchor: 'wizard-anchor-color' },
+      { name: 'columnConfigs.targetType', mutate: () => mutateColumn('targetType', DataType.Categorical), label: 'Datentyp', step: 2, anchor: 'wizard-anchor-features' },
+      { name: 'columnConfigs.encodingMethod', mutate: () => mutateColumn('encodingMethod', EncodingMethod.Standardize), label: 'Encoding', step: 2, anchor: 'wizard-anchor-features' },
+      { name: 'columnConfigs.scalingMethod', mutate: () => mutateColumn('scalingMethod', ScalingMethod.Standard), label: 'Skalierung', step: 2, anchor: 'wizard-anchor-features' },
+      { name: 'columnConfigs.includeInProjection', mutate: () => mutateColumn('includeInProjection', false), label: 'Projektionsspalten', step: 3, anchor: 'wizard-anchor-projection-columns' },
+      { name: 'columnConfigs.missingValueStrategy', mutate: () => mutateColumn('missingValueStrategy', MissingValueStrategy.FillMean), label: 'Fehlende Werte', step: 2, anchor: 'wizard-anchor-features' },
+      { name: 'columnConfigs.outlierStrategy', mutate: () => mutateColumn('outlierStrategy', OutlierStrategy.Remove), label: 'Ausreißerbehandlung', step: 2, anchor: 'wizard-anchor-features' },
+      { name: 'cleaningConfig', mutate: () => setTop({ cleaningConfig: { removeDuplicates: true } }), label: 'Datenbereinigung', step: 2, anchor: 'wizard-anchor-cleaning' },
+      { name: 'projectionConfig', mutate: () => setTop({ projectionConfig: { ...service.currentState.projectionConfig, enablePCA: false } }), label: 'Projektionsparameter', step: 3, anchor: 'wizard-anchor-methods' },
+      { name: 'glyphFeatures', mutate: () => setTop({ glyphFeatures: ['alpha'] }), label: 'Glyph-Merkmale', step: 3, anchor: 'wizard-anchor-glyph' },
+      { name: 'tooltipFeatures', mutate: () => setTop({ tooltipFeatures: ['alpha'] }), label: 'Tooltip-Merkmale', step: 3, anchor: 'wizard-anchor-glyph' },
+      { name: 'colorScaleMode', mutate: () => setTop({ colorScaleMode: 'categorical' }), label: 'Farbmodus', step: 3, anchor: 'wizard-anchor-color' },
+      { name: 'colorScaleId', mutate: () => setTop({ colorScaleId: 5 }), label: 'Farbskala', step: 3, anchor: 'wizard-anchor-color' },
+    ];
+
+    cases.forEach(c => {
+      it(`maps a ${c.name} change to "${c.label}" (step ${c.step})`, () => {
+        const info = undoInfoAfter(c.mutate);
+        expect(info.settingLabel).toBe(c.label);
+        expect(info.step).toBe(c.step);
+        expect(info.anchorId).toBe(c.anchor);
+      });
+    });
+
+    it('treats an added/removed column as a selection change', () => {
+      service.pushHistory('irgendeine Aktion');
+      const configs = new Map(service.currentState.columnConfigs);
+      configs.delete('gamma');
+      (service as unknown as { updateState(u: Partial<PreprocessingState>): void }).updateState({ columnConfigs: configs });
+      const info = service.undo()!;
+      expect(info.settingLabel).toBe('Spaltenauswahl');
+    });
+  });
+
+  describe('round trips for the remaining undoable actions', () => {
+    it('setColumnsEnabled reverts a bulk disable', () => {
+      service.setColumnsEnabled(['alpha', 'beta'], false);
+      expect(service.currentState.columnConfigs.get('alpha')!.enabled).toBeFalse();
+      expect(service.currentState.columnConfigs.get('beta')!.enabled).toBeFalse();
+
+      service.undo();
+      expect(service.currentState.columnConfigs.get('alpha')!.enabled).toBeTrue();
+      expect(service.currentState.columnConfigs.get('beta')!.enabled).toBeTrue();
+    });
+
+    it('selectAllColumns undo restores a previously disabled column', () => {
+      service.setColumnsEnabled(['alpha'], false);
+      service.selectAllColumns();
+      expect(service.currentState.columnConfigs.get('alpha')!.enabled).toBeTrue();
+
+      service.undo(); // revert selectAll
+      expect(service.currentState.columnConfigs.get('alpha')!.enabled).toBeFalse();
+    });
+
+    it('deselectAllColumns is fully reversible', () => {
+      service.deselectAllColumns();
+      const allDisabled = Array.from(service.currentState.columnConfigs.values()).every(c => !c.enabled);
+      expect(allDisabled).toBeTrue();
+
+      service.undo();
+      const allEnabled = Array.from(service.currentState.columnConfigs.values()).every(c => c.enabled);
+      expect(allEnabled).toBeTrue();
+    });
+
+    it('updateCleaningConfig round trip', () => {
+      expect(service.currentState.cleaningConfig.removeDuplicates).toBeFalse();
+      service.updateCleaningConfig({ removeDuplicates: true });
+      expect(service.currentState.cleaningConfig.removeDuplicates).toBeTrue();
+
+      service.undo();
+      expect(service.currentState.cleaningConfig.removeDuplicates).toBeFalse();
+    });
+
+    it('updateProjectionConfig round trip', () => {
+      expect(service.currentState.projectionConfig.enablePCA).toBeTrue();
+      service.updateProjectionConfig({ enablePCA: false });
+      expect(service.currentState.projectionConfig.enablePCA).toBeFalse();
+
+      service.undo();
+      expect(service.currentState.projectionConfig.enablePCA).toBeTrue();
+    });
+  });
+
+  describe('file load history', () => {
+    const profile: DataProfile = {
+      totalRows: 2,
+      totalColumns: 0,
+      fileSize: 10,
+      fileName: 'x.csv',
+      columns: [] as ColumnStatistics[],
+      qualityScore: 100,
+      duplicateCount: 0,
+      previewRows: [],
+    };
+
+    function serviceWithLoader() {
+      const proc = { profileData: async () => profile } as unknown as ConstructorParameters<typeof PreprocessingService>[0];
+      return new PreprocessingService(proc, dataLoaderStub);
+    }
+
+    function csvFile(): File {
+      return new File(['a,b\n1,2\n'], 'daten.csv', { type: 'text/csv' });
+    }
+
+    it('records the first load as "Datei geladen" and undo clears the profile', async () => {
+      const svc = serviceWithLoader();
+      await svc.loadCSV(csvFile());
+
+      expect(svc.currentState.dataProfile).not.toBeNull();
+      expect(svc.canUndo).toBeTrue();
+      let status!: HistoryStatus;
+      svc.history$.subscribe(s => (status = s)).unsubscribe();
+      expect(status.undoLabel).toBe('Datei geladen');
+
+      svc.undo();
+      expect(svc.currentState.dataProfile).toBeNull();
+    });
+
+    it('labels a re-upload as "Datei ersetzt"', async () => {
+      const svc = serviceWithLoader();
+      await svc.loadCSV(csvFile());
+      await svc.loadCSV(csvFile());
+
+      let status!: HistoryStatus;
+      svc.history$.subscribe(s => (status = s)).unsubscribe();
+      expect(status.undoLabel).toBe('Datei ersetzt');
+    });
+  });
 });
