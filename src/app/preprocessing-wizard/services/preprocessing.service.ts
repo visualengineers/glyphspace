@@ -269,7 +269,7 @@ export class PreprocessingService {
     } catch (error: unknown) {
       this.updateState({
         isProcessing: false,
-        error: error instanceof Error ? error.message : 'Failed to load data file',
+        error: this.toErrorMessage(error, 'Failed to load data file'),
       });
       throw error;
     }
@@ -626,9 +626,27 @@ export class PreprocessingService {
     } catch (error: unknown) {
       this.updateState({
         isProcessing: false,
-        error: error instanceof Error ? error.message : 'Processing failed',
+        error: this.toErrorMessage(error, 'Processing failed'),
       });
       throw error;
+    }
+  }
+
+  /** Extract a human-readable message from an unknown thrown value without
+   *  discarding string rejections (the old `instanceof Error` check dropped
+   *  the real worker cause and fell back to a generic string). */
+  private toErrorMessage(error: unknown, fallback: string): string {
+    if (error instanceof Error) return error.message;
+    if (typeof error === 'string' && error.trim().length > 0) return error;
+    return fallback;
+  }
+
+  /** Clear a lingering processing error. The error flag lives in the root
+   *  singleton state and previously survived closing/reopening the wizard,
+   *  so a stale "Processing failed" reappeared on re-entry (P-S5-03). */
+  public clearError(): void {
+    if (this.currentState.error !== null) {
+      this.updateState({ error: null });
     }
   }
 

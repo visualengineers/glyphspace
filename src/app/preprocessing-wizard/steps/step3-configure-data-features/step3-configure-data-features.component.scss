@@ -17,6 +17,11 @@
 
   .step-content {
     @include w.step-content;
+    // A14: gleicher zentrierter Container wie Schritt 2, damit die linke Kante
+    // der master-rail deckungsgleich mit der Name-Spalte in Schritt 2 liegt und
+    // beim Morph kein horizontaler Grund-Offset pro Zeile entsteht.
+    max-width: 1150px;
+    margin: 0 auto;
   }
 
   .step-header {
@@ -37,12 +42,21 @@
     border-radius: 4px;
     overflow: hidden;
     margin-bottom: 16px;
-    background: white;
+    // A14: same tone as the detail well (not white), so while the detail well
+    // slides in during the morph the area behind it is grey, never a white flash.
+    background: #eceff2;
+    // A14: same box height as Step 2's table container (shared wizard values), so
+    // the two steps end at the same bottom edge and the morph needs no height
+    // growth. Content taller than this scrolls inside the rail / detail well.
+    height: calc(#{w.$wizard-list-viewport-height} + #{w.$wizard-header-row-height});
   }
 
   // ── Left rail ────────────────────────────────────────────────────────────
+  // A14: width comes from shared wizard values so this rail and Step 2's left
+  // column band line up. The rail fills the box height; its list flexes and
+  // scrolls under the (taller) rail header.
   .master-rail {
-    width: 320px;
+    width: w.$wizard-rail-width;
     flex-shrink: 0;
     display: flex;
     flex-direction: column;
@@ -107,7 +121,10 @@
   }
 
   .column-list {
+    // A14: fill the remaining rail height below the header and scroll internally
+    // (no longer a fixed viewport height, so the box can match Step 2).
     flex: 1;
+    min-height: 0;
     overflow-y: auto;
   }
 
@@ -116,6 +133,10 @@
     align-items: flex-start;
     gap: 10px;
     padding: 10px 14px 10px 12px;
+    // A14: shared fixed row height so rail item N lines up with the Step 2 row N
+    // (minimal vertical movement during the Flip morph).
+    min-height: w.$wizard-list-row-height;
+    box-sizing: border-box;
     cursor: pointer;
     border-bottom: 1px solid v.$gray-200;
     border-left: 3px solid transparent;
@@ -205,6 +226,10 @@
   .detail-well {
     flex: 1;
     min-width: 0;
+    // A14: fill the fixed box height and scroll internally when the column config
+    // is taller than the box (instead of stretching the whole step downwards).
+    min-height: 0;
+    overflow-y: auto;
     display: flex;
     flex-direction: column;
     gap: 12px;

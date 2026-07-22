@@ -1,3 +1,4 @@
+import { ChangeDetectorRef } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { PreprocessingWizardComponent } from './preprocessing-wizard.component';
 import { PreprocessingService } from './services/preprocessing.service';
@@ -30,6 +31,16 @@ describe('PreprocessingWizardComponent – undo/redo shell', () => {
   const dataLoaderStub = {
     getDataSetNames: () => [] as string[],
   } as unknown as ConstructorParameters<typeof PreprocessingService>[1];
+
+  // The shell also injects a ChangeDetectorRef (used only by the A14 morph path,
+  // which these tests do not exercise) — a no-op stub is enough.
+  const cdrStub = {
+    detectChanges: () => undefined,
+    markForCheck: () => undefined,
+    detach: () => undefined,
+    reattach: () => undefined,
+    checkNoChanges: () => undefined,
+  } as unknown as ChangeDetectorRef;
 
   function makeConfig(name: string): ColumnConfig {
     return {
@@ -71,7 +82,7 @@ describe('PreprocessingWizardComponent – undo/redo shell', () => {
     TestBed.configureTestingModule({});
     service = new PreprocessingService(dataProcessorStub, dataLoaderStub);
     seedColumns();
-    component = TestBed.runInInjectionContext(() => new PreprocessingWizardComponent(service));
+    component = TestBed.runInInjectionContext(() => new PreprocessingWizardComponent(service, cdrStub));
   });
 
   afterEach(() => localStorage.clear());

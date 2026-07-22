@@ -1,12 +1,4 @@
-import {
-  Component,
-  OnInit,
-  AfterViewInit,
-  forwardRef,
-  ViewChild,
-  ElementRef,
-  HostListener,
-} from '@angular/core';
+import { Component, OnInit, AfterViewInit, forwardRef, ViewChild, ElementRef, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PreprocessingService } from '../../services/preprocessing.service';
@@ -37,6 +29,8 @@ export class Step2ColumnSelectionComponent implements OnInit, AfterViewInit, Wiz
   columns: ColumnStatistics[] = [];
   columnConfigs = new Map<string, ColumnConfig>();
   searchTerm = '';
+  // A14: Type filter, mirroring Step 3's master-rail type filter so both steps
+  // share the same header controls (enables the minimal Flip morph).
   filterType: DataType | 'all' = 'all';
   columnHistogramCache = new Map<string, HistogramData>();
 
@@ -86,17 +80,18 @@ export class Step2ColumnSelectionComponent implements OnInit, AfterViewInit, Wiz
   }
 
   get filteredColumns(): ColumnStatistics[] {
-    let cols = this.columns;
-    if (this.filterType !== 'all') {
-      cols = cols.filter(col => col.dataType === this.filterType);
-    }
-    if (this.searchTerm) {
-      const term = this.searchTerm.toLowerCase();
-      cols = cols.filter(
-        col => col.name.toLowerCase().includes(term) || col.dataType.toLowerCase().includes(term)
-      );
-    }
-    return cols;
+    const term = this.searchTerm.trim().toLowerCase();
+    return this.columns.filter(col => {
+      // Type filter (A14): restrict to a single data type when selected.
+      if (this.filterType !== 'all' && col.dataType !== this.filterType) {
+        return false;
+      }
+      // Text filter: match by column name or data type.
+      if (term && !col.name.toLowerCase().includes(term) && !col.dataType.toLowerCase().includes(term)) {
+        return false;
+      }
+      return true;
+    });
   }
 
   get hasActiveFilter(): boolean {

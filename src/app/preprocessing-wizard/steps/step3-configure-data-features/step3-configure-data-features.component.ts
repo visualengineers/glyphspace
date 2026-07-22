@@ -265,13 +265,12 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit, AfterViewIni
       return true;
     });
 
-    // Sort: columns with issues first, then alphabetical
-    this.filteredColumns.sort((a, b) => {
-      const aIssues = (a.column.missingCount > 0 ? 1 : 0) + ((a.outlierCount || 0) > 0 ? 1 : 0);
-      const bIssues = (b.column.missingCount > 0 ? 1 : 0) + ((b.outlierCount || 0) > 0 ? 1 : 0);
-      if (aIssues !== bIssues) return bIssues - aIssues;
-      return a.column.name.localeCompare(b.column.name);
-    });
+    // A14: Keep the columns in the SAME order as Step 2 (the state's file order,
+    // i.e. `dataProfile.columns`). Previously this list was sorted issues-first +
+    // alphabetically, which put each column at a different vertical slot than in
+    // Step 2 and made the Step 2 -> 3 Flip morph look like rows exploding/crossing.
+    // `this.columns` is already built in file order, and the filter above
+    // preserves it, so no sort is applied here.
 
     // Re-select if current selection is filtered out
     if (this.selectedColumnName && !this.filteredColumns.find(c => c.column.name === this.selectedColumnName)) {

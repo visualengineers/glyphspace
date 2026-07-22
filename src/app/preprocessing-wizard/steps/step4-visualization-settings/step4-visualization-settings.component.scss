@@ -79,7 +79,14 @@
     .form-group {
       @include m.form-group;
 
-      select,
+      // Native select must read as a dropdown (chevron affordance), not a
+      // plain text input (C-S4-02).
+      select {
+        @include w.select;
+        width: 200px;
+        display: block;
+      }
+
       app-color-scale-selector {
         width: 200px;
         display: block;
@@ -713,6 +720,23 @@
         // Fit the (narrower) card column: each parameter takes the full width
         flex: 1 1 100%;
         min-width: 0;
+
+        // A3 / C-S4-05: field-near validation message (error class K4).
+        .param-inline-error {
+          display: flex;
+          align-items: flex-start;
+          gap: 5px;
+          margin-top: 5px;
+          font-size: 11px;
+          line-height: 1.4;
+          color: v.$status-error-dark;
+
+          .material-icons {
+            font-size: 14px;
+            color: #d64541;
+            flex-shrink: 0;
+          }
+        }
 
         label {
           display: flex;

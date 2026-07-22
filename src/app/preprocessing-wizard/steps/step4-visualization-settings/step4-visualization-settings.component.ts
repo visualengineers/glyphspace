@@ -261,7 +261,14 @@ export class Step4VisualizationSettingsComponent implements OnInit, AfterViewIni
       sizeHint: 'up to 100K rows',
       largeDatasetWarning: true,
       params: [
-        { label: 'Number of Neighbors', helpKey: 'umapNeighbors', configKey: 'umapNeighbors', min: 2, max: 200, default: 15 },
+        {
+          label: 'Number of Neighbors',
+          helpKey: 'umapNeighbors',
+          configKey: 'umapNeighbors',
+          min: 2,
+          max: 200,
+          default: 15,
+        },
         {
           label: 'Minimum Distance',
           helpKey: 'umapMinDist',
@@ -781,6 +788,30 @@ export class Step4VisualizationSettingsComponent implements OnInit, AfterViewIni
     if (this.isMethodDisabled(method)) return;
     this.projectionConfig[method.key] = !this.projectionConfig[method.key];
     this.updateProjectionConfig();
+  }
+
+  /**
+   * A3 / C-S4-05: field-near validation for neighbour parameters (error class K4).
+   * A neighbour count at or above the row count makes IsoMap / LLE / LTSA / UMAP
+   * fail during processing; we flag it right at the parameter instead of only
+   * surfacing a cryptic error later in Step 5. Returns null when valid.
+   * (0 means "auto" for IsoMap/LLE/LTSA and is always valid.)
+   */
+  neighborParamError(param: ProjectionParam): string | null {
+    const neighborKeys: (keyof ProjectionConfig)[] = [
+      'isomapNeighbors',
+      'lleNeighbors',
+      'ltsaNeighbors',
+      'umapNeighbors',
+    ];
+    if (!neighborKeys.includes(param.configKey)) return null;
+
+    const value = this.projectionConfig[param.configKey] as number;
+    const rows = this.getDatasetRowCount();
+    if (value > 0 && rows > 0 && value >= rows) {
+      return `Only ${rows} rows available — set neighbours below ${rows}, or this method will fail during processing.`;
+    }
+    return null;
   }
 
   onParamChange(configKey: keyof ProjectionConfig, value: number, min: number, max: number): void {

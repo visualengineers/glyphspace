@@ -7,7 +7,7 @@
         <thead>
           <tr>
             @for (column of displayColumns; track column) {
-              <th [class.highlighted]="isColumnHighlighted(column)">
+              <th [class.highlighted]="isColumnHighlighted(column)" [title]="column">
                 {{ column }}
               </th>
             }
@@ -17,7 +17,7 @@
           @for (row of displayData; track $index) {
             <tr>
               @for (column of displayColumns; track column) {
-                <td [class.highlighted]="isColumnHighlighted(column)">
+                <td [class.highlighted]="isColumnHighlighted(column)" [title]="getCellValue(row, column)">
                   {{ getCellValue(row, column) }}
                 </td>
               }
