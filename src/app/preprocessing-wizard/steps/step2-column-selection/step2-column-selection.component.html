@@ -4,8 +4,9 @@
     <div class="info-box">
       <span class="material-icons">info</span>
       <div>
-        <strong>Tip:</strong> Start by deselecting ID columns and text fields unless needed for tooltips. You can search
-        by column name or type (e.g., "numeric").
+        <strong>Tip:</strong> Columns that are nearly all unique (IDs, titles, free text) or mostly empty are
+        <em>deselected automatically</em> — re-enable any of them if you need it. You can search by column name or type
+        (e.g., "numeric").
       </div>
     </div>
 
@@ -127,6 +128,11 @@
                     <span class="name-text" [title]="column.name">{{ column.name }}</span>
                     @if (hasIssues(column)) {
                       <span class="material-icons issue-icon" title="Quality issues detected">warning</span>
+                    }
+                    @if (isAutoDeselected(column.name)) {
+                      <span class="auto-deselected-badge" [title]="getDeselectReason(column.name)"
+                        >Auto-deselected</span
+                      >
                     }
                   </div>
                 </td>

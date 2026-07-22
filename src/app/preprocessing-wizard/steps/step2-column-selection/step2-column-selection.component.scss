@@ -183,6 +183,22 @@
     font-size: 16px;
     color: v.$status-warning;
   }
+
+  // Smart-default marker: explains that a column was deselected automatically
+  // (reason in the title tooltip). Distinct from the quality warning icon.
+  .auto-deselected-badge {
+    flex-shrink: 0;
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1;
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: v.$gray-600;
+    background: v.$gray-100;
+    border: 1px solid v.$gray-300;
+    cursor: help;
+    white-space: nowrap;
+  }
 }
 
 .data-type-badge {
