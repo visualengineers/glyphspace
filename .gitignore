@@ -42,9 +42,12 @@ testem.log
 Thumbs.db
 
 # Miscellaneous
-/.angular/cache 
+/.angular/cache
 /src/assets/__pycache__
 /src/assets/tests
 /.claude
 /.angular
 Claude.md
+
+# Planning artifacts (brainstorming/plans/specs) — keep out of the repo
+/docs/superpowers/
