@@ -45,8 +45,8 @@ Integrations-Branch `feature/wizard-redesign` von `main` abzweigen. Pro Ticket e
 **Aktueller Stand (Integrations-Branch `feature/wizard-redesign`):**
 - Gemergt (In Feature-Branch): A1–A15 vollständig — alle Tickets sind im Integrations-Branch.
 - In Arbeit: keine.
-- Offen (TODO): keine.
-- Nächster Schritt: `feature/wizard-redesign` nach `main` mergen; danach werden alle Tickets auf `Finished` gesetzt.
+- Offen (TODO): A2-Nachtrag (Smart Defaults erweitern — Hochkardinalität in Schritt 2 + klügerer `colorFeature`-Default; siehe Ticket A2).
+- Nächster Schritt: A2-Nachtrag umsetzen; danach `feature/wizard-redesign` nach `main` mergen und alle Tickets auf `Finished` setzen.
 - Gebündelt umgesetzt: A7+A10 in `feat/a10-a7-polish`; A1+A11 in `feat/a1-a11-erklaerungen-defekte`.
 - Doku: Jedes Ticket hat einen „Umgesetzt"-Abschnitt mit PR-Verweis. Die Abschnitte für A2–A10 und A12–A15 wurden nach dem Merge aus Code und PR-Beschreibungen abgeleitet (A1/A11 direkt aus der Umsetzung).
 
@@ -143,6 +143,13 @@ Quick Wins ohne Abhängigkeit, die sich parallel zum Fundament wegräumen lassen
 - Umkehrbarkeit: Reset je Einstellung (`resetEncoding/Scaling/Missing/Outliers`) plus „Reset to defaults" für die ganze Spalte (`resetColumnToDefault`).
 - Proaktive Vorauswahl beim Import: `createDefaultColumnConfig` setzt `enabled: !hasIssues` mit `hasIssues = missingPercentage > 50 || uniqueCount === 1`; solche Spalten starten abgewählt und sind in Schritt 2 reaktivierbar (entschärft One-Hot-Explosion proaktiv, Bezug K7).
 - Nicht umgesetzt: die zusätzlich geplante Hochkardinalitäts-Heuristik (`uniqueCount ≈ totalRows`, typische IDs/Freitext) fehlt in `hasIssues` — vorab abgewählt werden nur konstante bzw. überwiegend leere Spalten.
+
+**Nachtrag (TODO) — Smart Defaults erweitern · Branch (Vorschlag):** `feat/a2-nachtrag-smart-defaults`
+Eigenständiges Folge-Arbeitspaket zu A2 (der Rest von A2 ist gemergt). Umfang „Hoch + Mittel":
+- *Hoch — Hochkardinalität in Schritt 2:* Spalten mit nahezu 100 % einzigartigen Werten proaktiv abwählen. Heuristik: `uniqueCount / count >= 0.9` (ggf. 0.95) **und** `count > ~20`, beschränkt auf Text/Categorical/ID (numerische Messwerte ausnehmen). Nutzt vorhandene Felder (`column-statistics.ts`, `getUniquePercent`), kein neues Datenmodell. Umsetzung in `createDefaultColumnConfig` (`services/preprocessing.service.ts:283`) + gespiegelt in `steps/step2-column-selection/` (ts:200) — mit eigenem Grund (`issueDescription`) statt Vermischung in `hasIssues`.
+- *Hoch — sichtbare Kennzeichnung:* expliziter „automatisch abgewählt"-Marker in Schritt 2 (getrennt vom Qualitäts-Warnicon) mit Kurzbegründung; Tipp erweitern um den Fall 100 % einzigartiger Werte (IDs/Titel/Freitext) und den Hinweis auf Reaktivierbarkeit.
+- *Mittel — klügerer `colorFeature`-Default:* statt willkürlich `columns[0]` (`step4…ts:387-395`) ein niedrig-kardinales Kategoriemerkmal bzw. eine varianzstarke Numeric wählen und als Default sichtbar kennzeichnen.
+- *Bewusst außen vor (niedrig):* typabhängige Missing-Imputation (Median/Mean) und aggressivere Ausreißer-Defaults — konservatives `Keep` bleibt.
 
 ---
 
