@@ -112,6 +112,14 @@ Quick Wins ohne Abhängigkeit, die sich parallel zum Fundament wegräumen lassen
 - Abrufbare Erklärung (Progressive Disclosure) über die bestehende `shared/help-tooltip/`-Komponente; für Projektionsmethoden auf visuelle Tooltips erweitern (Miro „Visual Tooltips Methoden", vgl. `tmp/Projektion_Methoden_Visualisierung.html`).
 - Einbindung an den Optionen selbst: Farbattribut und Projektionen in `steps/step4-visualization-settings/`, Ausreißer-/Standardisierungsoptionen in `steps/step3-configure-data-features/`.
 
+**Umgesetzt (PR #83):**
+- Neue Komponente `shared/projection-preview/`: animierte Canvas-Vorschau je Projektionsmethode (aus ClaudeDesign-Vorlage „Projection Previews" portiert; baut/animiert nur die angefragte Methode, läuft nur bei geöffnetem Popup, Tempo 0.5). Eingebunden als Hilfe-Icon mit Vorschau-Popup an jeder Projektionskarte in Step 4 und bei FastMap (Badge „Always active").
+- Erklärtexte für Farbattribut (`colorFeature`) und Farbskala (`colorScale`) in Step 4 verdrahtet; Farbskala-Text weist auf den rein kosmetischen Charakter hin.
+- Smart-Defaults-Erklärtext (`smartDefaults`) an der Spalten-Konfigurationskarte in Step 3.
+- Ausreißer-Prinzipien (IQR vs. Z-Score) und der Strenge-Hinweis kompakt in den Outlier-Tooltip aufgenommen (erklärt zugleich die wiederkehrenden Strenge-Labels, Bezug zu C-S3-04).
+- Standardisierung/Z-Wert und Ausreißermethoden waren bereits über bestehende `tableHeaders`-Tooltips erklärt.
+- Nicht umgesetzt: keine statische Bild-Grafik nötig — die Erklärung erfolgt über die animierte Live-Vorschau statt über `tmp/Projektion_Methoden_Visualisierung.html`.
+
 ---
 
 ## A2 – Voreinstellungen sichtbar und umkehrbar machen
@@ -246,6 +254,14 @@ Quick Wins ohne Abhängigkeit, die sich parallel zum Fundament wegräumen lassen
 - **C-S3-04** Option „Moderate" doppelt → `steps/step3-configure-data-features/` (Optionsliste).
 - **S-S4-02** Schritt-Navigation springt nicht zurück zu Schritt 4 → `shared/progress-stepper/` bzw. `preprocessing-wizard.component.ts`.
 - **P-S5-02 / P-S5-03** Zusammenfassung verschwindet beim Schließen während der Projektion / nichtssagender Screen nach Wiedereinstieg → `steps/step5-review-processing/` (Miro „Persistent Result Screen + Errorhandling"). → *Bereits im Zuge von A3 (Persistent Result Screen) abgedeckt und gemergt.*
+
+**Umgesetzt (PR #83):**
+- **C-S4-04** Grace-Period im `shared/help-tooltip/` (und im neuen Projektions-Popup): Der Tooltip bleibt beim Hineinfahren offen (~180 ms Verzögerung), damit Inhalt/Vorschau überhaupt lesbar sind.
+- **C-S3-04** Statt bloßem Umbenennen eine Erklärung der zwei Prinzipien (IQR vs. Z-Score) im Outlier-Tooltip; damit werden die wiederkehrenden Strenge-Labels („Moderate"/„Relaxed") verständlich.
+- Fokus-Zustand korrigiert: Hilfe-/Vorschau-Icon bleibt nach Klick nicht dauerhaft blau (Farbe nur bei Hover / `:focus-visible`).
+- Tooltip-Platzierung in Step 3 gefixt: `gsap.from()` (A14-Morph) hinterließ ein inline `transform` auf `.detail-well`, wodurch `position:fixed`-Tooltips relativ zur Welle statt zum Viewport rechneten; `clearProps: 'transform'` entfernt es nach der Animation.
+- Keine horizontale Scrollbar mehr: Tooltips bis zur Positionsberechnung außerhalb des Sichtfelds geparkt, Clamping an `clientWidth/Height`; `.detail-well` `overflow-x: hidden`; `.detail-card` wächst mit dem Inhalt (kein Abschneiden).
+- Bereits vorher behoben/abgedeckt (verifiziert, keine Änderung nötig): **S-S3-03** (Tooltip-Z-Ebene, `position:fixed` + hoher z-index), **S-S4-02** (Rücksprung zu Step 4 über den Stepper), **P-S5-02/03** (über A3).
 
 ---
 
