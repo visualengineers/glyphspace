@@ -12,6 +12,7 @@ import {
   getScalingLabel as scalingLabelFn,
 } from '../../models/data-type.enum';
 import { HelpTooltipComponent } from '../../shared/help-tooltip/help-tooltip.component';
+import { ProjectionPreviewComponent } from '../../shared/projection-preview/projection-preview.component';
 import { HELP_TEXT } from '../../shared/constants/help-text';
 import { STEP_INFO } from '../../shared/constants/step-info';
 import { DataTypeBadgeComponent } from '../../shared/data-type-badge/data-type-badge.component';
@@ -68,7 +69,14 @@ interface ProjectionMethodUI {
 @Component({
   selector: 'app-step4-visualization-settings',
   standalone: true,
-  imports: [CommonModule, FormsModule, HelpTooltipComponent, DataTypeBadgeComponent, ColorScaleSelectorComponent],
+  imports: [
+    CommonModule,
+    FormsModule,
+    HelpTooltipComponent,
+    ProjectionPreviewComponent,
+    DataTypeBadgeComponent,
+    ColorScaleSelectorComponent,
+  ],
   templateUrl: './step4-visualization-settings.component.html',
   styleUrl: './step4-visualization-settings.component.scss',
   providers: [{ provide: WIZARD_STEP, useExisting: forwardRef(() => Step4VisualizationSettingsComponent) }],
@@ -146,6 +154,25 @@ export class Step4VisualizationSettingsComponent implements OnInit, AfterViewIni
 
   readonly TSNE_WARNING_THRESHOLD = 5000;
   readonly LARGE_DATASET_THRESHOLD = 10000;
+
+  /** Maps a projection method's config key to its animated-preview key. */
+  private readonly previewKeys: Record<string, string> = {
+    enablePCA: 'pca',
+    enableTriMap: 'tri',
+    enableMDS: 'mds',
+    enableIsoMap: 'iso',
+    enableLLE: 'lle',
+    enableLTSA: 'ltsa',
+    enableTopoMap: 'topo',
+    enableUMAP: 'umap',
+    enableSammon: 'sammon',
+    enableTSNE: 'tsne',
+  };
+
+  /** Preview key for a method's animated explainer tooltip. */
+  getPreviewKey(method: ProjectionMethodUI): string {
+    return this.previewKeys[method.key] ?? 'pca';
+  }
 
   // Sorted by speed (fastest first)
   projectionMethods: ProjectionMethodUI[] = [

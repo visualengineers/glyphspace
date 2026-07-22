@@ -1,0 +1,49 @@
+<div class="projection-preview-container">
+  <button
+    class="preview-icon"
+    type="button"
+    tabindex="0"
+    [attr.aria-label]="'Preview: ' + methodKey"
+    [attr.aria-expanded]="isOpen"
+    (mouseenter)="open()"
+    (mouseleave)="scheduleHide()"
+    (click)="toggle(); $event.stopPropagation()"
+    (keydown.enter)="toggle(); $event.stopPropagation()"
+    (keydown.space)="toggle(); $event.stopPropagation()"
+  >
+    <span class="material-icons">help_outline</span>
+  </button>
+
+  @if (isOpen) {
+    <div
+      class="projection-preview"
+      [ngStyle]="popupStyle"
+      role="tooltip"
+      (mouseenter)="cancelScheduledHide()"
+      (mouseleave)="scheduleHide()"
+    >
+      <div class="preview-head">
+        <span class="preview-name">{{ meta.name }}</span>
+        <span class="preview-tag" [ngClass]="'tag-' + meta.tagClass">{{ meta.tag }}</span>
+        @if (meta.rows) {
+          <span class="preview-rows">{{ meta.rows }}</span>
+        }
+      </div>
+      <div class="preview-sub">{{ meta.sub }}</div>
+      <div class="preview-desc">{{ meta.desc }}</div>
+
+      <div class="preview-canvas-wrap">
+        <canvas #cnv></canvas>
+      </div>
+
+      <div class="preview-caption">
+        <span class="preview-dots">
+          @for (step of caps; track $index) {
+            <span class="dot" [class.active]="$index === currentPhase"></span>
+          }
+        </span>
+        <span class="preview-cap-text">{{ caps[currentPhase]?.cap }}</span>
+      </div>
+    </div>
+  }
+</div>
