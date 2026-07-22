@@ -8,6 +8,7 @@ import { DataProfile } from '../../models/column-statistics';
 import { HelpTooltipComponent } from '../../shared/help-tooltip/help-tooltip.component';
 import { STEP_INFO } from '../../shared/constants/step-info';
 import { WizardStep, WIZARD_STEP } from '../../shared/wizard-step';
+import { ToastService } from '../../../services/toast.service';
 
 @Component({
   selector: 'app-step1-upload',
@@ -30,7 +31,10 @@ export class Step1UploadComponent implements OnInit, OnDestroy, WizardStep {
   // Expose step info to template
   readonly stepInfo = STEP_INFO[0]; // Step 1 (index 0)
 
-  constructor(private preprocessingService: PreprocessingService) {}
+  constructor(
+    private preprocessingService: PreprocessingService,
+    private toastService: ToastService
+  ) {}
 
   ngOnInit(): void {
     // Subscribe to state changes to react to reset
@@ -103,10 +107,17 @@ export class Step1UploadComponent implements OnInit, OnDestroy, WizardStep {
     this.isLoading = true;
     this.error = null;
 
+    // A4: if a dataset was already loaded, this upload replaces it (and its column
+    // config). loadCSV snapshots the prior state, so we offer a one-click undo.
+    const wasReplacement = this.preprocessingService.currentState.dataProfile !== null;
+
     try {
       this.profile = await this.preprocessingService.loadCSV(file);
       // Don't emit here - let user review the data first
       // User will click "Continue to Column Selection" button to emit and proceed
+      if (wasReplacement) {
+        this.toastService.showUndo('Datei ersetzt', () => this.preprocessingService.undo());
+      }
     } catch (err: unknown) {
       this.error = err instanceof Error ? err.message : 'Failed to load data file';
       this.profile = null;
