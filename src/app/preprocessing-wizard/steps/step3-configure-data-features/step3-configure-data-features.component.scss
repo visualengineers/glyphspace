@@ -220,6 +220,9 @@
     // A14: fill the fixed box height and scroll internally when the column config
     // is taller than the box (instead of stretching the whole step downwards).
     min-height: 0;
+    // Only scroll vertically. `overflow-y: auto` alone makes overflow-x compute
+    // to `auto` too, which produced a stray horizontal scrollbar; pin it hidden.
+    overflow-x: hidden;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
@@ -247,7 +250,11 @@
   }
 
   .detail-card {
-    flex: 1;
+    // Grow to fill the well when content is short, but never shrink below the
+    // content's natural height — so tall configurations (e.g. the outlier
+    // principles note) make the card taller and the .detail-well scrolls,
+    // instead of the card clipping its own overflow.
+    flex: 1 0 auto;
     display: flex;
     flex-direction: column;
     background: white;
