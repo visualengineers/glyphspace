@@ -396,4 +396,9 @@ Eigenständiges Folge-Arbeitspaket zu A2, umgesetzt und gemergt (7 neue Unit-Tes
 
 ---
 
-*Ausblick (nicht im Umsetzungsrahmen): methodenspezifische Standardwerte je Projektionsmethode — laut Anforderungskatalog bewusst außerhalb des Rahmens.*
+## Ausblick — offen, aber nicht im Umsetzungsrahmen
+
+Identifizierte, aber bewusst nicht umgesetzte Punkte:
+
+- **Methodenspezifische Standardwerte je Projektionsmethode** — laut Anforderungskatalog bewusst außerhalb des Rahmens.
+- **Manuelles Beenden laufender Reduktionsmethoden** — aktuell lässt sich eine hängende/langlaufende Dimensionsreduktion nur über „Start over" stoppen, was den gesamten Wizard zurücksetzt (Konfiguration geht verloren). Ein gezielter Abbruch je Methode (bzw. globales „Verarbeitung abbrechen" ohne Reset) sowie ein Timeout pro Methode fehlen. Technische Grundlage vorhanden (isolierte Web-Worker, `ProjectionService.terminateAllWorkers()`), aber ohne nutzerseitige Steuerung. Offen für eine spätere Erweiterung.
