@@ -81,7 +81,11 @@ def process_with_config(file_name, config_json, output_file=None):
             return json.dumps(dataset)
 
     except Exception as e:
-        raise Exception(f"Failed to process data: {str(e)}")
+        # `from None` suppresses the implicit exception chain: without it, the
+        # formatted traceback that reaches the JS side (via Pyodide's PythonError)
+        # includes both the original exception's text and this wrapped message,
+        # so any offending-column names inside it (K7) get counted/listed twice.
+        raise Exception(f"Failed to process data: {str(e)}") from None
 
 
 def apply_cleaning(df, config):

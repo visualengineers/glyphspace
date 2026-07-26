@@ -134,6 +134,20 @@ describe('classifyProcessingError', () => {
     expectActionable(issue, raw);
   });
 
+  it('K7 collapses a repeated column mention instead of double-counting it', () => {
+    // Simulates a chained Python exception whose formatted traceback repeats the
+    // same "'col' (N distinct values)" fragment (original exception + wrapper).
+    const raw =
+      "These columns have too many distinct values to one-hot encode: 'show_id' (9000 distinct values). " +
+      'During handling of the above exception, another exception occurred: Failed to process data: These ' +
+      "columns have too many distinct values to one-hot encode: 'show_id' (9000 distinct values).";
+    const issue = classifyProcessingError(raw);
+    expect(issue.code).toBe('K7');
+    expect(issue.title).toBe('The column show_id (9000) has too many distinct values');
+    expect(issue.why).not.toMatch(/show_id.*show_id/s);
+    expectActionable(issue, raw);
+  });
+
   it('falls back to a generic, still-actionable blocking issue for unmatched errors', () => {
     const raw = 'Segfault 0xDEADBEEF in libfoo.so at frame #7';
     const issue = classifyProcessingError(raw);
