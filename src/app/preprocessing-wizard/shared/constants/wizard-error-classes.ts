@@ -132,7 +132,10 @@ export function classifyProcessingError(raw: string): WizardIssue {
     // but the specific cause (a near-unique column blown up by one-hot) has a
     // much more actionable fix than the generic "resource limit" advice.
     issue = template('K7');
-    const pairs = [...raw.matchAll(/'([^']+)' \((\d+) distinct values\)/g)].map(m => `${m[1]} (${m[2]})`);
+    // Deduplicated: a chained/re-raised Python exception can repeat the same
+    // "'col' (N distinct values)" fragment in its formatted traceback, which
+    // would otherwise double-count and re-list the same column.
+    const pairs = [...new Set([...raw.matchAll(/'([^']+)' \((\d+) distinct values\)/g)].map(m => `${m[1]} (${m[2]})`))];
     if (pairs.length === 1) {
       issue.title = `The column ${pairs[0]} has too many distinct values`;
       issue.why = `This column has almost as many different values as there are rows (typical of an ID, title, name or free-text field): ${pairs[0]}. Encoding it would expand the data into that many columns — more than the in-browser engine can hold in memory.`;

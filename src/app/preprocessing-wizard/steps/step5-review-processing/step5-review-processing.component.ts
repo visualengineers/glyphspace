@@ -598,7 +598,7 @@ export class Step5ReviewProcessingComponent implements OnInit, OnDestroy {
    * clearly sees the spinner + progress + method status while it re-runs.
    */
   retryProcessing(): void {
-    this.toastService.info('Verarbeitung wird erneut gestartet…', 3000);
+    this.toastService.info('Restarting processing…', 3000);
     // Make the processing state visible immediately, even before startProcessing's
     // own reset runs, so the transition is never just a flicker.
     this.showProcessing = true;
