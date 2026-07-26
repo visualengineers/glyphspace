@@ -8,22 +8,19 @@
   background: v.$wizard-content-bg;
 }
 
-.wizard-header {
-  background: v.$wizard-header-bg;
-  z-index: 100;
-  flex-shrink: 0;
-}
-
-.header-content {
+// Full-width title bar (title + global actions), stepper no longer lives here
+.wizard-titlebar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 16px;
+  padding: 0.75rem 1rem;
   background: v.$gray-100;
   border-bottom: 1px solid v.$gray-300;
+  flex-shrink: 0;
+  z-index: 100;
 
   h1 {
-    font-size: 16px;
+    font-size: 1rem;
     font-weight: bold;
     color: v.$gray-800;
     margin: 0;
@@ -32,23 +29,23 @@
 
 .header-actions {
   display: flex;
-  gap: 8px;
+  gap: 0.5rem;
 }
 
 .btn-icon {
-  width: 32px;
-  height: 32px;
+  width: 2rem;
+  height: 2rem;
   display: flex;
   align-items: center;
   justify-content: center;
   background: rgba(200, 200, 200, 0.5);
   border: none;
-  border-radius: 4px;
+  border-radius: 0.25rem;
   cursor: pointer;
   transition: background-color 0.2s ease;
 
   .material-icons {
-    font-size: 20px;
+    font-size: 1.25rem;
     color: v.$gray-600;
   }
 
@@ -57,9 +54,83 @@
   }
 }
 
+// Two-column body: navigation left, work area right
+.wizard-body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+.wizard-sidebar {
+  width: 15rem;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  background: v.$wizard-header-bg;
+  border-right: 1px solid v.$gray-300;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.wizard-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+// A4: undo/redo toolbar — a thin strip at the top of the work area, right-aligned.
+// Deliberately separated from the bottom step navigation (position + curved icons)
+// so it never reads as "Back/Next".
+.wizard-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.375rem 1rem;
+  background: v.$wizard-content-bg;
+  border-bottom: 1px solid v.$gray-200;
+  flex-shrink: 0;
+}
+
+.btn-history {
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  color: v.$status-info;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+
+  // Inline Material-Symbols-style undo/redo glyph. Inherits the button color via
+  // fill:currentColor so hover/disabled states apply without extra rules.
+  .history-icon {
+    width: 1.25rem;
+    height: 1.25rem;
+    display: block;
+    fill: currentColor;
+  }
+
+  &:hover:not(:disabled) {
+    background: rgba(v.$active-color, 0.12);
+    border-color: rgba(v.$active-color, 0.4);
+  }
+
+  &:disabled {
+    color: v.$gray-400;
+    cursor: default;
+  }
+}
+
 .wizard-content {
   flex: 1;
-  overflow-y: auto; // Allow scrolling for steps that need it (Step 1)
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -69,16 +140,16 @@
 .error-banner {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
   background: rgba(v.$status-error, 0.1);
   border-left: 3px solid v.$status-error;
   color: v.$status-error-dark;
-  margin: 0 16px 16px;
-  border-radius: 2px;
+  margin: 1rem 1rem 0;
+  border-radius: 0.125rem;
 
   .material-icons {
-    font-size: 20px;
+    font-size: 1.25rem;
   }
 
   .btn-close {
@@ -89,7 +160,7 @@
     padding: 0;
 
     .material-icons {
-      font-size: 18px;
+      font-size: 1.125rem;
       color: v.$status-error-dark;
     }
   }
@@ -100,6 +171,7 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
+  position: relative;
 
   > * {
     flex: 1;
@@ -109,66 +181,81 @@
   }
 }
 
-.step-placeholder {
-  max-width: 1000px;
-  margin: 0 auto;
-  padding: 60px 20px;
-  text-align: center;
+// Centralized navigation bar for steps 1–4, pinned to the bottom of the work area
+.wizard-nav {
+  @include w.action-buttons-footer;
 
-  h2 {
-    font-size: 18px;
-    font-weight: bold;
-    color: v.$gray-700;
-    margin-bottom: 8px;
+  .btn-secondary {
+    @include w.btn-secondary;
   }
 
-  p {
-    font-size: 13px;
-    color: v.$gray-500;
+  .buttons-right {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-left: auto;
   }
-}
 
-.wizard-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 16px;
-  background: v.$wizard-header-bg;
-  border-top: 1px solid v.$gray-300;
-  flex-shrink: 0;
-}
+  // A4: dezenter Undo/Redo-Hinweis, mittig zwischen Back und Weiter. Nimmt den
+  // freien Mittelraum ein und zentriert seinen Inhalt, sodass die Navigations-
+  // buttons weder verschoben noch verdeckt werden; Text kürzt bei Platzmangel.
+  .history-hint {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    padding: 0 0.75rem;
+    font-size: 0.8125rem;
+    color: v.$gray-600;
 
-.footer-info {
-  font-size: 13px;
-  color: v.$gray-600;
-}
+    .material-icons {
+      font-size: 1rem;
+      color: v.$gray-500;
+      flex-shrink: 0;
+    }
 
-.btn-secondary {
-  @include w.btn-secondary;
-  padding: 8px 16px;
-}
+    .history-hint-text {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
 
-.btn-primary {
-  @include w.btn-primary;
-  padding: 8px 16px;
-}
+    .history-hint-action {
+      flex-shrink: 0;
+      background: none;
+      border: none;
+      padding: 0;
+      font: inherit;
+      font-weight: 600;
+      color: v.$status-info;
+      cursor: pointer;
+      text-decoration: underline;
 
-@media (max-width: 768px) {
-  .header-content {
-    h1 {
-      font-size: 14px;
+      &:hover {
+        color: v.$active-color;
+      }
     }
   }
 
-  .wizard-content {
-    padding: 12px 0;
+  .warning-message {
+    @include w.message-warning;
   }
 
-  .wizard-footer {
-    padding: 10px;
+  .btn-primary {
+    @include w.btn-primary;
+  }
+}
+
+@media (max-width: 768px) {
+  .wizard-titlebar {
+    h1 {
+      font-size: 0.875rem;
+    }
   }
 
-  .footer-info {
-    display: none;
+  .wizard-sidebar {
+    width: 12.5rem;
   }
 }

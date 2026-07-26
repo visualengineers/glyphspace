@@ -2,7 +2,7 @@
   <button
     class="help-icon"
     (mouseenter)="showTooltip()"
-    (mouseleave)="hideTooltip()"
+    (mouseleave)="scheduleHide()"
     (click)="toggleTooltip()"
     (keydown.enter)="toggleTooltip()"
     (keydown.space)="toggleTooltip()"
@@ -19,6 +19,8 @@
     class="tooltip-content"
     [class.visible]="isVisible"
     [ngStyle]="tooltipStyle"
+    (mouseenter)="cancelScheduledHide()"
+    (mouseleave)="scheduleHide()"
     role="tooltip"
     [attr.aria-hidden]="!isVisible"
   >

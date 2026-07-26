@@ -385,7 +385,7 @@ export const HELP_TEXT = {
     missingValues:
       'Controls how missing data is handled.<br/><br/><strong>Keep:</strong> Keep them as-is<br/><strong>Remove rows:</strong> Remove rows containing them<br/><strong>Fill mode:</strong> Fill with the most common value<br/><strong>Fill value:</strong> Fill with a custom value',
     outliers:
-      'Controls how extreme values are handled.<br/><br/>Outliers can be detected using the <strong>interquartile range (IQR)</strong> or <strong>z-Score</strong> (measuring how far a value is from the mean in standard deviations).<br/><br/><strong>Keep:</strong> Keep outliers<br/><strong>Remove:</strong> Remove rows with outliers<br/><strong>Cap:</strong> Limit values to the threshold',
+      "Controls how extreme values are handled. Two detection principles:<br/><br/><strong>IQR</strong> — compares values to the data's quartiles; good for skewed / non-normal data.<br/><strong>Z-Score</strong> — standard deviations from the mean; good for roughly normal data.<br/><br/>The label (Strict / Moderate / Relaxed) only describes how aggressive the threshold is <em>within</em> a method, so the same label can appear for both.<br/><br/><strong>Keep</strong> / <strong>Remove</strong> / <strong>Cap</strong> decide what happens to detected outliers.",
   },
 
   // General concepts
@@ -417,7 +417,11 @@ export const HELP_TEXT = {
     colorFeature: `<strong>Color Feature</strong> determines the color of each glyph in the visualization.<br/><br/>
       • <strong>Numeric:</strong> Creates a continuous color gradient (e.g., blue to red)<br/>
       • <strong>Categorical:</strong> Assigns distinct colors to each category<br/><br/>
-      <em>Optional - leave unselected for uniform color across all glyphs</em>`,
+      A sensible attribute is selected automatically (a small categorical group, or the most varied numeric column) — change it anytime.`,
+
+    colorScale: `<strong>Color Scale</strong> is the palette used to map the color feature onto the glyphs.<br/><br/>
+      It is <strong>purely cosmetic</strong> — it only changes how the visualization looks, not the underlying data or the projection.<br/><br/>
+      <em>Pick a gradient for numeric features or a set of distinct colors for categories.</em>`,
 
     projection: `<strong>What is dimensionality reduction?</strong><br/><br/>
       Your data might have dozens or hundreds of dimensions (columns). Dimensionality reduction creates a 2D visualization that preserves important patterns and relationships.<br/><br/>

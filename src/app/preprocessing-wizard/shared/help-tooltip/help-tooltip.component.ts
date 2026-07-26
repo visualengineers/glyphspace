@@ -1,4 +1,4 @@
-import { Component, Input, HostListener, ElementRef, ViewChild, ChangeDetectorRef } from '@angular/core';
+import { Component, Input, HostListener, ElementRef, ViewChild, ChangeDetectorRef, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 @Component({
@@ -8,7 +8,7 @@ import { CommonModule } from '@angular/common';
   templateUrl: './help-tooltip.component.html',
   styleUrl: './help-tooltip.component.scss',
 })
-export class HelpTooltipComponent {
+export class HelpTooltipComponent implements OnDestroy {
   @Input() helpText = '';
   @Input() position: 'top' | 'bottom' | 'left' | 'right' = 'top';
   @ViewChild('tooltipContent') tooltipContent!: ElementRef;
@@ -16,12 +16,24 @@ export class HelpTooltipComponent {
   isVisible = false;
   tooltipStyle: Record<string, string> = {};
 
+  // Grace period before hiding, so the pointer can travel from the icon into
+  // the tooltip (e.g. to read the content or watch a preview animation) without
+  // it disappearing. Cancelled as soon as the pointer enters the tooltip.
+  private hideTimer: ReturnType<typeof setTimeout> | null = null;
+  private static readonly HIDE_DELAY_MS = 180;
+
   constructor(
     private elementRef: ElementRef,
     private cdr: ChangeDetectorRef
   ) {}
 
   showTooltip(): void {
+    this.cancelScheduledHide();
+    // Park off-screen until positioned, so it never briefly overflows the
+    // viewport (which would flash a horizontal scrollbar) on first show.
+    if (!this.tooltipStyle['left']) {
+      this.tooltipStyle = { top: '-9999px', left: '-9999px' };
+    }
     this.isVisible = true;
     this.updateTooltipPosition();
   }
@@ -30,7 +42,25 @@ export class HelpTooltipComponent {
     this.isVisible = false;
   }
 
+  /** Hide after a short grace period unless the pointer re-enters in time. */
+  scheduleHide(): void {
+    this.cancelScheduledHide();
+    this.hideTimer = setTimeout(() => {
+      this.isVisible = false;
+      this.hideTimer = null;
+      this.cdr.detectChanges();
+    }, HelpTooltipComponent.HIDE_DELAY_MS);
+  }
+
+  cancelScheduledHide(): void {
+    if (this.hideTimer !== null) {
+      clearTimeout(this.hideTimer);
+      this.hideTimer = null;
+    }
+  }
+
   toggleTooltip(): void {
+    this.cancelScheduledHide();
     this.isVisible = !this.isVisible;
     if (this.isVisible) {
       this.updateTooltipPosition();
@@ -73,16 +103,19 @@ export class HelpTooltipComponent {
           break;
       }
 
-      // Keep tooltip within viewport
+      // Keep tooltip within viewport. Use clientWidth/Height (excludes the
+      // scrollbars) so clamping never leaves the tooltip poking past the edge.
       const padding = 10;
+      const viewW = document.documentElement.clientWidth;
+      const viewH = document.documentElement.clientHeight;
+      if (left + tooltipRect.width > viewW - padding) {
+        left = viewW - tooltipRect.width - padding;
+      }
       if (left < padding) left = padding;
-      if (left + tooltipRect.width > window.innerWidth - padding) {
-        left = window.innerWidth - tooltipRect.width - padding;
+      if (top + tooltipRect.height > viewH - padding) {
+        top = viewH - tooltipRect.height - padding;
       }
       if (top < padding) top = padding;
-      if (top + tooltipRect.height > window.innerHeight - padding) {
-        top = window.innerHeight - tooltipRect.height - padding;
-      }
 
       this.tooltipStyle = {
         top: `${top}px`,
@@ -103,5 +136,9 @@ export class HelpTooltipComponent {
   @HostListener('keydown.escape')
   onEscapeKey(): void {
     this.isVisible = false;
+  }
+
+  ngOnDestroy(): void {
+    this.cancelScheduledHide();
   }
 }

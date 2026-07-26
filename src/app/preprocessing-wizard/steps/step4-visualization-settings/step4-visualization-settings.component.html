@@ -1,15 +1,14 @@
 <div class="step4-visualization-settings">
   <div class="step-content">
-    <div class="step-header">
-      <h2>{{ stepInfo.title }}</h2>
-      <p class="step-purpose">{{ stepInfo.purpose }}</p>
-    </div>
-
     <!-- ====== Color Feature (single row) ====== -->
+    <span id="wizard-anchor-color" class="scroll-anchor"></span>
     <div class="config-panel color-feature-panel">
       <div class="panel-header-row">
         <div class="form-group">
-          <label class="menu-label" for="step4-color-attribute">COLOR ATTRIBUTE</label>
+          <label class="menu-label" for="step4-color-attribute">
+            COLOR ATTRIBUTE
+            <app-help-tooltip [helpText]="HELP_TEXT.general.colorFeature"></app-help-tooltip>
+          </label>
           <select id="step4-color-attribute" [ngModel]="colorFeature" (ngModelChange)="setColorFeature($event)">
             @for (column of columns; track column.name) {
               <option [value]="column.name">{{ column.name }}</option>
@@ -18,7 +17,10 @@
         </div>
 
         <div class="form-group">
-          <label class="menu-label" for="step4-color-scale">COLOR SCALE</label>
+          <label class="menu-label" for="step4-color-scale">
+            COLOR SCALE
+            <app-help-tooltip [helpText]="HELP_TEXT.general.colorScale"></app-help-tooltip>
+          </label>
           <app-color-scale-selector
             id="step4-color-scale"
             [groupedColorScales]="groupedColorScales"
@@ -31,6 +33,7 @@
     </div>
 
     <!-- ====== Two-Column: Glyph Features + Live Preview ====== -->
+    <span id="wizard-anchor-glyph" class="scroll-anchor"></span>
     <div class="glyph-section-two-col">
       <!-- LEFT: Feature Selection -->
       <div class="config-panel glyph-features-panel">
@@ -42,7 +45,7 @@
           </h3>
           <button
             class="btn-suggestion-compact"
-            (click)="applySuggestedFeatures()"
+            (click)="applySuggestedFeaturesByUser()"
             [disabled]="suggestedFeatures.length === 0 || !suggestionsWouldChange()"
           >
             <span class="material-icons">auto_awesome</span>
@@ -74,12 +77,16 @@
           @for (feature of selectedGlyphFeatures; track feature; let i = $index) {
             <div
               class="feature-row selected"
+              [class.drop-target]="dragOverIndex === i"
               draggable="true"
               (dragstart)="onDragStart($event, feature, 'selected', i)"
               (dragend)="onDragEnd($event)"
+              (dragover)="onItemDragOver($event, i)"
+              (drop)="onDropOnSelectedItem($event, i)"
             >
+              <span class="material-icons drag-handle" title="Drag to reorder">drag_indicator</span>
               <span class="feature-order">{{ i + 1 }}</span>
-              <span class="feature-name">{{ feature }}</span>
+              <span class="feature-name" [title]="feature">{{ feature }}</span>
               @if (getFeatureVariance(feature) !== null) {
                 <span class="variance-bar" title="Relative variance: {{ getFeatureVariance(feature)?.toFixed(4) }}">
                   <span class="variance-fill" [style.width.%]="getFeatureVariancePercent(feature)"></span>
@@ -95,7 +102,18 @@
         @if (selectedGlyphFeatures.length > 0 && selectedGlyphFeatures.length < MIN_GLYPH_FEATURES) {
           <div class="validation-warning">
             <span class="material-icons">warning</span>
-            <span>{{ MIN_GLYPH_FEATURES - selectedGlyphFeatures.length }} more needed</span>
+            <span
+              >{{ MIN_GLYPH_FEATURES - selectedGlyphFeatures.length }} more needed (a glyph needs 3–12 features)</span
+            >
+          </div>
+        }
+        @if (selectedGlyphFeatures.length > MAX_GLYPH_FEATURES) {
+          <div class="validation-warning">
+            <span class="material-icons">error_outline</span>
+            <span
+              >Remove {{ selectedGlyphFeatures.length - MAX_GLYPH_FEATURES }} — a glyph takes at most
+              {{ MAX_GLYPH_FEATURES }} features</span
+            >
           </div>
         }
 
@@ -107,27 +125,58 @@
           <span>Available features</span>
           <span class="variance-label">Variance</span>
         </div>
-        <div class="available-features-list">
-          @for (feature of availableFeatures; track feature) {
-            @if (!isFeatureSelected(feature)) {
-              <div
-                class="feature-row available"
-                (click)="addGlyphFeature(feature)"
-                (keydown.enter)="addGlyphFeature(feature)"
-                tabindex="0"
-                draggable="true"
-                (dragstart)="onDragStart($event, feature, 'available', -1)"
-                (dragend)="onDragEnd($event)"
-              >
-                <span class="material-icons add-icon">add</span>
-                <span class="feature-name">{{ feature }}</span>
-                @if (getFeatureVariance(feature) !== null) {
-                  <span class="variance-bar" title="Relative variance: {{ getFeatureVariance(feature)?.toFixed(4) }}">
-                    <span class="variance-fill" [style.width.%]="getFeatureVariancePercent(feature)"></span>
-                  </span>
-                }
-              </div>
+
+        <!-- Search + type filter for available features -->
+        <div class="feature-filter-bar">
+          <div class="search-box">
+            <span class="material-icons">search</span>
+            <input type="text" [(ngModel)]="featureSearch" placeholder="Search features…" class="search-input" />
+            @if (featureSearch) {
+              <button class="clear-search" (click)="featureSearch = ''">
+                <span class="material-icons">close</span>
+              </button>
             }
+          </div>
+          <select [(ngModel)]="featureTypeFilter" class="filter-select">
+            <option value="all">All Types</option>
+            <option [value]="DataType.Numeric">Numeric</option>
+            <option [value]="DataType.Categorical">Categorical</option>
+            <option [value]="DataType.Text">Text</option>
+            <option [value]="DataType.Date">Date</option>
+            <option [value]="DataType.Boolean">Boolean</option>
+            <option [value]="DataType.Coordinate">Coordinate</option>
+            <option [value]="DataType.ID">ID</option>
+          </select>
+        </div>
+
+        <div class="available-features-list" (drop)="onDropInAvailable($event)" (dragover)="onDragOver($event)">
+          @for (feature of filteredAvailableFeatures; track feature) {
+            <div
+              class="feature-row available"
+              [class.dragging]="draggedFromList === 'available' && draggedFeature === feature"
+              (click)="addGlyphFeature(feature)"
+              (keydown.enter)="addGlyphFeature(feature)"
+              tabindex="0"
+              draggable="true"
+              (dragstart)="onDragStart($event, feature, 'available', -1)"
+              (dragend)="onDragEnd($event)"
+            >
+              <span class="material-icons add-icon">add</span>
+              <span class="feature-name" [title]="feature">{{ feature }}</span>
+              @if (getFeatureVariance(feature) !== null) {
+                <span class="variance-bar" title="Relative variance: {{ getFeatureVariance(feature)?.toFixed(4) }}">
+                  <span class="variance-fill" [style.width.%]="getFeatureVariancePercent(feature)"></span>
+                </span>
+              }
+            </div>
+          }
+          @if (filteredAvailableFeatures.length === 0) {
+            <div class="available-empty">
+              <span>No features match</span>
+              @if (featureSearch || featureTypeFilter !== 'all') {
+                <button class="btn-clear-inline" (click)="clearFeatureFilters()">Clear filters</button>
+              }
+            </div>
           }
         </div>
       </div>
@@ -246,138 +295,287 @@
       </div>
     </div>
 
-    <!-- ====== Projection Methods (two-column grid) ====== -->
-    <div class="config-panel projection-panel">
-      <div class="projection-panel-header">
-        <h3>
-          <span class="material-icons">settings</span>
-          Projection Methods
-          <app-help-tooltip [helpText]="HELP_TEXT.general.projection"></app-help-tooltip>
-        </h3>
-        <div class="primary-badge">
-          <span class="material-icons">bolt</span>
-          <span>FastMap</span>
-          <span class="speed-badge badge-primary">Primary</span>
+    <!-- ====== Projection Options (columns + method, two-column layout) ====== -->
+    <span id="wizard-anchor-projection-columns" class="scroll-anchor"></span>
+    <div class="projection-options-two-col">
+      <!-- LEFT: Columns feeding the projection -->
+      <div class="config-panel projection-columns-panel">
+        <div class="projection-columns-header">
+          <h3>
+            <span class="material-icons">view_column</span>
+            Projection Columns
+            <app-help-tooltip [helpText]="HELP_TEXT.general.projection"></app-help-tooltip>
+          </h3>
+          <span class="projection-count">{{ getProjectionCount() }} / {{ projectionColumns.length }} included</span>
         </div>
-      </div>
+        <p class="panel-description">Choose which columns feed the dimensionality reduction.</p>
+        <p class="dataset-row-count">
+          <span class="material-icons">table_rows</span>
+          <span>{{ getDatasetRowCount() | number }} rows in dataset</span>
+        </p>
 
-      <div class="projection-grid">
-        @for (method of projectionMethods; track method.key) {
-          <div
-            class="projection-card"
-            [class.enabled]="projectionConfig[method.key]"
-            [class.has-warning]="shouldShowLargeDatasetWarning(method)"
-            (click)="isMethodDisabled(method) ? null : toggleProjectionMethod(method)"
-            (keydown.enter)="isMethodDisabled(method) ? null : toggleProjectionMethod(method)"
-            tabindex="0"
-          >
-            <div class="card-row">
-              <input
-                type="checkbox"
-                [checked]="projectionConfig[method.key]"
-                [disabled]="isMethodDisabled(method)"
-                (click)="$event.stopPropagation()"
-                (change)="toggleProjectionMethod(method)"
-              />
-              <span class="method-name">{{ method.name }}</span>
-              @if (method.badge) {
-                <span class="speed-badge" [ngClass]="'badge-' + method.badge!.toLowerCase().split(' ').join('-')">{{
-                  method.badge
-                }}</span>
-              }
-              @if (method.sizeHint) {
-                <span class="size-hint">{{ method.sizeHint }}</span>
-              }
-              @if (shouldShowLargeDatasetWarning(method)) {
-                <span class="material-icons warning-icon" title="May be slow with large datasets">warning</span>
-              }
-              @if (methodHasParams(method) && projectionConfig[method.key]) {
+        <!-- Search + type filter (mirrors the glyph feature filter bar) -->
+        <div class="feature-filter-bar">
+          <div class="search-box">
+            <span class="material-icons">search</span>
+            <input
+              type="text"
+              [(ngModel)]="projectionColumnSearch"
+              placeholder="Search columns…"
+              class="search-input"
+            />
+            @if (projectionColumnSearch) {
+              <button class="clear-search" (click)="projectionColumnSearch = ''">
+                <span class="material-icons">close</span>
+              </button>
+            }
+          </div>
+          <select [(ngModel)]="projectionColumnTypeFilter" class="filter-select">
+            <option value="all">All Types</option>
+            <option [value]="DataType.Numeric">Numeric</option>
+            <option [value]="DataType.Categorical">Categorical</option>
+            <option [value]="DataType.Text">Text</option>
+            <option [value]="DataType.Date">Date</option>
+            <option [value]="DataType.Boolean">Boolean</option>
+            <option [value]="DataType.Coordinate">Coordinate</option>
+            <option [value]="DataType.ID">ID</option>
+          </select>
+        </div>
+
+        <div class="projection-columns-list-header">
+          <input
+            type="checkbox"
+            class="master-checkbox"
+            [checked]="allColumnsInProjection()"
+            [indeterminate]="someColumnsInProjection()"
+            (change)="onToggleAllProjection()"
+            title="Select all columns"
+          />
+          <span class="master-label">All columns</span>
+          @if (hasProjectionColumnFilter()) {
+            <span class="showing-count"
+              >Showing {{ filteredProjectionColumns.length }} of {{ projectionColumns.length }}</span
+            >
+          }
+        </div>
+
+        <div class="projection-columns-list">
+          @for (entry of filteredProjectionColumns; track entry.column.name) {
+            <div
+              class="projection-column-item"
+              [class.selected]="entry.config.includeInProjection"
+              [class.excluded]="!entry.config.includeInProjection"
+              [class.details-open]="isProjectionDetailsExpanded(entry.column.name)"
+            >
+              <label class="projection-column-row">
+                <input
+                  type="checkbox"
+                  [checked]="entry.config.includeInProjection"
+                  (change)="toggleColumnProjection(entry.column.name)"
+                />
+                <span class="col-name" [title]="entry.column.name">{{ entry.column.name }}</span>
+                <app-data-type-badge [dataType]="entry.column.dataType"></app-data-type-badge>
                 <button
-                  class="btn-expand-params"
-                  (click)="toggleMethodParams(method.key); $event.stopPropagation()"
-                  title="Configure parameters"
+                  type="button"
+                  class="btn-details-toggle"
+                  [title]="isProjectionDetailsExpanded(entry.column.name) ? 'Hide details' : 'Show details'"
+                  (click)="toggleProjectionDetails(entry.column.name, $event)"
                 >
                   <span class="material-icons">
-                    {{ isMethodParamsExpanded(method.key) ? 'expand_less' : 'tune' }}
+                    {{ isProjectionDetailsExpanded(entry.column.name) ? 'expand_less' : 'expand_more' }}
                   </span>
                 </button>
+              </label>
+
+              @if (isProjectionDetailsExpanded(entry.column.name)) {
+                <div class="projection-column-details">
+                  <div class="detail-row">
+                    <span class="detail-key">Encoding</span>
+                    <span class="detail-val">{{ getEncodingLabel(entry.config.encodingMethod) }}</span>
+                  </div>
+                  <div class="detail-row">
+                    <span class="detail-key">Scaling</span>
+                    <span class="detail-val">
+                      @if (entry.column.dataType === DataType.Numeric || entry.column.dataType === DataType.Date) {
+                        {{ getScalingLabel(entry.config.scalingMethod) }}
+                      } @else {
+                        N/A
+                      }
+                    </span>
+                  </div>
+                  <div class="detail-row">
+                    <span class="detail-key">Missing</span>
+                    <span class="detail-val">{{ getMissingLabel(entry.config.missingValueStrategy) }}</span>
+                  </div>
+                  <div class="detail-hint">
+                    <span class="material-icons">edit</span>
+                    <span>Adjust these in step “Configure Data &amp; Features”.</span>
+                  </div>
+                </div>
               }
             </div>
-            <div class="card-desc">{{ method.description }}</div>
+          }
+          @if (filteredProjectionColumns.length === 0) {
+            <div class="available-empty">
+              <span>No columns match</span>
+              @if (hasProjectionColumnFilter()) {
+                <button class="btn-clear-inline" (click)="clearProjectionColumnFilters()">Clear filters</button>
+              }
+            </div>
+          }
+        </div>
+
+        @if (getProjectionCount() === 0) {
+          <div class="validation-warning">
+            <span class="material-icons">warning</span>
+            <span>Select at least one column for the projection</span>
           </div>
         }
       </div>
 
-      <!-- Inline parameters (full width below grid) -->
-      @for (method of projectionMethods; track method.key) {
-        @if (projectionConfig[method.key] && isMethodParamsExpanded(method.key)) {
-          <div class="inline-params">
-            <span class="params-label">{{ method.name }} Parameters</span>
-            @for (param of method.params; track param.configKey) {
-              <div class="param-field">
-                <label [for]="'step4-param-' + param.configKey">
-                  {{ param.label }}
-                  <app-help-tooltip [helpText]="$any(HELP_TEXT.parameters)[param.helpKey]"></app-help-tooltip>
-                </label>
-                <div class="input-group">
-                  <input
-                    [id]="'step4-param-' + param.configKey"
-                    type="range"
-                    [min]="param.min"
-                    [max]="param.max"
-                    [step]="param.step || 1"
-                    [value]="projectionConfig[param.configKey]"
-                    (input)="onParamChange(param.configKey, +$any($event.target).value, param.min, param.max)"
-                    class="range-input"
-                  />
-                  <input
-                    type="number"
-                    [min]="param.min"
-                    [max]="param.max"
-                    [step]="param.step || 1"
-                    [value]="projectionConfig[param.configKey]"
-                    (input)="onParamChange(param.configKey, +$any($event.target).value, param.min, param.max)"
-                    class="number-input"
-                  />
-                </div>
-              </div>
-            }
-            @if (method.key === 'enableTSNE' && shouldShowTSNEWarning()) {
-              <div class="warning-box">
-                <span class="material-icons">warning</span>
-                <div>
-                  <p>
-                    <strong>{{ getTSNETimeEstimate() }}</strong>
-                  </p>
-                  <p>t-SNE will run in the background. Explore with FastMap while waiting.</p>
-                </div>
-              </div>
-            }
+      <!-- RIGHT: Projection method selection -->
+      <div class="config-panel projection-panel">
+        <span id="wizard-anchor-methods" class="scroll-anchor"></span>
+        <div class="projection-panel-header">
+          <h3>
+            <span class="material-icons">settings</span>
+            Projection Methods
+            <app-help-tooltip [helpText]="HELP_TEXT.general.projection"></app-help-tooltip>
+          </h3>
+          <div class="primary-badge">
+            <span class="material-icons">bolt</span>
+            <span>FastMap</span>
+            <span class="speed-badge badge-primary">Always active</span>
+            <app-projection-preview class="method-preview" methodKey="fast" position="bottom"></app-projection-preview>
           </div>
-        }
-      }
-    </div>
-  </div>
-
-  <!-- Action Buttons -->
-  <div class="action-buttons">
-    <button class="btn-secondary" (click)="goBack()">
-      <span class="material-icons">arrow_back</span>
-      <span>Back</span>
-    </button>
-
-    <div class="buttons-right">
-      @if (!canProceed()) {
-        <div class="warning-message">
-          <span class="material-icons">warning</span>
-          <span>Please select 3-12 glyph features to continue.</span>
         </div>
-      }
 
-      <button class="btn-primary" (click)="continue()" [disabled]="!canProceed()">
-        <span>Continue to Review</span>
-        <span class="material-icons">arrow_forward</span>
-      </button>
+        <div class="projection-grid">
+          @for (method of projectionMethods; track method.key) {
+            <div
+              class="projection-card"
+              [class.enabled]="projectionConfig[method.key]"
+              [class.has-warning]="shouldShowLargeDatasetWarning(method)"
+              [class.expanded]="
+                methodHasParams(method) && projectionConfig[method.key] && isMethodParamsExpanded(method.key)
+              "
+              (click)="isMethodDisabled(method) ? null : toggleProjectionMethod(method)"
+              (keydown.enter)="isMethodDisabled(method) ? null : toggleProjectionMethod(method)"
+              tabindex="0"
+            >
+              <div class="card-row">
+                <input
+                  type="checkbox"
+                  [checked]="projectionConfig[method.key]"
+                  [disabled]="isMethodDisabled(method)"
+                  (click)="$event.stopPropagation()"
+                  (change)="toggleProjectionMethod(method)"
+                />
+                <span class="method-name">{{ method.name }}</span>
+                @if (method.badge) {
+                  <span class="speed-badge" [ngClass]="'badge-' + method.badge!.toLowerCase().split(' ').join('-')">{{
+                    method.badge
+                  }}</span>
+                }
+                @if (method.sizeHint) {
+                  <span class="size-hint">{{ method.sizeHint }}</span>
+                }
+                @if (shouldShowLargeDatasetWarning(method)) {
+                  <span class="material-icons warning-icon" title="May be slow with large datasets">warning</span>
+                }
+                @if (methodHasParams(method) && projectionConfig[method.key]) {
+                  <button
+                    class="btn-expand-params"
+                    (click)="toggleMethodParams(method.key); $event.stopPropagation()"
+                    title="Configure parameters"
+                  >
+                    <span class="material-icons">
+                      {{ isMethodParamsExpanded(method.key) ? 'expand_less' : 'tune' }}
+                    </span>
+                  </button>
+                }
+                <app-projection-preview
+                  class="method-preview"
+                  [methodKey]="getPreviewKey(method)"
+                  position="left"
+                  (click)="$event.stopPropagation()"
+                  (keydown)="$event.stopPropagation()"
+                ></app-projection-preview>
+              </div>
+              <div class="card-desc">{{ method.description }}</div>
+
+              <!-- Parameters grouped inside their own method box (grows in place) -->
+              @if (methodHasParams(method) && projectionConfig[method.key]) {
+                <div class="params-wrapper" [class.open]="isMethodParamsExpanded(method.key)">
+                  <div class="params-clip">
+                    <div class="inline-params" (click)="$event.stopPropagation()" (keydown)="$event.stopPropagation()">
+                      <div class="params-header">
+                        <span class="params-label">{{ method.name }} Parameters</span>
+                        <button
+                          class="btn-reset-params"
+                          type="button"
+                          (click)="resetMethodParams(method); $event.stopPropagation()"
+                          [disabled]="!methodParamsChanged(method)"
+                          title="Reset parameters to default"
+                        >
+                          <span class="material-icons">restart_alt</span>
+                          Reset
+                        </button>
+                      </div>
+                      @for (param of method.params; track param.configKey) {
+                        <div class="param-field">
+                          <label [for]="'step4-param-' + param.configKey">
+                            {{ param.label }}
+                            <app-help-tooltip [helpText]="$any(HELP_TEXT.parameters)[param.helpKey]"></app-help-tooltip>
+                          </label>
+                          <div class="input-group">
+                            <input
+                              [id]="'step4-param-' + param.configKey"
+                              type="range"
+                              [min]="param.min"
+                              [max]="param.max"
+                              [step]="param.step || 1"
+                              [value]="projectionConfig[param.configKey]"
+                              (input)="onParamChange(param.configKey, +$any($event.target).value, param.min, param.max)"
+                              class="range-input"
+                            />
+                            <input
+                              type="number"
+                              [min]="param.min"
+                              [max]="param.max"
+                              [step]="param.step || 1"
+                              [value]="projectionConfig[param.configKey]"
+                              (input)="onParamChange(param.configKey, +$any($event.target).value, param.min, param.max)"
+                              class="number-input"
+                            />
+                          </div>
+                          @if (neighborParamError(param)) {
+                            <div class="param-inline-error">
+                              <span class="material-icons">error_outline</span>
+                              <span>{{ neighborParamError(param) }}</span>
+                            </div>
+                          }
+                        </div>
+                      }
+                      @if (method.key === 'enableTSNE' && shouldShowTSNEWarning()) {
+                        <div class="warning-box">
+                          <span class="material-icons">warning</span>
+                          <div>
+                            <p>
+                              <strong>{{ getTSNETimeEstimate() }}</strong>
+                            </p>
+                            <p>t-SNE will run in the background. Explore with FastMap while waiting.</p>
+                          </div>
+                        </div>
+                      }
+                    </div>
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      </div>
     </div>
   </div>
 </div>

@@ -1,6 +1,7 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, AfterViewInit, forwardRef, ViewChild, ElementRef, HostListener } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { PreprocessingService } from '../../services/preprocessing.service';
+import { WizardStep, WIZARD_STEP } from '../../shared/wizard-step';
 import { ColumnConfig, CleaningConfig } from '../../models/column-config';
 import { ColumnStatistics } from '../../models/column-statistics';
 import {
@@ -11,11 +12,13 @@ import {
   OutlierStrategy,
   OutlierMethod,
   DATA_TYPE_CONFIG,
+  getDataTypeLabel,
 } from '../../models/data-type.enum';
 import { HelpTooltipComponent } from '../../shared/help-tooltip/help-tooltip.component';
 import { HELP_TEXT } from '../../shared/constants/help-text';
 import { STEP_INFO } from '../../shared/constants/step-info';
-import { DataTypeBadgeComponent } from '../../shared/data-type-badge/data-type-badge.component';
+import { DataPreviewTableComponent } from '../../shared/data-preview-table/data-preview-table.component';
+import { ToastService } from '../../../services/toast.service';
 
 interface ColumnConfigState {
   column: ColumnStatistics;
@@ -28,19 +31,31 @@ interface ColumnConfigState {
 @Component({
   selector: 'app-step3-configure-data-features',
   standalone: true,
-  imports: [FormsModule, HelpTooltipComponent, DataTypeBadgeComponent],
+  imports: [FormsModule, HelpTooltipComponent, DataPreviewTableComponent],
   templateUrl: './step3-configure-data-features.component.html',
   styleUrl: './step3-configure-data-features.component.scss',
+  providers: [{ provide: WIZARD_STEP, useExisting: forwardRef(() => Step3ConfigureDataFeaturesComponent) }],
 })
-export class Step3ConfigureDataFeaturesComponent implements OnInit {
+export class Step3ConfigureDataFeaturesComponent implements OnInit, AfterViewInit, WizardStep {
+  readonly primaryLabel = 'Continue to Visualization Settings';
+  readonly disabledHint = '';
+
+  @ViewChild('railSearchInput') railSearchInput?: ElementRef<HTMLInputElement>;
+
   columns: ColumnConfigState[] = [];
   filteredColumns: ColumnConfigState[] = [];
 
   // Selection state for list+detail panel
   selectedColumnName: string | null = null;
 
-  // UI state
-  showInfoBox = true;
+  // Bulk-apply (A9) UI state: progressive-disclosure list + post-apply confirmation.
+  showBulkTargets = false;
+  bulkApplyResult: {
+    sourceName: string;
+    typeLabel: string;
+    columnNames: string[];
+    settingsSummary: string;
+  } | null = null;
 
   // Duplicate handling
   duplicateCount = 0;
@@ -113,13 +128,28 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit {
   readonly HELP_TEXT = HELP_TEXT;
   readonly stepInfo = STEP_INFO[2]; // Step 3 (index 2)
 
-  constructor(public preprocessingService: PreprocessingService) {
+  constructor(
+    public preprocessingService: PreprocessingService,
+    private toastService: ToastService
+  ) {
     this.cleaningConfig = this.preprocessingService.currentState.cleaningConfig;
   }
 
   ngOnInit(): void {
     this.loadData();
     this.detectDuplicates();
+  }
+
+  // A4/A6: scroll the requested setting into view when arriving via a deep-link
+  // (undo/redo "Änderung anzeigen" or a review edit-link). The delay lets the
+  // shell's scroll-to-top run first so it does not override this.
+  ngAfterViewInit(): void {
+    const target = this.preprocessingService.consumeScrollTarget();
+    if (target) {
+      setTimeout(() => {
+        document.getElementById(target)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 120);
+    }
   }
 
   private loadData(): void {
@@ -139,8 +169,11 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit {
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- guaranteed by the .filter() which checks columnConfigs.get(col.name)?.enabled
         const config = state.columnConfigs.get(col.name)!;
         return {
+          // Clone the config so each row owns an independent object. Sharing the
+          // service-map reference here let a single-column edit appear to leak into
+          // other rows; every change is still written back via updateColumnConfig.
           column: col,
-          config: config,
+          config: { ...config },
           outlierCount: config.outlierCount,
           isLoadingOutliers: false,
         };
@@ -232,13 +265,12 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit {
       return true;
     });
 
-    // Sort: columns with issues first, then alphabetical
-    this.filteredColumns.sort((a, b) => {
-      const aIssues = (a.column.missingCount > 0 ? 1 : 0) + ((a.outlierCount || 0) > 0 ? 1 : 0);
-      const bIssues = (b.column.missingCount > 0 ? 1 : 0) + ((b.outlierCount || 0) > 0 ? 1 : 0);
-      if (aIssues !== bIssues) return bIssues - aIssues;
-      return a.column.name.localeCompare(b.column.name);
-    });
+    // A14: Keep the columns in the SAME order as Step 2 (the state's file order,
+    // i.e. `dataProfile.columns`). Previously this list was sorted issues-first +
+    // alphabetically, which put each column at a different vertical slot than in
+    // Step 2 and made the Step 2 -> 3 Flip morph look like rows exploding/crossing.
+    // `this.columns` is already built in file order, and the filter above
+    // preserves it, so no sort is applied here.
 
     // Re-select if current selection is filtered out
     if (this.selectedColumnName && !this.filteredColumns.find(c => c.column.name === this.selectedColumnName)) {
@@ -251,10 +283,29 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit {
   }
 
   clearFilters(): void {
+    // A4: filters are view-only state (not part of preprocessing-state), so this
+    // action is made reversible via a toast whose undo restores the local values,
+    // rather than through the global snapshot stack.
+    const previous = {
+      filterText: this.filterText,
+      filterType: this.filterType,
+      showIssuesOnly: this.showIssuesOnly,
+    };
+    const hadActiveFilter = !!this.filterText || this.filterType !== 'all' || this.showIssuesOnly;
+
     this.filterText = '';
     this.filterType = 'all';
     this.showIssuesOnly = false;
     this.applyFilters();
+
+    if (hadActiveFilter) {
+      this.toastService.showUndo('Filter zurückgesetzt', () => {
+        this.filterText = previous.filterText;
+        this.filterType = previous.filterType;
+        this.showIssuesOnly = previous.showIssuesOnly;
+        this.applyFilters();
+      });
+    }
   }
 
   // ============================================================================
@@ -263,10 +314,19 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit {
 
   onEncodingChange(columnName: string, method: EncodingMethod): void {
     this.preprocessingService.updateColumnConfig(columnName, { encodingMethod: method });
+    // Mirror into local state so the deviation check (and its inline reset) update.
+    const colState = this.columns.find(c => c.column.name === columnName);
+    if (colState) {
+      colState.config.encodingMethod = method;
+    }
   }
 
   onScalingChange(columnName: string, method: ScalingMethod): void {
     this.preprocessingService.updateColumnConfig(columnName, { scalingMethod: method });
+    const colState = this.columns.find(c => c.column.name === columnName);
+    if (colState) {
+      colState.config.scalingMethod = method;
+    }
   }
 
   onMissingStrategyChange(columnName: string, strategy: MissingValueStrategy): void {
@@ -284,6 +344,10 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit {
     this.preprocessingService.updateColumnConfig(columnName, {
       missingValueFillValue: fillValue,
     });
+    const colState = this.columns.find(c => c.column.name === columnName);
+    if (colState) {
+      colState.config.missingValueFillValue = fillValue;
+    }
   }
 
   async onOutlierMethodChange(columnName: string, method: OutlierMethod): Promise<void> {
@@ -293,6 +357,7 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit {
 
     const colState = this.columns.find(c => c.column.name === columnName);
     if (colState) {
+      colState.config.outlierMethod = method;
       await this.detectOutliersForColumn(colState);
     }
   }
@@ -301,18 +366,9 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit {
     this.preprocessingService.updateColumnConfig(columnName, {
       outlierStrategy: strategy,
     });
-  }
-
-  toggleProjection(columnName: string): void {
     const colState = this.columns.find(c => c.column.name === columnName);
     if (colState) {
-      const newValue = !colState.config.includeInProjection;
-      // Update service
-      this.preprocessingService.updateColumnConfig(columnName, {
-        includeInProjection: newValue,
-      });
-      // Update local state to trigger template re-render
-      colState.config.includeInProjection = newValue;
+      colState.config.outlierStrategy = strategy;
     }
   }
 
@@ -329,6 +385,199 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit {
 
   selectColumn(name: string): void {
     this.selectedColumnName = name;
+    // Collapse per-column bulk UI when switching columns.
+    this.showBulkTargets = false;
+    this.bulkApplyResult = null;
+  }
+
+  // ============================================================================
+  // A2 – Smart defaults: deviation detection + reversible reset
+  // ============================================================================
+
+  /** Smart-default values for a column, derived from its data type. */
+  private getDefaults(colState: ColumnConfigState): Partial<ColumnConfig> {
+    return this.preprocessingService.getColumnDefaults(colState.column.name) ?? {};
+  }
+
+  isEncodingModified(colState: ColumnConfigState): boolean {
+    return colState.config.encodingMethod !== this.getDefaults(colState).encodingMethod;
+  }
+
+  isScalingModified(colState: ColumnConfigState): boolean {
+    return colState.config.scalingMethod !== this.getDefaults(colState).scalingMethod;
+  }
+
+  isMissingModified(colState: ColumnConfigState): boolean {
+    const def = this.getDefaults(colState);
+    return (
+      colState.config.missingValueStrategy !== def.missingValueStrategy ||
+      (colState.config.missingValueStrategy === MissingValueStrategy.FillValue &&
+        !!colState.config.missingValueFillValue)
+    );
+  }
+
+  isOutlierMethodModified(colState: ColumnConfigState): boolean {
+    return colState.config.outlierMethod !== this.getDefaults(colState).outlierMethod;
+  }
+
+  isOutlierStrategyModified(colState: ColumnConfigState): boolean {
+    return colState.config.outlierStrategy !== this.getDefaults(colState).outlierStrategy;
+  }
+
+  isOutlierModified(colState: ColumnConfigState): boolean {
+    return this.isOutlierMethodModified(colState) || this.isOutlierStrategyModified(colState);
+  }
+
+  /** True when any setting of the column deviates from its smart default. */
+  isColumnModified(colState: ColumnConfigState): boolean {
+    return (
+      this.isEncodingModified(colState) ||
+      this.isScalingModified(colState) ||
+      this.isMissingModified(colState) ||
+      this.isOutlierModified(colState)
+    );
+  }
+
+  resetEncoding(colState: ColumnConfigState): void {
+    const method = this.getDefaults(colState).encodingMethod;
+    if (method === undefined) return;
+    colState.config.encodingMethod = method;
+    this.preprocessingService.updateColumnConfig(colState.column.name, { encodingMethod: method });
+  }
+
+  resetScaling(colState: ColumnConfigState): void {
+    const method = this.getDefaults(colState).scalingMethod;
+    if (method === undefined) return;
+    colState.config.scalingMethod = method;
+    this.preprocessingService.updateColumnConfig(colState.column.name, { scalingMethod: method });
+  }
+
+  resetMissing(colState: ColumnConfigState): void {
+    const strategy = this.getDefaults(colState).missingValueStrategy;
+    if (strategy === undefined) return;
+    colState.config.missingValueStrategy = strategy;
+    colState.config.missingValueFillValue = undefined;
+    this.preprocessingService.updateColumnConfig(colState.column.name, {
+      missingValueStrategy: strategy,
+      missingValueFillValue: undefined,
+    });
+  }
+
+  async resetOutlierMethod(colState: ColumnConfigState): Promise<void> {
+    const method = this.getDefaults(colState).outlierMethod;
+    if (method === undefined) return;
+    colState.config.outlierMethod = method;
+    this.preprocessingService.updateColumnConfig(colState.column.name, { outlierMethod: method });
+    await this.detectOutliersForColumn(colState);
+  }
+
+  resetOutlierStrategy(colState: ColumnConfigState): void {
+    const strategy = this.getDefaults(colState).outlierStrategy;
+    if (strategy === undefined) return;
+    colState.config.outlierStrategy = strategy;
+    this.preprocessingService.updateColumnConfig(colState.column.name, { outlierStrategy: strategy });
+  }
+
+  async resetOutliers(colState: ColumnConfigState): Promise<void> {
+    this.resetOutlierStrategy(colState);
+    await this.resetOutlierMethod(colState);
+  }
+
+  /** Reset every setting of the selected column back to its smart default. */
+  resetColumnToDefault(colState: ColumnConfigState): void {
+    this.resetEncoding(colState);
+    this.resetScaling(colState);
+    this.resetMissing(colState);
+    void this.resetOutliers(colState);
+  }
+
+  // ============================================================================
+  // A9 – Bulk apply settings to all columns of the same type
+  // ============================================================================
+
+  /** Other enabled columns that share the selected column's data type. */
+  getSameTypeColumns(colState: ColumnConfigState): ColumnConfigState[] {
+    return this.columns.filter(
+      c => c.column.dataType === colState.column.dataType && c.column.name !== colState.column.name
+    );
+  }
+
+  /** Toggle the progressive-disclosure list of columns a bulk apply would touch. */
+  toggleBulkTargets(): void {
+    this.showBulkTargets = !this.showBulkTargets;
+  }
+
+  /** Human-readable summary of the settings a bulk apply copies over. */
+  getBulkSettingsSummary(source: ColumnConfigState): string {
+    const parts: string[] = [];
+    const enc = this.encodingMethods.find(m => m.value === source.config.encodingMethod);
+    if (enc) parts.push(`Encoding: ${enc.label}`);
+    if (this.shouldShowScaling(source)) {
+      const sc = this.scalingMethods.find(m => m.value === source.config.scalingMethod);
+      if (sc) parts.push(`Scaling: ${sc.label}`);
+    }
+    const miss = this.missingValueStrategies.find(m => m.value === source.config.missingValueStrategy);
+    if (miss) parts.push(`Missing: ${miss.label}`);
+    if (this.shouldShowOutliers(source)) {
+      const om = this.outlierMethods.find(m => m.value === source.config.outlierMethod);
+      const os = this.outlierStrategies.find(m => m.value === source.config.outlierStrategy);
+      if (om && os) parts.push(`Outliers: ${om.label} / ${os.label}`);
+    }
+    return parts.join(' · ');
+  }
+
+  /**
+   * Copies the selected column's settings onto every other column of the same type.
+   * Runs ONLY from an explicit button click — never as a side effect of editing a
+   * single column. Missing-value handling is copied too, but on columns without any
+   * missing values it simply has no effect.
+   */
+  applyToSameType(source: ColumnConfigState): void {
+    const targets = this.getSameTypeColumns(source);
+    if (targets.length === 0) return;
+
+    const updates: Partial<ColumnConfig> = {
+      encodingMethod: source.config.encodingMethod,
+      scalingMethod: source.config.scalingMethod,
+      missingValueStrategy: source.config.missingValueStrategy,
+      missingValueFillValue: source.config.missingValueFillValue,
+      outlierMethod: source.config.outlierMethod,
+      outlierStrategy: source.config.outlierStrategy,
+    };
+
+    for (const target of targets) {
+      Object.assign(target.config, updates);
+      this.preprocessingService.updateColumnConfig(target.column.name, updates);
+      if (this.shouldShowOutliers(target)) {
+        void this.detectOutliersForColumn(target);
+      }
+    }
+
+    // Confirmation summary shown after the apply completes.
+    this.bulkApplyResult = {
+      sourceName: source.column.name,
+      typeLabel: this.getTypeLabel(source.column.dataType),
+      columnNames: targets.map(t => t.column.name),
+      settingsSummary: this.getBulkSettingsSummary(source),
+    };
+    this.showBulkTargets = false;
+  }
+
+  dismissBulkResult(): void {
+    this.bulkApplyResult = null;
+  }
+
+  /** Focus the column search field when the user presses "/" (unless already typing). */
+  @HostListener('document:keydown', ['$event'])
+  onKeyDown(event: KeyboardEvent): void {
+    if (event.key !== '/') return;
+    const target = event.target as HTMLElement | null;
+    const tag = target?.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target?.isContentEditable) {
+      return;
+    }
+    event.preventDefault();
+    this.railSearchInput?.nativeElement.focus();
   }
 
   getConfigSummary(colState: ColumnConfigState): string {
@@ -388,6 +637,14 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit {
     return this.hasMissingValues(colState) || this.hasOutliers(colState);
   }
 
+  // Colorless uppercase type label shown in the master rail and detail card.
+  getTypeLabel = getDataTypeLabel;
+
+  // Missing-value warning badge turns red when the missing share reaches 20%.
+  isHighMissing(colState: ColumnConfigState): boolean {
+    return colState.column.missingPercentage >= 20;
+  }
+
   formatDate(timestamp: number): string {
     const date = new Date(timestamp);
     return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
@@ -410,22 +667,15 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit {
     return state.dataProfile.columns.map(c => c.name);
   }
 
-  getProjectionCount(): number {
-    return this.columns.filter(c => c.config.includeInProjection).length;
+  canProceed(): boolean {
+    // Data configuration always has valid defaults; column selection for the
+    // projection now happens in Step 4 (Visualization Settings).
+    return true;
   }
 
-  canContinue(): boolean {
-    // At least one column must be included in projection
-    return this.getProjectionCount() > 0;
-  }
-
-  onContinue(): void {
-    if (this.canContinue()) {
+  proceed(): void {
+    if (this.canProceed()) {
       this.preprocessingService.nextStep();
     }
-  }
-
-  goBack(): void {
-    this.preprocessingService.previousStep();
   }
 }

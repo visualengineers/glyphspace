@@ -1,15 +1,16 @@
-import { Component, OnInit, Output, EventEmitter } from '@angular/core';
+import { Component, OnInit, AfterViewInit, forwardRef, ViewChild, ElementRef, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PreprocessingService } from '../../services/preprocessing.service';
 import { MiniHistogramComponent } from '../../../shared/components/mini-histogram/mini-histogram.component';
 import { ColumnStatistics, HistogramData } from '../../models/column-statistics';
 import { ColumnConfig } from '../../models/column-config';
-import { getDataTypeColor, getDataTypeBgColor } from '../../models/data-type.enum';
+import { DataType, getDataTypeColor, getDataTypeBgColor } from '../../models/data-type.enum';
 import { HelpTooltipComponent } from '../../shared/help-tooltip/help-tooltip.component';
 import { HELP_TEXT } from '../../shared/constants/help-text';
 import { STEP_INFO } from '../../shared/constants/step-info';
 import { DataTypeBadgeComponent } from '../../shared/data-type-badge/data-type-badge.component';
+import { WizardStep, WIZARD_STEP } from '../../shared/wizard-step';
 
 @Component({
   selector: 'app-step2-column-selection',
@@ -17,20 +18,52 @@ import { DataTypeBadgeComponent } from '../../shared/data-type-badge/data-type-b
   imports: [CommonModule, FormsModule, MiniHistogramComponent, HelpTooltipComponent, DataTypeBadgeComponent],
   templateUrl: './step2-column-selection.component.html',
   styleUrl: './step2-column-selection.component.scss',
+  providers: [{ provide: WIZARD_STEP, useExisting: forwardRef(() => Step2ColumnSelectionComponent) }],
 })
-export class Step2ColumnSelectionComponent implements OnInit {
-  @Output() continue = new EventEmitter<void>();
+export class Step2ColumnSelectionComponent implements OnInit, AfterViewInit, WizardStep {
+  readonly primaryLabel = 'Continue to Configure Data & Features';
+  readonly disabledHint = 'Please select at least one column to continue';
+
+  @ViewChild('searchInput') searchInput?: ElementRef<HTMLInputElement>;
 
   columns: ColumnStatistics[] = [];
   columnConfigs = new Map<string, ColumnConfig>();
   searchTerm = '';
+  // A14: Type filter, mirroring Step 3's master-rail type filter so both steps
+  // share the same header controls (enables the minimal Flip morph).
+  filterType: DataType | 'all' = 'all';
   columnHistogramCache = new Map<string, HistogramData>();
+
+  // Enum reference for the template's type-filter <select>.
+  DataType = DataType;
+
+  // Anchor index (into the currently filtered list) for shift-click range select.
+  private lastCheckedIndex: number | null = null;
+  // Whether Shift was held during the click that precedes the next (change).
+  private pendingShift = false;
+
+  // Distribution bars use the single cyan accent (A15) instead of per-type colors.
+  // These mirror $active-color (#00bcd4) / $status-info (#00838f); the mini-histogram
+  // renders to a d3 canvas so the color must be passed as a string here.
+  readonly distributionColor = '#00bcd4';
+  readonly distributionHoverColor = '#00838f';
 
   // Expose help text and step info to template
   readonly HELP_TEXT = HELP_TEXT;
   readonly stepInfo = STEP_INFO[1]; // Step 2 (index 1)
 
   constructor(private preprocessingService: PreprocessingService) {}
+
+  // A6: scroll the requested setting into view when arriving via a review deep-link.
+  // The delay lets the shell's scroll-to-top run first so it does not override this.
+  ngAfterViewInit(): void {
+    const target = this.preprocessingService.consumeScrollTarget();
+    if (target) {
+      setTimeout(() => {
+        document.getElementById(target)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 120);
+    }
+  }
 
   ngOnInit(): void {
     const state = this.preprocessingService.currentState;
@@ -47,13 +80,22 @@ export class Step2ColumnSelectionComponent implements OnInit {
   }
 
   get filteredColumns(): ColumnStatistics[] {
-    if (!this.searchTerm) {
-      return this.columns;
-    }
-    const term = this.searchTerm.toLowerCase();
-    return this.columns.filter(
-      col => col.name.toLowerCase().includes(term) || col.dataType.toLowerCase().includes(term)
-    );
+    const term = this.searchTerm.trim().toLowerCase();
+    return this.columns.filter(col => {
+      // Type filter (A14): restrict to a single data type when selected.
+      if (this.filterType !== 'all' && col.dataType !== this.filterType) {
+        return false;
+      }
+      // Text filter: match by column name or data type.
+      if (term && !col.name.toLowerCase().includes(term) && !col.dataType.toLowerCase().includes(term)) {
+        return false;
+      }
+      return true;
+    });
+  }
+
+  get hasActiveFilter(): boolean {
+    return !!this.searchTerm || this.filterType !== 'all';
   }
 
   get enabledCount(): number {
@@ -73,32 +115,79 @@ export class Step2ColumnSelectionComponent implements OnInit {
     this.columnConfigs = this.preprocessingService.currentState.columnConfigs;
   }
 
-  toggleAllColumns(): void {
-    if (this.enabledCount === this.columns.length) {
-      this.deselectAll();
+  /**
+   * Records whether Shift was held for the click that is about to trigger a
+   * (change). It does NOT toggle anything and does NOT preventDefault — the native
+   * checkbox performs the real toggle, so single selection works and is rendered
+   * correctly via [checked]. The flag is consumed by onCheckboxChange().
+   */
+  onCheckboxClick(event: MouseEvent): void {
+    this.pendingShift = event.shiftKey;
+  }
+
+  /**
+   * Native change handler. The clicked row has already been toggled by the browser;
+   * `newState` is its resulting checked value. We commit that single toggle, and if
+   * Shift was held with a valid anchor, we extend the SAME state across the whole
+   * inclusive range [min(anchor,current) .. max(anchor,current)] on the filtered list.
+   */
+  onCheckboxChange(index: number, columnName: string, event: Event): void {
+    const newState = (event.target as HTMLInputElement).checked;
+
+    if (this.pendingShift && this.lastCheckedIndex !== null && this.lastCheckedIndex !== index) {
+      const lo = Math.min(this.lastCheckedIndex, index);
+      const hi = Math.max(this.lastCheckedIndex, index);
+      const names = this.filteredColumns.slice(lo, hi + 1).map(col => col.name);
+      this.preprocessingService.setColumnsEnabled(names, newState);
     } else {
-      this.selectAll();
+      this.preprocessingService.setColumnsEnabled([columnName], newState);
     }
+
+    this.columnConfigs = this.preprocessingService.currentState.columnConfigs;
+    this.lastCheckedIndex = index;
+    this.pendingShift = false;
   }
 
-  selectAll(): void {
-    this.preprocessingService.selectAllColumns();
+  // ── Select-all operates on the currently filtered/visible set (A9) ──────────
+  get filteredEnabledCount(): number {
+    return this.filteredColumns.filter(col => this.isColumnEnabled(col.name)).length;
+  }
+
+  get allFilteredSelected(): boolean {
+    return this.filteredColumns.length > 0 && this.filteredEnabledCount === this.filteredColumns.length;
+  }
+
+  get someFilteredSelected(): boolean {
+    return this.filteredEnabledCount > 0 && this.filteredEnabledCount < this.filteredColumns.length;
+  }
+
+  toggleAllColumns(): void {
+    const names = this.filteredColumns.map(col => col.name);
+    this.preprocessingService.setColumnsEnabled(names, !this.allFilteredSelected);
     this.columnConfigs = this.preprocessingService.currentState.columnConfigs;
   }
 
-  deselectAll(): void {
-    this.preprocessingService.deselectAllColumns();
-    this.columnConfigs = this.preprocessingService.currentState.columnConfigs;
-  }
-
-  onContinue(): void {
-    if (this.enabledCount > 0) {
-      this.continue.emit();
+  /** Focus the column search field when the user presses "/" (unless already typing). */
+  @HostListener('document:keydown', ['$event'])
+  onKeyDown(event: KeyboardEvent): void {
+    if (event.key !== '/') return;
+    const target = event.target as HTMLElement | null;
+    const tag = target?.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target?.isContentEditable) {
+      return;
     }
+    event.preventDefault();
+    this.searchInput?.nativeElement.focus();
   }
 
-  goBack(): void {
-    this.preprocessingService.previousStep();
+  canProceed(): boolean {
+    return this.enabledCount > 0;
+  }
+
+  proceed(): void {
+    if (this.canProceed()) {
+      this.preprocessingService.nextStep();
+    }
   }
 
   getColumnConfig(columnName: string): ColumnConfig | undefined {
@@ -110,6 +199,20 @@ export class Step2ColumnSelectionComponent implements OnInit {
    */
   hasIssues(column: ColumnStatistics): boolean {
     return column.missingPercentage > 50 || column.uniqueCount === 1;
+  }
+
+  /**
+   * True when a column was auto-deselected by a smart default (mostly missing,
+   * constant, or nearly all-unique) and has not been re-enabled by the user.
+   */
+  isAutoDeselected(columnName: string): boolean {
+    const config = this.columnConfigs.get(columnName);
+    return !!config && !config.enabled && !!config.issueDescription;
+  }
+
+  /** Human-readable reason a column was auto-deselected (for the marker tooltip). */
+  getDeselectReason(columnName: string): string {
+    return this.columnConfigs.get(columnName)?.issueDescription ?? '';
   }
 
   /**

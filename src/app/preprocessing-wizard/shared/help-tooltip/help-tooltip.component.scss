@@ -17,13 +17,16 @@
   color: v.$gray-600;
   transition: color 0.2s ease;
 
-  &:hover,
-  &:focus {
+  &:hover {
     color: v.$active-color;
+  }
+
+  &:focus {
     outline: none;
   }
 
   &:focus-visible {
+    color: v.$active-color;
     outline: 2px solid v.$active-color;
     outline-offset: 2px;
     border-radius: 50%;

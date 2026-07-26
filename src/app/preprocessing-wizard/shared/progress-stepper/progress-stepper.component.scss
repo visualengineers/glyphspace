@@ -8,18 +8,23 @@
 
   &.vertical {
     height: 100%;
-    padding: 24px 16px;
+    padding: 1.5rem 1rem;
     border-bottom: none;
+    box-sizing: border-box;
 
     .stepper-container {
       flex-direction: column;
       max-width: none;
+      width: 100%;
+      padding: 0;
       gap: 0;
+      box-sizing: border-box;
     }
 
     .step-wrapper {
       flex-direction: column;
       flex: none;
+      width: 100%;
 
       &:last-child {
         flex: none;
@@ -27,46 +32,74 @@
     }
 
     .step {
+      width: 100%;
+      box-sizing: border-box;
       flex-direction: row;
-      align-items: center;
-      gap: 12px;
-      padding: 12px;
-      border-radius: 8px;
+      align-items: flex-start;
+      gap: 0.75rem;
+      padding: 0.625rem 0.75rem;
+      border-radius: 0.5rem;
 
       &.clickable:hover {
         background: rgba(0, 0, 0, 0.05);
       }
 
       &.active {
-        background: rgba(68, 138, 255, 0.1);
+        background: rgba(v.$active-color, 0.12);
       }
     }
 
     .step-circle {
-      width: 36px;
-      height: 36px;
+      width: 2.25rem;
+      height: 2.25rem;
       flex-shrink: 0;
 
       .material-icons {
-        font-size: 20px;
+        font-size: 1.25rem;
       }
     }
 
     .step-number {
-      font-size: 15px;
+      font-size: 0.9375rem;
     }
 
-    .step-label {
-      font-size: 14px;
-      text-align: left;
+    .step-text {
       flex: 1;
+      min-width: 0;
+      gap: 0.125rem;
+    }
+
+    // Label matches the circle height and centres its text, so the circle and
+    // the heading sit on the same line (description flows underneath)
+    .step-label {
+      display: flex;
+      align-items: center;
+      min-height: 2.25rem;
+      font-size: 0.875rem;
+      text-align: left;
+      white-space: normal;
+      line-height: 1.3;
+    }
+
+    // Description only shown for the active step
+    .step-description {
+      font-size: 0.75rem;
+      color: v.$gray-500;
+      line-height: 1.3;
       white-space: normal;
     }
 
+    .step.active .step-description {
+      display: block;
+    }
+
+    // Compact connector aligned under the circle centre; no flex-grow so it
+    // never stretches the column into a scroll
     .step-connector {
+      flex: none;
       width: 2px;
-      height: 20px;
-      margin: 0 0 0 29px;
+      height: 1.5rem;
+      margin: 0.25rem 0 0.25rem 1.8125rem;
     }
   }
 }
@@ -102,24 +135,30 @@
   width: 110px;
   flex-shrink: 0;
 
+  // Reachable steps stay interactive (pointer + subtle hover); the three
+  // visual states below are driven purely by completed/active, not clickability.
   &.clickable {
     cursor: pointer;
 
     &:hover .step-circle {
-      opacity: 0.8;
+      opacity: 0.85;
     }
   }
 
-  &.active .step-circle {
+  // Completed: cyan-filled circle with a white check mark.
+  &.completed .step-circle {
     background: v.$active-color;
     color: v.$white;
     border-color: v.$active-color;
   }
 
-  &.completed .step-circle {
-    background: v.$gray-600;
-    color: v.$white;
-    border-color: v.$gray-600;
+  // Active: the step number on a white circle framed by a cyan ring. Declared
+  // after .completed so a revisited (already completed) step still shows this
+  // ring while it is the current step.
+  &.active .step-circle {
+    background: v.$white;
+    color: v.$active-color;
+    border-color: v.$active-color;
   }
 }
 
@@ -151,6 +190,10 @@
   text-align: center;
   line-height: 1.3;
 
+  .clickable & {
+    color: v.$gray-700;
+  }
+
   .active & {
     color: v.$active-color;
     font-weight: 600;
@@ -161,6 +204,16 @@
   }
 }
 
+.step-text {
+  display: flex;
+  flex-direction: column;
+}
+
+// Step description is a sidebar-only subtitle (vertical mode)
+.step-description {
+  display: none;
+}
+
 .step-connector {
   flex: 1;
   height: 2px;
@@ -169,7 +222,7 @@
   transition: background 0.2s ease;
 
   &.completed {
-    background: v.$gray-600;
+    background: v.$active-color;
   }
 }
 
@@ -226,7 +279,7 @@
     }
 
     .step-connector {
-      height: 16px;
+      min-height: 16px;
       margin-left: 27px;
     }
   }

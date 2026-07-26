@@ -1,26 +1,24 @@
 <div class="step2-column-selection">
   <div class="step-content">
-    <div class="step-header">
-      <h2>{{ stepInfo.title }}</h2>
-      <p class="step-purpose">{{ stepInfo.purpose }}</p>
-    </div>
-
     <!-- Info Box -->
     <div class="info-box">
       <span class="material-icons">info</span>
       <div>
-        <strong>Tip:</strong> Start by deselecting ID columns and text fields unless needed for tooltips. You can search
-        by column name or type (e.g., "numeric").
+        <strong>Tip:</strong> Columns that are nearly all unique (IDs, titles, free text) or mostly empty are
+        <em>deselected automatically</em> — re-enable any of them if you need it. You can search by column name or type
+        (e.g., "numeric").
       </div>
     </div>
 
+    <span id="wizard-anchor-columns" class="scroll-anchor"></span>
     <div class="column-actions">
       <div class="search-box">
         <span class="material-icons">search</span>
         <input
+          #searchInput
           type="text"
           [(ngModel)]="searchTerm"
-          placeholder="Search by name or type (e.g., 'numeric')..."
+          placeholder="Search by name or type (e.g., 'numeric')... (press / to focus)"
           class="search-input"
         />
         @if (searchTerm) {
@@ -30,19 +28,25 @@
         }
       </div>
 
+      <!-- Type filter (A14): mirrors Step 3's master-rail type filter -->
+      <select
+        class="filter-select"
+        [(ngModel)]="filterType"
+        aria-label="Filter by data type"
+        title="Filter by data type"
+      >
+        <option value="all">All Types</option>
+        <option [value]="DataType.Numeric">Numeric</option>
+        <option [value]="DataType.Categorical">Categorical</option>
+        <option [value]="DataType.Text">Text</option>
+        <option [value]="DataType.Date">Date</option>
+        <option [value]="DataType.Boolean">Boolean</option>
+        <option [value]="DataType.Coordinate">Coordinate</option>
+        <option [value]="DataType.ID">ID</option>
+      </select>
+
       <div class="selection-controls">
-        <button class="btn-text" (click)="selectAll()">
-          <span class="material-icons">check_box</span>
-          Select All
-        </button>
-        <button class="btn-text" (click)="deselectAll()">
-          <span class="material-icons">check_box_outline_blank</span>
-          Deselect All
-        </button>
-        <div class="selection-summary">
-          <span class="count-badge enabled">{{ enabledCount }} selected</span>
-          <span class="count-badge disabled">{{ disabledCount }} excluded</span>
-        </div>
+        <span class="selection-count">{{ enabledCount }} of {{ columns.length }} selected</span>
       </div>
     </div>
 
@@ -51,22 +55,30 @@
       @if (filteredColumns.length === 0) {
         <div class="no-results">
           <span class="material-icons">search_off</span>
-          <p>No columns match your search</p>
+          <p>No columns match your search or filter</p>
         </div>
       } @else {
         <table class="columns-table">
           <thead>
             <tr>
+              <!-- Left band: select-all + name + missing (matches Step 3 rail) -->
               <th class="col-checkbox">
                 <input
                   type="checkbox"
-                  [checked]="enabledCount === columns.length"
-                  [indeterminate]="enabledCount > 0 && enabledCount < columns.length"
+                  [checked]="allFilteredSelected"
+                  [indeterminate]="someFilteredSelected"
                   (change)="toggleAllColumns()"
-                  title="Toggle all columns"
+                  title="Toggle all visible columns"
                 />
               </th>
               <th class="col-name">Column Name</th>
+              <th class="col-missing">
+                <span class="header-with-tooltip">
+                  Missing
+                  <app-help-tooltip [helpText]="HELP_TEXT.tableHeaders.missing" position="bottom"></app-help-tooltip>
+                </span>
+              </th>
+              <!-- Stat columns: collapse away during the Step 2 -> 3 morph -->
               <th class="col-type">
                 <span class="header-with-tooltip">
                   Data Type
@@ -78,12 +90,6 @@
                 <span class="header-with-tooltip">
                   Unique
                   <app-help-tooltip [helpText]="HELP_TEXT.tableHeaders.unique" position="bottom"></app-help-tooltip>
-                </span>
-              </th>
-              <th class="col-missing">
-                <span class="header-with-tooltip">
-                  Missing
-                  <app-help-tooltip [helpText]="HELP_TEXT.tableHeaders.missing" position="bottom"></app-help-tooltip>
                 </span>
               </th>
               <th class="col-distribution">
@@ -98,7 +104,7 @@
             </tr>
           </thead>
           <tbody>
-            @for (column of filteredColumns; track column.name) {
+            @for (column of filteredColumns; track column.name; let i = $index) {
               <tr
                 class="column-row"
                 [class.disabled]="!isColumnEnabled(column.name)"
@@ -109,8 +115,10 @@
                   <input
                     type="checkbox"
                     [checked]="isColumnEnabled(column.name)"
-                    (change)="toggleColumn(column.name)"
+                    (click)="onCheckboxClick($event)"
+                    (change)="onCheckboxChange(i, column.name, $event)"
                     [id]="'col-' + column.name"
+                    title="Shift-click to select a range"
                   />
                 </td>
 
@@ -121,7 +129,24 @@
                     @if (hasIssues(column)) {
                       <span class="material-icons issue-icon" title="Quality issues detected">warning</span>
                     }
+                    @if (isAutoDeselected(column.name)) {
+                      <span class="auto-deselected-badge" [title]="getDeselectReason(column.name)"
+                        >Auto-deselected</span
+                      >
+                    }
                   </div>
+                </td>
+
+                <!-- Missing (part of the left band) -->
+                <td class="col-missing">
+                  @if (column.missingCount > 0) {
+                    <div class="missing-cell">
+                      <span class="missing-count">{{ column.missingCount | number }}</span>
+                      <span class="missing-percent warn">({{ column.missingPercentage.toFixed(1) }}%)</span>
+                    </div>
+                  } @else {
+                    <span class="missing-count-zero">0</span>
+                  }
                 </td>
 
                 <!-- Data Type -->
@@ -142,26 +167,14 @@
                   </div>
                 </td>
 
-                <!-- Missing -->
-                <td class="col-missing">
-                  @if (column.missingCount > 0) {
-                    <div class="missing-cell">
-                      <span class="missing-count">{{ column.missingCount | number }}</span>
-                      <span class="missing-percent warn">({{ column.missingPercentage.toFixed(1) }}%)</span>
-                    </div>
-                  } @else {
-                    <span class="text-muted">—</span>
-                  }
-                </td>
-
                 <!-- Distribution -->
                 <td class="col-distribution">
                   @if (getColumnHistogramData(column); as histogramData) {
                     <app-mini-histogram
                       [data]="histogramData"
                       [dataType]="column.dataType"
-                      [color]="getDataTypeBgColor(column.dataType)"
-                      [hoverColor]="getDataTypeColor(column.dataType)"
+                      [color]="distributionColor"
+                      [hoverColor]="distributionHoverColor"
                       [width]="112"
                       [height]="25"
                       [enabled]="isColumnEnabled(column.name)"
@@ -176,27 +189,6 @@
           </tbody>
         </table>
       }
-    </div>
-  </div>
-
-  <div class="action-buttons">
-    <button class="btn-secondary" (click)="goBack()">
-      <span class="material-icons">arrow_back</span>
-      <span>Back</span>
-    </button>
-
-    <div class="buttons-right">
-      @if (enabledCount === 0) {
-        <div class="warning-message">
-          <span class="material-icons">warning</span>
-          Please select at least one column to continue
-        </div>
-      }
-
-      <button class="btn-primary" (click)="onContinue()" [disabled]="enabledCount === 0">
-        Continue to Configure Data & Features
-        <span class="material-icons">arrow_forward</span>
-      </button>
     </div>
   </div>
 </div>

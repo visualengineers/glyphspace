@@ -3,6 +3,13 @@
 @use '../../../../styles/variables' as v;
 @use '../../../../styles/mixins' as m;
 
+// A6: invisible scroll anchor used by the review step's deep-links
+.scroll-anchor {
+  display: block;
+  height: 0;
+  scroll-margin-top: 12px;
+}
+
 .step4-visualization-settings {
   display: flex;
   flex-direction: column;
@@ -72,7 +79,14 @@
     .form-group {
       @include m.form-group;
 
-      select,
+      // Native select must read as a dropdown (chevron affordance), not a
+      // plain text input (C-S4-02).
+      select {
+        @include w.select;
+        width: 200px;
+        display: block;
+      }
+
       app-color-scale-selector {
         width: 200px;
         display: block;
@@ -104,8 +118,7 @@
     overflow: hidden;
 
     .glyph-panel-header {
-      display: flex;
-      align-items: center;
+      @include w.list-header-row;
       justify-content: space-between;
       gap: 8px;
       margin-bottom: 8px;
@@ -116,26 +129,15 @@
     }
 
     .btn-suggestion-compact {
-      @include w.btn-base;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
+      // Match the wizard's primary "Continue" nav button (cyan, white text).
+      @include w.btn-primary;
       font-size: 11px;
-      font-weight: 600;
       padding: 4px 10px;
       white-space: nowrap;
       flex-shrink: 0;
 
       .material-icons {
         font-size: 14px;
-      }
-
-      &:hover:not(:disabled) {
-        opacity: 0.9;
-      }
-
-      &:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
       }
     }
 
@@ -153,10 +155,50 @@
       flex-direction: column;
       gap: 3px;
       min-height: 50px;
+      max-height: 200px;
+      overflow-y: auto;
       padding: 6px;
       border: 2px dashed v.$gray-300;
       border-radius: 8px;
       background: v.$wizard-header-bg;
+    }
+
+    // Search + type filter above the available list (same anatomy as steps 2/3)
+    .feature-filter-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+
+      .search-box {
+        @include w.search-box($padding: 4px 8px, $icon-size: 16px);
+        flex: 1;
+        min-width: 0;
+      }
+
+      .filter-select {
+        @include w.select;
+        font-size: 12px;
+        padding: 4px 24px 4px 8px;
+        flex-shrink: 0;
+        max-width: 130px;
+      }
+    }
+
+    .available-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      padding: 16px 8px;
+      color: v.$gray-500;
+      font-size: 12px;
+
+      .btn-clear-inline {
+        @include w.btn-text;
+        font-size: 11px;
+        padding: 3px 8px;
+      }
     }
 
     .empty-hint {
@@ -179,8 +221,7 @@
     }
 
     .available-label {
-      display: flex;
-      align-items: center;
+      @include w.list-header-row;
       justify-content: space-between;
       font-size: 11px;
       font-weight: 600;
@@ -203,6 +244,7 @@
       overflow-y: auto;
       flex: 1;
       min-height: 0;
+      max-height: 240px;
     }
 
     .feature-row {
@@ -227,6 +269,18 @@
           border-color: v.$active-color;
         }
 
+        &.drop-target {
+          border-color: v.$active-color;
+          box-shadow: inset 0 2px 0 v.$active-color;
+        }
+
+        .drag-handle {
+          font-size: 16px;
+          color: v.$gray-400;
+          flex-shrink: 0;
+          cursor: grab;
+        }
+
         .feature-order {
           display: flex;
           align-items: center;
@@ -243,8 +297,13 @@
       }
 
       &.available {
-        cursor: pointer;
+        cursor: grab;
         color: v.$gray-700;
+
+        &:active,
+        &.dragging {
+          cursor: grabbing;
+        }
 
         &:hover {
           background: v.$gray-100;
@@ -342,10 +401,13 @@
       align-items: center;
       justify-content: center;
       margin: 8px 0;
+      // Let long edge labels render past the drawing box instead of being clipped.
+      overflow: visible;
 
       .glyph-preview-svg {
         width: 100%;
         height: 100%;
+        overflow: visible;
       }
 
       .axis-label {
@@ -417,8 +479,7 @@
     padding-bottom: 8px;
 
     .projection-panel-header {
-      display: flex;
-      align-items: center;
+      @include w.list-header-row;
       gap: 12px;
       margin-bottom: 8px;
 
@@ -475,6 +536,11 @@
         border-color: rgba(v.$status-warning, 0.3);
       }
 
+      // Keep the card in its own cell; only its height grows when expanded
+      &.expanded {
+        cursor: default;
+      }
+
       .card-row {
         display: flex;
         align-items: center;
@@ -484,15 +550,12 @@
       .card-desc {
         font-size: 10px;
         color: v.$gray-500;
-        padding-left: 19px;
+        padding-left: 20px;
         line-height: 1.3;
       }
 
       input[type='checkbox'] {
-        @include w.checkbox;
-        width: 14px;
-        height: 14px;
-        flex-shrink: 0;
+        @include w.selection-checkbox;
       }
 
       .method-name {
@@ -529,6 +592,22 @@
         .material-icons {
           font-size: 13px;
         }
+      }
+
+      // Animated method explainer (A1): help icon pinned to the far right of
+      // the card row. Uses auto margin so it stays right whether or not the
+      // parameter-toggle button is present.
+      .method-preview {
+        margin-left: auto;
+        flex-shrink: 0;
+        display: inline-flex;
+        align-items: center;
+      }
+
+      // When the parameter toggle is also shown, it should sit next to the
+      // preview icon rather than fighting it for the auto margin.
+      .btn-expand-params + .method-preview {
+        margin-left: 4px;
       }
     }
 
@@ -580,27 +659,100 @@
       border: 1px solid v.$gray-300;
     }
 
+    // Animated height wrapper: collapses to 0fr, expands to content height in place.
+    .params-wrapper {
+      display: grid;
+      grid-template-rows: 0fr;
+      margin-top: 0;
+      transition:
+        grid-template-rows 0.25s ease,
+        margin-top 0.25s ease;
+
+      &.open {
+        grid-template-rows: 1fr;
+        margin-top: 6px;
+      }
+    }
+
+    // Bare grid item: no padding/border/background so the 0fr track truly
+    // collapses to zero and fully clips the padded box below (no sliver).
+    .params-clip {
+      min-height: 0;
+      overflow: hidden;
+    }
+
     .inline-params {
       padding: 6px 10px;
       background: v.$wizard-header-bg;
       border: 1px solid v.$gray-200;
       border-radius: 8px;
-      margin-top: 4px;
+      cursor: default;
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
       align-items: flex-end;
 
+      .params-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+      }
+
       .params-label {
         font-size: 11px;
         font-weight: 600;
         color: v.$gray-600;
-        width: 100%;
+      }
+
+      .btn-reset-params {
+        @include w.btn-base;
+        background: white;
+        border: 1px solid v.$gray-300;
+        color: v.$gray-600;
+        font-size: 10px;
+        font-weight: 600;
+        padding: 2px 8px;
+        gap: 3px;
+        flex-shrink: 0;
+
+        .material-icons {
+          font-size: 13px;
+        }
+
+        &:hover:not(:disabled) {
+          background: v.$gray-100;
+          border-color: v.$active-color;
+          color: v.$active-color;
+        }
+
+        &:disabled {
+          opacity: 0.4;
+          cursor: not-allowed;
+        }
       }
 
       .param-field {
-        flex: 1;
-        min-width: 180px;
+        // Fit the (narrower) card column: each parameter takes the full width
+        flex: 1 1 100%;
+        min-width: 0;
+
+        // A3 / C-S4-05: field-near validation message (error class K4).
+        .param-inline-error {
+          display: flex;
+          align-items: flex-start;
+          gap: 5px;
+          margin-top: 5px;
+          font-size: 11px;
+          line-height: 1.4;
+          color: v.$status-error-dark;
+
+          .material-icons {
+            font-size: 14px;
+            color: #d64541;
+            flex-shrink: 0;
+          }
+        }
 
         label {
           display: flex;
@@ -644,6 +796,287 @@
             margin-bottom: 0;
           }
         }
+      }
+    }
+  }
+
+  // ============================================================================
+  // Projection Options (two-column: columns + method)
+  // ============================================================================
+
+  .projection-options-two-col {
+    display: grid;
+    // Always side-by-side (columns left, methods right), even at narrower widths.
+    grid-template-columns: 2fr 3fr;
+    gap: 16px;
+    align-items: start;
+
+    // Panels inside the grid should not add their own bottom margin and must be
+    // allowed to shrink so long column names never force the grid to wrap.
+    > .config-panel {
+      margin-bottom: 0;
+      min-width: 0;
+    }
+  }
+
+  .projection-columns-panel {
+    display: flex;
+    flex-direction: column;
+    max-height: 420px;
+
+    // A8: total dataset row count for context
+    .dataset-row-count {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      color: v.$gray-600;
+      margin: -4px 0 10px;
+
+      .material-icons {
+        font-size: 14px;
+        color: v.$gray-500;
+      }
+    }
+
+    .projection-columns-header {
+      @include w.list-header-row;
+      justify-content: space-between;
+      gap: 8px;
+
+      h3 {
+        margin-bottom: 0;
+
+        // Darker teal accent for the section icon
+        .material-icons {
+          color: v.$status-info;
+        }
+      }
+
+      .projection-count {
+        font-size: 11px;
+        font-weight: 600;
+        color: v.$status-info;
+        background: rgba(v.$active-color, 0.14);
+        padding: 2px 8px;
+        border-radius: 10px;
+        white-space: nowrap;
+      }
+    }
+
+    // Search + type filter (same visual language as the glyph feature filter)
+    .feature-filter-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+
+      .search-box {
+        @include w.search-box($padding: 4px 8px, $icon-size: 16px);
+        flex: 1;
+        min-width: 0;
+      }
+
+      .filter-select {
+        @include w.select;
+        font-size: 12px;
+        padding: 4px 24px 4px 8px;
+        flex-shrink: 0;
+        max-width: 120px;
+      }
+    }
+
+    .projection-columns-list-header {
+      @include w.list-header-row;
+      gap: 8px;
+      padding-left: 8px;
+      padding-right: 8px;
+      margin-bottom: 4px;
+      border-bottom: 1px solid v.$gray-200;
+
+      .master-checkbox {
+        width: 15px;
+        height: 15px;
+        accent-color: v.$active-color;
+        flex-shrink: 0;
+        cursor: pointer;
+      }
+
+      .master-label {
+        font-size: 11px;
+        font-weight: 600;
+        color: v.$gray-500;
+        letter-spacing: 0.3px;
+        text-transform: uppercase;
+      }
+
+      .showing-count {
+        margin-left: auto;
+        font-size: 11px;
+        font-weight: 600;
+        color: v.$active-color;
+        white-space: nowrap;
+      }
+    }
+
+    .projection-columns-list {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      overflow-y: auto;
+      flex: 1;
+      min-height: 0;
+    }
+
+    // Compact row wrapper: holds the selectable row plus an optional details panel.
+    .projection-column-item {
+      border: 1px solid v.$gray-200;
+      border-radius: 6px;
+      font-size: 12px;
+      transition:
+        border-color 0.15s ease,
+        background 0.15s ease;
+
+      &:hover {
+        border-color: v.$gray-400;
+      }
+
+      &.selected {
+        background: rgba(v.$active-color, 0.04);
+        border-color: rgba(v.$active-color, 0.3);
+      }
+
+      &.details-open {
+        border-color: rgba(v.$active-color, 0.3);
+      }
+
+      &.excluded .col-name {
+        color: v.$gray-500;
+        text-decoration: line-through;
+      }
+
+      // The clickable row itself is dense (compact padding to save width).
+      .projection-column-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 3px 6px;
+        cursor: pointer;
+        margin: 0;
+      }
+
+      input[type='checkbox'] {
+        @include w.checkbox;
+        width: 14px;
+        height: 14px;
+        accent-color: v.$active-color;
+        flex-shrink: 0;
+      }
+
+      .col-name {
+        flex: 1;
+        font-weight: 500;
+        color: v.$gray-800;
+        @include m.text-truncate;
+      }
+
+      .btn-details-toggle {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 22px;
+        height: 22px;
+        padding: 0;
+        background: transparent;
+        border: none;
+        border-radius: 4px;
+        color: v.$gray-500;
+        cursor: pointer;
+        flex-shrink: 0;
+
+        .material-icons {
+          font-size: 18px;
+        }
+
+        &:hover {
+          color: v.$status-info;
+          background: rgba(v.$active-color, 0.1);
+        }
+      }
+
+      // Progressive-disclosure details: encoding / scaling / missing per column.
+      .projection-column-details {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        padding: 6px 8px 8px;
+        border-top: 1px dashed v.$gray-200;
+        margin-top: 2px;
+
+        .detail-row {
+          display: flex;
+          justify-content: space-between;
+          gap: 8px;
+
+          .detail-key {
+            color: v.$gray-500;
+            text-transform: uppercase;
+            font-size: 10px;
+            letter-spacing: 0.3px;
+          }
+
+          .detail-val {
+            color: v.$gray-800;
+            font-weight: 500;
+          }
+        }
+
+        .detail-hint {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          margin-top: 2px;
+          color: v.$gray-500;
+          font-size: 10px;
+
+          .material-icons {
+            font-size: 12px;
+          }
+        }
+      }
+    }
+
+    // Empty state when search/filter matches nothing
+    .available-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      padding: 16px 8px;
+      color: v.$gray-500;
+      font-size: 12px;
+
+      .btn-clear-inline {
+        @include w.btn-text;
+        font-size: 11px;
+        padding: 3px 8px;
+      }
+    }
+
+    .validation-warning {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 8px;
+      background: rgba(v.$status-warning, 0.1);
+      border-left: 3px solid v.$status-warning;
+      border-radius: 8px;
+      font-size: 12px;
+      color: v.$status-warning-dark;
+      margin-top: 8px;
+
+      .material-icons {
+        font-size: 14px;
       }
     }
   }

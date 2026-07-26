@@ -1,49 +1,139 @@
 <div class="preprocessing-wizard">
-  <div class="wizard-header">
-    <div class="header-content">
-      <h1>Data Preprocessing Wizard</h1>
-      <div class="header-actions">
-        <button class="btn-icon" (click)="reset()" title="Start Over">
-          <span class="material-icons">refresh</span>
-        </button>
-        <button class="btn-icon" (click)="closeWizard()" title="Close">
-          <span class="material-icons">close</span>
-        </button>
-      </div>
+  <div class="wizard-titlebar">
+    <h1>Data Preprocessing Wizard</h1>
+    <div class="header-actions">
+      <button class="btn-icon" (click)="reset()" title="Start Over">
+        <span class="material-icons">delete</span>
+      </button>
+      <button class="btn-icon" (click)="closeWizard()" title="Close">
+        <span class="material-icons">close</span>
+      </button>
     </div>
-
-    <app-progress-stepper [steps]="steps" [currentStep]="currentStep" (stepClick)="onStepClick($event)">
-    </app-progress-stepper>
   </div>
 
-  <div class="wizard-content" #wizardContent>
-    @if (error) {
-      <div class="error-banner">
-        <span class="material-icons">error</span>
-        <span>{{ error }}</span>
-        <button class="btn-close" (click)="error = null">
-          <span class="material-icons">close</span>
+  <div class="wizard-body">
+    <aside class="wizard-sidebar">
+      <app-progress-stepper
+        [steps]="steps"
+        [currentStep]="currentStep"
+        [vertical]="true"
+        (stepClick)="onStepClick($event)"
+      >
+      </app-progress-stepper>
+    </aside>
+
+    <div class="wizard-main">
+      <!-- A4: persistent undo/redo controls at the top of the work area. Curved
+           icons and a top-right position keep them visually distinct from the
+           Back/Weiter step navigation pinned to the bottom. -->
+      <div class="wizard-toolbar">
+        <button
+          class="btn-history"
+          type="button"
+          (click)="undo()"
+          [disabled]="!history.canUndo"
+          [title]="undoTooltip"
+          aria-label="Rückgängig"
+        >
+          <!-- Undo/Redo als Inline-SVG statt Icon-Font, bewusst.
+               Gewünscht ist der kantige Haken-Pfeil aus dem "Material Symbols"-Stil.
+               Warum nicht die Icon-Font-Bibliothek genutzt wird:
+               1. Das Projekt bündelt lokal nur das klassische "Material Icons"-Paket;
+                  dessen "undo"-Glyph ist runder und trifft die gewünschte Form nicht.
+               2. Das passende "material-symbols"-Paket lässt sich hier nicht sauber
+                  ergänzen: node_modules ist eine geteilte Windows-Junction über alle
+                  Worktrees, ein "npm install" würde also das ganze Projekt verändern
+                  statt nur diesen Branch.
+               3. Die App läuft als GitHub Pages ohne Backend; das Nachladen des
+                  Symbols-Fonts von einem externen Google-Fonts-CDN würde eine
+                  Laufzeit-Fremdabhängigkeit einführen, die das Projekt vermeidet.
+               Daher: die offiziellen Material-Symbols-Pfade für undo/redo verbatim
+               inline (dependency-frei, exakt, nur auf diese zwei Buttons begrenzt);
+               redo ist die gespiegelte Form. -->
+          <svg class="history-icon" viewBox="0 -960 960 960" aria-hidden="true" focusable="false">
+            <path
+              d="M280-200v-80h284q63 0 109.5-40T720-420q0-60-46.5-100T564-560H312l104 104-56 56-200-200 200-200 56 56-104 104h252q97 0 166.5 63T800-420q0 94-69.5 157T564-200H280Z"
+            />
+          </svg>
+        </button>
+        <button
+          class="btn-history"
+          type="button"
+          (click)="redo()"
+          [disabled]="!history.canRedo"
+          [title]="redoTooltip"
+          aria-label="Wiederherstellen"
+        >
+          <!-- Gespiegelte Form (redo). -->
+          <svg class="history-icon" viewBox="0 -960 960 960" aria-hidden="true" focusable="false">
+            <path
+              d="M396-200q-97 0-166.5-63T160-420q0-94 69.5-157T396-640h252L544-744l56-56 200 200-200 200-56-56 104-104H396q-63 0-109.5 40T240-420q0 60 46.5 100T396-280h284v80H396Z"
+            />
+          </svg>
         </button>
       </div>
-    }
 
-    <div class="step-container">
-      @switch (currentStep) {
-        @case (0) {
-          <app-step1-upload (dataLoaded)="onDataLoaded($event)"></app-step1-upload>
+      <div class="wizard-content" #wizardContent>
+        @if (stepVisible) {
+          <div class="step-container">
+            @switch (currentStep) {
+              @case (0) {
+                <app-step1-upload></app-step1-upload>
+              }
+              @case (1) {
+                <app-step2-column-selection></app-step2-column-selection>
+              }
+              @case (2) {
+                <app-step3-configure-data-features></app-step3-configure-data-features>
+              }
+              @case (3) {
+                <app-step4-visualization-settings></app-step4-visualization-settings>
+              }
+              @case (4) {
+                <app-step5-review-processing (wizardFinish)="onWizardComplete()"></app-step5-review-processing>
+              }
+            }
+          </div>
         }
-        @case (1) {
-          <app-step2-column-selection (continue)="nextStep()"></app-step2-column-selection>
-        }
-        @case (2) {
-          <app-step3-configure-data-features></app-step3-configure-data-features>
-        }
-        @case (3) {
-          <app-step4-visualization-settings></app-step4-visualization-settings>
-        }
-        @case (4) {
-          <app-step5-review-processing (wizardFinish)="onWizardComplete()"></app-step5-review-processing>
-        }
+      </div>
+
+      @if (activeStep(); as step) {
+        <div class="wizard-nav">
+          <button class="btn-secondary" (click)="previousStep()" [disabled]="currentStep === 0">
+            <span class="material-icons">arrow_back</span>
+            <span>Back</span>
+          </button>
+
+          <!-- A4: dezenter Undo/Redo-Hinweis, mittig in die Navigationsleiste
+               eingebettet (kein schwebender Overlay-Toast). Nennt die geänderte
+               Einstellung und bietet den "Änderung anzeigen"-Deeplink. Single-Slot:
+               ein neuer Hinweis ersetzt den vorherigen. -->
+          @if (historyHint) {
+            <div class="history-hint" role="status">
+              <span class="material-icons">history</span>
+              <span class="history-hint-text">{{ historyHint.message }}</span>
+              @if (historyHint.step !== null && historyHint.anchorId) {
+                <button type="button" class="history-hint-action" (click)="showHistoryChange()">
+                  Änderung anzeigen
+                </button>
+              }
+            </div>
+          }
+
+          <div class="buttons-right">
+            @if (!step.canProceed() && step.disabledHint) {
+              <div class="warning-message">
+                <span class="material-icons">warning</span>
+                <span>{{ step.disabledHint }}</span>
+              </div>
+            }
+
+            <button class="btn-primary" (click)="onProceed(step)" [disabled]="!step.canProceed()">
+              <span>{{ step.primaryLabel }}</span>
+              <span class="material-icons">arrow_forward</span>
+            </button>
+          </div>
+        </div>
       }
     </div>
   </div>

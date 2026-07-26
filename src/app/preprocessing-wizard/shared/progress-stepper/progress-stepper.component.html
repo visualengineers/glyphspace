@@ -19,7 +19,12 @@
             }
           </div>
 
-          <div class="step-label">{{ step.label }}</div>
+          <div class="step-text">
+            <div class="step-label">{{ step.label }}</div>
+            @if (step.description) {
+              <div class="step-description">{{ step.description }}</div>
+            }
+          </div>
         </div>
 
         @if ($index < steps.length - 1) {

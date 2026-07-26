@@ -3,7 +3,7 @@
 // Shared wizard styles following GlyphSpace design system
 
 @mixin step-header {
-  text-align: center;
+  text-align: left;
   margin-bottom: 16px;
 
   h2 {
@@ -133,50 +133,18 @@
   }
 }
 
-// Data type badges - using centralized colors (supports both class and attribute selectors)
+// Data type label — colorless (A15 feedback): the data type is shown as a plain
+// uppercase grey label, not a colored badge, so tables/lists stay low-color and
+// only the cyan accent + informational missing/warning badges carry color.
 @mixin data-type-badge {
-  @include badge;
   flex-shrink: 0;
-
-  &.badge-numeric {
-    background: v.$data-type-numeric-bg;
-    color: v.$data-type-numeric;
-  }
-
-  &.badge-categorical {
-    background: v.$data-type-categorical-bg;
-    color: v.$data-type-categorical;
-  }
-
-  &.badge-text {
-    background: v.$data-type-text-bg;
-    color: v.$data-type-text;
-  }
-
-  &.badge-date {
-    background: v.$data-type-date-bg;
-    color: v.$data-type-date;
-  }
-
-  &.badge-boolean {
-    background: v.$data-type-boolean-bg;
-    color: v.$data-type-boolean;
-  }
-
-  &.badge-id {
-    background: v.$data-type-id-bg;
-    color: v.$data-type-id;
-  }
-
-  &.badge-coordinate {
-    background: v.$data-type-coordinate-bg;
-    color: v.$data-type-coordinate;
-  }
-
-  &.badge-unknown {
-    background: v.$data-type-unknown-bg;
-    color: v.$data-type-unknown;
-  }
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: v.$gray-500;
+  background: none;
+  padding: 0;
 }
 
 // Messages
@@ -250,6 +218,55 @@
   accent-color: v.$active-color;
 }
 
+// ============================================================================
+// Unified table/list selection system (A15)
+// One consistent pattern for every selectable table/list in the wizard:
+// selection control on the LEFT, a header "select all" toggle, a single blue
+// accent color, and no data-type color-coding of rows.
+// ============================================================================
+
+// Fixed geometry for the selection column. Using the SAME width and left
+// padding for the header cell and every row cell guarantees the header
+// "select all" checkbox sits on one vertical line with the row checkboxes.
+$selection-col-width: 44px;
+$selection-col-pad-left: 12px;
+
+// The single selection checkbox used everywhere (header + rows + list items).
+// Accent is the shared $active-color (#00bcd4 cyan) from the design template.
+@mixin selection-checkbox {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  cursor: pointer;
+  accent-color: v.$active-color;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
+// Left-hand selection cell / container (table <th>/<td> or flex list item).
+@mixin selection-cell {
+  width: $selection-col-width;
+  min-width: $selection-col-width;
+  box-sizing: border-box;
+  padding-left: $selection-col-pad-left;
+  padding-right: 0;
+  text-align: left;
+  vertical-align: middle;
+}
+
+// Selected-row / selected-item highlight (single accent, no type colors).
+@mixin selection-highlight {
+  background: rgba(v.$active-color, 0.06);
+}
+
+// Live selection count rendered as accent text in the header/filter bar.
+@mixin selection-count-text {
+  font-size: 13px;
+  font-weight: 600;
+  color: v.$status-info;
+  white-space: nowrap;
+}
+
 // Search box — shared between column selection, data features, and legend
 @mixin search-box($padding: 5px 8px, $icon-size: 18px, $border-color: v.$gray-300) {
   display: flex;
@@ -298,6 +315,40 @@
   }
 }
 
+// ============================================================================
+// Unified header-row height (A15)
+// Every single-row table/list header bar in the wizard uses this height so the
+// headers line up visually across steps. Height is governed by min-height +
+// box-sizing (not vertical padding), so different content stays vertically
+// centered at the same height.
+// ============================================================================
+$wizard-header-row-height: 40px;
+
+// ============================================================================
+// A14: Shared master-list geometry
+// Step 2's left "column band" and Step 3's master rail share the same width,
+// list-viewport height and row padding so the GSAP Flip morph between the two
+// steps is minimal (matched elements barely move). Keep these values in ONE
+// place so both steps stay in lockstep.
+// ============================================================================
+$wizard-rail-width: 320px;
+$wizard-list-viewport-height: 420px;
+$wizard-list-row-padding: 10px 12px;
+// A14: One fixed row height for BOTH the Step 2 table rows and the Step 3 rail
+// items so column N sits at the same y-position in both steps (row N in step 2
+// morphs to row N in step 3 with minimal vertical movement). Sized to fit the
+// Step 3 two-line item (name/type + config summary) without clipping.
+$wizard-list-row-height: 56px;
+
+@mixin list-header-row {
+  display: flex;
+  align-items: center;
+  min-height: $wizard-header-row-height;
+  box-sizing: border-box;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
 // Tables
 @mixin table-container {
   background: white;
@@ -323,8 +374,10 @@
     }
 
     th {
-      padding: 10px 12px;
+      height: $wizard-header-row-height;
+      padding: 0 12px;
       text-align: left;
+      vertical-align: middle;
       font-weight: 600;
       color: v.$gray-700;
       font-size: 12px;
@@ -402,13 +455,11 @@
   }
 }
 
-// Step content wrapper - constrains content width while allowing footer to be full-width
+// Step content wrapper - fills the available work-area width with consistent padding
 @mixin step-content {
   flex: 1;
-  padding: 16px 32px;
-  max-width: 1150px;
+  padding: 24px 32px;
   width: 100%;
-  margin: 0 auto;
   box-sizing: border-box;
 }
 
@@ -451,7 +502,7 @@
 
 // Step purpose statement
 @mixin step-purpose {
-  text-align: center;
+  text-align: left;
   font-size: 13px;
   color: v.$gray-600;
   margin-bottom: 16px;

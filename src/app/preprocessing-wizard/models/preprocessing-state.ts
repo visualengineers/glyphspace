@@ -42,6 +42,18 @@ export interface ProcessingProgress {
   message: string;
 }
 
+/**
+ * A4 – Undo/Redo. Status of the history stack, published so the wizard shell can
+ * enable/disable the toolbar buttons and show the concrete next action in the
+ * tooltip (e.g. "Rückgängig: Smart Defaults angewendet").
+ */
+export interface HistoryStatus {
+  canUndo: boolean;
+  canRedo: boolean;
+  undoLabel: string | null; // label of the action that Undo would revert
+  redoLabel: string | null; // label of the action that Redo would re-apply
+}
+
 export const DEFAULT_CLEANING_CONFIG: CleaningConfig = {
   removeDuplicates: false,
 };

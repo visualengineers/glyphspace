@@ -260,13 +260,12 @@ preprocessing_processor_config.process_with_config(
 
           postMessage({ type: 'processed', dataset } as WorkerReply);
 
-          // Cleanup: files are no longer needed after processing
+          // Cleanup: only remove the transient result file. The input CSV must
+          // stay in the Pyodide FS -- it is written once at upload (profileData)
+          // and reused for every (re)processing run, and the app does not retain
+          // the raw bytes to re-write it. Deleting it here caused a
+          // FileNotFoundError ('<name>' not found) on the second run / reprocess.
           try {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Pyodide FS API has incomplete type definitions
-            if ((pyodide.FS as any).analyzePath(fileName).exists) {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Pyodide FS API has incomplete type definitions
-              (pyodide.FS as any).unlink(fileName);
-            }
             // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Pyodide FS API has incomplete type definitions
             if ((pyodide.FS as any).analyzePath(outputFileName).exists) {
               // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Pyodide FS API has incomplete type definitions
