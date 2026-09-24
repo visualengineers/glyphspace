@@ -3,7 +3,8 @@ import { ColumnConfig, CleaningConfig, ProjectionConfig, CleaningResult } from '
 import { DatasetCollection } from '../../shared/interfaces/dataset-collection';
 
 export interface PreprocessingState {
-  // Current step (0-5)
+  // Index into WIZARD_STEPS (0 = upload … 5 = review). Resolve it through the
+  // step-id helpers in shared/constants/step-info.ts instead of comparing numbers.
   currentStep: number;
 
   // Data
@@ -45,7 +46,7 @@ export interface ProcessingProgress {
 /**
  * A4 – Undo/Redo. Status of the history stack, published so the wizard shell can
  * enable/disable the toolbar buttons and show the concrete next action in the
- * tooltip (e.g. "Rückgängig: Smart Defaults angewendet").
+ * tooltip (e.g. "Undo: Recommended features applied (Ctrl+Z)").
  */
 export interface HistoryStatus {
   canUndo: boolean;
@@ -88,7 +89,28 @@ export const DEFAULT_PROJECTION_CONFIG: ProjectionConfig = {
   // UMAP parameters
   umapNeighbors: 15,
   umapMinDist: 0.1,
-
-  // TriMap parameters
-  trimapWeightAdj: 500,
 };
+
+/** State of a wizard with nothing loaded yet. */
+export function createInitialState(): PreprocessingState {
+  return {
+    currentStep: 0,
+    rawFileName: null,
+    dataProfile: null,
+    columnConfigs: new Map(),
+    cleaningConfig: { ...DEFAULT_CLEANING_CONFIG },
+    projectionConfig: { ...DEFAULT_PROJECTION_CONFIG },
+    cleaningResult: null,
+    processedDataset: null,
+    datasetName: '',
+    timestamp: '',
+    glyphFeatures: [],
+    tooltipFeatures: [],
+    colorScaleMode: 'continuous',
+    colorScaleId: 0,
+    isProcessing: false,
+    processingProgress: 0,
+    processingStep: '',
+    error: null,
+  };
+}

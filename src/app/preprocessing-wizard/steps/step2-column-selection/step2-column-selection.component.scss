@@ -1,4 +1,5 @@
 @use '../../../../styles/variables' as v;
+@use '../../../../styles/mixins' as m;
 @use '../../shared/wizard-shared' as wizard;
 
 .step2-column-selection {
@@ -9,30 +10,25 @@
 }
 
 .step-content {
-  flex: 1;
-  padding: 16px 32px;
-  max-width: 1150px;
-  width: 100%;
-  margin: 0 auto;
-  box-sizing: border-box;
+  @include wizard.step-content;
 }
 
-.step-header {
-  @include wizard.step-header;
+.info-box {
+  @include wizard.info-box;
 }
 
 .column-actions {
   display: flex;
-  gap: 12px;
-  margin-bottom: 16px;
+  gap: v.$space-3;
+  margin-bottom: v.$space-4;
   align-items: center;
   flex-wrap: wrap;
 }
 
 .search-box {
-  @include wizard.search-box($padding: 8px 12px, $icon-size: 20px, $border-color: v.$gray-200);
+  @include wizard.search-box($padding: v.$space-2 v.$space-3, $icon-size: v.$icon-size-lg, $border-color: v.$gray-200);
   flex: 1;
-  min-width: 250px;
+  min-width: min(100%, 250px);
   position: relative;
 }
 
@@ -42,23 +38,26 @@
   @include wizard.select;
   flex-shrink: 0;
   min-width: 150px;
-  font-size: 13px;
   padding: 6px 28px 6px 10px;
 }
 
 .selection-controls {
   display: flex;
-  gap: 12px;
+  gap: v.$space-3;
   align-items: center;
-}
-
-.btn-text {
-  @include wizard.btn-text;
-  font-size: 13px;
 }
 
 .selection-count {
   @include wizard.selection-count-text;
+}
+
+.selection-tip {
+  font-size: v.$font-size-sm;
+  color: v.$text-muted;
+}
+
+.visually-hidden {
+  @include m.visually-hidden;
 }
 
 // Table Layout
@@ -70,8 +69,8 @@
   @include wizard.table-container;
   overflow-x: auto;
   overflow-y: auto;
-  max-height: calc(#{wizard.$wizard-list-viewport-height} + #{wizard.$wizard-header-row-height});
-  margin-bottom: 16px;
+  max-height: wizard.$wizard-list-box-height;
+  margin-bottom: v.$space-4;
 }
 
 .columns-table {
@@ -88,7 +87,7 @@
     .header-with-tooltip {
       display: inline-flex;
       align-items: center;
-      gap: 4px;
+      gap: v.$space-1;
     }
 
     &.col-checkbox {
@@ -138,7 +137,7 @@
     }
 
     &.has-issues {
-      background: rgba(v.$status-warning, 0.05);
+      background: v.$severity-warning-bg;
     }
 
     td {
@@ -173,36 +172,32 @@
 .name-cell {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: v.$space-2;
 
   .name-text {
     @include wizard.column-name-text;
   }
 
   .issue-icon {
-    font-size: 16px;
-    color: v.$status-warning;
+    font-size: v.$icon-size-sm;
+    color: v.$severity-warning-icon;
   }
 
   // Smart-default marker: explains that a column was deselected automatically
   // (reason in the title tooltip). Distinct from the quality warning icon.
   .auto-deselected-badge {
     flex-shrink: 0;
-    font-size: 10px;
+    font-size: v.$font-size-xs;
     font-weight: 600;
     line-height: 1;
     padding: 2px 6px;
     border-radius: 4px;
-    color: v.$gray-600;
+    color: v.$text-muted;
     background: v.$gray-100;
     border: 1px solid v.$gray-300;
     cursor: help;
     white-space: nowrap;
   }
-}
-
-.data-type-badge {
-  @include wizard.data-type-badge;
 }
 
 .unique-cell,
@@ -221,59 +216,34 @@
 
 .unique-percent,
 .missing-percent {
-  font-size: 11px;
-  color: v.$gray-600;
+  font-size: v.$font-size-xs;
+  color: v.$text-muted;
 
+  // Was #ff9800 (2.16:1); the warning text tone is 5.87:1 on white.
   &.warn {
-    color: v.$status-warning;
+    color: v.$severity-warning-text;
     font-weight: 600;
   }
 }
 
 .text-muted {
-  color: v.$gray-500;
+  color: v.$text-muted;
   font-style: italic;
 }
 
 // A8: an explicit "0" for zero missing values (calm, not alarming)
 .missing-count-zero {
-  color: v.$gray-500;
+  color: v.$text-muted;
 }
 
 // A6: invisible scroll anchor used by the review step's deep-links
 .scroll-anchor {
-  display: block;
-  height: 0;
-  scroll-margin-top: 12px;
+  @include wizard.scroll-anchor;
 }
 
 // No Results
 .no-results {
-  @include wizard.no-content($padding: 48px 24px, $text-size: 14px);
-}
-
-// Action Buttons
-.action-buttons {
-  @include wizard.action-buttons-footer;
-
-  .btn-secondary {
-    @include wizard.btn-secondary;
-  }
-
-  .buttons-right {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-left: auto;
-  }
-}
-
-.warning-message {
-  @include wizard.message-warning;
-}
-
-.btn-primary {
-  @include wizard.btn-primary;
+  @include wizard.no-content($padding: 48px v.$space-6, $text-size: v.$font-size-md);
 }
 
 // Responsive
@@ -307,11 +277,11 @@
   }
 
   .columns-table {
-    font-size: 12px;
+    font-size: v.$font-size-sm;
 
     thead th,
     tbody td {
-      padding: 8px;
+      padding: v.$space-2;
     }
   }
 }

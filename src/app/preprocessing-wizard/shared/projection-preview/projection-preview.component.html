@@ -1,49 +1,55 @@
 <div class="projection-preview-container">
   <button
+    #trigger
     class="preview-icon"
     type="button"
-    tabindex="0"
-    [attr.aria-label]="'Preview: ' + methodKey"
+    [attr.aria-label]="ariaLabel"
+    [attr.aria-describedby]="popupId"
     [attr.aria-expanded]="isOpen"
-    (mouseenter)="open()"
-    (mouseleave)="scheduleHide()"
-    (click)="toggle(); $event.stopPropagation()"
-    (keydown.enter)="toggle(); $event.stopPropagation()"
-    (keydown.space)="toggle(); $event.stopPropagation()"
+    (mouseenter)="popup.onTriggerEnter()"
+    (mouseleave)="popup.onPointerLeave()"
+    (focus)="popup.onFocus()"
+    (blur)="popup.onBlur()"
+    (click)="popup.onClick()"
   >
-    <span class="material-icons">help_outline</span>
+    <span class="material-icons" aria-hidden="true">help_outline</span>
   </button>
 
-  @if (isOpen) {
-    <div
-      class="projection-preview"
-      [ngStyle]="popupStyle"
-      role="tooltip"
-      (mouseenter)="cancelScheduledHide()"
-      (mouseleave)="scheduleHide()"
-    >
-      <div class="preview-head">
-        <span class="preview-name">{{ meta.name }}</span>
-        <span class="preview-tag" [ngClass]="'tag-' + meta.tagClass">{{ meta.tag }}</span>
-        @if (meta.rows) {
-          <span class="preview-rows">{{ meta.rows }}</span>
-        }
-      </div>
-      <div class="preview-sub">{{ meta.sub }}</div>
-      <div class="preview-desc">{{ meta.desc }}</div>
+  <!-- Always rendered (hidden while closed) so aria-describedby resolves. -->
+  <div
+    #popupEl
+    class="projection-preview"
+    role="tooltip"
+    [id]="popupId"
+    [class.visible]="isOpen"
+    [ngStyle]="popupStyle"
+    (mouseenter)="popup.onPopupEnter()"
+    (mouseleave)="popup.onPointerLeave()"
+  >
+    <div class="preview-head">
+      <span class="preview-name">{{ meta.name }}</span>
+      <span class="preview-tag" [ngClass]="'tag-' + meta.tagClass">{{ meta.tag }}</span>
+      @if (meta.rows) {
+        <span class="preview-rows">{{ meta.rows }}</span>
+      }
+    </div>
+    <div class="preview-sub">{{ meta.sub }}</div>
+    <div class="preview-desc">{{ meta.desc }}</div>
 
-      <div class="preview-canvas-wrap">
+    @if (isOpen) {
+      <!-- Visual-only animation; the text above is the accessible description. -->
+      <div class="preview-canvas-wrap" aria-hidden="true">
         <canvas #cnv></canvas>
       </div>
 
-      <div class="preview-caption">
+      <div class="preview-caption" aria-hidden="true">
         <span class="preview-dots">
           @for (step of caps; track $index) {
             <span class="dot" [class.active]="$index === currentPhase"></span>
           }
         </span>
-        <span class="preview-cap-text">{{ caps[currentPhase]?.cap }}</span>
+        <span class="preview-cap-text">{{ caption }}</span>
       </div>
-    </div>
-  }
+    }
+  </div>
 </div>

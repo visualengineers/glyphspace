@@ -1,5 +1,5 @@
 import { Component, ElementRef, Input, ViewChild, AfterViewInit, OnDestroy } from '@angular/core';
-import { forceSimulation, forceCollide } from 'd3-force';
+import { forceSimulation, forceCollide } from 'd3';
 import * as THREE from 'three';
 import { GlyphObject } from '../../glyph/glyph-object';
 import { ZoomLevel } from '../../shared/enum/zoom-level';

@@ -67,8 +67,7 @@ export interface ProjectionConfig {
   umapNeighbors: number;
   umapMinDist: number;
 
-  // TriMap parameters
-  trimapWeightAdj: number; // Weight adjustment factor (default: 500)
+  // TriMap has no parameters: it runs with DruidJS's defaults.
 }
 
 export interface CleaningResult {

@@ -8,8 +8,15 @@
       </div>
     </div>
 
-    <button class="hamburger" (click)="menuOpen = !menuOpen" aria-label="Toggle menu">
-      <span class="material-icons">
+    <button
+      #menuToggle
+      class="hamburger"
+      type="button"
+      (click)="menuOpen = !menuOpen"
+      aria-label="Toggle menu"
+      [attr.aria-expanded]="menuOpen"
+    >
+      <span class="material-icons" aria-hidden="true">
         {{ menuOpen ? 'close' : 'menu' }}
       </span>
     </button>
@@ -23,14 +30,20 @@
       <div class="data-control">
         <span class="label">Data</span>
         <div class="dataset-selector">
-          <select [(ngModel)]="selectedDataset" (ngModelChange)="onDatasetSelect($event)">
+          <select [(ngModel)]="selectedDataset" (ngModelChange)="onDatasetSelect($event)" aria-label="Dataset">
             @for (entry of datasetEntries; track entry.name) {
               <option [value]="entry.name">{{ entry.name }}{{ entry.source !== 'local' ? ' (uploaded)' : '' }}</option>
             }
           </select>
           @if (isUserDataset(selectedDataset)) {
-            <button class="delete-btn" (click)="onDeleteDataset(selectedDataset)" title="Delete this dataset">
-              <span class="material-icons">delete_outline</span>
+            <button
+              class="delete-btn"
+              type="button"
+              (click)="onDeleteDataset(selectedDataset)"
+              title="Delete this dataset"
+              aria-label="Delete this dataset"
+            >
+              <span class="material-icons" aria-hidden="true">delete_outline</span>
             </button>
           }
         </div>
@@ -38,18 +51,18 @@
 
       <!-- UPLOAD / EXPORT -->
       <div class="icon-panel">
-        <button (click)="upload()">
-          <span class="material-icons">upload</span>
+        <button #uploadButton type="button" (click)="upload()" aria-haspopup="dialog">
+          <span class="material-icons" aria-hidden="true">upload</span>
           <span class="btn-label">Upload</span>
         </button>
 
-        <button (click)="download()">
-          <span class="material-icons">download</span>
+        <button type="button" (click)="download()">
+          <span class="material-icons" aria-hidden="true">download</span>
           <span class="btn-label">Export</span>
         </button>
 
-        <button (click)="screenshot()" title="Save canvas as PNG">
-          <span class="material-icons">photo_camera</span>
+        <button type="button" (click)="screenshot()" title="Save canvas as PNG">
+          <span class="material-icons" aria-hidden="true">photo_camera</span>
           <span class="btn-label">Screenshot</span>
         </button>
       </div>
@@ -57,12 +70,12 @@
       <!-- CANVAS -->
       <div class="canvas-control">
         <span class="label">Canvas</span>
-        <button class="add-btn" (click)="addCanvas.emit()" [disabled]="totalCells >= 4">
-          <span class="material-icons">add</span>
+        <button class="add-btn" type="button" (click)="addCanvas.emit()" [disabled]="totalCells >= 4">
+          <span class="material-icons" aria-hidden="true">add</span>
           <span class="btn-label">Add</span>
         </button>
-        <button class="add-btn fit-btn" (click)="fitAll()" title="Fit all">
-          <span class="material-icons">fullscreen</span>
+        <button class="add-btn fit-btn" type="button" (click)="fitAll()" title="Fit all">
+          <span class="material-icons" aria-hidden="true">fullscreen</span>
           <span class="btn-label">Fit all</span>
         </button>
       </div>
@@ -72,6 +85,12 @@
 
 @if (showWizard) {
   <div class="wizard-overlay">
-    <app-preprocessing-wizard (wizardClose)="closePreprocessingWizard()"></app-preprocessing-wizard>
+    <!-- The wizard is lazy-loaded so it stays out of the initial bundle. The wizard's root carries
+         role="dialog" / aria-modal and manages focus; this element is only the backdrop. -->
+    @defer (on immediate) {
+      <app-preprocessing-wizard (wizardClose)="closePreprocessingWizard()"></app-preprocessing-wizard>
+    } @loading (after 150ms) {
+      <p class="wizard-loading" role="status">Loading wizard…</p>
+    }
   </div>
 }

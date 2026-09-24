@@ -36,9 +36,9 @@ describe('SpatialGrid', () => {
     grid.insert('c', 25, 25);
 
     const result = grid.queryRect(0, 50, 0, 50);
-    expect(result.has('a')).toBeTrue();
-    expect(result.has('c')).toBeTrue();
-    expect(result.has('b')).toBeFalse();
+    expect(result.has('a')).toBe(true);
+    expect(result.has('c')).toBe(true);
+    expect(result.has('b')).toBe(false);
   });
 
   it('should query items near a point', () => {
@@ -46,15 +46,15 @@ describe('SpatialGrid', () => {
     grid.insert('b', 500, 500);
 
     const result = grid.queryPoint(100, 100, 60);
-    expect(result.has('a')).toBeTrue();
-    expect(result.has('b')).toBeFalse();
+    expect(result.has('a')).toBe(true);
+    expect(result.has('b')).toBe(false);
   });
 
   it('should handle items with radius spanning multiple cells', () => {
     grid.insert('a', 50, 50, 60); // radius overlaps multiple cells
     // Item should be found in cell (0,0), (0,1), (1,0), (1,1) etc.
     const result = grid.queryRect(-10, 10, -10, 10);
-    expect(result.has('a')).toBeTrue();
+    expect(result.has('a')).toBe(true);
   });
 
   it('should remove items', () => {
@@ -73,10 +73,10 @@ describe('SpatialGrid', () => {
     grid.update('a', 500, 500);
 
     const nearOld = grid.queryPoint(10, 10, 10);
-    expect(nearOld.has('a')).toBeFalse();
+    expect(nearOld.has('a')).toBe(false);
 
     const nearNew = grid.queryPoint(500, 500, 10);
-    expect(nearNew.has('a')).toBeTrue();
+    expect(nearNew.has('a')).toBe(true);
   });
 
   it('should clear all items', () => {

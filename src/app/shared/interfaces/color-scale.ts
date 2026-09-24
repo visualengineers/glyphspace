@@ -111,8 +111,9 @@ export const COLOR_SCALES: ColorScale[] = [
   },
 ];
 
-export function getColorScaleById(id: number): ColorScale | undefined {
-  return COLOR_SCALES.find(scale => scale.id === id);
+/** Look up a color scale by id, falling back to the first (default) scale for unknown ids. */
+export function getColorScaleById(id: number): ColorScale {
+  return COLOR_SCALES.find(scale => scale.id === id) ?? COLOR_SCALES[0];
 }
 
 export function getContinuousGradient(scale: ColorScale, steps = 10): string {

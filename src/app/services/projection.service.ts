@@ -1,121 +1,99 @@
 import { Injectable, NgZone } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
-import * as druid from '@saehrimnir/druidjs';
+import { DruidModule, druidSpecFor, runDruidProjection } from '../workers/druid-runner';
 import {
+  ProjectionComputeConfig,
   ProjectionMethod,
   ProjectionResult,
   ProjectionWorkerRequest,
   ProjectionWorkerResponse,
 } from '../shared/types/projection.types';
 
-// Re-export types for backward compatibility
-export type {
-  ProjectionMethod,
-  ProjectionResult,
-  ProjectionComputeConfig,
-  ProjectionWorkerRequest,
-  ProjectionWorkerResponse,
-} from '../shared/types/projection.types';
+// Re-exported for consumers that import it alongside ProjectionService
+export type { ProjectionResult } from '../shared/types/projection.types';
 
 export interface BackgroundStatus {
   method: string;
-  status: 'pending' | 'running' | 'complete' | 'error';
+  status: 'pending' | 'running' | 'complete' | 'error' | 'cancelled';
   progress: number;
   message: string;
   error?: string;
 }
 
+/** Rejection reason of a background projection that was stopped on purpose (cancel / terminateAllWorkers). */
+export class ProjectionCancelledError extends Error {
+  constructor(readonly method: string) {
+    super(`${method} was cancelled`);
+    this.name = 'ProjectionCancelledError';
+  }
+}
+
+/** Everything needed to start, or re-start, one background projection. */
+interface ProjectionRequest {
+  method: ProjectionMethod;
+  features: number[][];
+  ids: (string | number)[];
+  config?: ProjectionComputeConfig;
+}
+
+/** One background projection computing in its own worker. */
+interface ProjectionJob {
+  worker: Worker;
+  request: ProjectionRequest;
+  reject: (reason: Error) => void;
+  /** Set once the job finished or was cancelled; later worker messages are ignored. */
+  ended: boolean;
+}
+
+/**
+ * Loads DruidJS on first use. A dynamic import keeps the library (with its
+ * inlined WASM kernels) out of the initial bundle; only FastMap needs it on the
+ * main thread, every other method loads it inside its worker.
+ */
+function loadDruid(): Promise<DruidModule> {
+  return import('@saehrimnir/druidjs');
+}
+
+/**
+ * Computes 2D projections. The primary FastMap projection runs synchronously on
+ * the main thread (runFastMapSync) and cannot be interrupted; every optional
+ * method runs in its own Web Worker, so it can be cancelled (cancel /
+ * terminateAllWorkers) and re-run with the same data and settings (retry).
+ */
 @Injectable({
   providedIn: 'root',
 })
 export class ProjectionService {
   private backgroundStatus$ = new BehaviorSubject<Map<string, BackgroundStatus>>(new Map());
-  private workers = new Map<string, Worker>();
+  /**
+   * The controllable job per method: the latest one started and not yet
+   * detached. An earlier job of the same method, or a job released by
+   * detachAll(), keeps computing and reporting on its own.
+   */
+  private jobs = new Map<string, ProjectionJob>();
+  /**
+   * The latest request per method, kept for retry() until that method completes
+   * or detachAll() is called. All entries of one run share the same feature
+   * matrix, so this keeps at most one matrix alive.
+   */
+  private requests = new Map<string, ProjectionRequest>();
 
   constructor(private ngZone: NgZone) {}
-
-  /**
-   * Run PCA (fast, blocking) - runs synchronously on main thread
-   */
-  async runPCA(features: number[][], ids: (string | number)[]): Promise<ProjectionResult> {
-    const startTime = Date.now();
-
-    try {
-      // DruidJS PCA: new druid.PCA(data, components).transform()
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- DruidJS type definitions are incomplete
-      const pca = new (druid as any).PCA(features, 2); // 2 components for 2D visualization
-      const embedding = pca.transform();
-
-      const positions = embedding.map((coords: number[], i: number) => ({
-        id: ids[i],
-        x: coords[0],
-        y: coords[1],
-      }));
-
-      return {
-        method: 'pca',
-        positions,
-        computeTime: Date.now() - startTime,
-      };
-    } catch (error: unknown) {
-      throw new Error(`PCA failed: ${error instanceof Error ? error.message : String(error)}`);
-    }
-  }
 
   /**
    * Run FastMap (blocking) - PRIMARY projection for dashboard
    * Fast distance-preserving projection with O(n) complexity
    * Ideal for large datasets (40K+ items)
+   *
+   * DruidJS is loaded on the first call (see loadDruid), then FastMap runs
+   * synchronously on the main thread. computeTime includes that load, in whole ms.
    */
   async runFastMapSync(features: number[][], ids: (string | number)[]): Promise<ProjectionResult> {
-    const startTime = Date.now();
-
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- DruidJS type definitions are incomplete
-      const fastmap = new (druid as any).FASTMAP(features, 2);
-      const embedding = fastmap.transform();
-
-      const positions = embedding.map((coords: number[], i: number) => ({
-        id: ids[i],
-        x: coords[0],
-        y: coords[1],
-      }));
-
-      return {
-        method: 'fastmap',
-        positions,
-        computeTime: Date.now() - startTime,
-      };
+      const { positions, computeTime } = await runDruidProjection(loadDruid, druidSpecFor('fastmap'), features, ids);
+      return { method: 'fastmap', positions, computeTime: Math.round(computeTime) };
     } catch (error: unknown) {
       throw new Error(`FastMap failed: ${error instanceof Error ? error.message : String(error)}`);
-    }
-  }
-
-  /**
-   * Run IsoMap (blocking) - Non-linear manifold learning
-   * Preserves geodesic distances - slower than FastMap but better structure preservation
-   */
-  async runIsoMapSync(features: number[][], ids: (string | number)[]): Promise<ProjectionResult> {
-    const startTime = Date.now();
-
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- DruidJS type definitions are incomplete
-      const isomap = new (druid as any).ISOMAP(features, 2);
-      const embedding = isomap.transform();
-
-      const positions = embedding.map((coords: number[], i: number) => ({
-        id: ids[i],
-        x: coords[0],
-        y: coords[1],
-      }));
-
-      return {
-        method: 'isomap',
-        positions,
-        computeTime: Date.now() - startTime,
-      };
-    } catch (error: unknown) {
-      throw new Error(`IsoMap failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -204,19 +182,10 @@ export class ProjectionService {
   }
 
   /**
-   * Run TriMap (background) - Good for large datasets
+   * Run TriMap (background) - Good for large datasets. Uses DruidJS's defaults.
    */
-  async runTriMap(
-    features: number[][],
-    ids: (string | number)[],
-    config?: { weightAdj?: number }
-  ): Promise<ProjectionResult> {
-    return this.runProjectionInWorker(
-      'trimap',
-      features,
-      ids,
-      config ? { trimapWeightAdj: config.weightAdj } : undefined
-    );
+  async runTriMap(features: number[][], ids: (string | number)[]): Promise<ProjectionResult> {
+    return this.runProjectionInWorker('trimap', features, ids);
   }
 
   /**
@@ -236,75 +205,137 @@ export class ProjectionService {
   /**
    * Run a projection in a Web Worker (non-blocking)
    */
-  private async runProjectionInWorker(
+  private runProjectionInWorker(
     method: ProjectionMethod,
     features: number[][],
     ids: (string | number)[],
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- config varies per projection method
-    config?: any
+    config?: ProjectionComputeConfig
   ): Promise<ProjectionResult> {
+    return this.startJob({ method, features, ids, config });
+  }
+
+  /**
+   * Start one background projection in a fresh worker; it becomes the method's
+   * controllable job. A still-running earlier job of the same method is not
+   * stopped (it may belong to a dataset already handed to the dashboard): it
+   * keeps computing, reports its status and settles its own promise.
+   */
+  private startJob(request: ProjectionRequest): Promise<ProjectionResult> {
+    const { method } = request;
+    this.requests.set(method, request);
+
     return new Promise((resolve, reject) => {
-      // Create worker for this projection
       const worker = new Worker(new URL('../workers/projection.worker', import.meta.url), {
         type: 'module',
       });
-
-      this.workers.set(method, worker);
+      const job: ProjectionJob = { worker, request, reject, ended: false };
+      this.jobs.set(method, job);
       this.updateBackgroundStatus(method, 'running', 0, `Starting ${method.toUpperCase()}...`);
 
-      // Handle messages from worker
       worker.onmessage = ({ data }: MessageEvent<ProjectionWorkerResponse>) => {
-        this.ngZone.run(() => {
-          if (data.type === 'progress') {
-            // Update progress status
-            this.updateBackgroundStatus(
-              method,
-              'running',
-              data.progress || 0,
-              data.message || `Computing ${method}...`
-            );
-          } else if (data.type === 'result') {
-            // Computation complete
-            this.updateBackgroundStatus(method, 'complete', 100, `${method} complete`);
-            worker.terminate();
-            this.workers.delete(method);
-            resolve({
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any -- ProjectionMethod type narrowing not available here
-              method: method as any,
-              // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- guaranteed present when data.type === 'result'
-              positions: data.positions!,
-              // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- guaranteed present when data.type === 'result'
-              computeTime: data.computeTime!,
-            });
-          } else if (data.type === 'error') {
-            // Error occurred
-            this.updateBackgroundStatus(method, 'error', 0, `${method} failed`, data.error);
-            worker.terminate();
-            this.workers.delete(method);
-            reject(new Error(`${method} failed: ${data.error}`));
-          }
-        });
+        this.ngZone.run(() => this.handleWorkerMessage(job, data, resolve));
+      };
+      worker.onerror = (event: ErrorEvent) => {
+        this.ngZone.run(() => this.failJob(job, `${method} worker error`, event.message));
       };
 
-      worker.onerror = error => {
-        this.ngZone.run(() => {
-          this.updateBackgroundStatus(method, 'error', 0, `${method} worker error`, error.message);
-          worker.terminate();
-          this.workers.delete(method);
-          reject(new Error(`${method} worker error: ${error.message}`));
-        });
-      };
-
-      // Send computation request to worker
-      const request: ProjectionWorkerRequest = {
+      const message: ProjectionWorkerRequest = {
         type: 'compute',
         method,
-        features,
-        ids,
-        config,
+        features: request.features,
+        ids: request.ids,
+        config: request.config,
       };
-      worker.postMessage(request);
+      worker.postMessage(message);
     });
+  }
+
+  private handleWorkerMessage(
+    job: ProjectionJob,
+    data: ProjectionWorkerResponse,
+    resolve: (result: ProjectionResult) => void
+  ): void {
+    const { method } = job.request;
+    if (job.ended) {
+      return; // a late message from a cancelled worker
+    }
+    if (data.type === 'progress') {
+      this.updateBackgroundStatus(method, 'running', data.progress || 0, data.message || `Computing ${method}...`);
+    } else if (data.type === 'result') {
+      this.endJob(job);
+      if (this.requests.get(method) === job.request) {
+        this.requests.delete(method);
+      }
+      this.updateBackgroundStatus(method, 'complete', 100, `${method} complete`);
+      resolve({ method, positions: data.positions ?? [], computeTime: data.computeTime ?? 0 });
+    } else if (data.type === 'error') {
+      this.failJob(job, `${method} failed`, data.error ?? 'Unknown error');
+    }
+  }
+
+  /** The worker reported an error: end the job, mark the method failed (retryable) and reject. */
+  private failJob(job: ProjectionJob, summary: string, detail: string): void {
+    if (job.ended) {
+      return;
+    }
+    this.endJob(job);
+    this.updateBackgroundStatus(job.request.method, 'error', 0, summary, detail);
+    job.reject(new Error(`${summary}: ${detail}`));
+  }
+
+  /** Terminate the job's worker and, if it is still the method's controllable job, forget it. */
+  private endJob(job: ProjectionJob): void {
+    job.ended = true;
+    job.worker.terminate();
+    if (this.jobs.get(job.request.method) === job) {
+      this.jobs.delete(job.request.method);
+    }
+  }
+
+  /**
+   * Cancel the running background projection of `method`: terminate its worker,
+   * reject its pending promise with ProjectionCancelledError and mark its status
+   * 'cancelled'. The request is kept, so retry() can run it again. Returns false
+   * when the method has no controllable running job.
+   */
+  cancel(method: string): boolean {
+    const job = this.jobs.get(method);
+    if (!job) {
+      return false;
+    }
+    this.endJob(job);
+    job.reject(new ProjectionCancelledError(method));
+    this.updateBackgroundStatus(method, 'cancelled', 0, 'Cancelled');
+    return true;
+  }
+
+  /** True while a controllable background projection of `method` is computing. */
+  isRunning(method: string): boolean {
+    return this.jobs.has(method);
+  }
+
+  /** True when retry() can re-run `method`: its last run was cancelled or failed. */
+  canRetry(method: string): boolean {
+    return !this.jobs.has(method) && this.requests.has(method);
+  }
+
+  /** Re-run the last (cancelled or failed) request of `method` with the same data and settings. */
+  retry(method: string): Promise<ProjectionResult> {
+    const request = this.requests.get(method);
+    if (!request) {
+      return Promise.reject(new Error(`There is no previous ${method} run to retry`));
+    }
+    return this.startJob(request);
+  }
+
+  /**
+   * Hand every running projection over, e.g. once the wizard passes its dataset
+   * to the dashboard or starts on a new one: the jobs keep computing and
+   * reporting their status, but can no longer be cancelled or retried.
+   */
+  detachAll(): void {
+    this.jobs.clear();
+    this.requests.clear();
   }
 
   /**
@@ -399,19 +430,18 @@ export class ProjectionService {
   }
 
   /**
-   * Clear all background statuses
+   * Clear all background statuses (and the requests kept for retry)
    */
   clearBackgroundStatuses(): void {
+    this.requests.clear();
     this.backgroundStatus$.next(new Map());
   }
 
   /**
-   * Terminate all running workers
+   * Cancel every running background projection (see cancel()); each is marked
+   * 'cancelled'. Returns the methods that were stopped.
    */
-  terminateAllWorkers(): void {
-    this.workers.forEach((worker, _method) => {
-      worker.terminate();
-    });
-    this.workers.clear();
+  terminateAllWorkers(): string[] {
+    return Array.from(this.jobs.keys()).filter(method => this.cancel(method));
   }
 }

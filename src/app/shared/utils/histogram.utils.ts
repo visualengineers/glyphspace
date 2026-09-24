@@ -221,21 +221,21 @@ export function formatBinTooltip(
 }
 
 /**
- * Darken a hex color by a specified amount.
- *
- * @param color - Hex color string (e.g., '#2196F3')
- * @param amount - Amount to darken (0-1, default: 0.3)
- * @returns Darkened hex color string
+ * Category label per histogram bin. Wizard datasets have one bin per category
+ * (bin n = category code n, empty bins included); older CLI output uses fixed
+ * bins that several categories may share, so there the non-empty bins are
+ * labelled in order.
  */
-export function darkenColor(color: string, amount = 0.3): string {
-  const hex = color.replace('#', '');
-  const r = parseInt(hex.substring(0, 2), 16);
-  const g = parseInt(hex.substring(2, 4), 16);
-  const b = parseInt(hex.substring(4, 6), 16);
-
-  const newR = Math.floor(r * (1 - amount));
-  const newG = Math.floor(g * (1 - amount));
-  const newB = Math.floor(b * (1 - amount));
-
-  return `#${newR.toString(16).padStart(2, '0')}${newG.toString(16).padStart(2, '0')}${newB.toString(16).padStart(2, '0')}`;
+export function categoryLabelsByBin(histogram: Histogram, categories: string[] | undefined): Map<number, string> {
+  if (!categories?.length) {
+    return new Map();
+  }
+  const bins = Object.keys(histogram).map(Number);
+  if (bins.length === categories.length) {
+    return new Map(bins.map(bin => [bin, categories[bin]]));
+  }
+  const nonEmpty = Object.entries(histogram)
+    .filter(([, value]) => value !== 0)
+    .map(([key]) => Number(key));
+  return new Map(nonEmpty.filter((_, i) => i < categories.length).map((bin, i) => [bin, categories[i]]));
 }

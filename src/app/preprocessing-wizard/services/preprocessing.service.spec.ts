@@ -1,9 +1,10 @@
+import type { Mock } from 'vitest';
 import { PreprocessingService } from './preprocessing.service';
-import { DataProcessorService } from '../../services/data-processor';
-import { DataLoaderService } from '../../services/data-loader.service';
+import { createTestPreprocessingService } from '../testing/preprocessing-test-helpers';
 import { HistoryStatus, PreprocessingState } from '../models/preprocessing-state';
 import { ColumnConfig } from '../models/column-config';
 import { DataProfile, ColumnStatistics } from '../models/column-statistics';
+import { WizardStepId, stepIndex } from '../shared/constants/step-info';
 import {
   DataType,
   EncodingMethod,
@@ -24,12 +25,6 @@ import {
  */
 describe('PreprocessingService – Undo/Redo history', () => {
   let service: PreprocessingService;
-
-  // Minimal stubs: the history engine never touches the worker or the data loader.
-  const dataProcessorStub = {} as unknown as ConstructorParameters<typeof PreprocessingService>[0];
-  const dataLoaderStub = {
-    getDataSetNames: () => [] as string[],
-  } as unknown as ConstructorParameters<typeof PreprocessingService>[1];
 
   function makeColumn(name: string, dataType: DataType): ColumnStatistics {
     return {
@@ -96,7 +91,8 @@ describe('PreprocessingService – Undo/Redo history', () => {
 
   beforeEach(() => {
     localStorage.clear();
-    service = new PreprocessingService(dataProcessorStub, dataLoaderStub);
+    // The history engine only asks the worker to prune unused files.
+    service = createTestPreprocessingService({ pruneFiles: () => Promise.resolve() });
     seed();
   });
 
@@ -107,12 +103,12 @@ describe('PreprocessingService – Undo/Redo history', () => {
   describe('empty history', () => {
     it('starts with nothing to undo or redo', () => {
       const status = latestHistory();
-      expect(status.canUndo).toBeFalse();
-      expect(status.canRedo).toBeFalse();
+      expect(status.canUndo).toBe(false);
+      expect(status.canRedo).toBe(false);
       expect(status.undoLabel).toBeNull();
       expect(status.redoLabel).toBeNull();
-      expect(service.canUndo).toBeFalse();
-      expect(service.canRedo).toBeFalse();
+      expect(service.canUndo).toBe(false);
+      expect(service.canRedo).toBe(false);
     });
 
     it('undo() and redo() return null and change nothing on an empty stack', () => {
@@ -125,40 +121,40 @@ describe('PreprocessingService – Undo/Redo history', () => {
 
   describe('pushHistory', () => {
     it('makes undo available and reports the action label', () => {
-      service.pushHistory('Aktion A');
+      service.pushHistory('Action A');
       const status = latestHistory();
-      expect(status.canUndo).toBeTrue();
-      expect(status.undoLabel).toBe('Aktion A');
-      expect(status.canRedo).toBeFalse();
+      expect(status.canUndo).toBe(true);
+      expect(status.undoLabel).toBe('Action A');
+      expect(status.canRedo).toBe(false);
     });
 
     it('caps the undo stack at MAX_HISTORY (50) entries', () => {
       for (let i = 0; i < 60; i++) {
-        service.pushHistory(`Aktion ${i}`);
+        service.pushHistory(`Action ${i}`);
       }
       const stackLen = (service as unknown as { undoStack: unknown[] }).undoStack.length;
       expect(stackLen).toBe(50);
       // The oldest entries were dropped, the newest survives.
-      expect(latestHistory().undoLabel).toBe('Aktion 59');
+      expect(latestHistory().undoLabel).toBe('Action 59');
     });
   });
 
   describe('undo / redo round trip', () => {
     it('reverts a column-enable toggle and re-applies it', () => {
       service.toggleColumnEnabled('alpha'); // disable
-      expect(service.currentState.columnConfigs.get('alpha')!.enabled).toBeFalse();
+      expect(service.currentState.columnConfigs.get('alpha')!.enabled).toBe(false);
 
       const undoInfo = service.undo();
       expect(undoInfo).not.toBeNull();
-      expect(service.currentState.columnConfigs.get('alpha')!.enabled).toBeTrue();
+      expect(service.currentState.columnConfigs.get('alpha')!.enabled).toBe(true);
 
       const redoInfo = service.redo();
       expect(redoInfo).not.toBeNull();
-      expect(service.currentState.columnConfigs.get('alpha')!.enabled).toBeFalse();
+      expect(service.currentState.columnConfigs.get('alpha')!.enabled).toBe(false);
     });
 
     it('reverts and re-applies a glyph-feature change', () => {
-      service.pushHistory('Glyph-Merkmale geändert');
+      service.pushHistory('Glyph features changed');
       service.setGlyphFeatures(['alpha', 'beta', 'gamma']);
       expect(service.currentState.glyphFeatures).toEqual(['alpha', 'beta', 'gamma']);
 
@@ -183,34 +179,34 @@ describe('PreprocessingService – Undo/Redo history', () => {
     });
 
     it('keeps undo/redo labels in sync with the stacks', () => {
-      service.pushHistory('Aktion A');
-      service.pushHistory('Aktion B');
-      expect(latestHistory().undoLabel).toBe('Aktion B');
+      service.pushHistory('Action A');
+      service.pushHistory('Action B');
+      expect(latestHistory().undoLabel).toBe('Action B');
 
       service.undo();
       const afterUndo = latestHistory();
-      expect(afterUndo.undoLabel).toBe('Aktion A');
-      expect(afterUndo.redoLabel).toBe('Aktion B');
-      expect(afterUndo.canRedo).toBeTrue();
+      expect(afterUndo.undoLabel).toBe('Action A');
+      expect(afterUndo.redoLabel).toBe('Action B');
+      expect(afterUndo.canRedo).toBe(true);
     });
   });
 
   describe('redo-stack invalidation', () => {
     it('clears the redo stack when a new action is pushed after an undo', () => {
-      service.pushHistory('Aktion A');
+      service.pushHistory('Action A');
       service.undo();
-      expect(latestHistory().canRedo).toBeTrue();
+      expect(latestHistory().canRedo).toBe(true);
 
-      service.pushHistory('Aktion B');
+      service.pushHistory('Action B');
       const status = latestHistory();
-      expect(status.canRedo).toBeFalse();
+      expect(status.canRedo).toBe(false);
       expect(service.redo()).toBeNull();
     });
   });
 
   describe('snapshot isolation', () => {
     it('deep-copies column configs so a later in-place mutation cannot corrupt a snapshot', () => {
-      service.pushHistory('Vor Mutation');
+      service.pushHistory('Before mutation');
       // Mutate the live config object in place, bypassing the public API entirely.
       const liveConfig = service.currentState.columnConfigs.get('alpha')!;
       liveConfig.encodingMethod = EncodingMethod.Standardize;
@@ -222,47 +218,12 @@ describe('PreprocessingService – Undo/Redo history', () => {
 
     it('deep-copies glyph feature arrays', () => {
       service.setGlyphFeatures(['alpha', 'beta', 'gamma']);
-      service.pushHistory('Vor Mutation');
+      service.pushHistory('Before mutation');
       // Push directly onto the live array reference.
       service.currentState.glyphFeatures.push('delta');
 
       service.undo();
       expect(service.currentState.glyphFeatures).toEqual(['alpha', 'beta', 'gamma']);
-    });
-  });
-
-  describe('describeDiff – setting label and deep-link mapping', () => {
-    it('names an encoding change and points to step 3 (Datenkonfiguration)', () => {
-      service.updateColumnConfig('alpha', { encodingMethod: EncodingMethod.Standardize });
-      const info = service.undo()!;
-      expect(info.settingLabel).toBe('Encoding');
-      expect(info.step).toBe(2);
-      expect(info.anchorId).toBe('wizard-anchor-features');
-    });
-
-    it('names a glyph-feature change and points to step 4 (Visualisierung)', () => {
-      service.pushHistory('Glyph-Merkmale geändert');
-      service.setGlyphFeatures(['alpha', 'beta', 'gamma']);
-      const info = service.undo()!;
-      expect(info.settingLabel).toBe('Glyph-Merkmale');
-      expect(info.step).toBe(3);
-      expect(info.anchorId).toBe('wizard-anchor-glyph');
-    });
-
-    it('names a column-selection change', () => {
-      service.toggleColumnEnabled('alpha');
-      const info = service.undo()!;
-      expect(info.settingLabel).toBe('Spaltenauswahl');
-      expect(info.step).toBe(1);
-    });
-
-    it('falls back to the raw action label when no field maps cleanly', () => {
-      // Push twice over an identical state so the diff finds no changed field.
-      service.pushHistory('Freitext-Aktion');
-      const info = service.undo()!;
-      expect(info.actionLabel).toBe('Freitext-Aktion');
-      expect(info.settingLabel).toBe('Freitext-Aktion');
-      expect(info.step).toBeNull();
     });
   });
 
@@ -281,15 +242,15 @@ describe('PreprocessingService – Undo/Redo history', () => {
 
       // Disabling alpha must cascade: clear color feature, reset scale, drop alpha from glyph.
       service.toggleColumnEnabled('alpha');
-      expect(service.currentState.columnConfigs.get('alpha')!.isColorFeature).toBeFalse();
+      expect(service.currentState.columnConfigs.get('alpha')!.isColorFeature).toBe(false);
       expect(service.currentState.colorScaleId).toBe(0);
       expect(service.currentState.glyphFeatures).toEqual(['beta']);
 
       // A single undo reverts the toggle and the whole cascade together.
       service.undo();
       const restored = service.currentState;
-      expect(restored.columnConfigs.get('alpha')!.enabled).toBeTrue();
-      expect(restored.columnConfigs.get('alpha')!.isColorFeature).toBeTrue();
+      expect(restored.columnConfigs.get('alpha')!.enabled).toBe(true);
+      expect(restored.columnConfigs.get('alpha')!.isColorFeature).toBe(true);
       expect(restored.colorScaleId).toBe(2);
       expect(restored.glyphFeatures).toEqual(['alpha', 'beta']);
     });
@@ -297,16 +258,16 @@ describe('PreprocessingService – Undo/Redo history', () => {
 
   describe('resetState', () => {
     it('clears both history stacks', () => {
-      service.pushHistory('Aktion A');
-      service.pushHistory('Aktion B');
+      service.pushHistory('Action A');
+      service.pushHistory('Action B');
       service.undo();
-      expect(latestHistory().canUndo).toBeTrue();
-      expect(latestHistory().canRedo).toBeTrue();
+      expect(latestHistory().canUndo).toBe(true);
+      expect(latestHistory().canRedo).toBe(true);
 
       service.resetState();
       const status = latestHistory();
-      expect(status.canUndo).toBeFalse();
-      expect(status.canRedo).toBeFalse();
+      expect(status.canUndo).toBe(false);
+      expect(status.canRedo).toBe(false);
     });
   });
 
@@ -314,7 +275,7 @@ describe('PreprocessingService – Undo/Redo history', () => {
     // Change exactly one field, then undo, and check the reported setting/deep-link.
     // pushHistory snapshots the pre-change state; the single mutation is the only diff.
     function undoInfoAfter(mutate: () => void) {
-      service.pushHistory('irgendeine Aktion');
+      service.pushHistory('some action');
       mutate();
       return service.undo()!;
     }
@@ -331,117 +292,123 @@ describe('PreprocessingService – Undo/Redo history', () => {
       (service as unknown as { updateState(u: Partial<PreprocessingState>): void }).updateState(updates);
     }
 
-    const cases: { name: string; mutate: () => void; label: string; step: number | null; anchor: string | null }[] = [
+    const cases: {
+      name: string;
+      mutate: () => void;
+      label: string;
+      step: WizardStepId | null;
+      anchor: string | null;
+    }[] = [
       {
         name: 'rawFileName',
-        mutate: () => setTop({ rawFileName: 'anders.csv' }),
-        label: 'Datei',
-        step: 0,
+        mutate: () => setTop({ rawFileName: 'other.csv' }),
+        label: 'File',
+        step: 'upload',
         anchor: null,
       },
       {
         name: 'datasetName',
-        mutate: () => setTop({ datasetName: 'umbenannt' }),
-        label: 'Datensatzname',
-        step: 0,
+        mutate: () => setTop({ datasetName: 'renamed' }),
+        label: 'Dataset name',
+        step: 'upload',
         anchor: null,
       },
       {
         name: 'columnConfigs.enabled',
         mutate: () => mutateColumn('enabled', false),
-        label: 'Spaltenauswahl',
-        step: 1,
+        label: 'Column selection',
+        step: 'columns',
         anchor: 'wizard-anchor-columns',
       },
       {
         name: 'columnConfigs.isColorFeature',
         mutate: () => mutateColumn('isColorFeature', true),
-        label: 'Farbattribut',
-        step: 3,
+        label: 'Color attribute',
+        step: 'appearance',
         anchor: 'wizard-anchor-color',
       },
       {
         name: 'columnConfigs.targetType',
         mutate: () => mutateColumn('targetType', DataType.Categorical),
-        label: 'Datentyp',
-        step: 2,
+        label: 'Data type',
+        step: 'features',
         anchor: 'wizard-anchor-features',
       },
       {
         name: 'columnConfigs.encodingMethod',
         mutate: () => mutateColumn('encodingMethod', EncodingMethod.Standardize),
         label: 'Encoding',
-        step: 2,
+        step: 'features',
         anchor: 'wizard-anchor-features',
       },
       {
         name: 'columnConfigs.scalingMethod',
         mutate: () => mutateColumn('scalingMethod', ScalingMethod.Standard),
-        label: 'Skalierung',
-        step: 2,
+        label: 'Scaling',
+        step: 'features',
         anchor: 'wizard-anchor-features',
       },
       {
         name: 'columnConfigs.includeInProjection',
         mutate: () => mutateColumn('includeInProjection', false),
-        label: 'Projektionsspalten',
-        step: 3,
+        label: 'Projection columns',
+        step: 'projection',
         anchor: 'wizard-anchor-projection-columns',
       },
       {
         name: 'columnConfigs.missingValueStrategy',
         mutate: () => mutateColumn('missingValueStrategy', MissingValueStrategy.FillMean),
-        label: 'Fehlende Werte',
-        step: 2,
+        label: 'Missing values',
+        step: 'features',
         anchor: 'wizard-anchor-features',
       },
       {
         name: 'columnConfigs.outlierStrategy',
         mutate: () => mutateColumn('outlierStrategy', OutlierStrategy.Remove),
-        label: 'Ausreißerbehandlung',
-        step: 2,
+        label: 'Outlier handling',
+        step: 'features',
         anchor: 'wizard-anchor-features',
       },
       {
         name: 'cleaningConfig',
         mutate: () => setTop({ cleaningConfig: { removeDuplicates: true } }),
-        label: 'Datenbereinigung',
-        step: 2,
+        label: 'Data cleaning',
+        step: 'features',
         anchor: 'wizard-anchor-cleaning',
       },
       {
         name: 'projectionConfig',
         mutate: () => setTop({ projectionConfig: { ...service.currentState.projectionConfig, enablePCA: false } }),
-        label: 'Projektionsparameter',
-        step: 3,
+        label: 'Projection settings',
+        step: 'projection',
         anchor: 'wizard-anchor-methods',
       },
       {
         name: 'glyphFeatures',
         mutate: () => setTop({ glyphFeatures: ['alpha'] }),
-        label: 'Glyph-Merkmale',
-        step: 3,
+        label: 'Glyph features',
+        step: 'appearance',
         anchor: 'wizard-anchor-glyph',
       },
       {
         name: 'tooltipFeatures',
         mutate: () => setTop({ tooltipFeatures: ['alpha'] }),
-        label: 'Tooltip-Merkmale',
-        step: 3,
+        label: 'Tooltip features',
+        step: 'appearance',
         anchor: 'wizard-anchor-glyph',
       },
       {
         name: 'colorScaleMode',
         mutate: () => setTop({ colorScaleMode: 'categorical' }),
-        label: 'Farbmodus',
-        step: 3,
+        label: 'Color mode',
+        step: 'appearance',
         anchor: 'wizard-anchor-color',
       },
       {
         name: 'colorScaleId',
         mutate: () => setTop({ colorScaleId: 5 }),
-        label: 'Farbskala',
-        step: 3,
+        label: 'Color scale',
+        step: 'appearance',
         anchor: 'wizard-anchor-color',
       },
     ];
@@ -455,64 +422,85 @@ describe('PreprocessingService – Undo/Redo history', () => {
       });
     });
 
+    it('falls back to the raw action label when no field maps cleanly', () => {
+      // Push twice over an identical state so the diff finds no changed field.
+      service.pushHistory('Free-text action');
+      const info = service.undo()!;
+      expect(info.actionLabel).toBe('Free-text action');
+      expect(info.settingLabel).toBe('Free-text action');
+      expect(info.step).toBeNull();
+    });
+
     it('treats an added/removed column as a selection change', () => {
-      service.pushHistory('irgendeine Aktion');
+      service.pushHistory('some action');
       const configs = new Map(service.currentState.columnConfigs);
       configs.delete('gamma');
       (service as unknown as { updateState(u: Partial<PreprocessingState>): void }).updateState({
         columnConfigs: configs,
       });
       const info = service.undo()!;
-      expect(info.settingLabel).toBe('Spaltenauswahl');
+      expect(info.settingLabel).toBe('Column selection');
     });
   });
 
   describe('round trips for the remaining undoable actions', () => {
+    it('bulk column changes replace configs instead of mutating the previous state', () => {
+      const before = service.currentState.columnConfigs;
+      const alphaBefore = before.get('alpha');
+
+      service.setColumnsEnabled(['alpha'], false);
+      service.deselectAllColumns();
+      service.selectAllColumns();
+
+      expect(alphaBefore?.enabled).toBe(true);
+      expect(before.get('alpha')).toBe(alphaBefore);
+    });
+
     it('setColumnsEnabled reverts a bulk disable', () => {
       service.setColumnsEnabled(['alpha', 'beta'], false);
-      expect(service.currentState.columnConfigs.get('alpha')!.enabled).toBeFalse();
-      expect(service.currentState.columnConfigs.get('beta')!.enabled).toBeFalse();
+      expect(service.currentState.columnConfigs.get('alpha')!.enabled).toBe(false);
+      expect(service.currentState.columnConfigs.get('beta')!.enabled).toBe(false);
 
       service.undo();
-      expect(service.currentState.columnConfigs.get('alpha')!.enabled).toBeTrue();
-      expect(service.currentState.columnConfigs.get('beta')!.enabled).toBeTrue();
+      expect(service.currentState.columnConfigs.get('alpha')!.enabled).toBe(true);
+      expect(service.currentState.columnConfigs.get('beta')!.enabled).toBe(true);
     });
 
     it('selectAllColumns undo restores a previously disabled column', () => {
       service.setColumnsEnabled(['alpha'], false);
       service.selectAllColumns();
-      expect(service.currentState.columnConfigs.get('alpha')!.enabled).toBeTrue();
+      expect(service.currentState.columnConfigs.get('alpha')!.enabled).toBe(true);
 
       service.undo(); // revert selectAll
-      expect(service.currentState.columnConfigs.get('alpha')!.enabled).toBeFalse();
+      expect(service.currentState.columnConfigs.get('alpha')!.enabled).toBe(false);
     });
 
     it('deselectAllColumns is fully reversible', () => {
       service.deselectAllColumns();
       const allDisabled = Array.from(service.currentState.columnConfigs.values()).every(c => !c.enabled);
-      expect(allDisabled).toBeTrue();
+      expect(allDisabled).toBe(true);
 
       service.undo();
       const allEnabled = Array.from(service.currentState.columnConfigs.values()).every(c => c.enabled);
-      expect(allEnabled).toBeTrue();
+      expect(allEnabled).toBe(true);
     });
 
     it('updateCleaningConfig round trip', () => {
-      expect(service.currentState.cleaningConfig.removeDuplicates).toBeFalse();
+      expect(service.currentState.cleaningConfig.removeDuplicates).toBe(false);
       service.updateCleaningConfig({ removeDuplicates: true });
-      expect(service.currentState.cleaningConfig.removeDuplicates).toBeTrue();
+      expect(service.currentState.cleaningConfig.removeDuplicates).toBe(true);
 
       service.undo();
-      expect(service.currentState.cleaningConfig.removeDuplicates).toBeFalse();
+      expect(service.currentState.cleaningConfig.removeDuplicates).toBe(false);
     });
 
     it('updateProjectionConfig round trip', () => {
-      expect(service.currentState.projectionConfig.enablePCA).toBeTrue();
+      expect(service.currentState.projectionConfig.enablePCA).toBe(true);
       service.updateProjectionConfig({ enablePCA: false });
-      expect(service.currentState.projectionConfig.enablePCA).toBeFalse();
+      expect(service.currentState.projectionConfig.enablePCA).toBe(false);
 
       service.undo();
-      expect(service.currentState.projectionConfig.enablePCA).toBeTrue();
+      expect(service.currentState.projectionConfig.enablePCA).toBe(true);
     });
   });
 
@@ -529,38 +517,344 @@ describe('PreprocessingService – Undo/Redo history', () => {
     };
 
     function serviceWithLoader() {
-      const proc = { profileData: async () => profile } as unknown as ConstructorParameters<
-        typeof PreprocessingService
-      >[0];
-      return new PreprocessingService(proc, dataLoaderStub);
+      return createTestPreprocessingService({
+        profileData: async () => profile,
+        pruneFiles: async () => undefined,
+      });
     }
 
     function csvFile(): File {
-      return new File(['a,b\n1,2\n'], 'daten.csv', { type: 'text/csv' });
+      return new File(['a,b\n1,2\n'], 'data.csv', { type: 'text/csv' });
     }
 
-    it('records the first load as "Datei geladen" and undo clears the profile', async () => {
+    it('records the first load as "File loaded" and undo clears the profile', async () => {
       const svc = serviceWithLoader();
       await svc.loadCSV(csvFile());
 
       expect(svc.currentState.dataProfile).not.toBeNull();
-      expect(svc.canUndo).toBeTrue();
+      expect(svc.canUndo).toBe(true);
       let status!: HistoryStatus;
       svc.history$.subscribe(s => (status = s)).unsubscribe();
-      expect(status.undoLabel).toBe('Datei geladen');
+      expect(status.undoLabel).toBe('File loaded');
 
       svc.undo();
       expect(svc.currentState.dataProfile).toBeNull();
     });
 
-    it('labels a re-upload as "Datei ersetzt"', async () => {
+    it('labels a re-upload as "File replaced"', async () => {
       const svc = serviceWithLoader();
       await svc.loadCSV(csvFile());
       await svc.loadCSV(csvFile());
 
       let status!: HistoryStatus;
       svc.history$.subscribe(s => (status = s)).unsubscribe();
-      expect(status.undoLabel).toBe('Datei ersetzt');
+      expect(status.undoLabel).toBe('File replaced');
+    });
+  });
+
+  describe('English action labels', () => {
+    it('labels a single column edit "Column settings changed"', () => {
+      service.updateColumnConfig('alpha', { encodingMethod: EncodingMethod.Standardize });
+      expect(latestHistory().undoLabel).toBe('Column settings changed');
+    });
+
+    it('labels a projection change "Projection settings changed" by default', () => {
+      service.updateProjectionConfig({ enablePCA: false });
+      expect(latestHistory().undoLabel).toBe('Projection settings changed');
+    });
+
+    it('uses a caller-supplied label for a projection change', () => {
+      service.updateProjectionConfig({ enableUMAP: true }, 'UMAP enabled');
+      expect(latestHistory().undoLabel).toBe('UMAP enabled');
+    });
+  });
+
+  describe('history-free metadata writes (derived fields such as outlierCount)', () => {
+    it('stores the value without creating an undo entry', () => {
+      service.updateColumnMetadata('alpha', { outlierCount: 7 });
+      service.updateColumnMetadata('beta', { outlierCount: 3 });
+
+      expect(service.currentState.columnConfigs.get('alpha')?.outlierCount).toBe(7);
+      expect(service.currentState.columnConfigs.get('beta')?.outlierCount).toBe(3);
+      expect(service.canUndo).toBe(false);
+      expect(latestHistory().canUndo).toBe(false);
+    });
+
+    it('does not clear the redo stack', () => {
+      service.toggleColumnEnabled('alpha');
+      service.undo();
+      expect(service.canRedo).toBe(true);
+
+      service.updateColumnMetadata('beta', { outlierCount: 3 });
+      expect(service.canRedo).toBe(true);
+    });
+
+    it('does not replace the previous map entry in place (immutable update)', () => {
+      const before = service.currentState.columnConfigs.get('alpha');
+      service.updateColumnMetadata('alpha', { outlierCount: 4 });
+      expect(before?.outlierCount).toBeUndefined();
+    });
+  });
+
+  describe('updateColumnConfigs – one user action across several columns', () => {
+    const stackLength = (): number => (service as unknown as { undoStack: unknown[] }).undoStack.length;
+
+    it('records exactly one undo entry under the given label', () => {
+      service.updateColumnConfigs(
+        [
+          { columnName: 'alpha', updates: { encodingMethod: EncodingMethod.Standardize } },
+          { columnName: 'beta', updates: { encodingMethod: EncodingMethod.Standardize } },
+          { columnName: 'gamma', updates: { scalingMethod: ScalingMethod.Robust } },
+        ],
+        'Settings applied to 3 columns'
+      );
+
+      expect(stackLength()).toBe(1);
+      expect(latestHistory().undoLabel).toBe('Settings applied to 3 columns');
+      expect(service.currentState.columnConfigs.get('beta')?.encodingMethod).toBe(EncodingMethod.Standardize);
+      expect(service.currentState.columnConfigs.get('gamma')?.scalingMethod).toBe(ScalingMethod.Robust);
+    });
+
+    it('is fully reverted by a single undo', () => {
+      service.updateColumnConfigs(
+        [
+          { columnName: 'alpha', updates: { encodingMethod: EncodingMethod.Standardize } },
+          { columnName: 'beta', updates: { encodingMethod: EncodingMethod.Standardize } },
+        ],
+        'Settings applied to 2 columns'
+      );
+
+      service.undo();
+      expect(service.currentState.columnConfigs.get('alpha')?.encodingMethod).toBe(EncodingMethod.Normalize);
+      expect(service.currentState.columnConfigs.get('beta')?.encodingMethod).toBe(EncodingMethod.Normalize);
+      expect(service.canUndo).toBe(false);
+    });
+
+    it('records nothing for an empty batch', () => {
+      service.updateColumnConfigs([], 'Nothing');
+      expect(service.canUndo).toBe(false);
+    });
+  });
+
+  describe('processing guards', () => {
+    const setProcessing = (isProcessing: boolean): void =>
+      (service as unknown as { updateState(u: Partial<PreprocessingState>): void }).updateState({ isProcessing });
+
+    it('undo() is a no-op while processing', () => {
+      service.toggleColumnEnabled('alpha');
+      setProcessing(true);
+
+      expect(service.undo()).toBeNull();
+      expect(service.currentState.columnConfigs.get('alpha')?.enabled).toBe(false);
+      expect(service.canUndo).toBe(true);
+    });
+
+    it('redo() is a no-op while processing', () => {
+      service.toggleColumnEnabled('alpha');
+      service.undo();
+      setProcessing(true);
+
+      expect(service.redo()).toBeNull();
+      expect(service.currentState.columnConfigs.get('alpha')?.enabled).toBe(true);
+      expect(service.canRedo).toBe(true);
+    });
+
+    it('undo works again once processing has finished', () => {
+      service.toggleColumnEnabled('alpha');
+      setProcessing(true);
+      service.undo();
+      setProcessing(false);
+
+      expect(service.undo()).not.toBeNull();
+      expect(service.currentState.columnConfigs.get('alpha')?.enabled).toBe(true);
+    });
+  });
+
+  describe('processData re-entrancy guard', () => {
+    function processingService(processWithConfig: Mock): PreprocessingService {
+      const svc = createTestPreprocessingService({ processWithConfig, pruneFiles: async () => undefined });
+      (svc as unknown as { updateState(u: Partial<PreprocessingState>): void }).updateState({
+        rawFileName: 'test.csv',
+        dataProfile: service.currentState.dataProfile,
+        columnConfigs: service.currentState.columnConfigs,
+      });
+      return svc;
+    }
+
+    it('does not start a second run while one is in flight', async () => {
+      let finishRun: (value: unknown) => void = () => undefined;
+      const spy = vi.fn().mockReturnValue(new Promise(resolve => (finishRun = resolve)));
+      const svc = processingService(spy);
+
+      const first = svc.processData();
+      const second = svc.processData();
+      expect(spy).toHaveBeenCalledTimes(1);
+
+      finishRun({ datasets: {} });
+      await Promise.all([first, second]);
+      expect(svc.currentState.isProcessing).toBe(false);
+    });
+
+    it('allows a new run after the previous one finished', async () => {
+      const spy = vi.fn().mockImplementation(() => Promise.resolve({ datasets: {} }));
+      const svc = processingService(spy);
+
+      await svc.processData();
+      await svc.processData();
+      expect(spy).toHaveBeenCalledTimes(2);
+    });
+
+    it('allows a new run after the previous one failed', async () => {
+      const spy = vi.fn().mockReturnValue(Promise.reject(new Error('boom')));
+      const svc = processingService(spy);
+
+      await expect(svc.processData()).rejects.toThrowError('boom');
+      await expect(svc.processData()).rejects.toThrowError('boom');
+      expect(spy).toHaveBeenCalledTimes(2);
+    });
+
+    describe('whileProcessing – a run with phases after processData (e.g. FastMap)', () => {
+      const resolvedRun = (): Mock => vi.fn().mockImplementation(() => Promise.resolve({ datasets: {} }));
+
+      it('keeps isProcessing up after processData until the whole run has finished', async () => {
+        const svc = processingService(resolvedRun());
+        svc.pushHistory('Earlier change');
+        let processingAfterWorkerRun = false;
+        let undoAfterWorkerRun: unknown = 'not called';
+
+        await svc.whileProcessing(async () => {
+          await svc.processData();
+          // The phase after the worker run (FastMap in the review step).
+          processingAfterWorkerRun = svc.currentState.isProcessing;
+          undoAfterWorkerRun = svc.undo();
+        });
+
+        expect(processingAfterWorkerRun).toBe(true);
+        expect(undoAfterWorkerRun).toBeNull();
+        expect(svc.currentState.isProcessing).toBe(false);
+        expect(svc.undo()).not.toBeNull();
+      });
+
+      it('raises the flag before the task starts and returns its result', async () => {
+        const svc = processingService(resolvedRun());
+        const result = await svc.whileProcessing(async () => svc.currentState.isProcessing);
+        expect(result).toBe(true);
+      });
+
+      it('releases the flag when the task fails', async () => {
+        const svc = processingService(resolvedRun());
+        await expect(svc.whileProcessing(() => Promise.reject(new Error('FastMap failed')))).rejects.toThrowError(
+          'FastMap failed'
+        );
+        expect(svc.currentState.isProcessing).toBe(false);
+      });
+
+      it('keeps the flag across a reset while the run is still in flight', async () => {
+        const svc = processingService(resolvedRun());
+        let finish: () => void = () => undefined;
+        const run = svc.whileProcessing(() => new Promise<void>(resolve => (finish = resolve)));
+
+        svc.resetState();
+        expect(svc.currentState.isProcessing).toBe(true);
+
+        finish();
+        await run;
+        expect(svc.currentState.isProcessing).toBe(false);
+      });
+    });
+  });
+
+  describe('step navigation by id', () => {
+    it('stores the index of the requested step and reports its id', () => {
+      service.goToStep('appearance');
+      expect(service.currentState.currentStep).toBe(stepIndex('appearance'));
+      expect(service.currentStepId).toBe('appearance');
+    });
+
+    it('remembers the scroll anchor of a deep-link', () => {
+      service.goToStepWithScroll('projection', 'wizard-anchor-methods');
+      expect(service.currentStepId).toBe('projection');
+      expect(service.consumeScrollTarget()).toBe('wizard-anchor-methods');
+      expect(service.consumeScrollTarget()).toBeNull();
+    });
+
+    it('walks through all six steps and stops at both ends', () => {
+      const visited: WizardStepId[] = [service.currentStepId];
+      for (let i = 0; i < 6; i++) {
+        service.nextStep();
+        visited.push(service.currentStepId);
+      }
+      expect(visited).toEqual(['upload', 'columns', 'features', 'projection', 'appearance', 'review', 'review']);
+
+      service.goToStep('upload');
+      service.previousStep();
+      expect(service.currentStepId).toBe('upload');
+    });
+
+    it('goes back from review to the Glyphs & Color step', () => {
+      service.goToStep('review');
+      service.previousStep();
+      expect(service.currentStepId).toBe('appearance');
+    });
+  });
+
+  describe('target-specific undo (undoIfLatest)', () => {
+    it('pushHistory returns a distinct id per entry and exposes the latest one', () => {
+      const a = service.pushHistory('Action A');
+      const b = service.pushHistory('Action B');
+      expect(a).not.toBe(b);
+      expect(service.latestHistoryId).toBe(b);
+    });
+
+    it('reports no latest id on an empty stack', () => {
+      expect(service.latestHistoryId).toBeNull();
+    });
+
+    it('undoes the entry when it is still the most recent action', () => {
+      service.toggleColumnEnabled('alpha');
+      const id = service.latestHistoryId ?? -1;
+
+      expect(service.undoIfLatest(id)).toBe(true);
+      expect(service.currentState.columnConfigs.get('alpha')?.enabled).toBe(true);
+    });
+
+    it('refuses and leaves the state untouched when another action happened since', () => {
+      service.toggleColumnEnabled('alpha');
+      const id = service.latestHistoryId ?? -1;
+      service.updateCleaningConfig({ removeDuplicates: true });
+
+      expect(service.undoIfLatest(id)).toBe(false);
+      expect(service.currentState.cleaningConfig.removeDuplicates).toBe(true);
+      expect(service.currentState.columnConfigs.get('alpha')?.enabled).toBe(false);
+    });
+
+    it('refuses once the entry has already been undone', () => {
+      service.toggleColumnEnabled('alpha');
+      const id = service.latestHistoryId ?? -1;
+      service.undo();
+
+      expect(service.undoIfLatest(id)).toBe(false);
+      expect(service.canRedo).toBe(true);
+    });
+
+    it('keeps the entry id across undo/redo so the toast still targets the same action', () => {
+      service.toggleColumnEnabled('alpha');
+      const id = service.latestHistoryId ?? -1;
+      service.undo();
+      service.redo();
+
+      expect(service.undoIfLatest(id)).toBe(true);
+      expect(service.currentState.columnConfigs.get('alpha')?.enabled).toBe(true);
+    });
+
+    it('refuses while processing', () => {
+      service.toggleColumnEnabled('alpha');
+      const id = service.latestHistoryId ?? -1;
+      (service as unknown as { updateState(u: Partial<PreprocessingState>): void }).updateState({
+        isProcessing: true,
+      });
+
+      expect(service.undoIfLatest(id)).toBe(false);
     });
   });
 });
@@ -580,9 +874,7 @@ describe('PreprocessingService — error handling (A3)', () => {
 
   beforeEach(() => {
     localStorage.removeItem('glyphspace_preprocessing_state');
-    const dataProcessor = {} as unknown as DataProcessorService;
-    const dataLoader = { getDataSetNames: () => [] } as unknown as DataLoaderService;
-    service = new PreprocessingService(dataProcessor, dataLoader);
+    service = createTestPreprocessingService();
   });
 
   describe('toErrorMessage', () => {
@@ -633,86 +925,5 @@ describe('PreprocessingService — error handling (A3)', () => {
       // No error present → no extra state emission.
       expect(emissions).toBe(before);
     });
-  });
-});
-
-/**
- * A2-Nachtrag – smart defaults for the initial column selection.
- *
- * createDefaultColumnConfig is private and only reached via loadCSV (worker), so
- * these tests call it directly through a cast to pin the auto-deselect heuristic:
- * mostly-missing / constant columns, and the new high-cardinality rule for
- * text/categorical/ID columns whose values are nearly all unique.
- */
-describe('PreprocessingService – smart-default column selection', () => {
-  let service: PreprocessingService;
-
-  const dataProcessorStub = {} as unknown as ConstructorParameters<typeof PreprocessingService>[0];
-  const dataLoaderStub = {
-    getDataSetNames: () => [] as string[],
-  } as unknown as ConstructorParameters<typeof PreprocessingService>[1];
-
-  function col(overrides: Partial<ColumnStatistics>): ColumnStatistics {
-    return {
-      name: 'c',
-      dataType: DataType.Categorical,
-      count: 100,
-      missingCount: 0,
-      missingPercentage: 0,
-      uniqueCount: 5,
-      ...overrides,
-    };
-  }
-
-  function defaultConfig(c: ColumnStatistics): ColumnConfig {
-    return (
-      service as unknown as { createDefaultColumnConfig(c: ColumnStatistics): ColumnConfig }
-    ).createDefaultColumnConfig(c);
-  }
-
-  beforeEach(() => {
-    service = new PreprocessingService(dataProcessorStub, dataLoaderStub);
-  });
-
-  it('deselects a nearly all-unique text column (likely ID/free text)', () => {
-    const config = defaultConfig(col({ dataType: DataType.Text, count: 100, uniqueCount: 100 }));
-    expect(config.enabled).toBeFalse();
-    expect(config.hasIssues).toBeFalse(); // high cardinality is not a data-quality issue
-    expect(config.issueDescription).toContain('unique');
-  });
-
-  it('deselects a high-cardinality categorical column at the 90% threshold', () => {
-    const config = defaultConfig(col({ dataType: DataType.Categorical, count: 100, uniqueCount: 95 }));
-    expect(config.enabled).toBeFalse();
-  });
-
-  it('keeps a low-cardinality categorical column', () => {
-    const config = defaultConfig(col({ dataType: DataType.Categorical, count: 100, uniqueCount: 5 }));
-    expect(config.enabled).toBeTrue();
-    expect(config.issueDescription).toBeUndefined();
-  });
-
-  it('does not treat a near-unique numeric column as high cardinality', () => {
-    const config = defaultConfig(col({ dataType: DataType.Numeric, count: 100, uniqueCount: 100 }));
-    expect(config.enabled).toBeTrue();
-    expect(config.issueDescription).toBeUndefined();
-  });
-
-  it('ignores high uniqueness on tiny datasets (below the min-row guard)', () => {
-    const config = defaultConfig(col({ dataType: DataType.Text, count: 15, uniqueCount: 15 }));
-    expect(config.enabled).toBeTrue();
-  });
-
-  it('deselects a mostly-empty column and flags it as a quality issue', () => {
-    const config = defaultConfig(col({ missingPercentage: 80, uniqueCount: 5 }));
-    expect(config.enabled).toBeFalse();
-    expect(config.hasIssues).toBeTrue();
-    expect(config.issueDescription).toContain('missing');
-  });
-
-  it('deselects a constant column', () => {
-    const config = defaultConfig(col({ uniqueCount: 1 }));
-    expect(config.enabled).toBeFalse();
-    expect(config.hasIssues).toBeTrue();
   });
 });

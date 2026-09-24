@@ -12,7 +12,7 @@ import {
   scalePosition,
   screenToWorld,
 } from '../../shared/helpers/three-helper';
-import { LENS_ENLARGEMENT_FACTOR } from '../../shared/constants/canvas-constants';
+import { LENS_ENLARGEMENT_FACTOR, MIN_RENDER_INTERVAL_MS } from '../../shared/constants/canvas-constants';
 import { GlyphRenderConfig } from '../../glyph/glyph-render-config';
 
 // Reusable scratch vector to avoid per-frame allocations
@@ -45,7 +45,6 @@ export class CanvasRendererService {
   // Render throttling to prevent cascading re-renders
   private lastRenderTime = 0;
   private pendingRender: ReturnType<typeof setTimeout> | null = null;
-  private readonly MIN_RENDER_INTERVAL_MS = 50;
 
   setRenderRequestCallback(fn: () => void): void {
     this.onRenderRequested = fn;
@@ -99,7 +98,7 @@ export class CanvasRendererService {
     const elapsed = now - this.lastRenderTime;
 
     // Throttle: if called too rapidly, schedule a single trailing render
-    if (elapsed < this.MIN_RENDER_INTERVAL_MS && !force) {
+    if (elapsed < MIN_RENDER_INTERVAL_MS && !force) {
       if (!this.pendingRender) {
         this.pendingRender = setTimeout(() => {
           this.pendingRender = null;
@@ -112,7 +111,7 @@ export class CanvasRendererService {
             renderConfig,
             force
           );
-        }, this.MIN_RENDER_INTERVAL_MS - elapsed);
+        }, MIN_RENDER_INTERVAL_MS - elapsed);
       }
       return;
     }

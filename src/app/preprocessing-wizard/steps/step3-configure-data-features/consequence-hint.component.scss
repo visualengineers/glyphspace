@@ -1,0 +1,16 @@
+@use '../../../../styles/variables' as v;
+@use '../../../../styles/mixins' as m;
+
+:host {
+  display: block;
+  margin-top: v.$space-1;
+  font-size: v.$font-size-xs;
+  line-height: 1.4;
+  // #666 on white is 5.7:1 (WCAG 1.4.3); #888 would fail for small text.
+  color: v.$text-muted;
+  font-variant-numeric: tabular-nums;
+}
+
+.visually-hidden {
+  @include m.visually-hidden;
+}

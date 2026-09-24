@@ -1,28 +1,30 @@
 <div class="help-tooltip-container">
   <button
+    #trigger
     class="help-icon"
-    (mouseenter)="showTooltip()"
-    (mouseleave)="scheduleHide()"
-    (click)="toggleTooltip()"
-    (keydown.enter)="toggleTooltip()"
-    (keydown.space)="toggleTooltip()"
-    [attr.aria-label]="'Help: ' + helpText"
-    [attr.aria-expanded]="isVisible"
     type="button"
-    tabindex="0"
+    [attr.aria-label]="ariaLabel"
+    [attr.aria-describedby]="tooltipId"
+    [attr.aria-expanded]="isVisible"
+    (mouseenter)="popup.onTriggerEnter()"
+    (mouseleave)="popup.onPointerLeave()"
+    (focus)="popup.onFocus()"
+    (blur)="popup.onBlur()"
+    (click)="popup.onClick()"
   >
-    <span class="material-icons">help_outline</span>
+    <span class="material-icons" aria-hidden="true">help_outline</span>
   </button>
 
+  <!-- Always rendered (hidden while closed) so aria-describedby resolves. -->
   <div
-    #tooltipContent
+    #tooltip
     class="tooltip-content"
+    role="tooltip"
+    [id]="tooltipId"
     [class.visible]="isVisible"
     [ngStyle]="tooltipStyle"
-    (mouseenter)="cancelScheduledHide()"
-    (mouseleave)="scheduleHide()"
-    role="tooltip"
-    [attr.aria-hidden]="!isVisible"
+    (mouseenter)="popup.onPopupEnter()"
+    (mouseleave)="popup.onPointerLeave()"
   >
     <div class="tooltip-text" [innerHTML]="helpText"></div>
   </div>

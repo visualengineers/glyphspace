@@ -1,6 +1,6 @@
 // src/app/utils/three-helpers.ts
 import * as THREE from 'three';
-import { quadtree } from 'd3-quadtree';
+import { quadtree } from 'd3';
 import { GlyphObject } from '../../glyph/glyph-object';
 import { GlyphCacheObject } from '../../glyph/glyph-cache-object';
 

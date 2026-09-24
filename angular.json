@@ -27,10 +27,11 @@
             "inlineStyleLanguage": "scss",
             "assets": [
               "src/assets",
-              "src/favicon.ico"
+              "src/favicon.ico",
+              { "glob": "*.txt", "input": "src/licenses", "output": "licenses" }
             ],
             "styles": [
-              "node_modules/material-icons/iconfont/material-icons.css",
+              "node_modules/material-icons/iconfont/filled.css",
               "src/styles.scss"
             ],
             "scripts": [],
@@ -41,8 +42,8 @@
               "budgets": [
                 {
                   "type": "initial",
-                  "maximumWarning": "1MB",
-                  "maximumError": "2MB"
+                  "maximumWarning": "1.25MB",
+                  "maximumError": "1.7MB"
                 },
                 {
                   "type": "anyComponentStyle",
@@ -80,25 +81,21 @@
           "builder": "@angular/build:extract-i18n"
         },
         "test": {
-          "builder": "@angular/build:karma",
+          "builder": "@angular/build:unit-test",
           "options": {
-            "polyfills": [
-              "zone.js",
-              "zone.js/testing"
-            ],
+            "runner": "vitest",
             "tsConfig": "tsconfig.spec.json",
-            "inlineStyleLanguage": "scss",
-            "assets": [
-              {
-                "glob": "**/*",
-                "input": "public"
-              }
+            "browsers": [
+              "ChromiumHeadless"
             ],
-            "styles": [
-              "src/styles.scss"
+            "browserViewport": "1280x720",
+            "setupFiles": [
+              "src/test-setup.ts"
             ],
-            "scripts": [],
-            "webWorkerTsConfig": "tsconfig.worker.json"
+            "coverageReporters": [
+              "html",
+              "text-summary"
+            ]
           }
         },
         "lint": {

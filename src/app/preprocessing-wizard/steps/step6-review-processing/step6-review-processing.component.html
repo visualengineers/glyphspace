@@ -1,0 +1,482 @@
+<div class="step6-review-processing">
+  <div class="step-content">
+    <!-- Persistence signifier: reassures that data + settings survive every state -->
+    @if (showProcessing) {
+      <div class="persistence-pill" title="Your uploaded data and all settings are kept">
+        <span class="material-icons" aria-hidden="true">save</span>
+        <span>Your work is saved</span>
+      </div>
+    }
+
+    <!-- ========================================================================== -->
+    <!-- REVIEW SECTION (pre-flight) -->
+    <!-- ========================================================================== -->
+    @if (!showProcessing) {
+      <div class="review-section">
+        <!-- Configuration Summary: one card per settings step, each row deep-links (A6) to its control -->
+        <div class="summary-cards">
+          <section class="summary-card" aria-labelledby="review-card-columns">
+            <div class="card-icon"><span class="material-icons" aria-hidden="true">view_column</span></div>
+            <div class="card-content">
+              <h3 class="card-label" id="review-card-columns">Columns Selected</h3>
+              <span class="card-value">{{ enabledColumns }} / {{ totalColumns }}</span>
+            </div>
+            <button
+              type="button"
+              class="card-edit-btn"
+              title="Edit column selection"
+              aria-label="Edit column selection"
+              (click)="editSetting('columns', 'wizard-anchor-columns')"
+            >
+              <span class="material-icons" aria-hidden="true">edit</span>
+            </button>
+          </section>
+
+          <section class="summary-card summary-group" aria-labelledby="review-card-projection">
+            <div class="card-icon"><span class="material-icons" aria-hidden="true">scatter_plot</span></div>
+            <div class="card-content">
+              <h3 class="card-label" id="review-card-projection">
+                Projection <span class="card-step">Step {{ projectionStepNumber }}</span>
+              </h3>
+              <dl class="card-rows">
+                <div class="card-row">
+                  <dt>Columns</dt>
+                  <dd>
+                    <span class="card-row-value">{{ projectionColumns }} included</span>
+                    <button
+                      type="button"
+                      class="card-edit-btn"
+                      title="Edit projection columns"
+                      aria-label="Edit projection columns"
+                      (click)="editSetting('projection', 'wizard-anchor-projection-columns')"
+                    >
+                      <span class="material-icons" aria-hidden="true">edit</span>
+                    </button>
+                  </dd>
+                </div>
+                <div class="card-row">
+                  <dt>Methods</dt>
+                  <dd>
+                    <span class="card-row-value">{{ enabledMethods.join(', ') }}</span>
+                    <button
+                      type="button"
+                      class="card-edit-btn"
+                      title="Edit projection methods"
+                      aria-label="Edit projection methods"
+                      (click)="editSetting('projection', 'wizard-anchor-methods')"
+                    >
+                      <span class="material-icons" aria-hidden="true">edit</span>
+                    </button>
+                  </dd>
+                </div>
+              </dl>
+            </div>
+          </section>
+
+          <section class="summary-card summary-group" aria-labelledby="review-card-appearance">
+            <div class="card-icon"><span class="material-icons" aria-hidden="true">palette</span></div>
+            <div class="card-content">
+              <h3 class="card-label" id="review-card-appearance">
+                Glyphs &amp; Color <span class="card-step">Step {{ appearanceStepNumber }}</span>
+              </h3>
+              <dl class="card-rows">
+                <div class="card-row">
+                  <dt>Color</dt>
+                  <dd>
+                    <span class="card-row-value">{{ colorFeature || 'None' }} · {{ colorScaleName }}</span>
+                    <button
+                      type="button"
+                      class="card-edit-btn"
+                      title="Edit color attribute and scale"
+                      aria-label="Edit color attribute and scale"
+                      (click)="editSetting('appearance', 'wizard-anchor-color')"
+                    >
+                      <span class="material-icons" aria-hidden="true">edit</span>
+                    </button>
+                  </dd>
+                </div>
+                <div class="card-row">
+                  <dt>Glyph</dt>
+                  <dd>
+                    <span class="card-row-value" [title]="selectedGlyphFeatures.join(', ')"
+                      >{{ selectedGlyphFeatures.length }} features</span
+                    >
+                    <button
+                      type="button"
+                      class="card-edit-btn"
+                      title="Edit glyph features"
+                      aria-label="Edit glyph features"
+                      (click)="editSetting('appearance', 'wizard-anchor-glyph')"
+                    >
+                      <span class="material-icons" aria-hidden="true">edit</span>
+                    </button>
+                  </dd>
+                </div>
+              </dl>
+              <p class="card-note">Initial dashboard view — adjustable later in the Encoding panel.</p>
+            </div>
+          </section>
+        </div>
+
+        <!-- Pre-flight banner + possible issues -->
+        @if (preflightIssues.length > 0) {
+          <div class="preflight-banner">
+            <span class="material-icons" aria-hidden="true">info</span>
+            <div>
+              <strong>Heads up</strong> — {{ preflightIssues.length }}
+              {{ preflightIssues.length === 1 ? 'thing' : 'things' }} could cause processing to fail. You can start
+              anyway, or fix them first.
+            </div>
+          </div>
+          <div class="issue-list">
+            @for (issue of preflightIssues; track issue.code + issue.title) {
+              <app-wizard-issue-card
+                [issue]="issue"
+                severityLabel="Possible issue"
+                (fix)="fixInStep($event)"
+              ></app-wizard-issue-card>
+            }
+          </div>
+        }
+
+        <!-- Column Details Table -->
+        <div class="columns-table">
+          <table>
+            <thead>
+              <tr>
+                <th>Column</th>
+                <th>Type</th>
+                <th>Encoding</th>
+                <th>Scaling</th>
+                <th>In Projection</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (config of columnConfigs; track config.name) {
+                @if (config.enabled) {
+                  <tr>
+                    <td>
+                      <span class="column-name-text">{{ config.name }}</span>
+                      @if (config.isColorFeature) {
+                        <span class="color-badge" title="Color Feature">
+                          <span class="material-icons" aria-hidden="true">palette</span>
+                          <span class="visually-hidden">(color feature)</span>
+                        </span>
+                      }
+                    </td>
+                    <td>
+                      <app-data-type-badge [dataType]="config.targetType"></app-data-type-badge>
+                    </td>
+                    <td>{{ getEncodingLabel(config.encodingMethod) }}</td>
+                    <td>
+                      @if (config.targetType === DataType.Numeric || config.targetType === DataType.Date) {
+                        {{ getScalingLabel(config.scalingMethod) }}
+                      } @else {
+                        <span class="text-muted">N/A</span>
+                      }
+                    </td>
+                    <td>
+                      @if (config.includeInProjection) {
+                        <span class="status-badge status-yes">
+                          <span class="material-icons" aria-hidden="true">check_circle</span>
+                          Yes
+                        </span>
+                      } @else {
+                        <span class="status-badge status-no">
+                          <span class="material-icons" aria-hidden="true">cancel</span>
+                          No
+                        </span>
+                      }
+                    </td>
+                  </tr>
+                }
+              }
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Info Box -->
+        <div class="info-box">
+          <span class="material-icons" aria-hidden="true">info</span>
+          <div>
+            <strong>Processing Info:</strong> Processing time depends on your dataset size and enabled projection
+            methods. FastMap loads immediately, allowing you to explore your data right away. Additional projections
+            compute in the background. If anything fails, it appears here with a fix — never a blank screen.
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- ========================================================================== -->
+    <!-- PROCESSING / RESULT / ERROR SECTION -->
+    <!-- ========================================================================== -->
+    @if (showProcessing) {
+      <!-- PROCESSING -->
+      @if (isProcessing) {
+        <div class="status-panel">
+          <div class="status-hero processing">
+            <span class="material-icons spinning" aria-hidden="true">sync</span>
+            <div>
+              <h3>{{ processingStep || 'FastMap is computing your primary layout…' }}</h3>
+              <p>
+                FastMap loads first so you can explore right away. Other projections keep computing in the background —
+                if a problem comes up, it shows here, not on a blank page.
+              </p>
+            </div>
+          </div>
+
+          <div
+            class="progress-bar"
+            role="progressbar"
+            aria-label="Processing progress"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            [attr.aria-valuenow]="processingProgress"
+            [attr.aria-valuetext]="processingProgress + '% – ' + (processingStep || 'Computing')"
+          >
+            <div class="progress-fill" [style.width.%]="processingProgress"></div>
+          </div>
+          <div class="progress-text" aria-hidden="true">{{ processingProgress }}%</div>
+
+          <ng-container *ngTemplateOutlet="methodBar"></ng-container>
+        </div>
+      }
+
+      <!-- BLOCKING ERROR -->
+      @if (isErrorScreen && blockingIssue) {
+        <div class="status-panel">
+          <!-- role="alert": read out assertively as soon as the failure appears, cause included. -->
+          <div class="status-hero error" role="alert">
+            <span class="material-icons" aria-hidden="true">error_outline</span>
+            <div>
+              <h3>We couldn't finish your visualization — but this is fixable.</h3>
+              <p class="visually-hidden">Cause: {{ blockingIssue.title }}.</p>
+              <p>Your uploaded data and all settings are still there — nothing was lost.</p>
+            </div>
+          </div>
+
+          <ng-container *ngTemplateOutlet="methodBar"></ng-container>
+
+          <div class="issue-list">
+            <app-wizard-issue-card
+              [issue]="blockingIssue"
+              severityLabel="Blocking"
+              (fix)="fixInStep($event)"
+            ></app-wizard-issue-card>
+          </div>
+        </div>
+      }
+
+      <!-- SUCCESS / PARTIAL -->
+      @if (processingComplete && !isProcessing) {
+        <div class="status-panel">
+          <div class="success-banner">
+            <span class="material-icons" aria-hidden="true">check_circle</span>
+            <div>
+              <h3>Your visualization is ready</h3>
+              <p>
+                FastMap is loaded — open Glyphspace to start exploring. Additional projections finish in the background.
+              </p>
+            </div>
+          </div>
+
+          @if (isPartialResult) {
+            <div class="partial-notice">
+              <span class="material-icons" aria-hidden="true">warning</span>
+              <div>
+                {{ partialIssues.length }} of {{ enabledMethods.length }} projections could not be computed. Your
+                visualization still works with the ones that succeeded.
+              </div>
+            </div>
+            <div class="issue-list">
+              @for (issue of partialIssues; track issue.title) {
+                <app-wizard-issue-card
+                  [issue]="issue"
+                  severityLabel="Warning"
+                  (fix)="fixInStep($event)"
+                  (dismiss)="dismissIssue($event)"
+                ></app-wizard-issue-card>
+              }
+            </div>
+          } @else {
+            <div class="success-stats">
+              <div class="stat-item">
+                <span class="material-icons" aria-hidden="true">check</span
+                ><span>{{ enabledColumns }} columns processed</span>
+              </div>
+              <div class="stat-item">
+                <span class="material-icons" aria-hidden="true">check</span><span>FastMap projection ready</span>
+              </div>
+              <div class="stat-item">
+                <span class="material-icons" aria-hidden="true">check</span><span>Data cleaning applied</span>
+              </div>
+            </div>
+          }
+
+          <ng-container *ngTemplateOutlet="methodBar"></ng-container>
+
+          <!-- Detailed background projection progress. Each optional method runs in
+               its own worker, so it can be cancelled and retried on its own. -->
+          @if (backgroundItems.length > 0) {
+            <section class="background-status-section" [attr.aria-labelledby]="backgroundHeadingId">
+              <div class="background-status-header">
+                <h4 [id]="backgroundHeadingId" tabindex="-1">
+                  <span class="material-icons" aria-hidden="true">schedule</span>
+                  Background Projections
+                </h4>
+                @if (hasRunningBackground) {
+                  <button type="button" class="btn-background-action" (click)="stopAllBackgroundProjections()">
+                    <span class="material-icons" aria-hidden="true">stop</span>
+                    Stop all background projections
+                  </button>
+                }
+              </div>
+              <div class="projection-status-list" role="list">
+                @for (proj of backgroundItems; track proj.method) {
+                  <div class="projection-status-item" [class]="'status-' + proj.status" role="listitem">
+                    <div class="status-header">
+                      <span class="method-name">{{ proj.name }}</span>
+                      <div class="status-actions">
+                        @switch (proj.status) {
+                          @case ('running') {
+                            <span class="status-badge status-running"
+                              ><span class="material-icons spinning" aria-hidden="true">sync</span>Running</span
+                            >
+                          }
+                          @case ('complete') {
+                            <span class="status-badge status-complete"
+                              ><span class="material-icons" aria-hidden="true">check_circle</span>Complete</span
+                            >
+                          }
+                          @case ('error') {
+                            <span class="status-badge status-error"
+                              ><span class="material-icons" aria-hidden="true">error</span>Failed</span
+                            >
+                          }
+                          @case ('cancelled') {
+                            <span class="status-badge status-cancelled"
+                              ><span class="material-icons" aria-hidden="true">block</span>Cancelled</span
+                            >
+                          }
+                        }
+                        @if (proj.status === 'running') {
+                          <button
+                            type="button"
+                            class="btn-background-action"
+                            [id]="backgroundActionId(proj.method)"
+                            [attr.aria-label]="'Cancel ' + proj.name"
+                            (click)="cancelBackgroundProjection(proj.method)"
+                          >
+                            <span class="material-icons" aria-hidden="true">close</span>Cancel
+                          </button>
+                        } @else if (proj.canRetry) {
+                          <button
+                            type="button"
+                            class="btn-background-action"
+                            [id]="backgroundActionId(proj.method)"
+                            [attr.aria-label]="'Retry ' + proj.name"
+                            (click)="retryBackgroundProjection(proj.method)"
+                          >
+                            <span class="material-icons" aria-hidden="true">refresh</span>Retry
+                          </button>
+                        }
+                      </div>
+                    </div>
+                    @if (proj.status === 'running') {
+                      <div
+                        class="progress-bar-small"
+                        role="progressbar"
+                        [attr.aria-label]="proj.name + ' progress'"
+                        aria-valuemin="0"
+                        aria-valuemax="100"
+                        [attr.aria-valuenow]="proj.progress"
+                      >
+                        <div class="progress-fill-small" [style.width.%]="proj.progress"></div>
+                      </div>
+                      <p class="status-message">{{ proj.message }}</p>
+                    }
+                    @if (proj.status === 'complete') {
+                      <p class="status-message">Available in Glyphspace dropdown</p>
+                    }
+                    @if (proj.status === 'cancelled') {
+                      <p class="status-message">Stopped before it finished. Your other projections are not affected.</p>
+                    }
+                  </div>
+                }
+              </div>
+            </section>
+          }
+        </div>
+      }
+    }
+  </div>
+
+  <!-- Method status bar template (reused across processing / error / result) -->
+  <ng-template #methodBar>
+    <div class="method-bar">
+      @for (m of methodStatuses; track m.name) {
+        <div class="method-chip" [class]="'chip-' + m.status">
+          <div class="chip-top">
+            <span class="chip-name">{{ m.name }}</span>
+            <span class="chip-role">{{ m.role }}</span>
+          </div>
+          <span class="chip-status">{{ m.statusLabel }}</span>
+        </div>
+      }
+    </div>
+  </ng-template>
+
+  <!-- Action Buttons -->
+  @if (!showProcessing) {
+    <div class="action-buttons">
+      <button class="btn-secondary" (click)="goBack()">
+        <span class="material-icons" aria-hidden="true">arrow_back</span>
+        <span>Back</span>
+      </button>
+      <div class="buttons-right">
+        <button class="btn-primary" (click)="startProcessing()">
+          <span class="material-icons" aria-hidden="true">play_arrow</span>
+          <span>Start Processing</span>
+        </button>
+      </div>
+    </div>
+  }
+
+  @if (isErrorScreen) {
+    <div class="action-buttons">
+      <button class="btn-secondary" (click)="goBack()">
+        <span class="material-icons" aria-hidden="true">arrow_back</span>
+        <span>Back to settings</span>
+      </button>
+      <div class="buttons-right">
+        <button class="btn-primary" (click)="retryProcessing()">
+          <span class="material-icons" aria-hidden="true">refresh</span>
+          <span>Try again</span>
+        </button>
+      </div>
+    </div>
+  }
+
+  @if (processingComplete && !isProcessing) {
+    <div class="action-buttons">
+      <button class="btn-secondary" (click)="startOver()">
+        <span class="material-icons" aria-hidden="true">delete</span>
+        <span>Process Another Dataset</span>
+      </button>
+      <div class="buttons-right">
+        <button
+          class="btn-secondary"
+          title="Run the projections again with the current settings"
+          (click)="retryProcessing()"
+        >
+          <span class="material-icons" aria-hidden="true">replay</span>
+          <span>Reprocess</span>
+        </button>
+        <button class="btn-primary" (click)="goToDashboard()">
+          <span class="material-icons" aria-hidden="true">dashboard</span>
+          <span>Open in Glyphspace</span>
+        </button>
+      </div>
+    </div>
+  }
+</div>

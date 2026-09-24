@@ -5,36 +5,21 @@ $white: #ffffff;
 $gray-100: #f5f5f5;
 $gray-200: #e0e0e0;
 $gray-300: #c8c8c8;
-$gray-400: #a0a0a0;
-$gray-500: #888888;
+$gray-400: #a0a0a0; // borders / disabled only: 2.6:1 on white, never for text
+$gray-500: #888888; // icons / borders only: 3.4:1 on #f9fafb, never for text
 $gray-600: #666666;
 $gray-700: #444444;
 $gray-800: #222222;
 
 // Functional
-$active-color: #00bcd4; // cyan highlight
+$active-color: #00bcd4; // bright cyan: decorative fills and tints only (2.2:1 on white)
 $color-blue-highlight: #4eb9fa;
 $tooltip-bg: rgba(0, 0, 0, 0.75);
 $tooltip-text: $white;
 
-// Backgrounds
-$overlay-bg: rgba(200, 200, 200, 0.25);
-$select-bg: rgba(160, 160, 160, 0.3);
-$select-bg-hover: rgba(160, 160, 160, 0.5);
-$select-bg-focus: rgba(180, 180, 180, 0.6);
-
 // Selection Rectangle
 $color-gray-border: #999;
 $color-gray-bg-light: rgba(128, 128, 128, 0.1);
-
-// Status Colors
-$status-warning: #ff9800;
-$status-warning-dark: #e65100;
-$status-error: #f44336;
-$status-error-dark: #c62828;
-$status-success: #4caf50;
-$status-success-dark: #388e3c;
-$status-info: #00838f;
 
 // Projection Status Colors
 $proj-running: #f5a623;
@@ -63,18 +48,12 @@ $shadow-sm:
 $shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
 $shadow-dropdown: 0 2px 3px rgba(0, 0, 0, 0.1);
 
-// Hover
-$hover-overlay: rgba(0, 0, 0, 0.05);
-
 // App & Layout
 $app-bg: #f9f9f9;
 
 // Delete / Destructive
 $delete-hover-bg: #fee2e2;
 $delete-hover-text: #dc2626;
-
-// Focus
-$focus-outline: #c7d2fe;
 
 // Option Hover
 $option-hover-bg: #f0f5ff;
@@ -84,21 +63,104 @@ $wizard-header-bg: #f9fafb;
 $wizard-content-bg: $white;
 $wizard-table-header-bg: $wizard-header-bg;
 $wizard-table-bg: $white;
+$wizard-well-bg: #eceff2; // recessed "imprint" tone (Step 3 detail well, Step 2->3 morph cover)
 
-// Data Type Colors (following design spec)
-$data-type-numeric: #16a34a; // Green
-$data-type-numeric-bg: #dcfce7;
-$data-type-categorical: #7c3aed; // Purple
-$data-type-categorical-bg: #f3e8ff;
-$data-type-text: #8bc34a; // Light Green
-$data-type-text-bg: rgba(139, 195, 74, 0.1);
-$data-type-date: #ea580c; // Orange (Temporal)
-$data-type-date-bg: #fed7aa;
-$data-type-boolean: #00bcd4; // Cyan (active-color)
-$data-type-boolean-bg: rgba(0, 188, 212, 0.1);
-$data-type-id: #888888; // Gray
-$data-type-id-bg: rgba(136, 136, 136, 0.1);
-$data-type-coordinate: #0369a1; // Sky Blue (geographic)
-$data-type-coordinate-bg: rgba(3, 105, 161, 0.1);
-$data-type-unknown: #888888; // Gray
-$data-type-unknown-bg: rgba(136, 136, 136, 0.1);
+// ============================================================================
+// Accessible accent (WCAG 1.4.3 / 1.4.11)
+// Text, icons, focus rings, state borders and primary-button fills. #00737d
+// reaches >= 4.85:1 on every wizard surface (white 5.60, #f9fafb 5.36,
+// #eceff2 4.85, 12-15% cyan tints >= 4.85) and white text on it is 5.60:1.
+// The bright $active-color stays for decorative fills/tints without text.
+// ============================================================================
+$color-accent: #00737d;
+$color-accent-hover: #005c64; // white on it: 7.74:1
+
+// Muted text: #666 is >= 4.97:1 on white, #f9fafb, #f5f5f5 and #eceff2.
+$text-muted: $gray-600;
+
+// ============================================================================
+// Severity palette — one set per tone. Text >= 4.5:1 on bg, tint and white;
+// icon >= 3:1 on bg and tint (WCAG 1.4.11). Consumed via the severity-panel /
+// severity-badge mixins in preprocessing-wizard/shared/_wizard-shared.scss.
+//   bg     subtle panel background     tint  badge / message-bar background
+//   border hairline panel border       text  tone-coloured text
+//   icon   tone icon + accent bar
+// ============================================================================
+$severity-error-bg: #fffafa;
+$severity-error-tint: #fdecea;
+$severity-error-border: #f0d3cf;
+$severity-error-text: #b3261e; // 6.32 on bg, 5.72 on tint
+$severity-error-icon: #d64541; // 4.24 on bg, 3.84 on tint
+
+$severity-warning-bg: #fffdf9;
+$severity-warning-tint: #fff4e5;
+$severity-warning-border: #f2dcb6;
+$severity-warning-text: #8c5a00; // 5.78 on bg, 5.40 on tint
+$severity-warning-icon: #b8740f; // 3.73 on bg, 3.49 on tint
+
+$severity-success-bg: #f1faf2;
+$severity-success-tint: #e3f4e6;
+$severity-success-border: #c8ead0;
+$severity-success-text: #1e7b3a; // 4.99 on bg, 4.65 on tint
+$severity-success-icon: #2a9d4a; // 3.27 on bg, 3.05 on tint
+
+$severity-info-bg: #ebfafc; // = 8% cyan on white
+$severity-info-tint: #e6f8fb; // = 10% cyan on white
+$severity-info-border: #80deea; // = 50% cyan on white
+$severity-info-text: $color-accent; // 5.23 on bg, 5.11 on tint
+$severity-info-icon: $color-accent;
+
+// Solid fills for white text (toasts): white on each >= 5.0:1.
+$toast-success-bg: #047857; // 5.48
+$toast-error-bg: #b91c1c; // 6.47
+$toast-warning-bg: #b45309; // 5.02
+$toast-info-bg: #1d4ed8; // 6.70
+
+// ============================================================================
+// Type scale — rem, so text follows the browser's font-size setting (px values
+// at the default 16px root). Nothing below xs (11px).
+// ============================================================================
+$font-size-xs: 0.6875rem; // 11px — labels, badges, captions
+$font-size-sm: 0.75rem; // 12px — secondary text, compact controls
+$font-size-base: 0.8125rem; // 13px — body text, inputs, tables
+$font-size-md: 0.875rem; // 14px — emphasised values, panel headings
+$font-size-lg: 1rem; // 16px — section / dialog headings
+$font-size-xl: 1.25rem; // 20px — detail-card title
+$font-size-2xl: 1.5rem; // 24px — large stat numbers
+
+// Icon sizes (Material Icons glyph size).
+$icon-size-xs: 0.875rem; // 14px — inline with xs/sm text, badges
+$icon-size-sm: 1rem; // 16px
+$icon-size-md: 1.125rem; // 18px — buttons, panel headings
+$icon-size-lg: 1.25rem; // 20px — title bar, notices
+$icon-size-xl: 1.5rem; // 24px — stat cards
+$icon-size-2xl: 2.5rem; // 40px — status heroes, empty states
+$icon-size-3xl: 3rem; // 48px — upload / empty-state illustration
+
+// Spacing scale (4px grid). Off-grid values (2/3/6/10/14px) stay literal.
+$space-1: 4px;
+$space-2: 8px;
+$space-3: 12px;
+$space-4: 16px;
+$space-6: 24px;
+$space-8: 32px;
+
+// ============================================================================
+// z-index scale (keeps the previous stacking order). Layers only compete
+// inside the same stacking context: the wizard lives inside .wizard-overlay,
+// so its layers (sticky .. popover) are local to it. The Start-over <dialog>
+// uses the browser top layer and needs no z-index.
+// ============================================================================
+$z-sticky: 5; // sticky action/footer bars
+$z-sticky-header: 10; // sticky table headers
+$z-morph-cover: 15; // Step 2 -> 3 collapse cover, above the sticky table header
+$z-dropdown: 20; // in-flow dropdowns / listboxes (color-scale selector)
+$z-header: 100; // wizard title bar
+$z-menu: 920; // collapsible app menu (narrow viewports)
+$z-tooltip: 1000; // CSS-only hover tooltips (tooltip-base mixin)
+$z-overlay: 9999; // modal wizard overlay / backdrop
+$z-popover: 10000; // fixed help tooltips + projection previews (inside the wizard)
+$z-toast: 10100; // global toast stack, above the wizard overlay
+
+// Layout breakpoint below which the wizard's two-column step layouts stack.
+$breakpoint-stack: 1024px;

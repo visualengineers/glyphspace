@@ -1,4 +1,5 @@
 @use '../../styles/variables' as v;
+@use '../../styles/mixins' as m;
 
 .menu-bar {
   display: flex;
@@ -123,6 +124,10 @@
     &:focus {
       outline: none;
     }
+
+    &:focus-visible {
+      @include m.focus-ring;
+    }
   }
 
   /* Optional: add a custom arrow */
@@ -138,6 +143,24 @@
   }
 }
 
+// Shared look of the toolbar buttons (icon panel and canvas controls).
+// Include it after the caller's own declarations so they stay in one rule.
+@mixin toolbar-button {
+  align-items: center;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  color: v.$gray-800;
+
+  &:hover {
+    background: v.$gray-200;
+  }
+
+  .material-icons {
+    font-size: 18px;
+  }
+}
+
 .icon-panel {
   display: flex;
   gap: 6px;
@@ -147,25 +170,11 @@
 
   button {
     display: flex;
-    align-items: center;
     gap: 6px;
-
-    border: none;
     background: transparent;
     padding: 6px 10px;
     border-radius: 8px;
-    cursor: pointer;
-
-    font-size: 14px;
-    color: v.$gray-800;
-
-    &:hover {
-      background: v.$gray-200;
-    }
-
-    .material-icons {
-      font-size: 18px;
-    }
+    @include toolbar-button;
   }
 }
 
@@ -180,25 +189,12 @@
 
   .add-btn {
     display: inline-flex;
-    align-items: center;
     gap: 4px;
     white-space: nowrap;
-
-    border: none;
     padding: 6px 12px;
     border-radius: 10px;
     background: v.$gray-100;
-    cursor: pointer;
-    font-size: 14px;
-    color: v.$gray-800;
-
-    &:hover {
-      background: v.$gray-200;
-    }
-
-    .material-icons {
-      font-size: 18px;
-    }
+    @include toolbar-button;
   }
 }
 
@@ -242,11 +238,10 @@
     top: 64px;
     left: 0;
     right: 0;
-    z-index: 920;
+    z-index: v.$z-menu;
     background: white;
     max-height: 0;
     overflow: hidden;
-    transition: max-height 400ms ease;
     transition: height 400ms ease;
   }
 
@@ -297,7 +292,7 @@
   right: 0;
   bottom: 0;
   background: rgba(0, 0, 0, 0.5);
-  z-index: 9999;
+  z-index: v.$z-overlay;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -315,6 +310,38 @@
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
     animation: slideUp 0.3s ease;
     overflow: hidden;
+  }
+
+  // Shown by @defer while the lazy wizard chunk loads (after 150ms).
+  .wizard-loading {
+    margin: 0;
+    padding: v.$space-2 v.$space-4;
+    border-radius: 8px;
+    background: white;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    color: v.$gray-700;
+    font-size: v.$font-size-md;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    &,
+    app-preprocessing-wizard {
+      animation: none;
+    }
+  }
+
+  // Small viewports / 200% zoom (1280x800 -> 640x400 CSS px): the wizard takes
+  // the whole viewport instead of 90% minus the 32px backdrop padding.
+  @media (max-width: 767.98px), (max-height: 600px) {
+    padding: 0;
+
+    app-preprocessing-wizard {
+      width: 100%;
+      height: 100%;
+      max-width: none;
+      max-height: none;
+      border-radius: 0;
+    }
   }
 }
 

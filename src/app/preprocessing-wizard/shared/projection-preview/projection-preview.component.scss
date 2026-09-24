@@ -1,4 +1,6 @@
 @use '../../../../styles/variables' as v;
+@use '../../../../styles/mixins' as m;
+@use '../wizard-shared' as w;
 
 .projection-preview-container {
   position: relative;
@@ -14,11 +16,11 @@
   border: none;
   cursor: pointer;
   padding: 2px;
-  color: v.$gray-600;
+  color: v.$text-muted;
   transition: color 0.2s ease;
 
   &:hover {
-    color: v.$active-color;
+    color: v.$color-accent;
   }
 
   &:focus {
@@ -26,46 +28,55 @@
   }
 
   &:focus-visible {
-    color: v.$active-color;
-    outline: 2px solid v.$active-color;
-    outline-offset: 2px;
+    @include m.focus-ring;
+    color: v.$color-accent;
     border-radius: 50%;
   }
 
   .material-icons {
-    font-size: 18px;
+    font-size: v.$icon-size-md;
   }
 }
 
 .projection-preview {
   position: fixed;
-  z-index: 10000;
+  z-index: v.$z-popover;
   width: 372px;
-  max-width: 372px;
+  max-width: min(372px, calc(100vw - 16px));
   box-sizing: border-box;
-  background: #fff;
+  background: v.$white;
   border: 1px solid v.$gray-300;
   border-radius: 12px;
   box-shadow: 0 14px 32px -10px rgba(20, 40, 60, 0.25);
-  padding: 16px;
+  padding: v.$space-4;
   text-align: left;
+  // Always rendered so the trigger's aria-describedby resolves; hidden (and
+  // out of the accessibility tree) until opened.
+  visibility: hidden;
+  pointer-events: none;
+
+  &.visible {
+    visibility: visible;
+    pointer-events: auto;
+  }
 }
 
 .preview-head {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: v.$space-2;
   flex-wrap: wrap;
 }
 
 .preview-name {
-  font-size: 16px;
+  font-size: v.$font-size-lg;
   font-weight: 700;
   color: v.$gray-800;
 }
 
+// Speed tag: same three severity tones as Step 4's speed badges.
 .preview-tag {
-  font-size: 10px;
+  font-size: v.$font-size-xs;
   font-weight: 700;
   letter-spacing: 0.3px;
   padding: 2px 7px;
@@ -73,52 +84,48 @@
   white-space: nowrap;
 
   &.tag-primary {
-    background: rgba(0, 188, 212, 0.15);
-    color: v.$status-info;
+    @include w.severity-badge(info);
   }
 
   &.tag-fast {
-    background: rgba(31, 122, 69, 0.13);
-    color: #1f7a45;
+    @include w.severity-badge(success);
   }
 
   &.tag-medium {
-    background: rgba(181, 106, 0, 0.15);
-    color: #b56a00;
+    @include w.severity-badge(warning);
   }
 
   &.tag-slow {
-    background: rgba(178, 58, 34, 0.13);
-    color: #b23a22;
+    @include w.severity-badge(error);
   }
 }
 
 .preview-rows {
-  font-size: 9.5px;
+  font-size: v.$font-size-xs;
   font-weight: 700;
   letter-spacing: 0.3px;
   padding: 2px 7px;
   border-radius: 999px;
   border: 1px solid v.$gray-300;
-  color: v.$gray-600;
+  color: v.$text-muted;
   white-space: nowrap;
 }
 
 .preview-sub {
-  font-size: 11.5px;
-  color: v.$gray-500;
+  font-size: v.$font-size-sm;
+  color: v.$text-muted;
   margin-top: 2px;
 }
 
 .preview-desc {
-  font-size: 12.5px;
+  font-size: v.$font-size-base;
   color: v.$gray-700;
-  margin-top: 8px;
+  margin-top: v.$space-2;
   line-height: 1.45;
 }
 
 .preview-canvas-wrap {
-  margin-top: 12px;
+  margin-top: v.$space-3;
   background: v.$gray-100;
   border: 1px solid v.$gray-200;
   border-radius: 8px;
@@ -151,17 +158,23 @@
     height: 5px;
     border-radius: 3px;
     background: v.$gray-300;
-    transition: all 0.35s ease;
+    transition:
+      width 0.35s ease,
+      background-color 0.35s ease;
 
     &.active {
       width: 18px;
-      background: v.$active-color;
+      background: v.$color-accent;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      transition: none;
     }
   }
 }
 
 .preview-cap-text {
-  font-size: 12.5px;
-  color: v.$gray-600;
+  font-size: v.$font-size-base;
+  color: v.$text-muted;
   line-height: 1.35;
 }

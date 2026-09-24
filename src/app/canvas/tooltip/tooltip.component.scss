@@ -22,3 +22,36 @@
     background: rgba(0, 0, 0, 1);
   }
 }
+
+.tooltip-body {
+  max-width: 300px;
+  font-family: sans-serif;
+  font-size: 13px;
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    margin-top: 0.4em;
+  }
+
+  th,
+  td {
+    padding: 0;
+    vertical-align: top;
+    text-align: left;
+    white-space: normal;
+    word-break: break-word;
+    overflow-wrap: break-word;
+  }
+
+  th {
+    width: 40%;
+    padding-right: 0.75em;
+  }
+
+  td.missing {
+    font-style: italic;
+    opacity: 0.7;
+  }
+}

@@ -1,0 +1,630 @@
+@use '../../shared/wizard-shared' as w;
+@use '../../../../styles/variables' as v;
+@use '../../../../styles/mixins' as m;
+
+// A6: invisible scroll anchor used by the review step's deep-links
+.scroll-anchor {
+  @include w.scroll-anchor;
+}
+
+.step4-projection-settings {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+
+  .step-content {
+    @include w.step-content;
+  }
+
+  // ============================================================================
+  // Config Panel (shared base)
+  // ============================================================================
+
+  .config-panel {
+    @include w.config-panel;
+  }
+
+  // ============================================================================
+  // Projection Methods (two-column card grid)
+  // ============================================================================
+
+  .projection-panel {
+    padding-bottom: v.$space-2;
+
+    .projection-panel-header {
+      @include w.list-header-row;
+      flex-wrap: wrap;
+      gap: v.$space-3;
+      margin-bottom: v.$space-2;
+
+      h3 {
+        margin-bottom: 0;
+      }
+
+      .primary-badge {
+        @include w.severity-badge(info);
+        display: flex;
+        align-items: center;
+        gap: v.$space-1;
+        font-size: v.$font-size-sm;
+        font-weight: 600;
+        padding: 3px 10px;
+        border-radius: 6px;
+        border: 1px solid v.$severity-info-border;
+
+        .material-icons {
+          font-size: v.$icon-size-xs;
+        }
+      }
+    }
+
+    // minmax(0, 1fr): the cards' nowrap content must never push the grid past
+    // the panel edge (it overflowed the panel before).
+    .projection-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: v.$space-1;
+
+      @include w.below-stack {
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+      }
+    }
+
+    .projection-card {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding: 5px v.$space-2;
+      border: 1px solid v.$gray-200;
+      border-radius: 8px;
+      transition:
+        border-color 0.15s ease,
+        background-color 0.15s ease;
+      user-select: none;
+
+      &:hover {
+        border-color: v.$gray-400;
+      }
+
+      &.enabled {
+        background: rgba(v.$active-color, 0.04);
+        border-color: rgba(v.$active-color, 0.3);
+      }
+
+      &.has-warning.enabled {
+        background: v.$severity-warning-bg;
+        border-color: v.$severity-warning-border;
+      }
+
+      .card-row {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+      }
+
+      // Labels of the enable checkbox: clicking the name or the description toggles it.
+      // Wraps so the speed/size badges move to a second line instead of overflowing.
+      .card-toggle {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 2px 5px;
+        flex: 1;
+        min-width: 0;
+        margin: 0;
+        cursor: pointer;
+      }
+
+      .card-desc {
+        display: block;
+        font-size: v.$font-size-xs;
+        color: v.$text-muted;
+        padding-left: 20px;
+        line-height: 1.3;
+        cursor: pointer;
+      }
+
+      &.disabled {
+        .card-toggle,
+        .card-desc {
+          cursor: not-allowed;
+        }
+      }
+
+      input[type='checkbox'] {
+        @include w.selection-checkbox;
+      }
+
+      .method-name {
+        font-size: v.$font-size-sm;
+        font-weight: 600;
+        color: v.$gray-800;
+        white-space: nowrap;
+      }
+
+      .warning-icon {
+        font-size: v.$icon-size-xs;
+        color: v.$severity-warning-icon;
+        flex-shrink: 0;
+      }
+
+      .btn-expand-params {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 20px;
+        height: 20px;
+        background: transparent;
+        border: 1px solid v.$gray-300;
+        border-radius: 6px;
+        cursor: pointer;
+        color: v.$text-muted;
+        margin-left: auto;
+        flex-shrink: 0;
+
+        &:hover {
+          background: v.$gray-100;
+        }
+
+        .material-icons {
+          font-size: v.$icon-size-xs;
+        }
+      }
+
+      // Animated method explainer (A1): help icon pinned to the far right of
+      // the card row. Uses auto margin so it stays right whether or not the
+      // parameter-toggle button is present.
+      .method-preview {
+        margin-left: auto;
+        flex-shrink: 0;
+        display: inline-flex;
+        align-items: center;
+      }
+
+      // When the parameter toggle is also shown, it should sit next to the
+      // preview icon rather than fighting it for the auto margin.
+      .btn-expand-params + .method-preview {
+        margin-left: v.$space-1;
+      }
+    }
+
+    // Speed badge: three severity tones, matching the method preview's tags.
+    .speed-badge {
+      @include w.badge;
+      padding: 0 5px;
+      flex-shrink: 0;
+
+      &.badge-primary {
+        @include w.severity-badge(info);
+      }
+
+      &.badge-very-fast,
+      &.badge-fast {
+        @include w.severity-badge(success);
+      }
+
+      &.badge-medium {
+        @include w.severity-badge(warning);
+      }
+
+      &.badge-slow,
+      &.badge-very-slow {
+        @include w.severity-badge(error);
+      }
+    }
+
+    .size-hint {
+      @include w.badge;
+      padding: 0 5px;
+      flex-shrink: 0;
+      white-space: nowrap;
+      background: v.$wizard-header-bg;
+      color: v.$text-muted;
+      border: 1px solid v.$gray-300;
+    }
+
+    // Animated height wrapper: collapses to 0fr, expands to content height in place.
+    // grid-template-rows cannot be expressed as a transform (the card must grow
+    // in the layout), so this stays a layout transition — short, and switched
+    // off for reduced motion.
+    .params-wrapper {
+      display: grid;
+      grid-template-rows: 0fr;
+      margin-top: 0;
+      transition:
+        grid-template-rows 0.25s ease,
+        margin-top 0.25s ease;
+
+      &.open {
+        grid-template-rows: 1fr;
+        margin-top: 6px;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        transition: none;
+      }
+    }
+
+    // Bare grid item: no padding/border/background so the 0fr track truly
+    // collapses to zero and fully clips the padded box below (no sliver).
+    .params-clip {
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .inline-params {
+      padding: 6px 10px;
+      background: v.$wizard-header-bg;
+      border: 1px solid v.$gray-200;
+      border-radius: 8px;
+      cursor: default;
+      display: flex;
+      flex-wrap: wrap;
+      gap: v.$space-2;
+      align-items: flex-end;
+
+      .params-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+      }
+
+      .params-label {
+        font-size: v.$font-size-xs;
+        font-weight: 600;
+        color: v.$text-muted;
+      }
+
+      .btn-reset-params {
+        @include w.btn-reset;
+      }
+
+      .param-field {
+        // Fit the (narrower) card column: each parameter takes the full width
+        flex: 1 1 100%;
+        min-width: 0;
+
+        // A3 / C-S4-05: field-near validation message (error class K4).
+        .param-inline-error {
+          display: flex;
+          align-items: flex-start;
+          gap: 5px;
+          margin-top: 5px;
+          font-size: v.$font-size-xs;
+          line-height: 1.4;
+          color: v.$severity-error-text;
+
+          .material-icons {
+            font-size: v.$icon-size-xs;
+            color: v.$severity-error-icon;
+            flex-shrink: 0;
+          }
+        }
+
+        // The help tooltip sits next to the label (not inside it), so it does not
+        // become part of the slider's accessible name.
+        .param-label-row {
+          display: flex;
+          align-items: center;
+          gap: v.$space-1;
+          margin-bottom: 2px;
+
+          label {
+            font-size: v.$font-size-xs;
+            font-weight: 600;
+            color: v.$gray-700;
+            margin: 0;
+          }
+        }
+
+        .input-group {
+          display: flex;
+          gap: v.$space-2;
+
+          .range-input {
+            flex: 1;
+            min-width: 0;
+            accent-color: v.$color-accent;
+          }
+
+          .number-input {
+            @include w.input-base;
+            width: 60px;
+            padding: 2px v.$space-1;
+            font-size: v.$font-size-xs;
+            text-align: center;
+          }
+        }
+      }
+
+      .warning-box {
+        @include w.warning-box;
+        width: 100%;
+        margin-top: 2px;
+        font-size: v.$font-size-xs;
+
+        p {
+          margin: 0 0 2px;
+
+          &:last-child {
+            margin-bottom: 0;
+          }
+        }
+      }
+    }
+  }
+
+  // ============================================================================
+  // Projection Options (two-column: columns + method)
+  // ============================================================================
+
+  .projection-options-two-col {
+    display: grid;
+    // Side-by-side (columns left, methods right) on desktop; stacked below the
+    // wizard stack breakpoint so neither panel is squeezed (WCAG 1.4.10).
+    grid-template-columns: 2fr 3fr;
+    gap: v.$space-4;
+    align-items: start;
+
+    @include w.below-stack {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    // Panels inside the grid should not add their own bottom margin and must be
+    // allowed to shrink so long column names never force the grid to wrap.
+    > .config-panel {
+      margin-bottom: 0;
+      min-width: 0;
+    }
+  }
+
+  .projection-columns-panel {
+    display: flex;
+    flex-direction: column;
+    max-height: 560px;
+
+    @include w.below-stack {
+      max-height: min(560px, 80vh);
+    }
+
+    // A8: total dataset row count for context
+    .dataset-row-count {
+      display: flex;
+      align-items: center;
+      gap: v.$space-1;
+      font-size: v.$font-size-xs;
+      color: v.$text-muted;
+      margin: -4px 0 10px;
+
+      .material-icons {
+        font-size: v.$icon-size-xs;
+        color: v.$text-muted;
+      }
+    }
+
+    .projection-columns-header {
+      @include w.list-header-row;
+      justify-content: space-between;
+      gap: v.$space-2;
+
+      h3 {
+        margin-bottom: 0;
+      }
+
+      .projection-count {
+        @include w.severity-badge(info);
+        font-size: v.$font-size-xs;
+        font-weight: 600;
+        padding: 2px v.$space-2;
+        border-radius: 10px;
+        white-space: nowrap;
+      }
+    }
+
+    // Search + type filter (same visual language as the glyph feature filter)
+    .feature-filter-bar {
+      display: flex;
+      align-items: center;
+      gap: v.$space-2;
+      margin-bottom: 6px;
+
+      .search-box {
+        @include w.search-box($padding: v.$space-1 v.$space-2, $icon-size: v.$icon-size-sm);
+        flex: 1;
+        min-width: 0;
+      }
+
+      .filter-select {
+        @include w.select;
+        font-size: v.$font-size-sm;
+        padding: v.$space-1 v.$space-6 v.$space-1 v.$space-2;
+        flex-shrink: 0;
+        max-width: 120px;
+      }
+    }
+
+    .projection-columns-list-header {
+      @include w.list-header-row;
+      gap: v.$space-2;
+      padding-left: v.$space-2;
+      padding-right: v.$space-2;
+      margin-bottom: v.$space-1;
+      border-bottom: 1px solid v.$gray-200;
+
+      .master-checkbox {
+        @include w.checkbox;
+        width: 15px;
+        height: 15px;
+        flex-shrink: 0;
+      }
+
+      .master-label {
+        font-size: v.$font-size-xs;
+        font-weight: 600;
+        color: v.$text-muted;
+        letter-spacing: 0.3px;
+        text-transform: uppercase;
+      }
+
+      .showing-count {
+        margin-left: auto;
+        font-size: v.$font-size-xs;
+        font-weight: 600;
+        color: v.$color-accent;
+        white-space: nowrap;
+      }
+    }
+
+    .projection-columns-list {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      overflow-y: auto;
+      flex: 1;
+      min-height: 0;
+    }
+
+    // Compact row wrapper: holds the selectable row plus an optional details panel.
+    .projection-column-item {
+      border: 1px solid v.$gray-200;
+      border-radius: 6px;
+      font-size: v.$font-size-sm;
+      transition:
+        border-color 0.15s ease,
+        background-color 0.15s ease;
+
+      &:hover {
+        border-color: v.$gray-400;
+      }
+
+      &.selected {
+        background: rgba(v.$active-color, 0.04);
+        border-color: rgba(v.$active-color, 0.3);
+      }
+
+      &.details-open {
+        border-color: rgba(v.$active-color, 0.3);
+      }
+
+      &.excluded .col-name {
+        color: v.$text-muted;
+        text-decoration: line-through;
+      }
+
+      // The clickable row itself is dense (compact padding to save width).
+      .projection-column-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 3px 6px;
+        margin: 0;
+      }
+
+      .projection-column-label {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex: 1;
+        min-width: 0;
+        margin: 0;
+        cursor: pointer;
+      }
+
+      input[type='checkbox'] {
+        @include w.checkbox;
+        width: 14px;
+        height: 14px;
+        flex-shrink: 0;
+      }
+
+      .col-name {
+        flex: 1;
+        font-weight: 500;
+        color: v.$gray-800;
+        @include m.text-truncate;
+      }
+
+      .btn-details-toggle {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 22px;
+        height: 22px;
+        padding: 0;
+        background: transparent;
+        border: none;
+        border-radius: 4px;
+        color: v.$text-muted;
+        cursor: pointer;
+        flex-shrink: 0;
+
+        .material-icons {
+          font-size: v.$icon-size-md;
+        }
+
+        &:hover {
+          color: v.$color-accent;
+          background: rgba(v.$active-color, 0.1);
+        }
+      }
+
+      // Progressive-disclosure details: encoding / scaling / missing per column.
+      .projection-column-details {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        padding: 6px v.$space-2 v.$space-2;
+        border-top: 1px dashed v.$gray-200;
+        margin-top: 2px;
+
+        .detail-row {
+          display: flex;
+          justify-content: space-between;
+          gap: v.$space-2;
+
+          .detail-key {
+            color: v.$text-muted;
+            text-transform: uppercase;
+            font-size: v.$font-size-xs;
+            letter-spacing: 0.3px;
+          }
+
+          .detail-val {
+            color: v.$gray-800;
+            font-weight: 500;
+          }
+        }
+
+        .detail-hint {
+          display: flex;
+          align-items: center;
+          gap: v.$space-1;
+          margin-top: 2px;
+          color: v.$text-muted;
+          font-size: v.$font-size-xs;
+
+          .material-icons {
+            font-size: v.$icon-size-xs;
+          }
+        }
+      }
+    }
+
+    // Empty state when search/filter matches nothing
+    .available-empty {
+      @include w.list-empty-state;
+    }
+
+    .validation-warning {
+      @include w.inline-warning;
+      margin-top: v.$space-2;
+    }
+  }
+
+  // Text for screen readers only.
+  .visually-hidden {
+    @include m.visually-hidden;
+  }
+}

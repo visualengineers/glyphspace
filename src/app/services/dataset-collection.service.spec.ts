@@ -93,16 +93,19 @@ describe('DatasetCollectionService', () => {
     expect(positions).toContain('tsne');
   });
 
-  it('should emit on observable when collection changes', (done: DoneFn) => {
+  it('should emit on observable when collection changes', async () => {
     let emitCount = 0;
-    service.dataSetCollectionSubject$.subscribe(() => {
-      emitCount++;
-      if (emitCount === 2) {
-        // Initial + one setDatasetCollection
-        done();
-      }
-    });
+    const secondEmission = new Promise<void>(resolve =>
+      service.dataSetCollectionSubject$.subscribe(() => {
+        emitCount++;
+        if (emitCount === 2) {
+          // Initial + one setDatasetCollection
+          resolve();
+        }
+      })
+    );
 
     service.setDatasetCollection([makeEntry('new-ds', 't1')]);
+    await secondEmission;
   });
 });
