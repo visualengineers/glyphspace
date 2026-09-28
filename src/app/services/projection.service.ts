@@ -93,7 +93,7 @@ export class ProjectionService {
       const { positions, computeTime } = await runDruidProjection(loadDruid, druidSpecFor('fastmap'), features, ids);
       return { method: 'fastmap', positions, computeTime: Math.round(computeTime) };
     } catch (error: unknown) {
-      throw new Error(`FastMap failed: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(`FastMap failed: ${error instanceof Error ? error.message : String(error)}`, { cause: error });
     }
   }
 
@@ -387,7 +387,9 @@ export class ProjectionService {
 
       return { features, ids };
     } catch (error: unknown) {
-      throw new Error(`Failed to parse CSV features: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(`Failed to parse CSV features: ${error instanceof Error ? error.message : String(error)}`, {
+        cause: error,
+      });
     }
   }
 
