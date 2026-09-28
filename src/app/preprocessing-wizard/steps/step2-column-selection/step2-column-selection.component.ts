@@ -1,4 +1,4 @@
-import { Component, OnInit, AfterViewInit, forwardRef, ViewChild, ElementRef, HostListener } from '@angular/core';
+import { Component, OnInit, forwardRef, ViewChild, ElementRef, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PreprocessingService } from '../../services/preprocessing.service';
@@ -8,9 +8,28 @@ import { ColumnConfig } from '../../models/column-config';
 import { DataType, getDataTypeColor, getDataTypeBgColor } from '../../models/data-type.enum';
 import { HelpTooltipComponent } from '../../shared/help-tooltip/help-tooltip.component';
 import { HELP_TEXT } from '../../shared/constants/help-text';
-import { STEP_INFO } from '../../shared/constants/step-info';
+import { getStepInfo } from '../../shared/constants/step-info';
 import { DataTypeBadgeComponent } from '../../shared/data-type-badge/data-type-badge.component';
 import { WizardStep, WIZARD_STEP } from '../../shared/wizard-step';
+
+/** Input types that take no typed text, so "/" is free for the search shortcut there. */
+const NON_TEXT_INPUT_TYPES: ReadonlySet<string> = new Set([
+  'checkbox',
+  'radio',
+  'button',
+  'submit',
+  'reset',
+  'range',
+  'color',
+  'file',
+]);
+
+/** Whether a key typed on `target` is text entry (the "/" shortcut must not steal it). */
+function isTextEntry(target: EventTarget | null): boolean {
+  if (target instanceof HTMLInputElement) return !NON_TEXT_INPUT_TYPES.has(target.type);
+  if (target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) return true;
+  return target instanceof HTMLElement && target.isContentEditable;
+}
 
 @Component({
   selector: 'app-step2-column-selection',
@@ -20,7 +39,7 @@ import { WizardStep, WIZARD_STEP } from '../../shared/wizard-step';
   styleUrl: './step2-column-selection.component.scss',
   providers: [{ provide: WIZARD_STEP, useExisting: forwardRef(() => Step2ColumnSelectionComponent) }],
 })
-export class Step2ColumnSelectionComponent implements OnInit, AfterViewInit, WizardStep {
+export class Step2ColumnSelectionComponent implements OnInit, WizardStep {
   readonly primaryLabel = 'Continue to Configure Data & Features';
   readonly disabledHint = 'Please select at least one column to continue';
 
@@ -37,8 +56,9 @@ export class Step2ColumnSelectionComponent implements OnInit, AfterViewInit, Wiz
   // Enum reference for the template's type-filter <select>.
   DataType = DataType;
 
-  // Anchor index (into the currently filtered list) for shift-click range select.
-  private lastCheckedIndex: number | null = null;
+  // Anchor column for shift-click range select. Stored by name (not by index) so
+  // it stays valid when the search/type filter re-indexes the visible list.
+  private lastCheckedName: string | null = null;
   // Whether Shift was held during the click that precedes the next (change).
   private pendingShift = false;
 
@@ -50,20 +70,9 @@ export class Step2ColumnSelectionComponent implements OnInit, AfterViewInit, Wiz
 
   // Expose help text and step info to template
   readonly HELP_TEXT = HELP_TEXT;
-  readonly stepInfo = STEP_INFO[1]; // Step 2 (index 1)
+  readonly stepInfo = getStepInfo('columns');
 
   constructor(private preprocessingService: PreprocessingService) {}
-
-  // A6: scroll the requested setting into view when arriving via a review deep-link.
-  // The delay lets the shell's scroll-to-top run first so it does not override this.
-  ngAfterViewInit(): void {
-    const target = this.preprocessingService.consumeScrollTarget();
-    if (target) {
-      setTimeout(() => {
-        document.getElementById(target)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }, 120);
-    }
-  }
 
   ngOnInit(): void {
     const state = this.preprocessingService.currentState;
@@ -130,21 +139,25 @@ export class Step2ColumnSelectionComponent implements OnInit, AfterViewInit, Wiz
    * `newState` is its resulting checked value. We commit that single toggle, and if
    * Shift was held with a valid anchor, we extend the SAME state across the whole
    * inclusive range [min(anchor,current) .. max(anchor,current)] on the filtered list.
+   * The anchor is resolved in the *current* filtered list; if it is no longer
+   * visible, the shift-click acts as a plain click.
    */
   onCheckboxChange(index: number, columnName: string, event: Event): void {
     const newState = (event.target as HTMLInputElement).checked;
+    const visible = this.filteredColumns;
+    const anchorIndex = this.pendingShift ? visible.findIndex(col => col.name === this.lastCheckedName) : -1;
 
-    if (this.pendingShift && this.lastCheckedIndex !== null && this.lastCheckedIndex !== index) {
-      const lo = Math.min(this.lastCheckedIndex, index);
-      const hi = Math.max(this.lastCheckedIndex, index);
-      const names = this.filteredColumns.slice(lo, hi + 1).map(col => col.name);
+    if (anchorIndex !== -1 && anchorIndex !== index) {
+      const lo = Math.min(anchorIndex, index);
+      const hi = Math.max(anchorIndex, index);
+      const names = visible.slice(lo, hi + 1).map(col => col.name);
       this.preprocessingService.setColumnsEnabled(names, newState);
     } else {
       this.preprocessingService.setColumnsEnabled([columnName], newState);
     }
 
     this.columnConfigs = this.preprocessingService.currentState.columnConfigs;
-    this.lastCheckedIndex = index;
+    this.lastCheckedName = columnName;
     this.pendingShift = false;
   }
 
@@ -167,15 +180,20 @@ export class Step2ColumnSelectionComponent implements OnInit, AfterViewInit, Wiz
     this.columnConfigs = this.preprocessingService.currentState.columnConfigs;
   }
 
-  /** Focus the column search field when the user presses "/" (unless already typing). */
-  @HostListener('document:keydown', ['$event'])
+  /** "Clear search": empties the filter and keeps focus in the search field. */
+  clearSearch(): void {
+    this.searchTerm = '';
+    this.searchInput?.nativeElement.focus();
+  }
+
+  /**
+   * Focus the column search field when the user presses "/" (unless already
+   * typing). Bound to the step's host, not the document, so the single-key
+   * shortcut is only active while focus is inside this step (WCAG 2.1.4).
+   */
+  @HostListener('keydown', ['$event'])
   onKeyDown(event: KeyboardEvent): void {
-    if (event.key !== '/') return;
-    const target = event.target as HTMLElement | null;
-    const tag = target?.tagName;
-    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target?.isContentEditable) {
-      return;
-    }
+    if (event.key !== '/' || isTextEntry(event.target)) return;
     event.preventDefault();
     this.searchInput?.nativeElement.focus();
   }

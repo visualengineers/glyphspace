@@ -10,16 +10,11 @@
 }
 
 .step-content {
-  flex: 1;
-  max-width: 1150px;
-  margin: 0 auto;
-  padding: 16px 32px;
-  width: 100%;
-  box-sizing: border-box;
+  @include wizard.step-content;
 }
 
-.step-header {
-  @include wizard.step-header;
+.info-box {
+  @include wizard.info-box;
 }
 
 .upload-zone {
@@ -28,7 +23,9 @@
   padding: 40px 20px;
   text-align: center;
   background: white;
-  transition: all 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease;
   cursor: pointer;
   min-height: 250px;
   display: flex;
@@ -36,7 +33,7 @@
   justify-content: center;
 
   &.drag-over {
-    border-color: v.$active-color;
+    border-color: v.$color-accent;
     background: rgba(v.$active-color, 0.05);
   }
 
@@ -45,7 +42,7 @@
   }
 
   &:hover:not(.loading) {
-    border-color: v.$active-color;
+    border-color: v.$color-accent;
     background: v.$gray-100;
   }
 }
@@ -54,22 +51,22 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 16px;
+  gap: v.$space-4;
 }
 
 .upload-icon {
-  font-size: 48px;
-  color: v.$active-color;
+  font-size: v.$icon-size-3xl;
+  color: v.$color-accent;
 }
 
 .upload-text {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  color: v.$gray-600;
+  color: v.$text-muted;
 
   strong {
-    font-size: 14px;
+    font-size: v.$font-size-md;
     font-weight: bold;
     color: v.$gray-800;
   }
@@ -77,52 +74,78 @@
 
 .upload-button {
   @include wizard.btn-primary;
-  padding: 8px 20px;
+  padding: v.$space-2 20px;
+  font-family: inherit;
+}
+
+// "Try with sample data" + source attribution, under the upload zone.
+.sample-data {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: v.$space-1 v.$space-3;
+  margin-top: v.$space-3;
+}
+
+.btn-sample {
+  @include wizard.btn-text;
+  font-family: inherit;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.sample-attribution {
+  margin: 0;
+  font-size: v.$font-size-sm;
+  color: v.$text-muted;
 }
 
 .upload-hint {
-  font-size: 12px;
-  color: v.$gray-500;
+  font-size: v.$font-size-sm;
+  color: v.$text-muted;
 }
 
 .loading-state {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 16px;
+  gap: v.$space-4;
 }
 
 .spinner {
   width: 40px;
   height: 40px;
   border: 3px solid v.$gray-200;
-  border-top: 3px solid v.$active-color;
+  border-top: 3px solid v.$color-accent;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
 
 .loading-text {
-  font-size: 13px;
-  color: v.$gray-600;
+  font-size: v.$font-size-base;
+  color: v.$text-muted;
 }
 
 .error-message {
   @include wizard.message-error;
-  margin-top: 12px;
+  margin-top: v.$space-3;
 }
 
 .requirements {
-  margin-top: 16px;
-  padding: 12px;
+  margin-top: v.$space-4;
+  padding: v.$space-3;
   background: white;
   border-radius: 4px;
   border: 1px solid v.$gray-300;
 
   h3 {
-    font-size: 13px;
+    font-size: v.$font-size-base;
     font-weight: bold;
     color: v.$gray-800;
-    margin-bottom: 8px;
+    margin-bottom: v.$space-2;
   }
 
   ul {
@@ -131,17 +154,17 @@
     margin: 0;
 
     li {
-      padding: 4px 0;
-      color: v.$gray-600;
-      font-size: 13px;
+      padding: v.$space-1 0;
+      color: v.$text-muted;
+      font-size: v.$font-size-base;
       position: relative;
-      padding-left: 16px;
+      padding-left: v.$space-4;
 
       &::before {
         content: '•';
         position: absolute;
         left: 0;
-        color: v.$active-color;
+        color: v.$color-accent;
         font-weight: bold;
       }
     }
@@ -151,7 +174,7 @@
 .data-profile {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: v.$space-4;
 }
 
 .profile-header {
@@ -159,7 +182,7 @@
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: v.$space-3;
 }
 
 .profile-title {
@@ -168,21 +191,30 @@
   gap: 10px;
 
   .material-icons {
-    font-size: 28px;
-    color: v.$active-color;
+    font-size: v.$icon-size-xl;
+    color: v.$color-accent;
   }
 
   h3 {
-    font-size: 16px;
+    font-size: v.$font-size-lg;
     font-weight: bold;
     color: v.$gray-800;
     margin: 0;
+
+    // Programmatic focus target after a successful load (tabindex="-1").
+    &:focus:not(:focus-visible) {
+      outline: none;
+    }
+
+    &:focus-visible {
+      @include m.focus-ring;
+    }
   }
 }
 
 .profile-actions {
   display: flex;
-  gap: 8px;
+  gap: v.$space-2;
   flex-wrap: wrap;
 }
 
@@ -192,16 +224,16 @@
 
 .profile-stats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+  gap: v.$space-3;
 }
 
 .stat-card {
   @include wizard.card;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px;
+  gap: v.$space-3;
+  padding: v.$space-3;
   transition: box-shadow 0.2s ease;
 
   &:hover {
@@ -209,28 +241,25 @@
   }
 
   .material-icons {
-    font-size: 28px;
-    color: v.$active-color;
+    font-size: v.$icon-size-xl;
+    color: v.$color-accent;
   }
 
   &.quality-excellent .material-icons {
-    color: v.$active-color;
+    color: v.$color-accent;
   }
 
   &.quality-good .material-icons {
-    color: v.$gray-600;
+    color: v.$text-muted;
   }
 
-  &.quality-fair .material-icons {
-    color: v.$status-warning;
+  &.quality-fair .material-icons,
+  &.warning .material-icons {
+    color: v.$severity-warning-icon;
   }
 
   &.quality-poor .material-icons {
-    color: v.$status-error;
-  }
-
-  &.warning .material-icons {
-    color: v.$status-warning;
+    color: v.$severity-error-icon;
   }
 }
 
@@ -240,49 +269,29 @@
 }
 
 .stat-label {
-  font-size: 12px;
-  color: v.$gray-600;
+  font-size: v.$font-size-sm;
+  color: v.$text-muted;
   margin-bottom: 2px;
 }
 
 .stat-value {
-  font-size: 14px;
+  font-size: v.$font-size-md;
   font-weight: 600;
   color: v.$gray-800;
   @include m.text-truncate;
+
+  // Narrow cards: wrap instead of hiding part of the value behind an ellipsis.
+  @include wizard.below-stack {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
 }
 
 .profile-section {
   h4 {
-    font-size: 14px;
+    font-size: v.$font-size-md;
     font-weight: bold;
     color: v.$gray-800;
     margin-bottom: 10px;
-  }
-}
-
-.action-buttons {
-  @include wizard.action-buttons-footer;
-
-  .buttons-left {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-
-  .buttons-right {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-left: auto;
-  }
-}
-
-.btn-primary {
-  @include wizard.btn-primary;
-  padding: 8px 20px;
-
-  .material-icons {
-    font-size: 18px;
   }
 }

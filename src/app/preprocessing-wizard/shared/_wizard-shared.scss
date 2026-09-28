@@ -1,21 +1,107 @@
+@use 'sass:map';
 @use '../../../styles/variables' as v;
+@use '../../../styles/mixins' as m;
 
 // Shared wizard styles following GlyphSpace design system
 
+// ============================================================================
+// Responsive: below this width the two-column step layouts (Steps 3-5) stack
+// the rail/list above the detail panel (WCAG 1.4.10 reflow). At >= 1024px the
+// desktop layout — and with it the Step 2 -> 3 morph geometry — is unchanged.
+// ============================================================================
+@mixin below-stack {
+  @media (max-width: #{v.$breakpoint-stack - 0.02px}) {
+    @content;
+  }
+}
+
+// ============================================================================
+// Severity (error / warning / success / info) — tokens live in _variables.scss
+// ============================================================================
+$severity-tones: (
+  error: (
+    bg: v.$severity-error-bg,
+    tint: v.$severity-error-tint,
+    border: v.$severity-error-border,
+    text: v.$severity-error-text,
+    icon: v.$severity-error-icon,
+  ),
+  warning: (
+    bg: v.$severity-warning-bg,
+    tint: v.$severity-warning-tint,
+    border: v.$severity-warning-border,
+    text: v.$severity-warning-text,
+    icon: v.$severity-warning-icon,
+  ),
+  success: (
+    bg: v.$severity-success-bg,
+    tint: v.$severity-success-tint,
+    border: v.$severity-success-border,
+    text: v.$severity-success-text,
+    icon: v.$severity-success-icon,
+  ),
+  info: (
+    bg: v.$severity-info-bg,
+    tint: v.$severity-info-tint,
+    border: v.$severity-info-border,
+    text: v.$severity-info-text,
+    icon: v.$severity-info-icon,
+  ),
+);
+
+@function severity($tone, $key) {
+  @if not map.has-key($severity-tones, $tone) {
+    @error 'Unknown severity tone `#{$tone}`; expected one of #{map.keys($severity-tones)}.';
+  }
+  @return map.get($severity-tones, $tone, $key);
+}
+
+// Tinted severity surface. `$bar: true` = message style (tint background + 3px
+// left bar), otherwise a panel (subtle background + hairline border). Body text
+// stays neutral unless `$tinted-text` is set; the panel's own (direct-child)
+// icon takes the tone, icons of nested controls keep their colour.
+@mixin severity-panel($tone, $bar: false, $tinted-text: false) {
+  @if $bar {
+    background: severity($tone, tint);
+    border-left: 3px solid severity($tone, icon);
+  } @else {
+    background: severity($tone, bg);
+    border: 1px solid severity($tone, border);
+  }
+
+  @if $tinted-text {
+    color: severity($tone, text);
+  }
+
+  > .material-icons {
+    color: severity($tone, icon);
+  }
+}
+
+// Tone-coloured text/pill on the tone's tint (badges, tags, counters).
+@mixin severity-badge($tone) {
+  background: severity($tone, tint);
+  color: severity($tone, text);
+}
+
+// ============================================================================
+// Headers
+// ============================================================================
+
 @mixin step-header {
   text-align: left;
-  margin-bottom: 16px;
+  margin-bottom: v.$space-4;
 
   h2 {
-    font-size: 16px;
+    font-size: v.$font-size-lg;
     font-weight: bold;
     color: v.$gray-800;
     margin-bottom: 6px;
   }
 
   p {
-    font-size: 13px;
-    color: v.$gray-600;
+    font-size: v.$font-size-base;
+    color: v.$text-muted;
   }
 }
 
@@ -32,26 +118,35 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 12px;
-  font-size: 13px;
+  padding: 6px v.$space-3;
+  font-size: v.$font-size-base;
   border-radius: 8px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease,
+    opacity 0.2s ease;
   border: none;
 
   .material-icons {
-    font-size: 18px;
+    font-size: v.$icon-size-md;
+  }
+
+  &:focus-visible {
+    @include m.focus-ring;
   }
 }
 
+// Primary action: white on the accessible accent (5.60:1; hover 7.74:1).
 @mixin btn-primary {
   @include btn-base;
-  background: v.$active-color;
+  background: v.$color-accent;
   color: white;
   font-weight: 600;
 
   &:hover:not(:disabled) {
-    opacity: 0.9;
+    background: v.$color-accent-hover;
   }
 
   &:disabled {
@@ -88,11 +183,40 @@
   }
 }
 
+// Small bordered "reset to default" button (Step 3 fields, Step 4 params).
+@mixin btn-reset {
+  @include btn-base;
+  margin-left: auto;
+  flex-shrink: 0;
+  background: white;
+  border: 1px solid v.$gray-300;
+  color: v.$text-muted;
+  font-size: v.$font-size-xs;
+  font-weight: 600;
+  padding: 2px v.$space-2;
+  gap: 3px;
+
+  .material-icons {
+    font-size: v.$icon-size-xs;
+  }
+
+  &:hover:not(:disabled) {
+    background: v.$gray-100;
+    border-color: v.$color-accent;
+    color: v.$color-accent;
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+}
+
 // Badges
 @mixin badge {
-  padding: 2px 8px;
+  padding: 2px v.$space-2;
   border-radius: 4px;
-  font-size: 11px;
+  font-size: v.$font-size-xs;
   font-weight: 600;
   text-transform: uppercase;
 }
@@ -101,48 +225,45 @@
 @mixin status-badge {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 4px 8px;
+  gap: v.$space-1;
+  padding: v.$space-1 v.$space-2;
   border-radius: 4px;
-  font-size: 11px;
+  font-size: v.$font-size-xs;
   font-weight: 600;
 
   .material-icons {
-    font-size: 14px;
+    font-size: v.$icon-size-xs;
   }
 
   &.status-yes,
   &.status-complete {
-    background: rgba(v.$status-success, 0.1);
-    color: v.$status-success-dark;
+    @include severity-badge(success);
   }
 
   &.status-no {
     background: rgba(158, 158, 158, 0.1);
-    color: v.$gray-600;
+    color: v.$text-muted;
   }
 
   &.status-running {
-    background: rgba(v.$active-color, 0.1);
-    color: v.$active-color;
+    @include severity-badge(info);
   }
 
   &.status-error {
-    background: rgba(v.$status-error, 0.1);
-    color: v.$status-error-dark;
+    @include severity-badge(error);
   }
 }
 
 // Data type label — colorless (A15 feedback): the data type is shown as a plain
 // uppercase grey label, not a colored badge, so tables/lists stay low-color and
-// only the cyan accent + informational missing/warning badges carry color.
+// only the accent + informational missing/warning badges carry color.
 @mixin data-type-badge {
   flex-shrink: 0;
-  font-size: 9px;
+  font-size: v.$font-size-xs;
   font-weight: 700;
   letter-spacing: 0.6px;
   text-transform: uppercase;
-  color: v.$gray-500;
+  color: v.$text-muted;
   background: none;
   padding: 0;
 }
@@ -151,43 +272,37 @@
 @mixin message-base {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
+  gap: v.$space-2;
+  padding: 10px v.$space-3;
   border-radius: 8px;
-  font-size: 13px;
+  font-size: v.$font-size-base;
 
   .material-icons {
-    font-size: 18px;
+    font-size: v.$icon-size-md;
   }
 }
 
 @mixin message-info {
   @include message-base;
-  background: rgba(v.$active-color, 0.1);
-  border-left: 3px solid v.$active-color;
-  color: v.$status-info;
+  @include severity-panel(info, $bar: true, $tinted-text: true);
 }
 
 @mixin message-warning {
   @include message-base;
-  background: rgba(v.$status-warning, 0.1);
-  border-left: 3px solid v.$status-warning;
-  color: v.$status-warning-dark;
+  @include severity-panel(warning, $bar: true, $tinted-text: true);
 }
 
 @mixin message-error {
   @include message-base;
-  background: rgba(v.$status-error, 0.1);
-  border-left: 3px solid v.$status-error;
-  color: v.$status-error-dark;
+  @include severity-panel(error, $bar: true, $tinted-text: true);
 }
 
 // Form elements
 @mixin input-base {
-  padding: 8px 10px;
+  padding: v.$space-2 10px;
   border: 1px solid v.$gray-300;
   border-radius: 8px;
-  font-size: 13px;
+  font-size: v.$font-size-base;
   background: white;
   transition: border-color 0.2s ease;
 
@@ -197,7 +312,12 @@
 
   &:focus {
     outline: none;
-    border-color: v.$active-color;
+    border-color: v.$color-accent;
+  }
+
+  // Declared after :focus so the keyboard ring wins over `outline: none`.
+  &:focus-visible {
+    @include m.focus-ring;
   }
 }
 
@@ -207,7 +327,7 @@
   appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position: right 8px center;
+  background-position: right v.$space-2 center;
   padding-right: 28px;
 }
 
@@ -215,13 +335,17 @@
   width: 18px;
   height: 18px;
   cursor: pointer;
-  accent-color: v.$active-color;
+  accent-color: v.$color-accent;
+
+  &:focus-visible {
+    @include m.focus-ring;
+  }
 }
 
 // ============================================================================
 // Unified table/list selection system (A15)
 // One consistent pattern for every selectable table/list in the wizard:
-// selection control on the LEFT, a header "select all" toggle, a single blue
+// selection control on the LEFT, a header "select all" toggle, a single
 // accent color, and no data-type color-coding of rows.
 // ============================================================================
 
@@ -232,15 +356,19 @@ $selection-col-width: 44px;
 $selection-col-pad-left: 12px;
 
 // The single selection checkbox used everywhere (header + rows + list items).
-// Accent is the shared $active-color (#00bcd4 cyan) from the design template.
+// Checked fill uses the accessible accent (5.60:1 on white; cyan was 2.2:1).
 @mixin selection-checkbox {
   width: 15px;
   height: 15px;
   margin: 0;
   cursor: pointer;
-  accent-color: v.$active-color;
+  accent-color: v.$color-accent;
   flex-shrink: 0;
   vertical-align: middle;
+
+  &:focus-visible {
+    @include m.focus-ring;
+  }
 }
 
 // Left-hand selection cell / container (table <th>/<td> or flex list item).
@@ -261,14 +389,15 @@ $selection-col-pad-left: 12px;
 
 // Live selection count rendered as accent text in the header/filter bar.
 @mixin selection-count-text {
-  font-size: 13px;
+  font-size: v.$font-size-base;
   font-weight: 600;
-  color: v.$status-info;
+  color: v.$color-accent;
   white-space: nowrap;
 }
 
-// Search box — shared between column selection, data features, and legend
-@mixin search-box($padding: 5px 8px, $icon-size: 18px, $border-color: v.$gray-300) {
+// Search box — shared between column selection, data features, and legend.
+// The field is borderless inside its box, so the whole box carries the ring.
+@mixin search-box($padding: 5px v.$space-2, $icon-size: v.$icon-size-md, $border-color: v.$gray-300) {
   display: flex;
   align-items: center;
   background: white;
@@ -276,22 +405,27 @@ $selection-col-pad-left: 12px;
   border-radius: 8px;
   padding: $padding;
 
+  &:focus-within {
+    @include m.focus-ring(1px);
+  }
+
   .material-icons {
-    color: v.$gray-500;
+    color: v.$text-muted;
     font-size: $icon-size;
     margin-right: 6px;
   }
 
   .search-input {
     flex: 1;
+    min-width: 0;
     border: none;
     outline: none;
-    font-size: 13px;
+    font-size: v.$font-size-base;
     color: v.$gray-800;
     background: transparent;
 
     &::placeholder {
-      color: v.$gray-500;
+      color: v.$text-muted;
     }
   }
 
@@ -302,14 +436,18 @@ $selection-col-pad-left: 12px;
     cursor: pointer;
     display: flex;
     align-items: center;
-    color: v.$gray-500;
+    color: v.$text-muted;
 
     &:hover {
       color: v.$gray-800;
     }
 
+    &:focus-visible {
+      @include m.focus-ring(0);
+    }
+
     .material-icons {
-      font-size: 16px;
+      font-size: v.$icon-size-sm;
       margin: 0;
     }
   }
@@ -333,12 +471,15 @@ $wizard-header-row-height: 40px;
 // ============================================================================
 $wizard-rail-width: 320px;
 $wizard-list-viewport-height: 420px;
-$wizard-list-row-padding: 10px 12px;
 // A14: One fixed row height for BOTH the Step 2 table rows and the Step 3 rail
 // items so column N sits at the same y-position in both steps (row N in step 2
 // morphs to row N in step 3 with minimal vertical movement). Sized to fit the
 // Step 3 two-line item (name/type + config summary) without clipping.
 $wizard-list-row-height: 56px;
+// Box height shared by Step 2's table viewport and Step 3's rail/well shell.
+$wizard-list-box-height: $wizard-list-viewport-height + $wizard-header-row-height;
+// Max height of a list when it is stacked above its detail panel (< 1024px).
+$wizard-stacked-list-max-height: min(50vh, #{$wizard-list-viewport-height});
 
 @mixin list-header-row {
   display: flex;
@@ -360,14 +501,14 @@ $wizard-list-row-height: 56px;
 @mixin table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: v.$font-size-base;
   background: v.$wizard-table-bg;
 
   thead {
     background: v.$wizard-table-header-bg;
     position: sticky;
     top: 0;
-    z-index: 10;
+    z-index: v.$z-sticky-header;
 
     tr {
       border-bottom: 2px solid v.$gray-300;
@@ -375,12 +516,12 @@ $wizard-list-row-height: 56px;
 
     th {
       height: $wizard-header-row-height;
-      padding: 0 12px;
+      padding: 0 v.$space-3;
       text-align: left;
       vertical-align: middle;
       font-weight: 600;
       color: v.$gray-700;
-      font-size: 12px;
+      font-size: v.$font-size-sm;
       text-transform: uppercase;
       letter-spacing: 0.5px;
       white-space: nowrap;
@@ -398,7 +539,7 @@ $wizard-list-row-height: 56px;
     }
 
     td {
-      padding: 10px 12px;
+      padding: 10px v.$space-3;
       vertical-align: middle;
       color: v.$gray-800;
     }
@@ -420,6 +561,7 @@ $wizard-list-row-height: 56px;
   overflow: hidden;
 }
 
+// Decorative fill (the percentage is always shown as text): bright cyan.
 @mixin progress-fill {
   height: 100%;
   background: v.$active-color;
@@ -427,40 +569,53 @@ $wizard-list-row-height: 56px;
 }
 
 // No content states
-@mixin no-content($padding: 40px 20px, $icon-size: 48px, $text-size: 13px) {
+@mixin no-content($padding: 40px 20px, $icon-size: v.$icon-size-3xl, $text-size: v.$font-size-base) {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: $padding;
   text-align: center;
-  color: v.$gray-600;
+  color: v.$text-muted;
 
   .material-icons {
     font-size: $icon-size;
     color: v.$gray-400;
-    margin-bottom: 12px;
+    margin-bottom: v.$space-3;
   }
 
   h3 {
-    font-size: 16px;
+    font-size: v.$font-size-lg;
     color: v.$gray-700;
     margin-bottom: 6px;
   }
 
   p {
     font-size: $text-size;
-    color: v.$gray-600;
-    margin: 4px 0;
+    color: v.$text-muted;
+    margin: v.$space-1 0;
   }
 }
 
-// Step content wrapper - fills the available work-area width with consistent padding
+// ============================================================================
+// Step content wrapper — ONE width policy for all six steps: fill the work
+// area up to a shared max width, centred, with the same padding everywhere.
+// The shared max width + centring keeps Step 2's column band and Step 3's
+// master rail on the same left edge, so the Step 2 -> 3 morph lines up.
+// ============================================================================
+$wizard-content-max-width: 1150px;
+
 @mixin step-content {
   flex: 1;
-  padding: 24px 32px;
   width: 100%;
+  max-width: $wizard-content-max-width;
+  margin: 0 auto;
+  padding: v.$space-6 v.$space-8;
   box-sizing: border-box;
+
+  @include below-stack {
+    padding: v.$space-4;
+  }
 }
 
 // Action buttons footer - fixed at bottom with Back on left, Next on right
@@ -468,8 +623,8 @@ $wizard-list-row-height: 56px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 12px;
-  padding: 16px 32px;
+  gap: v.$space-3;
+  padding: v.$space-4 v.$space-8;
   border-top: 1px solid v.$gray-300;
   margin-top: auto;
   background: v.$wizard-header-bg;
@@ -477,14 +632,93 @@ $wizard-list-row-height: 56px;
   bottom: -1px;
   left: 0;
   right: 0;
-  z-index: 5;
+  z-index: v.$z-sticky;
   flex-shrink: 0;
+
+  @include below-stack {
+    padding: v.$space-3 v.$space-4;
+  }
+}
+
+// Invisible scroll anchor used by deep-links (undo/redo "Show change" and the
+// review step's edit links) so the target scrolls into view below sticky bars.
+@mixin scroll-anchor {
+  display: block;
+  height: 0;
+  scroll-margin-top: v.$space-3;
+
+  // Deep-link focus target (tabindex="-1" set by the shell): no ring on a 0px line.
+  &:focus {
+    outline: none;
+  }
+}
+
+// Compact warning line under a list (Steps 4 and 5 validation hints).
+@mixin inline-warning {
+  @include severity-panel(warning, $bar: true, $tinted-text: true);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px v.$space-2;
+  border-radius: 8px;
+  font-size: v.$font-size-sm;
+
+  .material-icons {
+    font-size: v.$icon-size-xs;
+  }
+}
+
+// White settings panel with an icon heading (Steps 4 and 5).
+@mixin config-panel {
+  background: white;
+  border: 1px solid v.$gray-300;
+  border-radius: 8px;
+  padding: 14px v.$space-4;
+  margin-bottom: v.$space-4;
+
+  h3 {
+    display: flex;
+    align-items: center;
+    gap: v.$space-2;
+    font-size: v.$font-size-md;
+    font-weight: 600;
+    color: v.$gray-800;
+    margin: 0 0 v.$space-2;
+
+    .material-icons {
+      font-size: v.$icon-size-md;
+      color: v.$color-accent;
+    }
+  }
+
+  .panel-description {
+    font-size: v.$font-size-sm;
+    color: v.$text-muted;
+    margin-bottom: 10px;
+  }
+}
+
+// "Nothing matches" hint inside a filtered list, with an inline clear button.
+@mixin list-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: v.$space-4 v.$space-2;
+  color: v.$text-muted;
+  font-size: v.$font-size-sm;
+
+  .btn-clear-inline {
+    @include btn-text;
+    font-size: v.$font-size-xs;
+    padding: 3px v.$space-2;
+  }
 }
 
 // Info boxes for step-level guidance
 @mixin info-box {
   @include message-info;
-  margin-bottom: 16px;
+  margin-bottom: v.$space-4;
 
   .material-icons {
     flex-shrink: 0;
@@ -493,31 +727,22 @@ $wizard-list-row-height: 56px;
 
 @mixin warning-box {
   @include message-warning;
-  margin-bottom: 16px;
+  margin-bottom: v.$space-4;
 
   .material-icons {
     flex-shrink: 0;
   }
 }
 
-// Step purpose statement
-@mixin step-purpose {
-  text-align: left;
-  font-size: 13px;
-  color: v.$gray-600;
-  margin-bottom: 16px;
-  line-height: 1.5;
-}
-
 // Progress indicator for glyph features
 @mixin feature-progress {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-bottom: 12px;
+  gap: v.$space-2;
+  margin-bottom: v.$space-3;
 
   .progress-text {
-    font-size: 13px;
+    font-size: v.$font-size-base;
     font-weight: 600;
     color: v.$gray-700;
   }
@@ -529,21 +754,4 @@ $wizard-list-row-height: 56px;
   .progress-fill {
     @include progress-fill;
   }
-}
-
-// Helper classes that can be used directly in templates
-.info-box {
-  @include info-box;
-}
-
-.warning-box {
-  @include warning-box;
-}
-
-.step-purpose {
-  @include step-purpose;
-}
-
-.feature-progress {
-  @include feature-progress;
 }

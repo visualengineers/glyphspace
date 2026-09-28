@@ -4,5 +4,20 @@
   [style.left.px]="tooltipX"
   [style.top.px]="tooltipY"
   [style.display]="tooltipVisible || tooltipFixed ? 'block' : 'none'"
-  [innerHTML]="tooltipText"
-></div>
+>
+  @if (tooltipInfo; as info) {
+    <div class="tooltip-body">
+      <b>Item: {{ info.id }}</b>
+      <table>
+        @for (row of info.rows; track row.key) {
+          <tr>
+            <th scope="row">{{ row.label }}</th>
+            <td [class.missing]="row.value === null">{{ row.value ?? 'missing' }}</td>
+          </tr>
+        }
+      </table>
+    </div>
+  } @else {
+    Unnamed object
+  }
+</div>

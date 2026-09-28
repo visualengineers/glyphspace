@@ -1,4 +1,4 @@
-import { SimulationNodeDatum } from 'd3-force';
+import { SimulationNodeDatum } from 'd3';
 import { Coordinates } from '../shared/interfaces/coordinates';
 import { Object3D } from 'three';
 

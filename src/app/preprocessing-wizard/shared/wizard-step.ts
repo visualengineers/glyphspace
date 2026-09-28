@@ -1,12 +1,12 @@
 import { InjectionToken } from '@angular/core';
 
 /**
- * Contract that each navigable wizard step (steps 1–4) implements so the
- * shell can render a single, centralized navigation bar instead of every
- * step carrying its own footer buttons.
+ * Contract that each navigable wizard step (every step before Review & Process)
+ * implements so the shell can render a single, centralized navigation bar
+ * instead of every step carrying its own footer buttons.
  *
  * The shell resolves the currently rendered step via the WIZARD_STEP token
- * (see PreprocessingWizardComponent). Step 5 (Review & Process) has its own
+ * (see PreprocessingWizardComponent). The review step has its own
  * context-dependent footer and deliberately does not provide the token.
  */
 export interface WizardStep {

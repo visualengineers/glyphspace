@@ -211,22 +211,6 @@ export const HELP_TEXT = {
       technical: 'Minimizes stress function to preserve pairwise distances in lower dimensions.',
     },
 
-    lle: {
-      name: 'LLE (Locally Linear Embedding)',
-      when: 'Computes in background',
-      description: 'Non-linear technique that preserves local neighborhood geometry.',
-      bestFor: [
-        'Data lying on curved manifolds',
-        'Preserving local neighborhood structure',
-        'When data has intrinsic low-dimensional structure',
-        'Discovering underlying geometry',
-      ],
-      characteristics: 'Assumes data lies on a smooth manifold. Good at unfolding curved structures.',
-      speed: 'Medium (few seconds to a minute)',
-      technical: 'Reconstructs each point from its neighbors, then finds low-dimensional embedding.',
-      warnings: ['Sensitive to neighborhood size selection', 'May struggle with holes or disconnected regions'],
-    },
-
     ltsa: {
       name: 'LTSA (Local Tangent Space Alignment)',
       when: 'Computes in background',
@@ -294,7 +278,7 @@ export const HELP_TEXT = {
         FastMap is ideal for large datasets (40K+) due to its O(n) complexity.<br/><br/>
 
         <strong>Background Computation:</strong> While you explore with FastMap, other selected projections
-        (PCA, IsoMap, MDS, LLE, t-SNE, UMAP, TriMap, etc.) compute in the background without blocking your workflow.<br/><br/>
+        (PCA, IsoMap, MDS, t-SNE, UMAP, TriMap, etc.) compute in the background without blocking your workflow.<br/><br/>
 
         <strong>Notifications:</strong> When each projection finishes, you'll see a notification with an
         option to switch to that view. The projection is automatically added to the dropdown.<br/><br/>
@@ -305,65 +289,52 @@ export const HELP_TEXT = {
     },
   },
 
-  // Projection Parameters
+  // Projection Parameters (shown in Step 4 next to the sliders)
   parameters: {
-    tsnePerplexity: `<strong>Perplexity</strong> controls neighborhood size for t-SNE<br/><br/>
-      • <strong>Low (5-15):</strong> Focuses on very local clusters, may create many small groups<br/>
-      • <strong>Medium (20-40):</strong> Balanced view (recommended for most cases)<br/>
-      • <strong>High (40-50):</strong> Emphasizes global structure, fewer larger groups<br/><br/>
-      <em>💡 Rule of thumb:</em> Use 30 for datasets with 1,000-10,000 rows`,
+    tsnePerplexity: `<strong>Perplexity</strong>: roughly how many neighbors t-SNE looks at for each point.<br/><br/>
+      • <strong>Low (5–15):</strong> very local view; groups often split into small fragments<br/>
+      • <strong>Around 30 (default):</strong> a good balance for most data<br/>
+      • <strong>High (40–50):</strong> wider view; groups become smoother and rounder<br/><br/>
+      <em>Rule of thumb: 30 works well for 1,000–10,000 rows.</em>`,
 
-    tsneIterations: `<strong>Iterations</strong> - number of optimization steps<br/><br/>
-      More iterations = better quality but slower processing<br/><br/>
-      • <strong>250-500:</strong> Fast preview, may not fully converge<br/>
-      • <strong>1000:</strong> Standard quality (recommended)<br/>
-      • <strong>2000+:</strong> High quality for final visualization<br/><br/>
-      <em>If the plot still shows movement, try increasing iterations</em>`,
+    tsneIterations: `<strong>Iterations</strong>: how long t-SNE keeps improving the layout.<br/><br/>
+      • <strong>250–500:</strong> quick preview; the layout may not have settled yet<br/>
+      • <strong>1000 (default):</strong> good quality for most data<br/>
+      • <strong>2000+:</strong> a little better, but takes longer<br/><br/>
+      <em>If groups still look smeared, try more iterations.</em>`,
 
-    tsneLearningRate: `<strong>Learning Rate</strong> controls optimization speed<br/><br/>
-      200 is a safe default for most datasets<br/><br/>
-      • Too low (50-100): Slow convergence, may get stuck<br/>
-      • Good (150-300): Balanced optimization<br/>
-      • Too high (500+): May miss fine structure<br/><br/>
-      <em>💡 If visualization looks compressed, try 100-150. If too spread out, try 300-500</em>`,
+    tsneLearningRate: `<strong>Learning rate</strong>: how big a step t-SNE takes when it moves points.<br/><br/>
+      • <strong>Too low (50–100):</strong> slow, and may get stuck<br/>
+      • <strong>Around 200 (default):</strong> safe for most data<br/>
+      • <strong>Too high (500+):</strong> may miss fine structure<br/><br/>
+      <em>If the picture looks squeezed, try 100–150; if it looks scattered, try 300–500.</em>`,
 
-    umapNeighbors: `<strong>N Neighbors</strong> controls local vs global structure<br/><br/>
-      • <strong>Low (2-10):</strong> Focus on local structure, detailed clusters<br/>
-      • <strong>Medium (15-30):</strong> Balanced view (recommended)<br/>
-      • <strong>High (50+):</strong> More global structure, smoother layout`,
+    umapNeighbors: `<strong>Number of neighbors</strong>: how many nearby points UMAP looks at for each point.<br/><br/>
+      • <strong>Few (2–10):</strong> fine detail; groups may break into small pieces<br/>
+      • <strong>Around 15 (default):</strong> a good balance for most data<br/>
+      • <strong>Many (50+):</strong> the big picture; groups become looser and move closer together`,
 
-    umapMinDist: `<strong>Min Distance</strong> controls cluster tightness<br/><br/>
-      • <strong>Low (0.0-0.1):</strong> Tight, dense clusters<br/>
-      • <strong>Medium (0.1-0.3):</strong> Balanced<br/>
-      • <strong>High (0.4-0.99):</strong> Loose, spread out points<br/><br/>
-      <em>Lower values emphasize cluster structure</em>`,
+    umapMinDist: `<strong>Minimum distance</strong>: how tightly UMAP may pack points together.<br/><br/>
+      • <strong>Low (0–0.1):</strong> dense, tight clumps; groups are easy to tell apart<br/>
+      • <strong>Medium (0.1–0.5):</strong> compact groups with some space between the points<br/>
+      • <strong>High (0.5–0.99):</strong> points spread out evenly; shows the overall shape better<br/><br/>
+      <em>The default is 0.1.</em>`,
 
-    isomapNeighbors: `<strong>Neighbors</strong> controls the size of local neighborhoods<br/><br/>
-      • <strong>Auto (0):</strong> Automatically set based on dataset size<br/>
-      • <strong>Low (5-15):</strong> Captures fine local structure<br/>
-      • <strong>Medium (15-50):</strong> Balanced approach<br/>
-      • <strong>High (50+):</strong> Smoother, more global structure<br/><br/>
-      <em>Smaller values reveal local manifold structure, larger values create smoother projections</em>`,
+    isomapNeighbors: `<strong>Neighbors</strong>: how many nearby points IsoMap connects to each point.<br/><br/>
+      • <strong>0 = auto:</strong> about one tenth of the rows<br/>
+      • <strong>Few (5–15):</strong> follows fine, curved structure; separate groups may lose their connection<br/>
+      • <strong>Many (50+):</strong> smoother, more global layout that can cut across curves`,
 
-    lleNeighbors: `<strong>Neighbors</strong> for local linear reconstruction<br/><br/>
-      • <strong>Auto (0):</strong> Automatically set (typically N/10)<br/>
-      • <strong>Low (5-10):</strong> Very local reconstruction<br/>
-      • <strong>Medium (10-30):</strong> Balanced<br/>
-      • <strong>High (30+):</strong> Broader neighborhoods<br/><br/>
-      <em>Should be larger than the intrinsic dimensionality of the data</em>`,
+    lleNeighbors: `<strong>Neighbors</strong>: how many nearby points LLE uses to rebuild each point.<br/><br/>
+      • <strong>0 = auto:</strong> about one tenth of the rows<br/>
+      • <strong>Few (5–10):</strong> very local; the layout can collapse into lines or dots<br/>
+      • <strong>More (10–30):</strong> usually more stable<br/><br/>
+      <em>Use more neighbors than the number of columns that really matter.</em>`,
 
-    ltsaNeighbors: `<strong>Neighbors</strong> for tangent space estimation<br/><br/>
-      • <strong>Auto (0):</strong> Automatically set based on dataset<br/>
-      • <strong>Low (5-15):</strong> Captures detailed curvature<br/>
-      • <strong>Medium (15-40):</strong> Balanced approach<br/>
-      • <strong>High (40+):</strong> Smoother tangent spaces<br/><br/>
-      <em>Larger values produce smoother embeddings but may miss fine structure</em>`,
-
-    trimapWeightAdj: `<strong>Weight Adjustment</strong> controls triplet constraint strength<br/><br/>
-      • <strong>Low (100-300):</strong> More flexible embedding<br/>
-      • <strong>Default (500):</strong> Balanced<br/>
-      • <strong>High (700-2000):</strong> Stricter triplet preservation<br/><br/>
-      <em>Higher values produce tighter clusters but may over-constrain the layout</em>`,
+    ltsaNeighbors: `<strong>Neighbors</strong>: how many nearby points LTSA uses to estimate the local shape.<br/><br/>
+      • <strong>0 = auto:</strong> about one tenth of the rows<br/>
+      • <strong>Few (5–15):</strong> follows detailed curves, but is less stable<br/>
+      • <strong>Many (40+):</strong> smoother result that may miss small details`,
   },
 
   // Table Column Headers

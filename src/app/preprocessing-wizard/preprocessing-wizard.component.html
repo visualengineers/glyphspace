@@ -1,12 +1,57 @@
-<div class="preprocessing-wizard">
+<div class="preprocessing-wizard" #dialogRoot role="dialog" aria-modal="true" aria-labelledby="wizard-dialog-title">
   <div class="wizard-titlebar">
-    <h1>Data Preprocessing Wizard</h1>
+    <div class="wizard-titles">
+      <h1 id="wizard-dialog-title" #dialogTitle tabindex="-1">Data Preprocessing Wizard</h1>
+      <span class="title-separator" aria-hidden="true">/</span>
+      <!-- Focus target after every step change (WCAG 2.4.3). -->
+      <h2 class="step-title" #stepTitle tabindex="-1">
+        <span class="step-count">Step {{ currentStep + 1 }} of {{ stepCount }}:</span> {{ stepTitleText }}
+      </h2>
+    </div>
     <div class="header-actions">
-      <button class="btn-icon" (click)="reset()" title="Start Over">
-        <span class="material-icons">delete</span>
+      <!-- Inline Material Symbols undo/redo paths: the bundled Material Icons font has no matching glyph,
+           and loading the Symbols font from a CDN would add a runtime dependency. -->
+      <button
+        class="btn-icon btn-history"
+        type="button"
+        (click)="undo()"
+        [disabled]="undoDisabled"
+        [title]="undoTooltip"
+        aria-label="Undo"
+      >
+        <svg class="history-icon" viewBox="0 -960 960 960" aria-hidden="true" focusable="false">
+          <path
+            d="M280-200v-80h284q63 0 109.5-40T720-420q0-60-46.5-100T564-560H312l104 104-56 56-200-200 200-200 56 56-104 104h252q97 0 166.5 63T800-420q0 94-69.5 157T564-200H280Z"
+          />
+        </svg>
       </button>
-      <button class="btn-icon" (click)="closeWizard()" title="Close">
-        <span class="material-icons">close</span>
+      <button
+        class="btn-icon btn-history"
+        type="button"
+        (click)="redo()"
+        [disabled]="redoDisabled"
+        [title]="redoTooltip"
+        aria-label="Redo"
+      >
+        <svg class="history-icon" viewBox="0 -960 960 960" aria-hidden="true" focusable="false">
+          <path
+            d="M396-200q-97 0-166.5-63T160-420q0-94 69.5-157T396-640h252L544-744l56-56 200 200-200 200-56-56 104-104H396q-63 0-109.5 40T240-420q0 60 46.5 100T396-280h284v80H396Z"
+          />
+        </svg>
+      </button>
+      <span class="header-divider" aria-hidden="true"></span>
+      <button
+        class="btn-icon"
+        type="button"
+        (click)="reset()"
+        title="Start over"
+        aria-label="Start over"
+        aria-haspopup="dialog"
+      >
+        <span class="material-icons" aria-hidden="true">restart_alt</span>
+      </button>
+      <button class="btn-icon" type="button" (click)="closeWizard()" title="Close (Esc)" aria-label="Close wizard">
+        <span class="material-icons" aria-hidden="true">close</span>
       </button>
     </div>
   </div>
@@ -23,74 +68,27 @@
     </aside>
 
     <div class="wizard-main">
-      <!-- A4: persistent undo/redo controls at the top of the work area. Curved
-           icons and a top-right position keep them visually distinct from the
-           Back/Weiter step navigation pinned to the bottom. -->
-      <div class="wizard-toolbar">
-        <button
-          class="btn-history"
-          type="button"
-          (click)="undo()"
-          [disabled]="!history.canUndo"
-          [title]="undoTooltip"
-          aria-label="Rückgängig"
-        >
-          <!-- Undo/Redo als Inline-SVG statt Icon-Font, bewusst.
-               Gewünscht ist der kantige Haken-Pfeil aus dem "Material Symbols"-Stil.
-               Warum nicht die Icon-Font-Bibliothek genutzt wird:
-               1. Das Projekt bündelt lokal nur das klassische "Material Icons"-Paket;
-                  dessen "undo"-Glyph ist runder und trifft die gewünschte Form nicht.
-               2. Das passende "material-symbols"-Paket lässt sich hier nicht sauber
-                  ergänzen: node_modules ist eine geteilte Windows-Junction über alle
-                  Worktrees, ein "npm install" würde also das ganze Projekt verändern
-                  statt nur diesen Branch.
-               3. Die App läuft als GitHub Pages ohne Backend; das Nachladen des
-                  Symbols-Fonts von einem externen Google-Fonts-CDN würde eine
-                  Laufzeit-Fremdabhängigkeit einführen, die das Projekt vermeidet.
-               Daher: die offiziellen Material-Symbols-Pfade für undo/redo verbatim
-               inline (dependency-frei, exakt, nur auf diese zwei Buttons begrenzt);
-               redo ist die gespiegelte Form. -->
-          <svg class="history-icon" viewBox="0 -960 960 960" aria-hidden="true" focusable="false">
-            <path
-              d="M280-200v-80h284q63 0 109.5-40T720-420q0-60-46.5-100T564-560H312l104 104-56 56-200-200 200-200 56 56-104 104h252q97 0 166.5 63T800-420q0 94-69.5 157T564-200H280Z"
-            />
-          </svg>
-        </button>
-        <button
-          class="btn-history"
-          type="button"
-          (click)="redo()"
-          [disabled]="!history.canRedo"
-          [title]="redoTooltip"
-          aria-label="Wiederherstellen"
-        >
-          <!-- Gespiegelte Form (redo). -->
-          <svg class="history-icon" viewBox="0 -960 960 960" aria-hidden="true" focusable="false">
-            <path
-              d="M396-200q-97 0-166.5-63T160-420q0-94 69.5-157T396-640h252L544-744l56-56 200 200-200 200-56-56 104-104H396q-63 0-109.5 40T240-420q0 60 46.5 100T396-280h284v80H396Z"
-            />
-          </svg>
-        </button>
-      </div>
-
       <div class="wizard-content" #wizardContent>
         @if (stepVisible) {
           <div class="step-container">
-            @switch (currentStep) {
-              @case (0) {
+            @switch (currentStepId) {
+              @case ('upload') {
                 <app-step1-upload></app-step1-upload>
               }
-              @case (1) {
+              @case ('columns') {
                 <app-step2-column-selection></app-step2-column-selection>
               }
-              @case (2) {
+              @case ('features') {
                 <app-step3-configure-data-features></app-step3-configure-data-features>
               }
-              @case (3) {
-                <app-step4-visualization-settings></app-step4-visualization-settings>
+              @case ('projection') {
+                <app-step4-projection-settings></app-step4-projection-settings>
               }
-              @case (4) {
-                <app-step5-review-processing (wizardFinish)="onWizardComplete()"></app-step5-review-processing>
+              @case ('appearance') {
+                <app-step5-glyph-color-settings></app-step5-glyph-color-settings>
+              }
+              @case ('review') {
+                <app-step6-review-processing (wizardFinish)="onWizardComplete()"></app-step6-review-processing>
               }
             }
           </div>
@@ -99,23 +97,20 @@
 
       @if (activeStep(); as step) {
         <div class="wizard-nav">
-          <button class="btn-secondary" (click)="previousStep()" [disabled]="currentStep === 0">
-            <span class="material-icons">arrow_back</span>
+          <button class="btn-secondary" type="button" (click)="previousStep()" [disabled]="currentStep === 0">
+            <span class="material-icons" aria-hidden="true">arrow_back</span>
             <span>Back</span>
           </button>
 
-          <!-- A4: dezenter Undo/Redo-Hinweis, mittig in die Navigationsleiste
-               eingebettet (kein schwebender Overlay-Toast). Nennt die geänderte
-               Einstellung und bietet den "Änderung anzeigen"-Deeplink. Single-Slot:
-               ein neuer Hinweis ersetzt den vorherigen. -->
+          <!-- A4: subtle undo/redo hint centered in the navigation bar (no floating toast). It names the
+               changed setting and offers a "Show change" deep-link; a new hint replaces the previous one.
+               Screen readers get the message through the shell's live region (WizardAnnouncer). -->
           @if (historyHint) {
-            <div class="history-hint" role="status">
-              <span class="material-icons">history</span>
+            <div class="history-hint">
+              <span class="material-icons" aria-hidden="true">history</span>
               <span class="history-hint-text">{{ historyHint.message }}</span>
               @if (historyHint.step !== null && historyHint.anchorId) {
-                <button type="button" class="history-hint-action" (click)="showHistoryChange()">
-                  Änderung anzeigen
-                </button>
+                <button type="button" class="history-hint-action" (click)="showHistoryChange()">Show change</button>
               }
             </div>
           }
@@ -123,18 +118,37 @@
           <div class="buttons-right">
             @if (!step.canProceed() && step.disabledHint) {
               <div class="warning-message">
-                <span class="material-icons">warning</span>
+                <span class="material-icons" aria-hidden="true">warning</span>
                 <span>{{ step.disabledHint }}</span>
               </div>
             }
 
-            <button class="btn-primary" (click)="onProceed(step)" [disabled]="!step.canProceed()">
+            <button class="btn-primary" type="button" (click)="onProceed(step)" [disabled]="!step.canProceed()">
               <span>{{ step.primaryLabel }}</span>
-              <span class="material-icons">arrow_forward</span>
+              <span class="material-icons" aria-hidden="true">arrow_forward</span>
             </button>
           </div>
         </div>
       }
     </div>
   </div>
+
+  <!-- Start-over confirmation: native modal dialog (focus trap, Escape = cancel, focus restored on close). -->
+  <dialog
+    #startOverDialog
+    class="confirm-dialog"
+    aria-labelledby="start-over-title"
+    aria-describedby="start-over-description"
+  >
+    <h2 id="start-over-title">Start over?</h2>
+    <p id="start-over-description">This clears the uploaded file and all settings.</p>
+    <div class="confirm-actions">
+      <button type="button" class="btn-secondary" autofocus (click)="closeStartOver(false)">Cancel</button>
+      <button type="button" class="btn-danger" (click)="closeStartOver(true)">Start over</button>
+    </div>
+  </dialog>
+
+  <!-- Always-present live regions for WizardAnnouncer (steps call announce()). -->
+  <div class="visually-hidden" aria-live="polite" aria-atomic="true">{{ announcer.polite() }}</div>
+  <div class="visually-hidden" aria-live="assertive" aria-atomic="true">{{ announcer.assertive() }}</div>
 </div>

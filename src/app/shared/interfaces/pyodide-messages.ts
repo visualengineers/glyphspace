@@ -1,7 +1,6 @@
 import { DatasetCollection } from './dataset-collection';
 
 export type WorkerRequest =
-  | { type: 'process'; fileName: string; buffer: ArrayBuffer }
   | { type: 'getJson'; file: string }
   | { type: 'unzip'; fileName: string; buffer: ArrayBuffer }
   | { type: 'getThumb'; file: string }
@@ -11,10 +10,10 @@ export type WorkerRequest =
   | { type: 'detectOutliers'; fileName: string; columnName: string; method: string }
   | { type: 'detectDuplicates'; fileName: string; subsetColumns?: string[] }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- config is a dynamic processing configuration object
-  | { type: 'cleanData'; fileName: string; config: any }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- config is a dynamic processing configuration object
   | { type: 'processWithConfig'; fileName: string; config: any }
-  | { type: 'getProcessedFeatures' };
+  | { type: 'getProcessedFeatures' }
+  // Unlink tracked input files (and their derived result files) not listed in `keep`
+  | { type: 'pruneFiles'; keep: string[] };
 
 export type WorkerReply =
   | { type: 'processed'; dataset: DatasetCollection }
@@ -32,7 +31,6 @@ export type WorkerReply =
   | { type: 'outliers'; columnName: string; data: any }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- duplicate data from Python is dynamically shaped
   | { type: 'duplicates'; data: any }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- cleaning result from Python is dynamically shaped
-  | { type: 'dataCleaned'; result: any }
   | { type: 'processingProgress'; step: string; progress: number; message: string }
-  | { type: 'processedFeatures'; data: string };
+  | { type: 'processedFeatures'; data: string }
+  | { type: 'filesPruned'; removed: string[] };

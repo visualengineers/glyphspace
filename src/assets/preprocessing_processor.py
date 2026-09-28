@@ -4,9 +4,82 @@ Handles CSV profiling, cleaning, and transformation in the browser via Pyodide
 """
 
 import json
+from typing import NamedTuple
+
 import pandas as pd
 import numpy as np
-from collections import Counter
+
+TOP_VALUES_LIMIT = 10
+
+
+class OutlierDetection(NamedTuple):
+    """Outliers of one column.
+
+    mask: True for outlier rows, aligned with the column's index (missing and
+        non-numeric values are never outliers).
+    lower, upper: the detection bounds; capping clips outliers to them.
+    """
+    mask: pd.Series
+    lower: float
+    upper: float
+
+
+def find_outliers(values: pd.Series, method: str) -> OutlierDetection:
+    """Flag outliers of a raw column with `method` ('iqr_<k>' or 'zscore_<k>').
+
+    Shared by detect_outliers (the count shown in Step 3) and the pipeline
+    (preprocessing_processor_config), so the rows the pipeline removes or caps
+    are exactly the rows counted in the wizard. IQR flags values outside
+    [Q1 - k*IQR, Q3 + k*IQR]; z-score flags |x - mean| / sd > k, with the sample
+    standard deviation.
+    """
+    numeric = pd.to_numeric(values, errors='coerce').dropna()
+    # Booleans (a bool column, or True/False objects when values are missing)
+    # have no outliers; quantiles of a bool column fail with "numpy boolean subtract".
+    if numeric.empty or pd.api.types.infer_dtype(values, skipna=True) == 'boolean':
+        return OutlierDetection(pd.Series(False, index=values.index), np.nan, np.nan)
+
+    if method.startswith('iqr'):
+        multiplier = float(method.split('_')[1])
+        q1 = numeric.quantile(0.25)
+        q3 = numeric.quantile(0.75)
+        iqr = q3 - q1
+        lower = q1 - multiplier * iqr
+        upper = q3 + multiplier * iqr
+        flagged = (numeric < lower) | (numeric > upper)
+    elif method.startswith('zscore'):
+        threshold = int(method.split('_')[1])
+        mean = numeric.mean()
+        sd = numeric.std()
+        flagged = np.abs((numeric - mean) / sd) > threshold
+        lower = mean - threshold * sd
+        upper = mean + threshold * sd
+    else:
+        raise Exception(f"Unknown outlier detection method: {method}")
+
+    return OutlierDetection(flagged.reindex(values.index, fill_value=False), float(lower), float(upper))
+
+
+def _is_text_dtype(series):
+    """True for object columns and for dedicated string dtypes (pandas 3 infers
+    `str` instead of `object` for text columns)."""
+    return pd.api.types.is_object_dtype(series) or pd.api.types.is_string_dtype(series)
+
+
+def _epoch_seconds(date_series):
+    """Integer seconds since the epoch. Normalises to nanosecond resolution first:
+    pandas 3 no longer parses dates to `datetime64[ns]` by default, so a plain
+    int64 cast would not be in nanoseconds."""
+    return date_series.dt.as_unit('ns').astype('int64') // 10**9
+
+
+def _top_values(series, n=TOP_VALUES_LIMIT):
+    """The n most frequent values as [{'value': str, 'count': int}]."""
+    return [
+        {'value': str(val), 'count': int(count)}
+        for val, count in series.value_counts().head(n).items()
+    ]
+
 
 def detect_data_type(series):
     """Detect the data type of a pandas Series"""
@@ -27,7 +100,7 @@ def detect_data_type(series):
         return 'numeric'
 
     # Try parsing as datetime
-    if series.dtype == 'object':
+    if _is_text_dtype(series):
         try:
             sample = series.dropna().head(100)
             parsed = pd.to_datetime(sample, errors='coerce', format='mixed')
@@ -111,7 +184,7 @@ def profile_column(series):
             # Use 20 bins across the date range
             if len(date_series) > 1:
                 # Convert to numeric timestamps for histogram
-                timestamps = date_series.astype('int64') // 10**9  # Convert to seconds
+                timestamps = _epoch_seconds(date_series)
                 counts, bin_edges = np.histogram(timestamps, bins=min(20, len(date_series.unique())))
 
                 # Create labels showing date ranges for each bin
@@ -128,22 +201,14 @@ def profile_column(series):
                     'labels': bin_labels
                 }
 
-    # Boolean statistics
+    # Boolean statistics (at most two distinct values)
     elif data_type == 'boolean':
-        value_counts = series.value_counts()
-        stats['topValues'] = [
-            {'value': str(val), 'count': int(count)}
-            for val, count in value_counts.items()
-        ]
+        stats['topValues'] = _top_values(series)
 
     # Categorical statistics
     elif data_type in ['categorical', 'text']:
         # For both categorical and text, show top 10 values for distribution visualization
-        value_counts = series.value_counts().head(10)
-        stats['topValues'] = [
-            {'value': str(val), 'count': int(count)}
-            for val, count in value_counts.items()
-        ]
+        stats['topValues'] = _top_values(series)
         # For text, compute average string length
         if data_type == 'text':
             str_lengths = series.dropna().astype(str).str.len()
@@ -236,30 +301,11 @@ def detect_outliers(file_name, column_name, method='iqr_1.5'):
         if column_name not in df.columns:
             raise Exception(f"Column {column_name} not found")
 
-        series = pd.to_numeric(df[column_name], errors='coerce').dropna()
-
-        if series.empty:
+        if pd.to_numeric(df[column_name], errors='coerce').dropna().empty:
             return json.dumps({'outlierIndices': [], 'outlierCount': 0})
 
-        if method.startswith('iqr'):
-            # IQR method
-            multiplier = float(method.split('_')[1])
-            Q1 = series.quantile(0.25)
-            Q3 = series.quantile(0.75)
-            IQR = Q3 - Q1
-            lower_bound = Q1 - multiplier * IQR
-            upper_bound = Q3 + multiplier * IQR
-            outliers = (series < lower_bound) | (series > upper_bound)
-
-        elif method.startswith('zscore'):
-            # Z-score method
-            threshold = int(method.split('_')[1])
-            z_scores = np.abs((series - series.mean()) / series.std())
-            outliers = z_scores > threshold
-        else:
-            raise Exception(f"Unknown outlier detection method: {method}")
-
-        outlier_indices = series[outliers].index.tolist()
+        outliers = find_outliers(df[column_name], method).mask
+        outlier_indices = outliers[outliers].index.tolist()
 
         result = {
             'outlierIndices': [int(i) for i in outlier_indices],
@@ -309,4 +355,4 @@ def detect_duplicates(file_name, subset_columns=None):
 
 
 # Export functions for Pyodide
-__all__ = ['profile_data', 'compute_histogram', 'detect_outliers', 'detect_duplicates']
+__all__ = ['profile_data', 'compute_histogram', 'detect_outliers', 'detect_duplicates', 'find_outliers']

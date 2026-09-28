@@ -1,0 +1,24 @@
+@use '../../../../styles/mixins' as m;
+
+// Accessibility styles of Step 3 (second styleUrl of the component, so they are
+// encapsulated like the main stylesheet and load after it). Buttons, selects,
+// inputs, checkboxes and the search box get their focus ring from the shared
+// wizard mixins; only the rail-specific cases live here.
+
+.step3-configure-data-features {
+  // Rail items sit in a scrolling list: draw the ring inside so it is not clipped.
+  .column-item:focus-visible {
+    @include m.focus-ring(-2px);
+  }
+
+  .column-items {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  // Text for screen readers only.
+  .visually-hidden {
+    @include m.visually-hidden;
+  }
+}

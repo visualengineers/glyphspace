@@ -1,0 +1,555 @@
+@use '../../shared/wizard-shared' as w;
+@use '../../../../styles/variables' as v;
+@use '../../../../styles/mixins' as m;
+
+.step6-review-processing {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+
+  // Text for screen readers only (e.g. names of icon-only badges).
+  .visually-hidden {
+    @include m.visually-hidden;
+  }
+
+  .step-content {
+    @include w.step-content;
+  }
+
+  // Review Section
+  .review-section {
+    // Column tile + one wider card per settings step (Projection, Glyphs & Color).
+    // Flex (zero basis + min widths, grow 1:2:2) sizes the three like the former
+    // `minmax(160px, 0.8fr) repeat(2, minmax(240px, 1.6fr))` grid, but wraps
+    // instead of overflowing when the work area is narrower than the minimums.
+    // Grow factors stay >= 1 so a card alone on a wrapped line fills it.
+    .summary-cards {
+      display: flex;
+      flex-wrap: wrap;
+      gap: v.$space-3;
+      margin-bottom: v.$space-4;
+
+      .summary-card {
+        flex: 2 1 0;
+        min-width: min(100%, 240px);
+        box-sizing: border-box;
+        display: flex;
+        gap: v.$space-3;
+        padding: 14px;
+        background: white;
+        border: 1px solid v.$gray-300;
+        border-radius: 4px;
+
+        &:first-child {
+          flex-grow: 1;
+          min-width: min(100%, 160px);
+        }
+
+        // A6: edit/jump affordance per summary card — uniform, borderless icon button
+        .card-edit-btn {
+          margin-left: auto;
+          align-self: flex-start;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 28px;
+          height: 28px;
+          padding: 0;
+          background: transparent;
+          border: none;
+          border-radius: 4px;
+          color: v.$text-muted;
+          cursor: pointer;
+          transition:
+            color 0.15s ease,
+            background-color 0.15s ease;
+
+          .material-icons {
+            font-size: v.$icon-size-md;
+          }
+
+          &:hover {
+            color: v.$color-accent;
+            background: rgba(v.$active-color, 0.1);
+          }
+
+          &:focus-visible {
+            @include m.focus-ring(1px);
+          }
+        }
+
+        .card-icon {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+          width: 40px;
+          height: 40px;
+          background: rgba(v.$active-color, 0.1);
+          border-radius: 50%;
+
+          .material-icons {
+            font-size: v.$icon-size-xl;
+            color: v.$color-accent;
+          }
+        }
+
+        .card-content {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+          flex: 1;
+          min-width: 0;
+
+          .card-label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin: 0;
+            font-size: v.$font-size-xs;
+            font-weight: 600;
+            color: v.$text-muted;
+            text-transform: uppercase;
+          }
+
+          // Which wizard step the card's settings live in.
+          .card-step {
+            @include w.severity-badge(info);
+            padding: 1px 6px;
+            border-radius: 8px;
+            font-size: v.$font-size-xs;
+            letter-spacing: 0.3px;
+          }
+
+          .card-rows {
+            display: grid;
+            gap: 2px;
+            margin: 6px 0 0;
+          }
+
+          .card-row {
+            display: grid;
+            grid-template-columns: 56px 1fr;
+            align-items: center;
+            gap: v.$space-2;
+
+            dt {
+              font-size: v.$font-size-xs;
+              font-weight: 600;
+              color: v.$text-muted;
+              text-transform: uppercase;
+              letter-spacing: 0.3px;
+            }
+
+            dd {
+              display: flex;
+              align-items: center;
+              gap: v.$space-1;
+              min-width: 0;
+              margin: 0;
+            }
+
+            .card-row-value {
+              flex: 1;
+              min-width: 0;
+              font-size: v.$font-size-md;
+              font-weight: 600;
+              color: v.$gray-800;
+              overflow-wrap: anywhere;
+            }
+
+            .card-edit-btn {
+              align-self: center;
+              width: 24px;
+              height: 24px;
+              flex-shrink: 0;
+            }
+          }
+
+          .card-note {
+            margin: 6px 0 0;
+            font-size: v.$font-size-xs;
+            color: v.$text-muted;
+          }
+
+          .card-value {
+            font-size: v.$font-size-lg;
+            font-weight: 700;
+            color: v.$gray-800;
+          }
+        }
+      }
+    }
+
+    .columns-table {
+      @include w.table-container;
+      margin-bottom: v.$space-4;
+
+      table {
+        @include w.table;
+      }
+
+      .column-name-text {
+        @include w.column-name-text;
+      }
+
+      .color-badge {
+        display: inline-flex;
+        align-items: center;
+        margin-left: 6px;
+
+        .material-icons {
+          font-size: v.$icon-size-xs;
+          color: v.$color-accent;
+        }
+      }
+
+      .text-muted {
+        font-size: v.$font-size-sm;
+        color: v.$text-muted;
+        font-style: italic;
+      }
+
+      .status-badge {
+        @include w.status-badge;
+      }
+    }
+
+    .info-box {
+      @include w.info-box;
+    }
+  }
+
+  // A3: persistence signifier pill
+  .persistence-pill {
+    @include w.severity-badge(info);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    align-self: flex-start;
+    margin-bottom: 14px;
+    padding: v.$space-1 10px;
+    border: 1px solid v.$severity-info-border;
+    border-radius: 12px;
+    font-size: v.$font-size-sm;
+    font-weight: 600;
+
+    .material-icons {
+      font-size: v.$icon-size-sm;
+    }
+  }
+
+  // A3: pre-flight banner and partial-results notice (warning tone, neutral text)
+  .preflight-banner,
+  .status-panel .partial-notice {
+    @include w.severity-panel(warning);
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    padding: v.$space-3 14px;
+    border-radius: 6px;
+    font-size: v.$font-size-base;
+    color: v.$gray-700;
+    line-height: 1.45;
+
+    .material-icons {
+      font-size: v.$icon-size-lg;
+      flex-shrink: 0;
+    }
+  }
+
+  .preflight-banner {
+    margin-bottom: v.$space-3;
+  }
+
+  .issue-list {
+    display: flex;
+    flex-direction: column;
+    gap: v.$space-3;
+    margin-bottom: v.$space-4;
+  }
+
+  // A3: persistent status/error/result panel
+  .status-panel {
+    display: flex;
+    flex-direction: column;
+    gap: v.$space-4;
+    padding: 20px;
+    background: white;
+    border: 1px solid v.$gray-300;
+    border-radius: 8px;
+
+    // Shared anatomy of the status hero and the success banner.
+    .status-hero,
+    .success-banner {
+      display: flex;
+      align-items: center;
+      gap: v.$space-4;
+      padding: v.$space-4;
+      border-radius: 6px;
+
+      .material-icons {
+        font-size: v.$icon-size-2xl;
+        flex-shrink: 0;
+      }
+
+      h3 {
+        font-size: v.$font-size-lg;
+        font-weight: 700;
+        margin: 0 0 v.$space-1;
+        color: v.$gray-800;
+      }
+
+      p {
+        font-size: v.$font-size-base;
+        color: v.$text-muted;
+        margin: 0;
+        line-height: 1.45;
+      }
+    }
+
+    .status-hero {
+      &.processing {
+        background: v.$severity-info-bg;
+
+        .material-icons {
+          color: v.$severity-info-icon;
+        }
+      }
+
+      &.error {
+        @include w.severity-panel(error);
+      }
+    }
+
+    .success-banner {
+      @include w.severity-panel(success);
+    }
+
+    .progress-bar {
+      @include w.progress-bar;
+      width: 100%;
+      height: 8px;
+    }
+
+    .progress-fill {
+      @include w.progress-fill;
+    }
+
+    .progress-text {
+      font-size: v.$font-size-lg;
+      font-weight: 700;
+      color: v.$color-accent;
+      text-align: center;
+    }
+
+    .success-stats {
+      display: flex;
+      flex-direction: column;
+      gap: v.$space-2;
+
+      .stat-item {
+        display: flex;
+        align-items: center;
+        gap: v.$space-2;
+        font-size: v.$font-size-md;
+        color: v.$gray-700;
+
+        .material-icons {
+          font-size: v.$icon-size-md;
+          color: v.$severity-success-icon;
+        }
+      }
+    }
+
+    // Method status bar
+    .method-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+
+      .method-chip {
+        flex: 1 1 140px;
+        display: flex;
+        flex-direction: column;
+        gap: v.$space-1;
+        padding: 10px v.$space-3;
+        border: 1px solid v.$gray-200;
+        border-radius: 6px;
+        background: v.$gray-100;
+
+        .chip-top {
+          display: flex;
+          align-items: baseline;
+          gap: 6px;
+
+          .chip-name {
+            font-size: v.$font-size-base;
+            font-weight: 700;
+            color: v.$gray-800;
+          }
+
+          .chip-role {
+            font-size: v.$font-size-xs;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            color: v.$text-muted;
+          }
+        }
+
+        .chip-status {
+          font-size: v.$font-size-sm;
+          font-weight: 600;
+          color: v.$text-muted;
+        }
+
+        &.chip-ready {
+          @include w.severity-panel(success);
+
+          .chip-status {
+            color: v.$severity-success-text;
+          }
+        }
+
+        &.chip-computing {
+          @include w.severity-panel(info);
+
+          .chip-status {
+            color: v.$severity-info-text;
+          }
+        }
+
+        &.chip-failed {
+          @include w.severity-panel(error);
+
+          .chip-status {
+            color: v.$severity-error-text;
+          }
+        }
+      }
+    }
+
+    .background-status-section {
+      padding-top: v.$space-2;
+      border-top: 1px solid v.$gray-200;
+
+      .background-status-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: v.$space-2;
+        margin-bottom: v.$space-3;
+      }
+
+      h4 {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: v.$font-size-md;
+        font-weight: 600;
+        color: v.$gray-700;
+        margin: 0;
+
+        .material-icons {
+          font-size: v.$icon-size-md;
+        }
+
+        // Receives focus after "Stop all" removes the button that had it.
+        &:focus-visible {
+          @include m.focus-ring;
+          border-radius: 2px;
+        }
+      }
+
+      .status-actions {
+        display: flex;
+        align-items: center;
+        gap: v.$space-2;
+      }
+
+      // Cancel / Retry / Stop all
+      .btn-background-action {
+        @include w.btn-text;
+        font-size: v.$font-size-sm;
+        padding: 3px v.$space-2;
+        gap: v.$space-1;
+
+        .material-icons {
+          font-size: v.$icon-size-xs;
+        }
+      }
+
+      .status-badge.status-cancelled {
+        background: rgba(158, 158, 158, 0.1);
+        color: v.$text-muted;
+      }
+
+      .projection-status-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+
+        .projection-status-item {
+          padding: 10px;
+          background: v.$gray-100;
+          border-radius: 4px;
+
+          .status-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 6px;
+
+            .method-name {
+              font-size: v.$font-size-base;
+              font-weight: 600;
+              color: v.$gray-800;
+            }
+
+            .status-badge {
+              @include w.status-badge;
+            }
+          }
+
+          .progress-bar-small {
+            @include w.progress-bar;
+            height: 4px;
+            margin-bottom: v.$space-1;
+
+            .progress-fill-small {
+              @include w.progress-fill;
+            }
+          }
+
+          .status-message {
+            font-size: v.$font-size-sm;
+            color: v.$text-muted;
+            margin: 0;
+          }
+        }
+      }
+    }
+  }
+
+  // Action Buttons
+  .action-buttons {
+    @include w.action-buttons-footer;
+
+    .btn-secondary {
+      @include w.btn-secondary;
+    }
+
+    .buttons-right {
+      display: flex;
+      align-items: center;
+      gap: v.$space-3;
+      margin-left: auto;
+    }
+
+    .btn-primary {
+      @include w.btn-primary;
+    }
+  }
+}

@@ -2,8 +2,33 @@ import * as THREE from 'three';
 import { Component, ElementRef, Input, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { getGlyphFromObject } from '../../shared/helpers/glyph-helper';
 import { ConfigService } from '../../services/config.service';
-import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { Subscription } from 'rxjs';
+
+/** One tooltip line; `value` is null when the original data had no value. */
+export interface TooltipRow {
+  key: string;
+  label: string;
+  value: string | null;
+}
+
+export interface TooltipInfo {
+  id: string;
+  rows: TooltipRow[];
+}
+
+// '' is what the processors write for a missing value; 'nan' is what older CLI output contains.
+const MISSING_VALUES = new Set(['', 'nan']);
+
+export function buildTooltipRows(
+  values: Record<string, string>,
+  labels: Record<string, string> | undefined
+): TooltipRow[] {
+  return Object.entries(values).map(([key, value]) => ({
+    key,
+    label: labels?.[key] ?? key,
+    value: MISSING_VALUES.has(value.trim().toLowerCase()) ? null : value,
+  }));
+}
 
 @Component({
   selector: 'app-tooltip',
@@ -19,14 +44,12 @@ export class TooltipComponent implements OnInit, OnDestroy {
   private subscription = new Subscription();
   tooltipVisible = false;
   tooltipFixed = false;
-  tooltipText: SafeHtml = '';
+  // Rendered by the template, so CSV content (ids, labels, values) is always escaped.
+  tooltipInfo: TooltipInfo | null = null;
   tooltipX = 0;
   tooltipY = 0;
 
-  constructor(
-    private config: ConfigService,
-    private sanitizer: DomSanitizer
-  ) {}
+  constructor(private config: ConfigService) {}
 
   ngOnInit(): void {
     // Subscribe to modal state changes to hide fixed tooltips when modal opens
@@ -43,12 +66,12 @@ export class TooltipComponent implements OnInit, OnDestroy {
     this.subscription.unsubscribe();
   }
 
-  showTooltip(x: number, y: number, text: string): void {
+  showTooltip(x: number, y: number, info: TooltipInfo | null): void {
     // Don't show tooltip if a modal (like preprocessing wizard) is open
     if (this.config.modalOpen) {
       return;
     }
-    this.tooltipText = this.sanitizer.bypassSecurityTrustHtml(text);
+    this.tooltipInfo = info;
     this.tooltipX = x + 10; // slight offset from cursor
     this.tooltipY = y + 10;
     this.tooltipVisible = true;
@@ -137,41 +160,11 @@ export class TooltipComponent implements OnInit, OnDestroy {
     return this.tooltipFixed;
   }
 
-  getObjectInfo(object: THREE.Object3D): string {
+  getObjectInfo(object: THREE.Object3D): TooltipInfo | null {
     const glyph = getGlyphFromObject(object);
-    const labels = this.config.featureLabels;
-
-    if (glyph !== null) {
-      const rows = Object.entries(glyph.values || {})
-        .map(([key, value]) => {
-          const label = labels?.[key] ?? key;
-          return `
-          <tr>
-            <td style="width: 40%; padding: 0; vertical-align: top; font-weight: bold; padding-right: 0.75em; word-break: break-word; overflow-wrap: break-word; white-space: normal;">
-              ${label}
-            </td>
-            <td style="width: 60%; padding: 0; vertical-align: top; white-space: normal; word-break: break-word; overflow-wrap: break-word; white-space: normal;">
-              ${value}
-            </td>
-          </tr>`;
-        })
-        .join('');
-
-      return `
-      <div style="max-width: 300px; font-family: sans-serif; font-size: 13px;">
-        <b>Item: ${glyph.id}</b>
-        <table style="
-          width: 100%;
-          border-collapse: collapse;
-          table-layout: fixed;
-          margin-top: 0.4em;
-        ">
-          ${rows}
-        </table>
-      </div>
-    `;
+    if (glyph === null) {
+      return null;
     }
-
-    return 'Unnamed object';
+    return { id: glyph.id, rows: buildTooltipRows(glyph.values ?? {}, this.config.featureLabels) };
   }
 }

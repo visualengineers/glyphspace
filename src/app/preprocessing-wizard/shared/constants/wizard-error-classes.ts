@@ -2,19 +2,24 @@
  * Wizard error classes (A3).
  *
  * The six user-relevant failure classes are derivable from the code, but today
- * the raw message that reaches the UI rarely makes the class obvious (see the
- * analysis docs "fehlerklassen-ableitbarkeit" / "fehlerbehandlung-wizard-analyse").
- * This module turns raw error strings — and pre-flight state signals — into
+ * the raw message that reaches the UI rarely makes the class obvious. This
+ * module turns raw error strings — and pre-flight state signals — into
  * structured issues that name the likely cause (WHY), the concrete action
- * (FIX) and the exact wizard step that resolves it.
+ * (FIX) and the wizard step that resolves it.
  *
- * The `step` index is 0-based (0=Upload … 4=Review); the displayed "Schritt N"
- * is `step + 1`. `anchorId` reuses the A6 deep-link anchors so the "Fix in
- * Schritt N" button jumps straight to the responsible control.
+ * `step` is a WizardStepId; the "Step N" shown to the user and in the fix texts
+ * is derived from the step registry, so it stays correct when steps move.
+ * `anchorId` reuses the A6 deep-link anchors so the "Fix in step N" button
+ * jumps straight to the responsible control.
  */
 
 import { PreprocessingState } from '../../models/preprocessing-state';
 import { ProjectionConfig } from '../../models/column-config';
+import {
+  ProjectionMethodKey,
+  isProjectionMethodActive,
+} from '../../steps/step4-projection-settings/projection-methods';
+import { WizardStepId, stepLabel, stepNumber } from './step-info';
 
 export type IssueSeverity = 'blocking' | 'warning';
 
@@ -28,8 +33,8 @@ export interface WizardIssue {
   why: string;
   /** FIX — the concrete action, naming the step. */
   fix: string;
-  /** 0-based target step index (goToStep / goToStepWithScroll). */
-  step: number;
+  /** Step that resolves the issue (goToStep / goToStepWithScroll). */
+  step: WizardStepId;
   /** A6 deep-link anchor id inside the target step (optional). */
   anchorId?: string;
   /** Raw technical detail, shown collapsed under "Technical details". */
@@ -38,15 +43,6 @@ export interface WizardIssue {
   dismissable?: boolean;
 }
 
-/** English step titles, aligned with STEP_INFO, for the "Fix in Schritt N · <name>" button. */
-export const STEP_NAMES: Record<number, string> = {
-  0: 'Upload Data',
-  1: 'Select Columns',
-  2: 'Configure Data & Features',
-  3: 'Visualization Settings',
-  4: 'Review & Process',
-};
-
 /** Static class templates. Cause/fix/step are fixed per class; `raw`/`title` may be enriched. */
 const CLASS_TEMPLATES: Record<string, Omit<WizardIssue, 'raw'>> = {
   K1: {
@@ -54,35 +50,35 @@ const CLASS_TEMPLATES: Record<string, Omit<WizardIssue, 'raw'>> = {
     severity: 'blocking',
     title: 'A projection column still contains text values',
     why: 'Text or categorical values without a matching encoding ended up in the feature matrix, so the numeric projection cannot use them.',
-    fix: 'Set an encoding for that column, or remove it from the projection, in Step 3 (Configure Data & Features).',
-    step: 2,
-    anchorId: 'wizard-anchor-columns',
+    fix: `Set an encoding for that column in ${stepLabel('features')}, or remove it from the projection in ${stepLabel('projection')}.`,
+    step: 'features',
+    anchorId: 'wizard-anchor-features',
   },
   K2: {
     code: 'K2',
     severity: 'blocking',
     title: 'No rows were left after cleaning',
     why: 'The missing-value, outlier or duplicate rules were strict enough to remove every row.',
-    fix: 'Loosen the cleaning rules in Step 3 (Configure Data & Features) so some rows survive.',
-    step: 2,
-    anchorId: 'wizard-anchor-columns',
+    fix: `Loosen the cleaning rules in ${stepLabel('features')} so some rows survive.`,
+    step: 'features',
+    anchorId: 'wizard-anchor-cleaning',
   },
   K3: {
     code: 'K3',
     severity: 'blocking',
     title: 'A column has no usable values',
     why: 'A selected column is constant or almost entirely empty, so scaling and projection have nothing to work with.',
-    fix: 'Deselect the affected column in Step 2 (Select Columns).',
-    step: 1,
+    fix: `Deselect the affected column in ${stepLabel('columns')}.`,
+    step: 'columns',
     anchorId: 'wizard-anchor-columns',
   },
   K4: {
     code: 'K4',
     severity: 'blocking',
     title: 'A projection parameter is out of range',
-    why: 'The neighbour count is larger than the number of samples (IsoMap, LLE, LTSA or UMAP), which the method cannot compute.',
-    fix: 'Lower the parameter or disable the method in Step 4 (Visualization Settings).',
-    step: 3,
+    why: 'The neighbour count is larger than the number of samples (IsoMap, LTSA or UMAP), which the method cannot compute.',
+    fix: `Lower the parameter or disable the method in ${stepLabel('projection')}.`,
+    step: 'projection',
     anchorId: 'wizard-anchor-methods',
   },
   K5: {
@@ -90,8 +86,8 @@ const CLASS_TEMPLATES: Record<string, Omit<WizardIssue, 'raw'>> = {
     severity: 'blocking',
     title: 'The number of glyph features is out of range',
     why: 'A glyph needs between 3 and 12 features; the current selection is outside that range.',
-    fix: 'Adjust the selection to 3–12 features in Step 4 (Visualization Settings).',
-    step: 3,
+    fix: `Adjust the selection to 3–12 features in ${stepLabel('appearance')}.`,
+    step: 'appearance',
     anchorId: 'wizard-anchor-glyph',
   },
   K6: {
@@ -99,8 +95,8 @@ const CLASS_TEMPLATES: Record<string, Omit<WizardIssue, 'raw'>> = {
     severity: 'blocking',
     title: 'Processing hit a time or resource limit',
     why: 'The dataset is large enough to exceed the worker time limit or available memory.',
-    fix: 'Reduce the dataset in Step 2, or reduce the number of methods in Step 4.',
-    step: 3,
+    fix: `Reduce the dataset in ${stepLabel('columns')}, or reduce the number of methods in ${stepLabel('projection')}.`,
+    step: 'projection',
     anchorId: 'wizard-anchor-methods',
   },
   K7: {
@@ -108,9 +104,18 @@ const CLASS_TEMPLATES: Record<string, Omit<WizardIssue, 'raw'>> = {
     severity: 'blocking',
     title: 'A column has too many distinct values to encode',
     why: 'A selected text column has almost as many different values as there are rows (typical of an ID, title, name or free-text field). Encoding it would expand the data into thousands of columns — more than the in-browser engine can hold in memory.',
-    fix: 'Deselect that column in Step 2 (Select Columns), or set its encoding to Label in Step 3 (Configure Data & Features).',
-    step: 1,
+    fix: `Deselect that column in ${stepLabel('columns')}, or set its encoding to Label in ${stepLabel('features')}.`,
+    step: 'columns',
     anchorId: 'wizard-anchor-columns',
+  },
+  K8: {
+    code: 'K8',
+    severity: 'blocking',
+    title: 'A fill value does not match its column',
+    why: 'The value entered to fill missing entries is not a number, but the column is numeric.',
+    fix: `Enter a number as the fill value, or pick another missing-value strategy in ${stepLabel('features')}.`,
+    step: 'features',
+    anchorId: 'wizard-anchor-features',
   },
 };
 
@@ -119,7 +124,7 @@ function template(code: string): WizardIssue {
 }
 
 /**
- * Classify a raw processing error message into one of the six classes.
+ * Classify a raw processing error message into one of the K1–K8 classes.
  * Falls back to a generic (still persistent, still actionable) blocking issue
  * when no pattern matches, so the user never sees a bare "Processing failed".
  */
@@ -145,6 +150,9 @@ export function classifyProcessingError(raw: string): WizardIssue {
     }
   } else if (/timed out|timeout|out of memory|memory|aborted/.test(msg)) {
     issue = template('K6');
+  } else if (/the fill value .* is not a number/.test(msg)) {
+    // Before K1, whose "not a number" pattern would otherwise claim it.
+    issue = template('K8');
   } else if (/invalid numeric value|could not convert|non-?numeric|not a number|isnan|convert string/.test(msg)) {
     issue = template('K1');
   } else if (/empty|no valid feature data|no data rows|0 rows|no rows|nothing left/.test(msg)) {
@@ -161,8 +169,8 @@ export function classifyProcessingError(raw: string): WizardIssue {
       severity: 'blocking',
       title: "We couldn't finish processing your data",
       why: 'Something in the current combination of columns, cleaning rules and methods stopped the projection from finishing. This is almost always a settings issue, not a problem with your data — and your upload and settings are still here.',
-      fix: 'Start processing again. If it keeps failing, deselect any text-heavy or mostly-empty columns in Step 2, then turn off the more advanced methods (t-SNE, UMAP, Sammon) in Step 4 and try once more.',
-      step: 3,
+      fix: `Start processing again. If it keeps failing, deselect any text-heavy or mostly-empty columns in Step ${stepNumber('columns')}, then turn off the more advanced methods (t-SNE, UMAP, Sammon) in Step ${stepNumber('projection')} and try once more.`,
+      step: 'projection',
       anchorId: 'wizard-anchor-methods',
     };
   }
@@ -224,13 +232,15 @@ export function detectPreflightIssues(state: PreprocessingState): WizardIssue[] 
     });
   }
 
-  // K4 — neighbour parameters larger than the sample size.
+  // K4 — neighbour parameters larger than the sample size. Hidden methods never
+  // run, so a saved config that still enables one is not warned about.
   const pc: ProjectionConfig = state.projectionConfig;
+  const active = (key: ProjectionMethodKey): boolean => isProjectionMethodActive(pc, key);
   const neighborChecks: { enabled: boolean; label: string; value: number }[] = [
-    { enabled: pc.enableIsoMap, label: 'IsoMap', value: pc.isomapNeighbors },
-    { enabled: pc.enableLLE, label: 'LLE', value: pc.lleNeighbors },
-    { enabled: pc.enableLTSA, label: 'LTSA', value: pc.ltsaNeighbors },
-    { enabled: pc.enableUMAP, label: 'UMAP', value: pc.umapNeighbors },
+    { enabled: active('enableIsoMap'), label: 'IsoMap', value: pc.isomapNeighbors },
+    { enabled: active('enableLLE'), label: 'LLE', value: pc.lleNeighbors },
+    { enabled: active('enableLTSA'), label: 'LTSA', value: pc.ltsaNeighbors },
+    { enabled: active('enableUMAP'), label: 'UMAP', value: pc.umapNeighbors },
   ];
   const offending = neighborChecks.filter(c => c.enabled && c.value > 0 && rowCount > 0 && c.value >= rowCount);
   if (offending.length > 0) {
@@ -248,7 +258,7 @@ export function detectPreflightIssues(state: PreprocessingState): WizardIssue[] 
 
   // K6 — large dataset combined with a slow method risks the worker time limit.
   const SLOW_LIMIT = 15000;
-  const slowEnabled = pc.enableTSNE || pc.enableSammon || pc.enableUMAP;
+  const slowEnabled = active('enableTSNE') || active('enableSammon') || active('enableUMAP');
   if (rowCount > SLOW_LIMIT && slowEnabled) {
     const t = template('K6');
     issues.push({

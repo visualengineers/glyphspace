@@ -4,6 +4,7 @@ import {
   detectPreflightIssues,
   WizardIssue,
 } from './wizard-error-classes';
+import { WIZARD_STEPS, WizardStepId } from './step-info';
 import { PreprocessingState } from '../../models/preprocessing-state';
 import { ColumnConfig } from '../../models/column-config';
 import { ColumnStatistics, DataProfile } from '../../models/column-statistics';
@@ -35,55 +36,62 @@ function expectActionable(issue: WizardIssue, raw?: string): void {
 
 describe('classifyProcessingError', () => {
   // One representative raw message per class → expected code, step and anchor.
-  const cases: { name: string; raw: string; code: string; step: number; anchorId: string }[] = [
+  const cases: { name: string; raw: string; code: string; step: WizardStepId; anchorId: string }[] = [
     {
       name: 'K1 — non-numeric value in a projection column',
       raw: 'ValueError: could not convert string to float: "abc"',
       code: 'K1',
-      step: 2,
-      anchorId: 'wizard-anchor-columns',
+      step: 'features',
+      anchorId: 'wizard-anchor-features',
     },
     {
       name: 'K2 — no rows left after cleaning',
       raw: 'No data rows remaining after cleaning (0 rows)',
       code: 'K2',
-      step: 2,
-      anchorId: 'wizard-anchor-columns',
+      step: 'features',
+      anchorId: 'wizard-anchor-cleaning',
     },
     {
       name: 'K3 — column with no variance',
       raw: 'Column has zero variance / constant value',
       code: 'K3',
-      step: 1,
+      step: 'columns',
       anchorId: 'wizard-anchor-columns',
     },
     {
       name: 'K4 — neighbour parameter out of range',
       raw: 'n_neighbors=50 must be greater than 1 and less than n_samples=10',
       code: 'K4',
-      step: 3,
+      step: 'projection',
       anchorId: 'wizard-anchor-methods',
     },
     {
       name: 'K5 — glyph feature count out of range',
       raw: 'A glyph needs 3-12 glyph features',
       code: 'K5',
-      step: 3,
+      step: 'appearance',
       anchorId: 'wizard-anchor-glyph',
     },
     {
       name: 'K6 — time / resource limit',
       raw: 'Worker aborted: computation timed out',
       code: 'K6',
-      step: 3,
+      step: 'projection',
       anchorId: 'wizard-anchor-methods',
     },
     {
       name: 'K7 — column with too many distinct values (one-hot explosion)',
       raw: "These columns have too many distinct values to one-hot encode: 'title' (9000 distinct values).",
       code: 'K7',
-      step: 1,
+      step: 'columns',
       anchorId: 'wizard-anchor-columns',
+    },
+    {
+      name: 'K8 — fill value that does not fit its column (wins over K1)',
+      raw: "Column 'score': the fill value 'abc' is not a number. Enter a number or choose another missing-value strategy.",
+      code: 'K8',
+      step: 'features',
+      anchorId: 'wizard-anchor-features',
     },
   ];
 
@@ -113,7 +121,7 @@ describe('classifyProcessingError', () => {
     // Even though the raw mentions "memory" (would match K6), the more specific
     // K7 is checked first and wins.
     expect(issue.code).toBe('K7');
-    expect(issue.step).toBe(1);
+    expect(issue.step).toBe('columns');
     expect(issue.anchorId).toBe('wizard-anchor-columns');
     expect(issue.title).toContain('title');
     expect(issue.why).toContain('title');
@@ -166,6 +174,27 @@ describe('classifyProcessingError', () => {
     expect(issue.code).toBe('');
     expectActionable(issue);
     expect(classifyProcessingError(undefined as unknown as string).code).toBe('');
+  });
+
+  it('routes the generic fallback to the projection step', () => {
+    const issue = classifyProcessingError('Segfault 0xDEADBEEF');
+    expect(issue.step).toBe('projection');
+    expect(issue.anchorId).toBe('wizard-anchor-methods');
+  });
+
+  it('only targets known wizard steps', () => {
+    const knownIds = WIZARD_STEPS.map(step => step.id);
+    [...cases.map(c => c.raw), 'unmatched'].forEach(raw => {
+      expect(knownIds).toContain(classifyProcessingError(raw).step);
+    });
+  });
+
+  it('names the step number and title of the new layout in the fix text', () => {
+    expect(classifyProcessingError('n_neighbors must be greater than 1').fix).toContain('Step 4 (Projection)');
+    expect(classifyProcessingError('A glyph needs 3-12 glyph features').fix).toContain('Step 5 (Glyphs & Color)');
+    expect(classifyProcessingError('could not convert string to float').fix).toContain(
+      'Step 3 (Configure Data & Features)'
+    );
   });
 });
 
@@ -257,7 +286,6 @@ function makeState(opts: {
     tsneIterations: 1000,
     umapNeighbors: 15,
     umapMinDist: 0.1,
-    trimapWeightAdj: 500,
   };
   return {
     dataProfile: profile,
@@ -272,7 +300,7 @@ describe('detectPreflightIssues', () => {
     expect(detectPreflightIssues(state)).toEqual([]);
   });
 
-  it('flags a constant projection column as a K3 warning (step 2)', () => {
+  it('flags a constant projection column as a K3 warning (column selection)', () => {
     const state = makeState({
       totalRows: 100,
       columns: [makeColumnStats({ name: 'const', uniqueCount: 1 })],
@@ -282,7 +310,7 @@ describe('detectPreflightIssues', () => {
     const k3 = issues.find(i => i.code === 'K3');
     expect(k3).toBeTruthy();
     expect(k3!.severity).toBe('warning');
-    expect(k3!.step).toBe(1);
+    expect(k3?.step).toBe('columns');
     expect(k3!.title).toContain('const');
     expectActionable(k3!);
   });
@@ -305,7 +333,7 @@ describe('detectPreflightIssues', () => {
     expect(detectPreflightIssues(state).some(i => i.code === 'K3')).toBe(false);
   });
 
-  it('flags a neighbour count >= row count as a K4 warning (step 4)', () => {
+  it('flags a neighbour count >= row count as a K4 warning (projection step)', () => {
     const state = makeState({
       totalRows: 10,
       columns: [makeColumnStats({ name: 'a' })],
@@ -315,7 +343,7 @@ describe('detectPreflightIssues', () => {
     const k4 = detectPreflightIssues(state).find(i => i.code === 'K4');
     expect(k4).toBeTruthy();
     expect(k4!.severity).toBe('warning');
-    expect(k4!.step).toBe(3);
+    expect(k4?.step).toBe('projection');
     expect(k4!.why).toContain('UMAP');
     expectActionable(k4!);
   });
@@ -328,6 +356,16 @@ describe('detectPreflightIssues', () => {
       projection: { enableUMAP: true, umapNeighbors: 15 },
     });
     expect(detectPreflightIssues(state).some(i => i.code === 'K4')).toBe(false);
+  });
+
+  it('does not warn about LLE, which is hidden and never runs, even when a saved config enables it', () => {
+    const state = makeState({
+      totalRows: 10,
+      columns: [makeColumnStats({ name: 'a' })],
+      configs: [makeColumnConfig({ name: 'a' })],
+      projection: { enableLLE: true, lleNeighbors: 15 },
+    });
+    expect(detectPreflightIssues(state)).toEqual([]);
   });
 
   it('flags a slow method on a large dataset as a K6 warning', () => {

@@ -1,4 +1,4 @@
-import { Component, OnInit, AfterViewInit, forwardRef, ViewChild, ElementRef, HostListener } from '@angular/core';
+import { Component, OnInit, forwardRef, ViewChild, ElementRef, HostListener } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { PreprocessingService } from '../../services/preprocessing.service';
 import { WizardStep, WIZARD_STEP } from '../../shared/wizard-step';
@@ -16,9 +16,12 @@ import {
 } from '../../models/data-type.enum';
 import { HelpTooltipComponent } from '../../shared/help-tooltip/help-tooltip.component';
 import { HELP_TEXT } from '../../shared/constants/help-text';
-import { STEP_INFO } from '../../shared/constants/step-info';
+import { getStepInfo } from '../../shared/constants/step-info';
 import { DataPreviewTableComponent } from '../../shared/data-preview-table/data-preview-table.component';
+import { WizardAnnouncer } from '../../shared/wizard-announcer.service';
 import { ToastService } from '../../../services/toast.service';
+import { ConsequenceHintComponent } from './consequence-hint.component';
+import { describeEncoding, describeMissingValues, describeOutliers, describeScaling } from './consequence-preview';
 
 interface ColumnConfigState {
   column: ColumnStatistics;
@@ -28,16 +31,36 @@ interface ColumnConfigState {
   isLoadingOutliers?: boolean;
 }
 
+interface BulkApplyResult {
+  sourceName: string;
+  typeLabel: string;
+  columnNames: string[];
+  settingsSummary: string;
+}
+
+/** Column names listed in the bulk-apply announcement before it says "and N more". */
+const ANNOUNCED_COLUMN_LIMIT = 5;
+
+/** Screen-reader confirmation of a bulk apply, e.g. "Settings of alpha applied to 2 Numeric columns: beta, gamma". */
+function bulkApplyAnnouncement(result: BulkApplyResult): string {
+  const { sourceName, typeLabel, columnNames } = result;
+  const listed = columnNames.slice(0, ANNOUNCED_COLUMN_LIMIT).join(', ');
+  const rest = columnNames.length - ANNOUNCED_COLUMN_LIMIT;
+  const more = rest > 0 ? ` and ${rest} more` : '';
+  const noun = columnNames.length === 1 ? 'column' : 'columns';
+  return `Settings of ${sourceName} applied to ${columnNames.length} ${typeLabel} ${noun}: ${listed}${more}`;
+}
+
 @Component({
   selector: 'app-step3-configure-data-features',
   standalone: true,
-  imports: [FormsModule, HelpTooltipComponent, DataPreviewTableComponent],
+  imports: [FormsModule, HelpTooltipComponent, DataPreviewTableComponent, ConsequenceHintComponent],
   templateUrl: './step3-configure-data-features.component.html',
-  styleUrl: './step3-configure-data-features.component.scss',
+  styleUrls: ['./step3-configure-data-features.component.scss', './step3-accessibility.scss'],
   providers: [{ provide: WIZARD_STEP, useExisting: forwardRef(() => Step3ConfigureDataFeaturesComponent) }],
 })
-export class Step3ConfigureDataFeaturesComponent implements OnInit, AfterViewInit, WizardStep {
-  readonly primaryLabel = 'Continue to Visualization Settings';
+export class Step3ConfigureDataFeaturesComponent implements OnInit, WizardStep {
+  readonly primaryLabel = 'Continue to Projection';
   readonly disabledHint = '';
 
   @ViewChild('railSearchInput') railSearchInput?: ElementRef<HTMLInputElement>;
@@ -50,12 +73,7 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit, AfterViewIni
 
   // Bulk-apply (A9) UI state: progressive-disclosure list + post-apply confirmation.
   showBulkTargets = false;
-  bulkApplyResult: {
-    sourceName: string;
-    typeLabel: string;
-    columnNames: string[];
-    settingsSummary: string;
-  } | null = null;
+  bulkApplyResult: BulkApplyResult | null = null;
 
   // Duplicate handling
   duplicateCount = 0;
@@ -126,30 +144,21 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit, AfterViewIni
   }
 
   readonly HELP_TEXT = HELP_TEXT;
-  readonly stepInfo = STEP_INFO[2]; // Step 3 (index 2)
+  readonly stepInfo = getStepInfo('features');
 
   constructor(
     public preprocessingService: PreprocessingService,
-    private toastService: ToastService
+    private toastService: ToastService,
+    private announcer: WizardAnnouncer
   ) {
-    this.cleaningConfig = this.preprocessingService.currentState.cleaningConfig;
+    // Local copy: the template's ngModel writes into it, which must never mutate
+    // the service state in place (that would bypass and corrupt the undo history).
+    this.cleaningConfig = { ...this.preprocessingService.currentState.cleaningConfig };
   }
 
   ngOnInit(): void {
     this.loadData();
     this.detectDuplicates();
-  }
-
-  // A4/A6: scroll the requested setting into view when arriving via a deep-link
-  // (undo/redo "Änderung anzeigen" or a review edit-link). The delay lets the
-  // shell's scroll-to-top run first so it does not override this.
-  ngAfterViewInit(): void {
-    const target = this.preprocessingService.consumeScrollTarget();
-    if (target) {
-      setTimeout(() => {
-        document.getElementById(target)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }, 120);
-    }
   }
 
   private loadData(): void {
@@ -212,8 +221,9 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit, AfterViewIni
       colState.outlierCount = result.outlierCount;
       colState.outlierIndices = result.outlierIndices;
 
-      // Update config
-      this.preprocessingService.updateColumnConfig(colState.column.name, {
+      // Derived from the data, not a user action: store it without an undo entry,
+      // otherwise merely opening this step would fill the history (and clear redo).
+      this.preprocessingService.updateColumnMetadata(colState.column.name, {
         outlierCount: result.outlierCount,
       });
     } catch (err) {
@@ -282,15 +292,17 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit, AfterViewIni
     this.applyFilters();
   }
 
+  /** Clear the search text and return focus to the field (the clear button disappears). */
+  clearSearch(): void {
+    this.filterText = '';
+    this.applyFilters();
+    this.railSearchInput?.nativeElement.focus();
+  }
+
   clearFilters(): void {
-    // A4: filters are view-only state (not part of preprocessing-state), so this
-    // action is made reversible via a toast whose undo restores the local values,
-    // rather than through the global snapshot stack.
-    const previous = {
-      filterText: this.filterText,
-      filterType: this.filterType,
-      showIssuesOnly: this.showIssuesOnly,
-    };
+    // A4: the search/type/issues filters are transient view state of this step (not
+    // part of the preprocessing state or the undo history), so clearing them gets a
+    // plain confirmation only; there is no wizard configuration to undo.
     const hadActiveFilter = !!this.filterText || this.filterType !== 'all' || this.showIssuesOnly;
 
     this.filterText = '';
@@ -299,12 +311,7 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit, AfterViewIni
     this.applyFilters();
 
     if (hadActiveFilter) {
-      this.toastService.showUndo('Filter zurückgesetzt', () => {
-        this.filterText = previous.filterText;
-        this.filterType = previous.filterType;
-        this.showIssuesOnly = previous.showIssuesOnly;
-        this.applyFilters();
-      });
+      this.toastService.info('Filters cleared');
     }
   }
 
@@ -373,10 +380,13 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit, AfterViewIni
   }
 
   toggleRemoveDuplicates(): void {
-    this.cleaningConfig.removeDuplicates = !this.cleaningConfig.removeDuplicates;
-    this.preprocessingService.updateCleaningConfig({
-      removeDuplicates: this.cleaningConfig.removeDuplicates,
-    });
+    // Derive the new value from the service (source of truth), not from the local
+    // copy: the checkbox's ngModel may already have written the new value into it.
+    // Previously `cleaningConfig` WAS the service's state object, so the in-place
+    // flip landed in the undo snapshot too and made undo a silent no-op.
+    const removeDuplicates = !this.preprocessingService.currentState.cleaningConfig.removeDuplicates;
+    this.preprocessingService.updateCleaningConfig({ removeDuplicates });
+    this.cleaningConfig = { ...this.preprocessingService.currentState.cleaningConfig };
   }
 
   // ============================================================================
@@ -438,57 +448,70 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit, AfterViewIni
     );
   }
 
+  /** Write one user change to the service (exactly one undo entry) and mirror it locally. */
+  private applyColumnChange(colState: ColumnConfigState, updates: Partial<ColumnConfig>): void {
+    colState.config = { ...colState.config, ...updates };
+    this.preprocessingService.updateColumnConfig(colState.column.name, updates);
+  }
+
   resetEncoding(colState: ColumnConfigState): void {
-    const method = this.getDefaults(colState).encodingMethod;
-    if (method === undefined) return;
-    colState.config.encodingMethod = method;
-    this.preprocessingService.updateColumnConfig(colState.column.name, { encodingMethod: method });
+    const encodingMethod = this.getDefaults(colState).encodingMethod;
+    if (encodingMethod === undefined) return;
+    this.applyColumnChange(colState, { encodingMethod });
   }
 
   resetScaling(colState: ColumnConfigState): void {
-    const method = this.getDefaults(colState).scalingMethod;
-    if (method === undefined) return;
-    colState.config.scalingMethod = method;
-    this.preprocessingService.updateColumnConfig(colState.column.name, { scalingMethod: method });
+    const scalingMethod = this.getDefaults(colState).scalingMethod;
+    if (scalingMethod === undefined) return;
+    this.applyColumnChange(colState, { scalingMethod });
   }
 
   resetMissing(colState: ColumnConfigState): void {
-    const strategy = this.getDefaults(colState).missingValueStrategy;
-    if (strategy === undefined) return;
-    colState.config.missingValueStrategy = strategy;
-    colState.config.missingValueFillValue = undefined;
-    this.preprocessingService.updateColumnConfig(colState.column.name, {
-      missingValueStrategy: strategy,
-      missingValueFillValue: undefined,
-    });
+    const missingValueStrategy = this.getDefaults(colState).missingValueStrategy;
+    if (missingValueStrategy === undefined) return;
+    this.applyColumnChange(colState, { missingValueStrategy, missingValueFillValue: undefined });
   }
 
   async resetOutlierMethod(colState: ColumnConfigState): Promise<void> {
-    const method = this.getDefaults(colState).outlierMethod;
-    if (method === undefined) return;
-    colState.config.outlierMethod = method;
-    this.preprocessingService.updateColumnConfig(colState.column.name, { outlierMethod: method });
+    const outlierMethod = this.getDefaults(colState).outlierMethod;
+    if (outlierMethod === undefined) return;
+    this.applyColumnChange(colState, { outlierMethod });
     await this.detectOutliersForColumn(colState);
   }
 
   resetOutlierStrategy(colState: ColumnConfigState): void {
-    const strategy = this.getDefaults(colState).outlierStrategy;
-    if (strategy === undefined) return;
-    colState.config.outlierStrategy = strategy;
-    this.preprocessingService.updateColumnConfig(colState.column.name, { outlierStrategy: strategy });
+    const outlierStrategy = this.getDefaults(colState).outlierStrategy;
+    if (outlierStrategy === undefined) return;
+    this.applyColumnChange(colState, { outlierStrategy });
   }
 
+  /** Reset outlier method and strategy together as one undo entry. */
   async resetOutliers(colState: ColumnConfigState): Promise<void> {
-    this.resetOutlierStrategy(colState);
-    await this.resetOutlierMethod(colState);
+    const { outlierMethod, outlierStrategy } = this.getDefaults(colState);
+    if (outlierMethod === undefined || outlierStrategy === undefined) return;
+    this.applyColumnChange(colState, { outlierMethod, outlierStrategy });
+    await this.detectOutliersForColumn(colState);
   }
 
-  /** Reset every setting of the selected column back to its smart default. */
+  /**
+   * Reset every Step 3 setting of the column back to its smart default as ONE undo
+   * entry, so a single undo restores all of them. The Step 4 projection flag is
+   * deliberately left alone.
+   */
   resetColumnToDefault(colState: ColumnConfigState): void {
-    this.resetEncoding(colState);
-    this.resetScaling(colState);
-    this.resetMissing(colState);
-    void this.resetOutliers(colState);
+    const defaults = this.preprocessingService.getColumnDefaults(colState.column.name);
+    if (!defaults) return;
+    this.applyColumnChange(colState, {
+      encodingMethod: defaults.encodingMethod,
+      scalingMethod: defaults.scalingMethod,
+      missingValueStrategy: defaults.missingValueStrategy,
+      missingValueFillValue: undefined,
+      outlierMethod: defaults.outlierMethod,
+      outlierStrategy: defaults.outlierStrategy,
+    });
+    if (this.shouldShowOutliers(colState)) {
+      void this.detectOutliersForColumn(colState);
+    }
   }
 
   // ============================================================================
@@ -545,9 +568,14 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit, AfterViewIni
       outlierStrategy: source.config.outlierStrategy,
     };
 
+    // One undo entry for the whole bulk apply, so a single undo reverts every target.
+    const count = targets.length;
+    this.preprocessingService.updateColumnConfigs(
+      targets.map(target => ({ columnName: target.column.name, updates })),
+      `Settings applied to ${count} ${count === 1 ? 'column' : 'columns'}`
+    );
     for (const target of targets) {
-      Object.assign(target.config, updates);
-      this.preprocessingService.updateColumnConfig(target.column.name, updates);
+      target.config = { ...target.config, ...updates };
       if (this.shouldShowOutliers(target)) {
         void this.detectOutliersForColumn(target);
       }
@@ -561,23 +589,54 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit, AfterViewIni
       settingsSummary: this.getBulkSettingsSummary(source),
     };
     this.showBulkTargets = false;
+    // The summary box is rendered conditionally, so a role="status" on it would
+    // not be announced reliably; the shell's persistent live region is.
+    this.announcer.announce(bulkApplyAnnouncement(this.bulkApplyResult));
   }
 
   dismissBulkResult(): void {
     this.bulkApplyResult = null;
   }
 
-  /** Focus the column search field when the user presses "/" (unless already typing). */
-  @HostListener('document:keydown', ['$event'])
+  /**
+   * Focus the column search field when the user presses "/" (unless already
+   * typing). Listens on this step's host only, not the document, so the
+   * single-key shortcut is active only while focus is inside the step
+   * (WCAG 2.1.4) and never steals "/" from other parts of the page.
+   */
+  @HostListener('keydown', ['$event'])
   onKeyDown(event: KeyboardEvent): void {
-    if (event.key !== '/') return;
-    const target = event.target as HTMLElement | null;
+    if (event.key !== '/' || event.ctrlKey || event.metaKey || event.altKey) return;
+    const target = event.target instanceof HTMLElement ? event.target : null;
     const tag = target?.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target?.isContentEditable) {
       return;
     }
     event.preventDefault();
     this.railSearchInput?.nativeElement.focus();
+  }
+
+  // ============================================================================
+  // "Show the consequence": what the current setting does to this column
+  // ============================================================================
+
+  encodingConsequence(colState: ColumnConfigState): string | null {
+    return describeEncoding(colState.column, colState.config.encodingMethod);
+  }
+
+  scalingConsequence(colState: ColumnConfigState): string | null {
+    return describeScaling(colState.column, colState.config.scalingMethod);
+  }
+
+  missingConsequence(colState: ColumnConfigState): string | null {
+    const { missingValueStrategy, missingValueFillValue } = colState.config;
+    return describeMissingValues(colState.column, missingValueStrategy, this.totalRows, missingValueFillValue);
+  }
+
+  outlierConsequence(colState: ColumnConfigState): string | null {
+    // While re-detecting, the stored count belongs to the previous method.
+    const count = colState.isLoadingOutliers ? undefined : colState.outlierCount;
+    return describeOutliers(colState.config.outlierStrategy, count, this.totalRows);
   }
 
   getConfigSummary(colState: ColumnConfigState): string {
@@ -650,6 +709,18 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit, AfterViewIni
     return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
   }
 
+  /** "Jan 1, 2024 — Dec 31, 2024" for a date column with a known range, otherwise null. */
+  dateRangeLabel(colState: ColumnConfigState): string | null {
+    const { dataType, min, max } = colState.column;
+    if (dataType !== DataType.Date || typeof min !== 'number' || typeof max !== 'number') return null;
+    return `${this.formatDate(min)} — ${this.formatDate(max)}`;
+  }
+
+  /** The missing-value select is described by the missing count and, if any, the consequence. */
+  missingDescribedBy(colState: ColumnConfigState): string {
+    return this.missingConsequence(colState) ? 'step3-missing-count step3-missing-consequence' : 'step3-missing-count';
+  }
+
   getIssueDescription(colState: ColumnConfigState): string {
     const issues: string[] = [];
     if (this.hasMissingValues(colState)) {
@@ -669,7 +740,7 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit, AfterViewIni
 
   canProceed(): boolean {
     // Data configuration always has valid defaults; column selection for the
-    // projection now happens in Step 4 (Visualization Settings).
+    // projection happens in the Projection step.
     return true;
   }
 

@@ -1,25 +1,51 @@
-name: Deploy Angular to GitHub Pages
+name: CI and deploy to GitHub Pages
 
 on:
   push:
     branches:
-      - main  # or master, depending on your default branch
+      - main
+  pull_request:
+
+# Least privilege by default; only the deploy job may push to gh-pages.
+permissions:
+  contents: read
 
 jobs:
-  build-and-deploy:
+  verify:
     runs-on: ubuntu-latest
+    concurrency:
+      group: verify-${{ github.ref }}
+      cancel-in-progress: true
 
     steps:
       - name: ⬇️ Checkout repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v7
 
       - name: 🟢 Setup Node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v7
         with:
-          node-version: 25
+          node-version-file: .nvmrc
+          cache: npm
 
       - name: 📦 Install dependencies
-        run: npm install
+        run: npm ci
+
+      - name: 🔍 Lint
+        run: npm run lint
+
+      # Vitest runs the unit tests in Playwright's headless Chromium (version pinned by package-lock).
+      # Not cached on purpose: Playwright advises against it, restoring takes about as long as the
+      # download, and --with-deps has to install the Linux system packages either way.
+      - name: 🎭 Install Playwright Chromium
+        run: npx playwright install --with-deps --only-shell chromium
+
+      # The test command lives in package.json ("test:ci") so the runner can be swapped in one place.
+      - name: 🧪 Unit tests
+        run: npm run test:ci
+        env:
+          # The runner image points CHROME_BIN at its own Google Chrome, which the Angular test
+          # builder would launch instead of the pinned Playwright Chromium.
+          CHROME_BIN: ''
 
       - name: 🛠️ Build Angular app
         run: npm run build -- --base-href=/glyphspace/ --configuration production
@@ -27,10 +53,41 @@ jobs:
       - name: 📄 Create .nojekyll file
         run: echo > dist/glyphspace/browser/.nojekyll
 
+      # The builder writes the licence list next to browser/, which is the only folder published.
+      - name: 📜 Publish third-party licences
+        run: cp dist/glyphspace/3rdpartylicenses.txt dist/glyphspace/browser/
+
+      - name: 📤 Upload site artifact
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v7
+        with:
+          name: site
+          path: dist/glyphspace/browser/
+          include-hidden-files: true # keep .nojekyll
+          if-no-files-found: error
+          retention-days: 1
+
+  deploy:
+    needs: verify
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: gh-pages-deploy
+      cancel-in-progress: false
+
+    steps:
+      - name: 📥 Download site artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: site
+          path: site
+
       - name: 🚀 Deploy to gh-pages
-        uses: peaceiris/actions-gh-pages@v3
+        uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dist/glyphspace/browser/
+          publish_dir: ./site
           publish_branch: gh-pages
-          enable_jekyll: false  # this adds the .nojekyll file automatically
+          enable_jekyll: false # this adds the .nojekyll file automatically

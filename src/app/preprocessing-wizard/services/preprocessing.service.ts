@@ -4,107 +4,49 @@ import {
   PreprocessingState,
   ProcessingProgress,
   HistoryStatus,
-  DEFAULT_CLEANING_CONFIG,
-  DEFAULT_PROJECTION_CONFIG,
+  createInitialState,
 } from '../models/preprocessing-state';
 import { DataProfile, ColumnStatistics } from '../models/column-statistics';
 import { ColumnConfig, CleaningConfig, ProjectionConfig } from '../models/column-config';
-import {
-  DataType,
-  EncodingMethod,
-  MissingValueStrategy,
-  OutlierStrategy,
-  OutlierMethod,
-  DATA_TYPE_CONFIG,
-} from '../models/data-type.enum';
+import { DataType, OutlierMethod } from '../models/data-type.enum';
 import { DataProcessorService } from '../../services/data-processor';
 import { DataLoaderService } from '../../services/data-loader.service';
+import { LAST_STEP_INDEX, WizardStepId, stepIdAt, stepIndex } from '../shared/constants/step-info';
+import { HistorySnapshot, UndoRedoInfo, copySnapshot, describeDiff } from './history-diff';
+import { colorScaleForFeature, columnDefaultsFor, createDefaultColumnConfig } from './column-defaults';
+import {
+  ProcessedCollection,
+  buildProcessingConfig,
+  predictEncodedFeatureNames,
+  storeProjectionPositions,
+} from './processing-config';
+import { STORAGE_KEY, deserializeState, serializeState } from './wizard-storage';
 
-/**
- * A4 – Undo/Redo. The subset of PreprocessingState that undo restores. Transient
- * UI fields (currentStep, isProcessing, error, processedDataset, …) are left out
- * so undoing a data-config change never yanks the user to another step or discards
- * an in-flight processing run.
- */
-interface HistorySnapshot {
-  rawFileName: string | null;
-  dataProfile: DataProfile | null;
-  columnConfigs: Map<string, ColumnConfig>;
-  cleaningConfig: CleaningConfig;
-  projectionConfig: ProjectionConfig;
-  datasetName: string;
-  timestamp: string;
-  glyphFeatures: string[];
-  tooltipFeatures: string[];
-  colorScaleMode: 'continuous' | 'categorical';
-  colorScaleId: number;
-}
+export type { UndoRedoInfo } from './history-diff';
 
 interface HistoryEntry {
+  id: number; // stable id of the recorded action (kept across undo/redo), see undoIfLatest
   label: string; // human-readable description of the action this snapshot precedes
   snapshot: HistorySnapshot;
 }
 
-/**
- * A4: result of an undo()/redo() call. Beyond the action label it names the single
- * setting that changed (settingLabel) and where it lives (step index + scroll anchor),
- * so the shell can show a precise toast and offer a "jump to change" deep-link.
- */
-export interface UndoRedoInfo {
-  actionLabel: string; // original history label of the reverted/re-applied action
-  settingLabel: string; // human name of the changed setting (e.g. "Encoding")
-  step: number | null; // wizard step index (0–4) that holds the setting, or null
-  anchorId: string | null; // scroll anchor id inside that step, or null
+/** One column's share of a multi-column action (see updateColumnConfigs). */
+export interface ColumnConfigChange {
+  columnName: string;
+  updates: Partial<ColumnConfig>;
 }
 
 /**
- * A4: maps a diff key (top-level snapshot key or `columnConfigs.<field>`) to a
- * human-readable setting name plus the step index and scroll anchor where the
- * setting is edited. Step indices are 0-based (0=Upload, 1=Spaltenauswahl,
- * 2=Datenkonfiguration, 3=Visualisierung, 4=Review). Anchors mirror the ids used
- * by the review step's deep-links (wizard-anchor-*).
+ * Derived per-column values computed from the data rather than chosen by the user.
+ * They are written without an undo entry (see updateColumnMetadata).
  */
-interface SettingMeta {
-  label: string;
-  step: number | null;
-  anchorId: string | null;
-}
-
-const SETTING_META: Record<string, SettingMeta> = {
-  // Step 2 – Spaltenauswahl
-  'columnConfigs.enabled': { label: 'Spaltenauswahl', step: 1, anchorId: 'wizard-anchor-columns' },
-  // Step 3 – Datenkonfiguration (per-column features + cleaning)
-  'columnConfigs.encodingMethod': { label: 'Encoding', step: 2, anchorId: 'wizard-anchor-features' },
-  'columnConfigs.scalingMethod': { label: 'Skalierung', step: 2, anchorId: 'wizard-anchor-features' },
-  'columnConfigs.targetType': { label: 'Datentyp', step: 2, anchorId: 'wizard-anchor-features' },
-  'columnConfigs.missingValueStrategy': { label: 'Fehlende Werte', step: 2, anchorId: 'wizard-anchor-features' },
-  'columnConfigs.missingValueFillValue': { label: 'Fehlende Werte', step: 2, anchorId: 'wizard-anchor-features' },
-  'columnConfigs.outlierMethod': { label: 'Ausreißerbehandlung', step: 2, anchorId: 'wizard-anchor-features' },
-  'columnConfigs.outlierStrategy': { label: 'Ausreißerbehandlung', step: 2, anchorId: 'wizard-anchor-features' },
-  cleaningConfig: { label: 'Datenbereinigung', step: 2, anchorId: 'wizard-anchor-cleaning' },
-  // Step 4 – Visualisierung (color / glyph / projection live here)
-  'columnConfigs.includeInProjection': {
-    label: 'Projektionsspalten',
-    step: 3,
-    anchorId: 'wizard-anchor-projection-columns',
-  },
-  'columnConfigs.isColorFeature': { label: 'Farbattribut', step: 3, anchorId: 'wizard-anchor-color' },
-  isColorFeature: { label: 'Farbattribut', step: 3, anchorId: 'wizard-anchor-color' },
-  colorScaleId: { label: 'Farbskala', step: 3, anchorId: 'wizard-anchor-color' },
-  colorScaleMode: { label: 'Farbmodus', step: 3, anchorId: 'wizard-anchor-color' },
-  glyphFeatures: { label: 'Glyph-Merkmale', step: 3, anchorId: 'wizard-anchor-glyph' },
-  tooltipFeatures: { label: 'Tooltip-Merkmale', step: 3, anchorId: 'wizard-anchor-glyph' },
-  projectionConfig: { label: 'Projektionsparameter', step: 3, anchorId: 'wizard-anchor-methods' },
-  // Step 1 – Upload
-  rawFileName: { label: 'Datei', step: 0, anchorId: null },
-  datasetName: { label: 'Datensatzname', step: 0, anchorId: null },
-};
+export type ColumnMetadataUpdate = Partial<Pick<ColumnConfig, 'outlierCount'>>;
 
 @Injectable({
   providedIn: 'root',
 })
 export class PreprocessingService {
-  private stateSubject = new BehaviorSubject<PreprocessingState>(this.getInitialState());
+  private stateSubject = new BehaviorSubject<PreprocessingState>(createInitialState());
   public state$ = this.stateSubject.asObservable();
 
   private progressSubject = new Subject<ProcessingProgress>();
@@ -121,6 +63,20 @@ export class PreprocessingService {
   private undoStack: HistoryEntry[] = [];
   private redoStack: HistoryEntry[] = [];
   private readonly MAX_HISTORY = 50;
+  private nextHistoryId = 1;
+
+  // In-flight processData() run; a second call joins it instead of starting a
+  // parallel worker job (re-entrancy guard).
+  private activeProcessingRun: Promise<void> | null = null;
+
+  // Number of runs currently holding state.isProcessing (see holdProcessing).
+  // Counted so a caller can keep the flag up across several phases while
+  // processData() inside it takes and releases its own hold.
+  private processingHolds = 0;
+
+  // Uploads whose profiling is in flight. They are not in the state yet, but
+  // must survive any worker-file prune that runs meanwhile.
+  private uploadsInFlight = new Set<string>();
 
   private historySubject = new BehaviorSubject<HistoryStatus>({
     canUndo: false,
@@ -169,45 +125,31 @@ export class PreprocessingService {
     return this.dataProcessor.processingProgress;
   }
 
-  private getInitialState(): PreprocessingState {
-    return {
-      currentStep: 0,
-      rawFileName: null,
-      dataProfile: null,
-      columnConfigs: new Map(),
-      cleaningConfig: { ...DEFAULT_CLEANING_CONFIG },
-      projectionConfig: { ...DEFAULT_PROJECTION_CONFIG },
-      cleaningResult: null,
-      processedDataset: null,
-      datasetName: '',
-      timestamp: '',
-      glyphFeatures: [],
-      tooltipFeatures: [],
-      colorScaleMode: 'continuous',
-      colorScaleId: 0,
-      isProcessing: false,
-      processingProgress: 0,
-      processingStep: '',
-      error: null,
-    };
-  }
-
   get currentState(): PreprocessingState {
     return this.stateSubject.getValue();
   }
 
-  // Step navigation (5 steps: 0-4)
-  public goToStep(step: number): void {
-    if (step >= 0 && step <= 4) {
-      this.updateState({ currentStep: step });
-    }
+  /** Id of the step currently shown (state keeps its index into WIZARD_STEPS). */
+  get currentStepId(): WizardStepId {
+    return stepIdAt(this.currentState.currentStep) ?? 'upload';
+  }
+
+  // Step navigation by id; the index stored in state is derived from WIZARD_STEPS.
+  public goToStep(step: WizardStepId): void {
+    this.goToStepIndex(stepIndex(step));
   }
 
   // A6: navigate to a step and remember an anchor id so the target step can
   // scroll the relevant setting into view after it renders.
-  public goToStepWithScroll(step: number, targetId: string): void {
+  public goToStepWithScroll(step: WizardStepId, targetId: string): void {
     this.goToStep(step);
     this.scrollTargetSubject.next(targetId);
+  }
+
+  private goToStepIndex(index: number): void {
+    if (index >= 0 && index <= LAST_STEP_INDEX) {
+      this.updateState({ currentStep: index });
+    }
   }
 
   // A6: read and clear the pending scroll anchor. Returns null if none is set.
@@ -220,123 +162,54 @@ export class PreprocessingService {
   }
 
   public nextStep(): void {
-    const current = this.currentState.currentStep;
-    if (current < 4) {
-      this.goToStep(current + 1);
-    }
+    this.goToStepIndex(this.currentState.currentStep + 1);
   }
 
   public previousStep(): void {
-    const current = this.currentState.currentStep;
-    if (current > 0) {
-      this.goToStep(current - 1);
-    }
+    this.goToStepIndex(this.currentState.currentStep - 1);
   }
 
   // Data loading and profiling
   public async loadCSV(file: File): Promise<DataProfile> {
-    this.updateState({ isProcessing: true, error: null });
+    const fileName = file.name;
+    const release = this.holdProcessing();
+    this.uploadsInFlight.add(fileName);
+    this.updateState({ error: null });
 
     try {
-      // Load CSV file directly
-      const buffer = await file.arrayBuffer();
-      const fileName = file.name;
-
-      // Send file to worker for profiling
-      const profile = await this.dataProcessor.profileData(fileName, buffer);
-
-      // Initialize column configurations
-      const columnConfigs = new Map<string, ColumnConfig>();
-      profile.columns.forEach((col: ColumnStatistics) => {
-        columnConfigs.set(col.name, this.createDefaultColumnConfig(col));
-      });
-
-      // Generate unique dataset name and timestamp
-      const baseName = file.name.replace(/\.csv$/i, '');
-      const datasetName = this.getUniqueDatasetName(baseName);
-      const timestamp = new Date().toISOString().split('T')[0].replace(/-/g, '');
-
-      // A4: snapshot the prior data before it is replaced, so a re-upload is undoable.
-      this.pushHistory(this.currentState.dataProfile !== null ? 'Datei ersetzt' : 'Datei geladen');
-
-      this.updateState({
-        dataProfile: profile,
-        rawFileName: fileName,
-        columnConfigs,
-        datasetName,
-        timestamp,
-        isProcessing: false,
-      });
-
-      this.saveStateToStorage();
+      // Send the file to the worker for profiling; this also writes it into the Pyodide FS.
+      const profile: DataProfile = await this.dataProcessor.profileData(fileName, await file.arrayBuffer());
+      this.adoptLoadedFile(fileName, profile);
       return profile;
     } catch (error: unknown) {
-      this.updateState({
-        isProcessing: false,
-        error: this.toErrorMessage(error, 'Failed to load data file'),
-      });
+      this.updateState({ error: this.toErrorMessage(error, 'Failed to load data file') });
       throw error;
+    } finally {
+      release();
+      this.uploadsInFlight.delete(fileName);
+      // The previous upload stays referenced by the undo history; anything no
+      // longer referenced (e.g. this file, if loading failed) is removed.
+      this.pruneWorkerFiles();
     }
   }
 
-  private static readonly HIGH_CARDINALITY_RATIO = 0.9;
-  private static readonly HIGH_CARDINALITY_MIN_ROWS = 20;
+  /** Install a freshly profiled file as one undoable "File loaded/replaced" action. */
+  private adoptLoadedFile(fileName: string, profile: DataProfile): void {
+    const columnConfigs = new Map<string, ColumnConfig>();
+    profile.columns.forEach((col: ColumnStatistics) => {
+      columnConfigs.set(col.name, createDefaultColumnConfig(col));
+    });
 
-  /**
-   * A text/categorical/ID column counts as high-cardinality when nearly all of
-   * its values are unique (typical of IDs, titles or free text). Such columns
-   * carry little structure for a projection and would explode one-hot encoding,
-   * so they start deselected as a smart default. Numeric/date columns are exempt —
-   * near-unique values there are legitimate measurements.
-   */
-  private isHighCardinality(col: ColumnStatistics): boolean {
-    const eligible =
-      col.dataType === DataType.Text || col.dataType === DataType.Categorical || col.dataType === DataType.ID;
-    if (!eligible || col.count <= PreprocessingService.HIGH_CARDINALITY_MIN_ROWS) {
-      return false;
-    }
-    return col.uniqueCount / col.count >= PreprocessingService.HIGH_CARDINALITY_RATIO;
-  }
+    // Generate unique dataset name and timestamp
+    const baseName = fileName.replace(/\.csv$/i, '');
+    const datasetName = this.getUniqueDatasetName(baseName);
+    const timestamp = new Date().toISOString().split('T')[0].replace(/-/g, '');
 
-  private createDefaultColumnConfig(col: ColumnStatistics): ColumnConfig {
-    const capabilities = DATA_TYPE_CONFIG[col.dataType] ?? DATA_TYPE_CONFIG[DataType.Unknown];
+    // A4: snapshot the prior data before it is replaced, so a re-upload is undoable.
+    this.pushHistory(this.currentState.dataProfile !== null ? 'File replaced' : 'File loaded');
 
-    // Smart defaults: obviously unsuitable columns start deselected; users can
-    // re-enable them in Step 2 at any time. issueDescription records WHY a column
-    // was auto-deselected so Step 2 can show a reason next to it.
-    const isMostlyMissing = col.missingPercentage > 50;
-    const isConstant = col.uniqueCount === 1;
-    const isHighCardinality = this.isHighCardinality(col);
-
-    // hasIssues drives the data-quality warning icon (mostly-missing / constant).
-    const hasIssues = isMostlyMissing || isConstant;
-    const autoDeselected = hasIssues || isHighCardinality;
-
-    let issueDescription: string | undefined;
-    if (isMostlyMissing) {
-      issueDescription = `Mostly empty (${Math.round(col.missingPercentage)}% missing)`;
-    } else if (isConstant) {
-      issueDescription = 'Only one unique value — nothing to distinguish rows';
-    } else if (isHighCardinality) {
-      const pct = Math.round((col.uniqueCount / col.count) * 100);
-      issueDescription = `Nearly all values are unique (${pct}%) — likely an ID, title or free-text column`;
-    }
-
-    return {
-      name: col.name,
-      originalType: col.dataType,
-      targetType: col.dataType,
-      encodingMethod: capabilities.defaultEncoding,
-      scalingMethod: capabilities.defaultScaling,
-      includeInProjection: capabilities.defaultIncludeInProjection,
-      isColorFeature: false,
-      missingValueStrategy: MissingValueStrategy.Keep,
-      outlierMethod: OutlierMethod.IQR_1_5,
-      outlierStrategy: OutlierStrategy.Keep,
-      enabled: !autoDeselected,
-      hasIssues,
-      issueDescription,
-    };
+    this.updateState({ dataProfile: profile, rawFileName: fileName, columnConfigs, datasetName, timestamp });
+    this.saveStateToStorage();
   }
 
   /**
@@ -346,23 +219,40 @@ export class PreprocessingService {
    */
   public getColumnDefaults(columnName: string): Partial<ColumnConfig> | null {
     const config = this.currentState.columnConfigs.get(columnName);
-    if (!config) return null;
-
-    const capabilities = DATA_TYPE_CONFIG[config.originalType] ?? DATA_TYPE_CONFIG[DataType.Unknown];
-    return {
-      encodingMethod: capabilities.defaultEncoding,
-      scalingMethod: capabilities.defaultScaling,
-      includeInProjection: capabilities.defaultIncludeInProjection,
-      missingValueStrategy: MissingValueStrategy.Keep,
-      missingValueFillValue: undefined,
-      outlierMethod: OutlierMethod.IQR_1_5,
-      outlierStrategy: OutlierStrategy.Keep,
-    };
+    return config ? columnDefaultsFor(config) : null;
   }
 
   // Column configuration
   public updateColumnConfig(columnName: string, updates: Partial<ColumnConfig>): void {
-    this.pushHistory('Spalteneinstellung geändert');
+    this.pushHistory('Column settings changed');
+    this.applyColumnConfig(columnName, updates);
+  }
+
+  /**
+   * Apply one user action that touches several columns (e.g. "Apply to same type")
+   * as a single undo entry: history is pushed once, then every change is applied
+   * without further history. An empty batch records nothing.
+   */
+  public updateColumnConfigs(changes: ColumnConfigChange[], label: string): void {
+    if (changes.length === 0) return;
+    this.pushHistory(label);
+    const configs = new Map(this.currentState.columnConfigs);
+    for (const { columnName, updates } of changes) {
+      const existing = configs.get(columnName);
+      if (existing) {
+        configs.set(columnName, { ...existing, ...updates });
+      }
+    }
+    this.updateState({ columnConfigs: configs });
+    this.saveStateToStorage();
+  }
+
+  /**
+   * Store derived per-column values (e.g. a detected outlierCount) WITHOUT an undo
+   * entry. They are recomputed from the data, not chosen by the user, so recording
+   * them would fill the history (and clear redo) just by opening Step 3.
+   */
+  public updateColumnMetadata(columnName: string, updates: ColumnMetadataUpdate): void {
     this.applyColumnConfig(columnName, updates);
   }
 
@@ -370,59 +260,33 @@ export class PreprocessingService {
   // the public updateColumnConfig (which pushes first) and by other actions that
   // manage their own history entry, so a single action never records twice.
   private applyColumnConfig(columnName: string, updates: Partial<ColumnConfig>): void {
-    const configs = this.currentState.columnConfigs;
-    const existing = configs.get(columnName);
+    const existing = this.currentState.columnConfigs.get(columnName);
+    if (!existing) return;
 
-    if (existing) {
-      configs.set(columnName, { ...existing, ...updates });
-      this.updateState({ columnConfigs: new Map(configs) });
-      this.saveStateToStorage();
-    }
+    const configs = new Map(this.currentState.columnConfigs);
+    configs.set(columnName, { ...existing, ...updates });
+    this.updateState({ columnConfigs: configs });
+    this.saveStateToStorage();
+  }
+
+  /** Copy of the column configs; `update` returns the config itself or a changed copy. */
+  private mapColumnConfigs(update: (config: ColumnConfig, name: string) => ColumnConfig): Map<string, ColumnConfig> {
+    return new Map(Array.from(this.currentState.columnConfigs, ([name, config]) => [name, update(config, name)]));
   }
 
   public setColorFeature(columnName: string): void {
-    const configs = this.currentState.columnConfigs;
+    // Exactly one column carries the color flag.
+    const configs = this.mapColumnConfigs((config, name) =>
+      config.isColorFeature === (name === columnName) ? config : { ...config, isColorFeature: name === columnName }
+    );
 
-    // Clear previous color feature
-    configs.forEach((config, name) => {
-      config.isColorFeature = name === columnName;
-    });
+    // Match the color mode (and, if needed, the default scale) to the column's type.
+    const { colorScaleMode, colorScaleId } = colorScaleForFeature(
+      configs.get(columnName),
+      this.currentState.colorScaleId
+    );
 
-    // Auto-detect color scale mode based on data type
-    const colorConfig = configs.get(columnName);
-    let colorScaleMode: 'continuous' | 'categorical' = 'continuous';
-
-    if (colorConfig) {
-      // Categorical or Text data types should use categorical color scale
-      if (
-        colorConfig.originalType === DataType.Categorical ||
-        colorConfig.originalType === DataType.Text ||
-        colorConfig.targetType === DataType.Categorical ||
-        colorConfig.targetType === DataType.Text
-      ) {
-        colorScaleMode = 'categorical';
-      }
-      // Numeric data types use continuous color scale
-      else if (colorConfig.originalType === DataType.Numeric || colorConfig.targetType === DataType.Numeric) {
-        colorScaleMode = 'continuous';
-      }
-    }
-
-    // Auto-select matching default scale if current scale type doesn't match
-    const currentScaleId = this.currentState.colorScaleId;
-    let colorScaleId = currentScaleId;
-    const isCategorical = colorScaleMode === 'categorical';
-    // Default numeric scales: 0-3, categorical scales: 4-5
-    const currentIsCategorical = currentScaleId >= 4;
-    if (isCategorical !== currentIsCategorical) {
-      colorScaleId = isCategorical ? 4 : 0;
-    }
-
-    this.updateState({
-      columnConfigs: new Map(configs),
-      colorScaleMode: colorScaleMode,
-      colorScaleId: colorScaleId,
-    });
+    this.updateState({ columnConfigs: configs, colorScaleMode, colorScaleId });
     this.saveStateToStorage();
   }
 
@@ -437,7 +301,7 @@ export class PreprocessingService {
     if (features.length < 3 || features.length > 12) {
       throw new Error('3-12 glyph features required');
     }
-    // Store a copy, never the caller's array. Step 4 edits its local selection
+    // Store a copy, never the caller's array. The glyph step edits its local selection
     // array in place (splice/push); if we kept that reference, later in-place edits
     // would silently mutate the service state and corrupt undo snapshots taken
     // before the next pushHistory.
@@ -447,40 +311,13 @@ export class PreprocessingService {
 
   public getPreviewFeatureNames(): string[] {
     // Returns predicted feature names after encoding
-    return this.predictEncodedFeatureNames();
-  }
-
-  private predictEncodedFeatureNames(): string[] {
-    const state = this.currentState;
-    const featureNames: string[] = [];
-
-    const enabledCols = Array.from(state.columnConfigs.values()).filter(
-      config => config.enabled && config.originalType !== DataType.ID
-    );
-
-    for (const col of enabledCols) {
-      if (col.encodingMethod === EncodingMethod.OneHot) {
-        // Predict one-hot expansion based on unique values from data profile
-        const colStats = state.dataProfile?.columns.find(c => c.name === col.name);
-        if (colStats && colStats.topValues) {
-          // Generate predicted column names: columnName_value
-          colStats.topValues.forEach(item => {
-            featureNames.push(`${col.name}_${item.value}`);
-          });
-        }
-      } else {
-        // Label encoding, numeric, or no encoding - keeps column name
-        featureNames.push(col.name);
-      }
-    }
-
-    return featureNames;
+    return predictEncodedFeatureNames(this.currentState);
   }
 
   public toggleColumnEnabled(columnName: string): void {
     const config = this.currentState.columnConfigs.get(columnName);
     if (config) {
-      this.pushHistory(config.enabled ? 'Spalte abgewählt' : 'Spalte ausgewählt');
+      this.pushHistory(config.enabled ? 'Column deselected' : 'Column selected');
       this.applyColumnConfig(columnName, { enabled: !config.enabled });
       this.validateDependentReferences();
     }
@@ -491,37 +328,28 @@ export class PreprocessingService {
    * Step 2 range-select (shift-click) and "select all filtered".
    */
   public setColumnsEnabled(columnNames: string[], enabled: boolean): void {
-    this.pushHistory('Spaltenauswahl geändert');
-    const configs = this.currentState.columnConfigs;
-    columnNames.forEach(name => {
-      const config = configs.get(name);
-      if (config) {
-        config.enabled = enabled;
-      }
-    });
-    this.updateState({ columnConfigs: new Map(configs) });
-    this.validateDependentReferences();
-    this.saveStateToStorage();
+    this.pushHistory('Column selection changed');
+    const targets = new Set(columnNames);
+    this.applyEnabled((config, name) => (targets.has(name) ? enabled : config.enabled));
   }
 
   public selectAllColumns(): void {
-    this.pushHistory('Alle Spalten ausgewählt');
-    const configs = this.currentState.columnConfigs;
-    configs.forEach(config => (config.enabled = true));
-    this.updateState({ columnConfigs: new Map(configs) });
-    this.validateDependentReferences();
-    this.saveStateToStorage();
+    this.pushHistory('All columns selected');
+    this.applyEnabled(() => true);
   }
 
   public deselectAllColumns(): void {
-    this.pushHistory('Alle Spalten abgewählt');
-    const configs = this.currentState.columnConfigs;
-    configs.forEach(config => {
-      if (config.originalType !== DataType.ID) {
-        config.enabled = false;
-      }
+    this.pushHistory('All columns deselected');
+    this.applyEnabled(config => config.originalType === DataType.ID && config.enabled);
+  }
+
+  /** Sets each column's `enabled` flag (history is pushed by the caller). */
+  private applyEnabled(enabledFor: (config: ColumnConfig, name: string) => boolean): void {
+    const configs = this.mapColumnConfigs((config, name) => {
+      const enabled = enabledFor(config, name);
+      return enabled === config.enabled ? config : { ...config, enabled };
     });
-    this.updateState({ columnConfigs: new Map(configs) });
+    this.updateState({ columnConfigs: configs });
     this.validateDependentReferences();
     this.saveStateToStorage();
   }
@@ -531,7 +359,7 @@ export class PreprocessingService {
    * that would otherwise dangle on now-disabled columns. Concretely: a disabled
    * column can no longer be the color feature, and glyph/tooltip mappings drop
    * features whose underlying column is disabled. If the color feature was cleared,
-   * the color scale falls back to the numeric default so the review/step 4 UI does
+   * the color scale falls back to the numeric default so the review/glyph step UI does
    * not keep showing a scale for a column that is gone.
    *
    * Runs after the enable change (and after pushHistory captured the pre-change
@@ -539,35 +367,28 @@ export class PreprocessingService {
    * one atomic action, while the redo snapshot holds the already-cleaned state.
    */
   private validateDependentReferences(): void {
-    const configs = this.currentState.columnConfigs;
-    let changed = false;
-    let colorFeatureCleared = false;
-
     // Drop color-feature flag from disabled columns.
-    configs.forEach(config => {
-      if (!config.enabled && config.isColorFeature) {
-        config.isColorFeature = false;
-        colorFeatureCleared = true;
-        changed = true;
-      }
+    let colorFeatureCleared = false;
+    const configs = this.mapColumnConfigs(config => {
+      if (config.enabled || !config.isColorFeature) return config;
+      colorFeatureCleared = true;
+      return { ...config, isColorFeature: false };
     });
 
     // Glyph/tooltip mappings may only reference features of still-enabled columns.
     // predictEncodedFeatureNames() already restricts itself to enabled columns and
     // handles one-hot expansion, so it is the source of truth for valid names.
-    const validFeatures = new Set(this.predictEncodedFeatureNames());
+    const validFeatures = new Set(predictEncodedFeatureNames(this.currentState));
     const glyphFeatures = this.currentState.glyphFeatures.filter(f => validFeatures.has(f));
     const tooltipFeatures = this.currentState.tooltipFeatures.filter(f => validFeatures.has(f));
     const glyphChanged = glyphFeatures.length !== this.currentState.glyphFeatures.length;
     const tooltipChanged = tooltipFeatures.length !== this.currentState.tooltipFeatures.length;
 
-    if (!changed && !glyphChanged && !tooltipChanged) {
+    if (!colorFeatureCleared && !glyphChanged && !tooltipChanged) {
       return;
     }
 
-    const updates: Partial<PreprocessingState> = {
-      columnConfigs: new Map(configs),
-    };
+    const updates: Partial<PreprocessingState> = { columnConfigs: configs };
     if (glyphChanged) updates.glyphFeatures = glyphFeatures;
     if (tooltipChanged) updates.tooltipFeatures = tooltipFeatures;
     // When the color feature is gone, reset the color scale to the numeric default.
@@ -582,16 +403,17 @@ export class PreprocessingService {
 
   // Cleaning configuration
   public updateCleaningConfig(updates: Partial<CleaningConfig>): void {
-    this.pushHistory('Bereinigung geändert');
+    this.pushHistory('Cleaning settings changed');
     this.updateState({
       cleaningConfig: { ...this.currentState.cleaningConfig, ...updates },
     });
     this.saveStateToStorage();
   }
 
-  // Projection configuration
-  public updateProjectionConfig(updates: Partial<ProjectionConfig>): void {
-    this.pushHistory('Projektionsparameter geändert');
+  // Projection configuration (methods + parameters). One call = one undo entry, so
+  // callers must commit completed changes only (e.g. slider release, not each tick).
+  public updateProjectionConfig(updates: Partial<ProjectionConfig>, label = 'Projection settings changed'): void {
+    this.pushHistory(label);
     this.updateState({
       projectionConfig: { ...this.currentState.projectionConfig, ...updates },
     });
@@ -637,40 +459,82 @@ export class PreprocessingService {
   }
 
   // Processing
-  public async processData(): Promise<void> {
+  /**
+   * Run the preprocessing pipeline in the worker. Re-entrancy guard: while a run is
+   * in flight, further calls join that run (same promise) instead of starting a
+   * second, parallel worker job; callers still wait for the actual result.
+   */
+  public processData(): Promise<void> {
+    if (this.activeProcessingRun) {
+      return this.activeProcessingRun;
+    }
+    const run = this.runProcessing().finally(() => {
+      this.activeProcessingRun = null;
+    });
+    this.activeProcessingRun = run;
+    return run;
+  }
+
+  private async runProcessing(): Promise<void> {
     // Validate that we have the necessary metadata
     if (!this.currentState.rawFileName || !this.currentState.dataProfile) {
       throw new Error('No data file loaded. Please upload a file first.');
     }
 
-    this.updateState({
-      isProcessing: true,
-      processingProgress: 0,
-      error: null,
-    });
+    const release = this.holdProcessing();
+    this.updateState({ processingProgress: 0, error: null });
 
     try {
       // Build configuration object
-      const config = this.buildProcessingConfig();
+      const config = buildProcessingConfig(this.currentState);
 
       // File is already in Pyodide FS from loadCSV() - no need to re-upload
       // Send to worker for processing (use rawFileName which is the actual CSV file in Pyodide FS)
       const result = await this.dataProcessor.processWithConfig(this.currentState.rawFileName, config);
 
-      this.updateState({
-        processedDataset: result,
-        isProcessing: false,
-        processingProgress: 100,
-      });
-
+      this.updateState({ processedDataset: result, processingProgress: 100 });
       this.saveStateToStorage();
     } catch (error: unknown) {
-      this.updateState({
-        isProcessing: false,
-        error: this.toErrorMessage(error, 'Processing failed'),
-      });
+      this.updateState({ error: this.toErrorMessage(error, 'Processing failed') });
       throw error;
+    } finally {
+      release();
     }
+  }
+
+  /**
+   * Keep `isProcessing` true until `task` settles. processData() only covers the
+   * worker run; a caller whose run has further phases (the review step computes
+   * the primary FastMap projection afterwards) wraps the whole run in this, so
+   * undo/redo stay blocked until the primary result is complete.
+   */
+  public async whileProcessing<T>(task: () => Promise<T>): Promise<T> {
+    const release = this.holdProcessing();
+    try {
+      return await task();
+    } finally {
+      release();
+    }
+  }
+
+  /**
+   * Raise `isProcessing` and return a release function. Holds are counted: the
+   * flag drops only when the last hold is released. Releasing twice is a no-op.
+   */
+  private holdProcessing(): () => void {
+    this.processingHolds++;
+    if (!this.currentState.isProcessing) {
+      this.updateState({ isProcessing: true });
+    }
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      this.processingHolds = Math.max(0, this.processingHolds - 1);
+      if (this.processingHolds === 0 && this.currentState.isProcessing) {
+        this.updateState({ isProcessing: false });
+      }
+    };
   }
 
   /** Extract a human-readable message from an unknown thrown value without
@@ -714,66 +578,10 @@ export class PreprocessingService {
       return;
     }
 
-    // The dataset structure from worker
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const collection = state.processedDataset as any;
-    const datasetKey = collection.selectedDataset || (collection.datasets ? Object.keys(collection.datasets)[0] : null);
-
-    if (!datasetKey || !collection.datasets) {
-      throw new Error('Invalid dataset structure');
-    }
-
-    const dataset = collection.datasets[datasetKey];
-
-    if (!dataset) {
-      throw new Error('Dataset not found');
-    }
-
-    // Initialize positions object if it doesn't exist
-    if (!dataset.positions) {
-      dataset.positions = {};
-    }
-
-    // Convert positions to the format expected by DataProvider
-    // Format: [{id: x, position: {x: ..., y: ...}}]
-    // Always normalize IDs to string for consistency
-    dataset.positions[method] = positions.map(p => ({
-      id: String(p.id),
-      position: { x: p.x, y: p.y },
-    }));
+    storeProjectionPositions(state.processedDataset as unknown as ProcessedCollection, method, positions);
 
     // Update state to trigger any observers
-    this.updateState({ processedDataset: collection });
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private buildProcessingConfig(): any {
-    const state = this.currentState;
-
-    return {
-      datasetName: state.datasetName,
-      timestamp: state.timestamp,
-      columns: Array.from(state.columnConfigs.values()).map(col => ({
-        name: col.name,
-        enabled: col.enabled,
-        dataType: col.targetType,
-        encoding: col.encodingMethod,
-        scaling: col.scalingMethod,
-        includeInProjection: col.includeInProjection,
-        isColorFeature: col.isColorFeature,
-        missingValueStrategy: col.missingValueStrategy,
-        missingValueFillValue: col.missingValueFillValue,
-        outlierMethod: col.outlierMethod,
-        outlierStrategy: col.outlierStrategy,
-      })),
-      cleaning: state.cleaningConfig,
-      projections: state.projectionConfig,
-      // Glyph and tooltip feature mappings
-      glyphFeatures: state.glyphFeatures,
-      tooltipFeatures: state.tooltipFeatures.length > 0 ? state.tooltipFeatures : null,
-      colorScaleMode: state.colorScaleMode,
-      colorScaleId: state.colorScaleId,
-    };
+    this.updateState({ processedDataset: state.processedDataset });
   }
 
   // State management
@@ -782,28 +590,75 @@ export class PreprocessingService {
   }
 
   public resetState(): void {
-    this.stateSubject.next(this.getInitialState());
+    // A run that is still in flight keeps the processing flag until it settles.
+    this.stateSubject.next({ ...createInitialState(), isProcessing: this.processingHolds > 0 });
     this.undoStack = [];
     this.redoStack = [];
     this.emitHistoryStatus();
     this.clearStateFromStorage();
+    this.pruneWorkerFiles();
+  }
+
+  // ── Worker FS cleanup ───────────────────────────────────────────────────
+  // The Pyodide worker keeps every uploaded file (reprocessing and undoing a
+  // re-upload need it) and deletes those the main thread no longer references.
+
+  /** Unique uploaded file names still referenced by the state, the undo/redo history or a running upload. */
+  private referencedFileNames(): string[] {
+    const snapshots = [
+      this.currentState,
+      ...this.undoStack.map(e => e.snapshot),
+      ...this.redoStack.map(e => e.snapshot),
+    ];
+    const names = snapshots.map(s => s.rawFileName).filter((name): name is string => name !== null);
+    return Array.from(new Set([...names, ...this.uploadsInFlight]));
+  }
+
+  /**
+   * Ask the worker to delete every uploaded file that is no longer referenced.
+   * Fire-and-forget: a failed prune only leaves a stale file in worker memory,
+   * so it is logged rather than surfaced to the user.
+   */
+  private pruneWorkerFiles(): void {
+    const keep = this.referencedFileNames();
+    const logFailure = (error: unknown): void =>
+      console.error('[PreprocessingService] Failed to prune unused worker files', { keep }, error);
+    try {
+      this.dataProcessor.pruneFiles(keep).catch(logFailure);
+    } catch (error: unknown) {
+      logFailure(error);
+    }
+  }
+
+  /** Prune when dropped history entries were the last reference to an uploaded file. */
+  private pruneIfOrphaned(dropped: HistoryEntry[]): void {
+    const referenced = new Set(this.referencedFileNames());
+    const orphaned = dropped.some(e => e.snapshot.rawFileName !== null && !referenced.has(e.snapshot.rawFileName));
+    if (orphaned) {
+      this.pruneWorkerFiles();
+    }
   }
 
   // ── A4: Undo/Redo history ────────────────────────────────────────────────
 
   /**
    * Record a snapshot of the current state before a state-changing action runs.
-   * `label` describes the action (e.g. "Smart Defaults angewendet") and drives the
-   * toolbar tooltip. Pushing a new action clears the redo stack, as usual.
+   * `label` describes the action (e.g. "Recommended features applied") and drives
+   * the toolbar tooltip. Pushing a new action clears the redo stack, as usual.
    * Granularity is per completed action (one call per action), never per keystroke.
+   * Returns the entry id, which undoIfLatest() uses to target exactly this action.
    */
-  public pushHistory(label: string): void {
-    this.undoStack.push({ label, snapshot: this.captureSnapshot() });
-    if (this.undoStack.length > this.MAX_HISTORY) {
-      this.undoStack.shift();
-    }
+  public pushHistory(label: string): number {
+    const id = this.nextHistoryId++;
+    const pushed = [...this.undoStack, { id, label, snapshot: this.captureSnapshot() }];
+    // Entries beyond MAX_HISTORY are evicted (oldest first); the redo stack is invalidated.
+    const evicted = pushed.slice(0, Math.max(0, pushed.length - this.MAX_HISTORY));
+    const dropped = [...evicted, ...this.redoStack];
+    this.undoStack = pushed.slice(evicted.length);
     this.redoStack = [];
     this.emitHistoryStatus();
+    this.pruneIfOrphaned(dropped);
+    return id;
   }
 
   public get canUndo(): boolean {
@@ -814,19 +669,38 @@ export class PreprocessingService {
     return this.redoStack.length > 0;
   }
 
-  /** Revert the most recent action; returns info about the change, or null. */
+  /** Id of the action that undo() would revert next, or null if there is none. */
+  public get latestHistoryId(): number | null {
+    return this.undoStack.length > 0 ? this.undoStack[this.undoStack.length - 1].id : null;
+  }
+
+  /**
+   * Target-specific undo for confirmation toasts: reverts the action with the given
+   * id only if it is still the most recent one. Returns false (and changes nothing)
+   * if other actions were recorded since, it was already undone, or processing runs.
+   */
+  public undoIfLatest(id: number): boolean {
+    if (this.latestHistoryId !== id) return false;
+    return this.undo() !== null;
+  }
+
+  /**
+   * Revert the most recent action; returns info about the change, or null.
+   * A no-op while processing runs, so a restore can never race the worker run.
+   */
   public undo(): UndoRedoInfo | null {
+    if (this.currentState.isProcessing) return null;
     const entry = this.undoStack.pop();
     if (!entry) return null;
 
     // Diff the current (about-to-be-reverted) state against the target snapshot to
     // name the setting that changes, before we replace the state.
     const before = this.captureSnapshot();
-    const info = this.describeDiff(entry.label, before, entry.snapshot);
+    const info = describeDiff(entry.label, before, entry.snapshot);
 
-    // Preserve the current state on the redo stack under the same label so redo
-    // can re-apply the reverted action.
-    this.redoStack.push({ label: entry.label, snapshot: before });
+    // Preserve the current state on the redo stack under the same id and label so
+    // redo can re-apply the reverted action.
+    this.redoStack.push({ id: entry.id, label: entry.label, snapshot: before });
     this.restoreSnapshot(entry.snapshot);
     this.emitHistoryStatus();
     this.stateRestoredSubject.next();
@@ -834,87 +708,24 @@ export class PreprocessingService {
     return info;
   }
 
-  /** Re-apply the most recently undone action; returns info about the change, or null. */
+  /**
+   * Re-apply the most recently undone action; returns info about the change, or
+   * null. A no-op while processing runs.
+   */
   public redo(): UndoRedoInfo | null {
+    if (this.currentState.isProcessing) return null;
     const entry = this.redoStack.pop();
     if (!entry) return null;
 
     const before = this.captureSnapshot();
-    const info = this.describeDiff(entry.label, before, entry.snapshot);
+    const info = describeDiff(entry.label, before, entry.snapshot);
 
-    this.undoStack.push({ label: entry.label, snapshot: before });
+    this.undoStack.push({ id: entry.id, label: entry.label, snapshot: before });
     this.restoreSnapshot(entry.snapshot);
     this.emitHistoryStatus();
     this.stateRestoredSubject.next();
     this.saveStateToStorage();
     return info;
-  }
-
-  /**
-   * Build the toast/deep-link descriptor for an undo/redo by diffing the state
-   * before against the snapshot being installed and looking up the changed key in
-   * SETTING_META. Falls back to the raw action label when nothing maps cleanly.
-   */
-  private describeDiff(actionLabel: string, before: HistorySnapshot, after: HistorySnapshot): UndoRedoInfo {
-    const key = this.diffSnapshots(before, after);
-    const meta = key ? SETTING_META[key] : undefined;
-    return {
-      actionLabel,
-      settingLabel: meta?.label ?? actionLabel,
-      step: meta?.step ?? null,
-      anchorId: meta?.anchorId ?? null,
-    };
-  }
-
-  /**
-   * Return the diff key for the first differing field between two snapshots, or
-   * null if they are equal. Keys are either a top-level snapshot key or, for
-   * column configs, `columnConfigs.<field>`. Order roughly follows the wizard steps.
-   */
-  private diffSnapshots(a: HistorySnapshot, b: HistorySnapshot): string | null {
-    if (a.rawFileName !== b.rawFileName) return 'rawFileName';
-    if (a.datasetName !== b.datasetName) return 'datasetName';
-
-    const columnKey = this.diffColumnConfigs(a.columnConfigs, b.columnConfigs);
-    if (columnKey) return columnKey;
-
-    if (JSON.stringify(a.cleaningConfig) !== JSON.stringify(b.cleaningConfig)) return 'cleaningConfig';
-    if (JSON.stringify(a.projectionConfig) !== JSON.stringify(b.projectionConfig)) return 'projectionConfig';
-    if (!this.arraysEqual(a.glyphFeatures, b.glyphFeatures)) return 'glyphFeatures';
-    if (!this.arraysEqual(a.tooltipFeatures, b.tooltipFeatures)) return 'tooltipFeatures';
-    if (a.colorScaleMode !== b.colorScaleMode) return 'colorScaleMode';
-    if (a.colorScaleId !== b.colorScaleId) return 'colorScaleId';
-    return null;
-  }
-
-  /** Per-field diff over the column-config maps; returns `columnConfigs.<field>`. */
-  private diffColumnConfigs(a: Map<string, ColumnConfig>, b: Map<string, ColumnConfig>): string | null {
-    const fields: (keyof ColumnConfig)[] = [
-      'enabled',
-      'isColorFeature',
-      'targetType',
-      'encodingMethod',
-      'scalingMethod',
-      'includeInProjection',
-      'missingValueStrategy',
-      'missingValueFillValue',
-      'outlierMethod',
-      'outlierStrategy',
-    ];
-    const names = new Set([...a.keys(), ...b.keys()]);
-    for (const name of names) {
-      const ca = a.get(name);
-      const cb = b.get(name);
-      if (!ca || !cb) return 'columnConfigs.enabled'; // column added/removed ~ selection change
-      for (const field of fields) {
-        if (ca[field] !== cb[field]) return `columnConfigs.${field}`;
-      }
-    }
-    return null;
-  }
-
-  private arraysEqual(a: string[], b: string[]): boolean {
-    return a.length === b.length && a.every((v, i) => v === b[i]);
   }
 
   private emitHistoryStatus(): void {
@@ -928,61 +739,18 @@ export class PreprocessingService {
 
   /** Deep-copy the undoable slice of state so later in-place edits cannot mutate it. */
   private captureSnapshot(): HistorySnapshot {
-    const s = this.currentState;
-    return {
-      rawFileName: s.rawFileName,
-      dataProfile: s.dataProfile, // replaced wholesale on re-upload; reference is safe
-      columnConfigs: this.cloneColumnConfigs(s.columnConfigs),
-      cleaningConfig: { ...s.cleaningConfig },
-      projectionConfig: { ...s.projectionConfig },
-      datasetName: s.datasetName,
-      timestamp: s.timestamp,
-      glyphFeatures: [...s.glyphFeatures],
-      tooltipFeatures: [...s.tooltipFeatures],
-      colorScaleMode: s.colorScaleMode,
-      colorScaleId: s.colorScaleId,
-    };
+    return copySnapshot(this.currentState);
   }
 
   /** Install a snapshot, deep-copying again so the stored entry stays pristine. */
   private restoreSnapshot(snap: HistorySnapshot): void {
-    this.updateState({
-      rawFileName: snap.rawFileName,
-      dataProfile: snap.dataProfile,
-      columnConfigs: this.cloneColumnConfigs(snap.columnConfigs),
-      cleaningConfig: { ...snap.cleaningConfig },
-      projectionConfig: { ...snap.projectionConfig },
-      datasetName: snap.datasetName,
-      timestamp: snap.timestamp,
-      glyphFeatures: [...snap.glyphFeatures],
-      tooltipFeatures: [...snap.tooltipFeatures],
-      colorScaleMode: snap.colorScaleMode,
-      colorScaleId: snap.colorScaleId,
-    });
+    this.updateState(copySnapshot(snap));
   }
 
-  private cloneColumnConfigs(configs: Map<string, ColumnConfig>): Map<string, ColumnConfig> {
-    return new Map(Array.from(configs.entries()).map(([name, config]) => [name, { ...config }]));
-  }
-
-  // Persistence
+  // Persistence (versioned; see wizard-storage.ts for the format and migration)
   private saveStateToStorage(): void {
     try {
-      const state = this.currentState;
-      const serializable = {
-        currentStep: state.currentStep,
-        dataProfile: state.dataProfile,
-        rawFileName: state.rawFileName,
-        columnConfigs: Array.from(state.columnConfigs.entries()),
-        cleaningConfig: state.cleaningConfig,
-        projectionConfig: state.projectionConfig,
-        datasetName: state.datasetName,
-        timestamp: state.timestamp,
-        glyphFeatures: state.glyphFeatures,
-        tooltipFeatures: state.tooltipFeatures,
-      };
-
-      localStorage.setItem('glyphspace_preprocessing_state', JSON.stringify(serializable));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(serializeState(this.currentState)));
     } catch (error) {
       console.warn('Failed to save state to localStorage:', error);
     }
@@ -990,21 +758,9 @@ export class PreprocessingService {
 
   private loadStateFromStorage(): void {
     try {
-      const saved = localStorage.getItem('glyphspace_preprocessing_state');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        this.updateState({
-          currentStep: parsed.currentStep,
-          dataProfile: parsed.dataProfile,
-          rawFileName: parsed.rawFileName,
-          columnConfigs: new Map(parsed.columnConfigs),
-          cleaningConfig: parsed.cleaningConfig,
-          projectionConfig: parsed.projectionConfig,
-          datasetName: parsed.datasetName,
-          timestamp: parsed.timestamp,
-          glyphFeatures: parsed.glyphFeatures || [],
-          tooltipFeatures: parsed.tooltipFeatures || [],
-        });
+      const restored = deserializeState(localStorage.getItem(STORAGE_KEY));
+      if (restored) {
+        this.updateState(restored);
       }
     } catch (error) {
       console.warn('Failed to load state from localStorage:', error);
@@ -1012,6 +768,6 @@ export class PreprocessingService {
   }
 
   private clearStateFromStorage(): void {
-    localStorage.removeItem('glyphspace_preprocessing_state');
+    localStorage.removeItem(STORAGE_KEY);
   }
 }

@@ -2,4 +2,26 @@
 
 .color-scale-select {
   @include m.color-scale-select;
+
+  // The trigger is a real button; keep the field look from the mixin.
+  .selected-scale {
+    width: 100%;
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+
+    &:focus-visible {
+      @include m.focus-ring;
+    }
+  }
+
+  .color-scale-option:focus-visible {
+    @include m.focus-ring(-2px);
+  }
+
+  // Scale names for screen readers; sighted users see the color previews.
+  .visually-hidden {
+    @include m.visually-hidden;
+  }
 }

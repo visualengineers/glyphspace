@@ -8,15 +8,28 @@ Glyphspace is a complete rewrite of the [Glyphboard application](https://github.
 
 See the running demo on Github pages: [https://visual-engineers.org/glyphspace/](https://visual-engineers.org/glyphspace/).
 
-## Usage
+## Using the Wizard
 
-... coming soon. 
+The preprocessing wizard guides you through six steps to prepare your data for visualization:
+
+1. **Upload Data** — Load your CSV file.
+2. **Select Columns** — Choose columns to keep; ID and low-value fields can be deselected.
+3. **Configure Data & Features** — Set encoding, scaling, missing-value and outlier handling per column.
+4. **Projection** — Select columns for dimensionality reduction and pick projection methods (PCA, UMAP, t-SNE).
+5. **Glyphs & Color** — Choose glyph features and color encoding for the dashboard's initial view (both changeable later).
+6. **Review & Process** — Review your configuration and process the data.
+
+**Undo/Redo:** Use the buttons in the wizard's title bar or Ctrl+Z / Ctrl+Shift+Z (Cmd on Mac) to step back and forth through your changes.
+
+**Try with sample data:** Step 1 offers a Wine Quality (red) dataset as a starter (P. Cortez et al., UCI Machine Learning Repository, CC BY 4.0).
+
+Developer notes on the wizard's architecture are in [docs/wizard.md](docs/wizard.md).
 
 ## Data Import
 
 ### Dynamic Import
 
-Inside of the running application, you can upload suitable CSV files into the filesystem of Micropython running as a web assembly behind the scenes (see below for CSV file structure). You can also upload ZIP folders with thumbnails for your data. The filename must be the same as your CSV file and the contained files should be named according to the IDs of the data rows.
+Inside of the running application, you can upload suitable CSV files into the filesystem of Pyodide (Python compiled to WebAssembly, loaded from the jsDelivr CDN; the version is set in `src/app/workers/pyodide.worker.ts`; see below for CSV file structure). You can also upload ZIP folders with thumbnails for your data. The filename must be the same as your CSV file and the contained files should be named according to the IDs of the data rows.
 
 ### Preprocessed Data
 
@@ -26,7 +39,7 @@ You can either process CSV files via the command line using:
 python tools/process.py <your_csv_file>
 ```
 
-Which creates the necessary data files inside the `src/assets/data` folder of the project and recreates the file `src/defauult-dataset.ts` which the application picks up after starting. You can also store thumbnails in the folder `src/assets/data/thumbnails/<your_data_name>`, which are in JPG format and have the ID of your data items as filename. 
+Which creates the necessary data files inside the `src/assets/data` folder of the project and recreates the file `src/default-dataset.ts` which the application picks up after starting. You can also store thumbnails in the folder `src/assets/data/thumbnails/<your_data_name>`, which are in JPG format and have the ID of your data items as filename. 
 
 All columns except IDs and positional information are converted with a label encoder if they are strings and then normalized for processing of the meta data (including a histogram, min, max, etc.) as well as a PCA, UMAP, and tSNE multidimensional reduction. 
 
@@ -55,65 +68,42 @@ Notable changes:
 - in feature.json `default-context` is renamed to `defaultcontext` for the same reasons
 - IDs are treated as strings
 
-## Angular Development Instructions
+## Development
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 19.2.13.
+**Node version:** v24 (see `.nvmrc`)
 
-### Development server
-
-To start a local development server, run:
+### Setup
 
 ```bash
-ng serve
+npm ci          # Install dependencies (prefer ci over install for reproducible builds)
+npx playwright install chromium  # Once per machine: browser for the unit tests
+npm start       # Start local dev server at http://localhost:4200/
+npm test        # Run unit tests (Vitest in headless Chromium, watch mode)
+npm run test:ci # Run unit tests once (CI mode)
+npm run lint    # Run ESLint
+npm run build   # Build for production (output in dist/)
 ```
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+### Python tools
 
-### Code scaffolding
-
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+The project includes Python preprocessing tools that run locally via `tools/process.py` (CLI; the dataset file generation lives in `tools/dataset_common.py`, the in-browser import is the wizard's pipeline in `src/assets/preprocessing_processor*.py`):
 
 ```bash
-ng generate component component-name
+python tools/process.py <your_csv_file>     # Process a CSV and generate src/default-dataset.ts
+python tools/process.py                     # Rebuild default dataset list
+python -B -m pytest -p no:cacheprovider tools/tests  # Run Python tests
 ```
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+Other tools:
+- `tools/make-sample-csv.py` — Generate sample data
 
-```bash
-ng generate --help
-```
+### Deployment
 
-### Building
+The app is deployed to GitHub Pages on every push to `main`. See `.github/workflows/deploy.yaml` for the workflow (runs tests, lints, builds on PRs; publishes on merge to main).
 
-To build the project run:
+## Licence
 
-```bash
-ng build
-```
-
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
-
-### Running unit tests
-
-To execute unit tests with the [Karma](https://karma-runner.github.io) test runner, use the following command:
-
-```bash
-ng test
-```
-
-### Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
-
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-### Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+GlyphSpace is licensed under the MIT License (see [LICENSE](LICENSE)). It bundles [DruidJS](https://github.com/saehm/DruidJS) for the dimensionality reductions, which is licensed under the LGPL-3.0-or-later. The deployed site ships the LGPL and GPL texts and a notice in `licenses/` (source: `src/licenses/`), plus `3rdpartylicenses.txt` listing all bundled packages.
 
 <!-- MARKDOWN LINKS & IMAGES -->
 <!-- https://www.markdownguide.org/basic-syntax/#reference-style-links -->

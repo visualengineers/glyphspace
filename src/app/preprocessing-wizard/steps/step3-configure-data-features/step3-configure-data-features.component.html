@@ -2,7 +2,7 @@
   <div class="step-content">
     @if (error) {
       <div class="error-message">
-        <span class="material-icons">error</span>
+        <span class="material-icons" aria-hidden="true">error</span>
         {{ error }}
       </div>
     } @else {
@@ -14,27 +14,34 @@
         <!-- LEFT RAIL: dataset columns -->
         <div class="master-rail">
           <div class="rail-header">
-            <span class="rail-title">DATASET COLUMNS</span>
+            <span class="rail-title" id="step3-rail-title">DATASET COLUMNS</span>
 
             <div class="search-box">
-              <span class="material-icons">search</span>
+              <span class="material-icons" aria-hidden="true">search</span>
               <input
                 #railSearchInput
                 type="text"
                 [(ngModel)]="filterText"
                 (ngModelChange)="onFilterChange()"
                 placeholder="Search columns… (press /)"
+                aria-label="Search columns"
+                aria-keyshortcuts="/"
                 class="search-input"
               />
               @if (filterText) {
-                <button class="clear-search" (click)="filterText = ''; onFilterChange()">
-                  <span class="material-icons">close</span>
+                <button type="button" class="clear-search" aria-label="Clear search" (click)="clearSearch()">
+                  <span class="material-icons" aria-hidden="true">close</span>
                 </button>
               }
             </div>
 
             <div class="rail-filters">
-              <select [(ngModel)]="filterType" (ngModelChange)="onFilterChange()" class="filter-select">
+              <select
+                [(ngModel)]="filterType"
+                (ngModelChange)="onFilterChange()"
+                class="filter-select"
+                aria-label="Filter columns by type"
+              >
                 <option value="all">All Types</option>
                 <option [value]="DataType.Numeric">Numeric</option>
                 <option [value]="DataType.Categorical">Categorical</option>
@@ -50,48 +57,56 @@
               </label>
             </div>
 
-            <div class="rail-count">{{ filteredColumns.length }} of {{ columns.length }} columns</div>
+            <!-- Always rendered, so filter results are announced as they change. -->
+            <div class="rail-count" role="status">{{ filteredColumns.length }} of {{ columns.length }} columns</div>
           </div>
 
           <div class="column-list">
-            @for (colState of filteredColumns; track colState.column.name) {
-              <div
-                class="column-item"
-                [class.selected]="selectedColumnName === colState.column.name"
-                (click)="selectColumn(colState.column.name)"
-                (keydown.enter)="selectColumn(colState.column.name)"
-                tabindex="0"
-              >
-                <div class="item-main">
-                  <div class="item-line1">
-                    <span class="column-name" [title]="colState.column.name">{{ colState.column.name }}</span>
-                    <span class="type-label">{{ getTypeLabel(colState.column.dataType) }}</span>
-                  </div>
-                  <div class="item-line2">
-                    <span class="config-summary">{{ getConfigSummary(colState) }}</span>
-                  </div>
-                </div>
-
-                @if (colState.column.missingCount > 0) {
-                  <span
-                    class="missing-badge"
-                    [class.high]="isHighMissing(colState)"
-                    title="{{ colState.column.missingCount }} missing ({{
-                      colState.column.missingPercentage.toFixed(1)
-                    }}%)"
+            <!-- Each column is a real button (Enter and Space); the one shown in the
+                 detail well is marked with aria-current. -->
+            <ul class="column-items" aria-labelledby="step3-rail-title">
+              @for (colState of filteredColumns; track colState.column.name) {
+                <li>
+                  <button
+                    type="button"
+                    class="column-item"
+                    [class.selected]="selectedColumnName === colState.column.name"
+                    [attr.aria-current]="selectedColumnName === colState.column.name ? 'true' : null"
+                    (click)="selectColumn(colState.column.name)"
                   >
-                    <span class="material-icons">warning</span>
-                    {{ colState.column.missingCount }}
-                  </span>
-                }
-              </div>
-            }
+                    <span class="item-main">
+                      <span class="item-line1">
+                        <span class="column-name" [title]="colState.column.name">{{ colState.column.name }}</span>
+                        <span class="type-label">{{ getTypeLabel(colState.column.dataType) }}</span>
+                      </span>
+                      <span class="item-line2">
+                        <span class="config-summary">{{ getConfigSummary(colState) }}</span>
+                      </span>
+                    </span>
+
+                    @if (colState.column.missingCount > 0) {
+                      <span
+                        class="missing-badge"
+                        [class.high]="isHighMissing(colState)"
+                        title="{{ colState.column.missingCount }} missing ({{
+                          colState.column.missingPercentage.toFixed(1)
+                        }}%)"
+                      >
+                        <span class="material-icons" aria-hidden="true">warning</span>
+                        {{ colState.column.missingCount }}
+                        <span class="visually-hidden">missing</span>
+                      </span>
+                    }
+                  </button>
+                </li>
+              }
+            </ul>
 
             @if (filteredColumns.length === 0) {
               <div class="no-columns">
-                <span class="material-icons">filter_alt_off</span>
+                <span class="material-icons" aria-hidden="true">filter_alt_off</span>
                 <p>No columns match filters</p>
-                <button class="btn-clear" (click)="clearFilters()">Clear Filters</button>
+                <button type="button" class="btn-clear" (click)="clearFilters()">Clear Filters</button>
               </div>
             }
           </div>
@@ -102,17 +117,21 @@
           @if (selectedColumn) {
             <div class="breadcrumb">
               <span>Dataset columns</span>
-              <span class="material-icons">chevron_right</span>
+              <span class="material-icons" aria-hidden="true">chevron_right</span>
               <span class="crumb-current">{{ selectedColumn.column.name }}</span>
             </div>
 
-            <div class="detail-card">
+            <section class="detail-card" aria-labelledby="step3-detail-title">
               <div class="card-header">
                 <span class="card-eyebrow">CONFIGURING SELECTED COLUMN</span>
                 <div class="card-title-row">
-                  <h3 [title]="selectedColumn.column.name">{{ selectedColumn.column.name }}</h3>
+                  <h3 id="step3-detail-title" [title]="selectedColumn.column.name">{{ selectedColumn.column.name }}</h3>
                   <span class="type-pill">{{ getTypeLabel(selectedColumn.column.dataType) }}</span>
-                  <app-help-tooltip [helpText]="HELP_TEXT.general.smartDefaults" position="bottom"></app-help-tooltip>
+                  <app-help-tooltip
+                    [helpText]="HELP_TEXT.general.smartDefaults"
+                    position="bottom"
+                    topic="Smart defaults"
+                  ></app-help-tooltip>
                   @if (isColumnModified(selectedColumn)) {
                     <button
                       class="btn-reset-column"
@@ -120,7 +139,7 @@
                       (click)="resetColumnToDefault(selectedColumn)"
                       title="Reset all settings of this column to smart defaults"
                     >
-                      <span class="material-icons">restart_alt</span>
+                      <span class="material-icons" aria-hidden="true">restart_alt</span>
                       Reset to defaults
                     </button>
                   }
@@ -139,7 +158,7 @@
                 </div>
                 @if (selectedColumn.column.missingCount > 0) {
                   <div class="chip chip-warning">
-                    <span class="material-icons">warning</span>
+                    <span class="material-icons" aria-hidden="true">warning</span>
                     <span class="chip-label">Missing</span>
                     <span class="chip-value"
                       >{{ selectedColumn.column.missingCount }} ({{
@@ -167,16 +186,10 @@
                     <span class="chip-value">{{ selectedColumn.column.stdDev?.toFixed(2) }}</span>
                   </div>
                 }
-                @if (
-                  selectedColumn.column.dataType === DataType.Date &&
-                  selectedColumn.column.min != null &&
-                  selectedColumn.column.max != null
-                ) {
+                @if (dateRangeLabel(selectedColumn); as dateRange) {
                   <div class="chip">
                     <span class="chip-label">Range</span>
-                    <span class="chip-value"
-                      >{{ formatDate(selectedColumn.column.min!) }} — {{ formatDate(selectedColumn.column.max!) }}</span
-                    >
+                    <span class="chip-value">{{ dateRange }}</span>
                   </div>
                 }
                 @if (
@@ -209,10 +222,11 @@
                 @if (shouldShowEncoding(selectedColumn)) {
                   <div class="config-section">
                     <div class="section-header">
-                      <span class="section-label">Encoding</span>
+                      <label class="section-label" for="step3-encoding">Encoding</label>
                       <app-help-tooltip
                         [helpText]="HELP_TEXT.tableHeaders.encoding"
                         position="bottom"
+                        topic="Encoding"
                       ></app-help-tooltip>
                       <button
                         class="btn-reset-field"
@@ -221,20 +235,33 @@
                         [disabled]="!isEncodingModified(selectedColumn)"
                         (click)="resetEncoding(selectedColumn)"
                         title="Reset encoding to smart default"
+                        aria-label="Reset encoding to smart default"
                       >
-                        <span class="material-icons">restart_alt</span>
+                        <span class="material-icons" aria-hidden="true">restart_alt</span>
                         Reset
                       </button>
                     </div>
                     <select
+                      id="step3-encoding"
                       class="config-select"
                       [value]="selectedColumn.config.encodingMethod"
+                      [attr.aria-describedby]="
+                        encodingConsequence(selectedColumn) ? 'step3-encoding-consequence' : null
+                      "
                       (change)="onEncodingChange(selectedColumn.column.name, $any($event.target).value)"
                     >
                       @for (method of getAvailableEncodingMethods(selectedColumn); track method.value) {
-                        <option [value]="method.value">{{ method.label }} — {{ method.description }}</option>
+                        <option
+                          [value]="method.value"
+                          [selected]="method.value === selectedColumn.config.encodingMethod"
+                        >
+                          {{ method.label }} — {{ method.description }}
+                        </option>
                       }
                     </select>
+                    @if (encodingConsequence(selectedColumn); as consequence) {
+                      <app-consequence-hint id="step3-encoding-consequence" [text]="consequence"></app-consequence-hint>
+                    }
                   </div>
                 }
 
@@ -242,10 +269,11 @@
                 @if (shouldShowScaling(selectedColumn)) {
                   <div class="config-section">
                     <div class="section-header">
-                      <span class="section-label">Scaling</span>
+                      <label class="section-label" for="step3-scaling">Scaling</label>
                       <app-help-tooltip
                         [helpText]="HELP_TEXT.tableHeaders.scaling"
                         position="bottom"
+                        topic="Scaling"
                       ></app-help-tooltip>
                       <button
                         class="btn-reset-field"
@@ -254,20 +282,31 @@
                         [disabled]="!isScalingModified(selectedColumn)"
                         (click)="resetScaling(selectedColumn)"
                         title="Reset scaling to smart default"
+                        aria-label="Reset scaling to smart default"
                       >
-                        <span class="material-icons">restart_alt</span>
+                        <span class="material-icons" aria-hidden="true">restart_alt</span>
                         Reset
                       </button>
                     </div>
                     <select
+                      id="step3-scaling"
                       class="config-select"
                       [value]="selectedColumn.config.scalingMethod"
+                      [attr.aria-describedby]="scalingConsequence(selectedColumn) ? 'step3-scaling-consequence' : null"
                       (change)="onScalingChange(selectedColumn.column.name, $any($event.target).value)"
                     >
                       @for (method of scalingMethods; track method.value) {
-                        <option [value]="method.value">{{ method.label }} — {{ method.description }}</option>
+                        <option
+                          [value]="method.value"
+                          [selected]="method.value === selectedColumn.config.scalingMethod"
+                        >
+                          {{ method.label }} — {{ method.description }}
+                        </option>
                       }
                     </select>
+                    @if (scalingConsequence(selectedColumn); as consequence) {
+                      <app-consequence-hint id="step3-scaling-consequence" [text]="consequence"></app-consequence-hint>
+                    }
                   </div>
                 }
 
@@ -275,15 +314,16 @@
                 @if (hasMissingValues(selectedColumn)) {
                   <div class="config-section">
                     <div class="section-header">
-                      <span class="section-label">Missing Values</span>
-                      <span class="section-count"
+                      <label class="section-label" for="step3-missing">Missing Values</label>
+                      <span class="section-count" id="step3-missing-count"
                         >{{ selectedColumn.column.missingCount }} ({{
                           selectedColumn.column.missingPercentage.toFixed(1)
-                        }}%)</span
+                        }}%)<span class="visually-hidden"> missing</span></span
                       >
                       <app-help-tooltip
                         [helpText]="HELP_TEXT.tableHeaders.missingValues"
                         position="bottom"
+                        topic="Missing values"
                       ></app-help-tooltip>
                       <button
                         class="btn-reset-field"
@@ -292,40 +332,57 @@
                         [disabled]="!isMissingModified(selectedColumn)"
                         (click)="resetMissing(selectedColumn)"
                         title="Reset missing-value handling to smart default"
+                        aria-label="Reset missing-value handling to smart default"
                       >
-                        <span class="material-icons">restart_alt</span>
+                        <span class="material-icons" aria-hidden="true">restart_alt</span>
                         Reset
                       </button>
                     </div>
                     <select
+                      id="step3-missing"
                       class="config-select"
                       [value]="selectedColumn.config.missingValueStrategy"
+                      [attr.aria-describedby]="missingDescribedBy(selectedColumn)"
                       (change)="onMissingStrategyChange(selectedColumn.column.name, $any($event.target).value)"
                     >
                       @for (strategy of getAvailableMissingStrategies(selectedColumn); track strategy.value) {
-                        <option [value]="strategy.value">{{ strategy.label }} — {{ strategy.description }}</option>
+                        <option
+                          [value]="strategy.value"
+                          [selected]="strategy.value === selectedColumn.config.missingValueStrategy"
+                        >
+                          {{ strategy.label }} — {{ strategy.description }}
+                        </option>
                       }
                     </select>
                     @if (selectedColumn.config.missingValueStrategy === MissingValueStrategy.FillValue) {
                       <input
+                        id="step3-fill-value"
                         type="text"
                         class="fill-value-input"
+                        aria-label="Fill value for missing values"
+                        [attr.aria-describedby]="
+                          missingConsequence(selectedColumn) ? 'step3-missing-consequence' : null
+                        "
                         [(ngModel)]="selectedColumn.config.missingValueFillValue"
                         (ngModelChange)="onMissingValueFillChange(selectedColumn.column.name, $event || '')"
                         placeholder="Enter fill value..."
                       />
+                    }
+                    @if (missingConsequence(selectedColumn); as consequence) {
+                      <app-consequence-hint id="step3-missing-consequence" [text]="consequence"></app-consequence-hint>
                     }
                   </div>
                 }
 
                 <!-- Outliers (numeric only) -->
                 @if (shouldShowOutliers(selectedColumn)) {
-                  <div class="config-section">
+                  <div class="config-section" role="group" aria-labelledby="step3-outliers-label">
                     <div class="section-header">
-                      <span class="section-label">Outliers</span>
+                      <span class="section-label" id="step3-outliers-label">Outliers</span>
                       @if (selectedColumn.isLoadingOutliers) {
                         <span class="loading-indicator">
-                          <span class="material-icons spinning">sync</span>
+                          <span class="material-icons spinning" aria-hidden="true">sync</span>
+                          <span class="visually-hidden">Detecting outliers…</span>
                         </span>
                       } @else if (hasOutliers(selectedColumn)) {
                         <span class="section-count">{{ selectedColumn.outlierCount }} detected</span>
@@ -333,6 +390,7 @@
                       <app-help-tooltip
                         [helpText]="HELP_TEXT.tableHeaders.outliers"
                         position="bottom"
+                        topic="Outliers"
                       ></app-help-tooltip>
                     </div>
                     <div class="outlier-controls">
@@ -346,8 +404,9 @@
                             [disabled]="!isOutlierMethodModified(selectedColumn) || selectedColumn.isLoadingOutliers"
                             (click)="resetOutlierMethod(selectedColumn)"
                             title="Reset detection method to smart default"
+                            aria-label="Reset detection method to smart default"
                           >
-                            <span class="material-icons">restart_alt</span>
+                            <span class="material-icons" aria-hidden="true">restart_alt</span>
                             Reset
                           </button>
                         </div>
@@ -359,7 +418,12 @@
                           [disabled]="selectedColumn.isLoadingOutliers"
                         >
                           @for (method of outlierMethods; track method.value) {
-                            <option [value]="method.value">{{ method.label }} — {{ method.description }}</option>
+                            <option
+                              [value]="method.value"
+                              [selected]="method.value === selectedColumn.config.outlierMethod"
+                            >
+                              {{ method.label }} — {{ method.description }}
+                            </option>
                           }
                         </select>
                       </div>
@@ -373,8 +437,9 @@
                             [disabled]="!isOutlierStrategyModified(selectedColumn) || selectedColumn.isLoadingOutliers"
                             (click)="resetOutlierStrategy(selectedColumn)"
                             title="Reset strategy to smart default"
+                            aria-label="Reset outlier strategy to smart default"
                           >
-                            <span class="material-icons">restart_alt</span>
+                            <span class="material-icons" aria-hidden="true">restart_alt</span>
                             Reset
                           </button>
                         </div>
@@ -382,13 +447,27 @@
                           id="step3-outlier-strategy"
                           class="config-select"
                           [value]="selectedColumn.config.outlierStrategy"
+                          [attr.aria-describedby]="
+                            outlierConsequence(selectedColumn) ? 'step3-outlier-consequence' : null
+                          "
                           (change)="onOutlierStrategyChange(selectedColumn.column.name, $any($event.target).value)"
                           [disabled]="selectedColumn.isLoadingOutliers"
                         >
                           @for (strategy of outlierStrategies; track strategy.value) {
-                            <option [value]="strategy.value">{{ strategy.label }} — {{ strategy.description }}</option>
+                            <option
+                              [value]="strategy.value"
+                              [selected]="strategy.value === selectedColumn.config.outlierStrategy"
+                            >
+                              {{ strategy.label }} — {{ strategy.description }}
+                            </option>
                           }
                         </select>
+                        @if (outlierConsequence(selectedColumn); as consequence) {
+                          <app-consequence-hint
+                            id="step3-outlier-consequence"
+                            [text]="consequence"
+                          ></app-consequence-hint>
+                        }
                       </div>
                     </div>
                   </div>
@@ -404,7 +483,7 @@
                         (click)="applyToSameType(selectedColumn)"
                         title="Copy these settings to every other column of the same type"
                       >
-                        <span class="material-icons">library_add_check</span>
+                        <span class="material-icons" aria-hidden="true">library_add_check</span>
                         Apply to {{ getSameTypeColumns(selectedColumn).length }} other
                         {{ getTypeLabel(selectedColumn.column.dataType) }} columns
                       </button>
@@ -413,21 +492,24 @@
                         type="button"
                         (click)="toggleBulkTargets()"
                         [attr.aria-expanded]="showBulkTargets"
+                        aria-controls="step3-bulk-targets"
                       >
-                        <span class="material-icons">{{ showBulkTargets ? 'expand_less' : 'expand_more' }}</span>
+                        <span class="material-icons" aria-hidden="true">{{
+                          showBulkTargets ? 'expand_less' : 'expand_more'
+                        }}</span>
                         Which columns?
                       </button>
                     </div>
 
                     @if (showBulkTargets) {
-                      <div class="bulk-targets">
+                      <div class="bulk-targets" id="step3-bulk-targets">
                         <span class="bulk-targets-hint">
                           Copies <em>{{ getBulkSettingsSummary(selectedColumn) }}</em> to:
                         </span>
                         <ul>
                           @for (target of getSameTypeColumns(selectedColumn); track target.column.name) {
                             <li>
-                              <span class="material-icons">chevron_right</span>
+                              <span class="material-icons" aria-hidden="true">chevron_right</span>
                               <span class="target-name">{{ target.column.name }}</span>
                               @if (target.column.missingCount === 0) {
                                 <span class="target-note">no missing values</span>
@@ -438,9 +520,11 @@
                       </div>
                     }
 
+                    <!-- Announced through WizardAnnouncer (a live region created
+                         inside this @if would not be read reliably). -->
                     @if (bulkApplyResult) {
-                      <div class="bulk-result" role="status">
-                        <span class="material-icons">check_circle</span>
+                      <div class="bulk-result">
+                        <span class="material-icons" aria-hidden="true">check_circle</span>
                         <div class="bulk-result-body">
                           <strong
                             >Applied to {{ bulkApplyResult.columnNames.length }}
@@ -449,18 +533,24 @@
                           <span class="bulk-result-settings">{{ bulkApplyResult.settingsSummary }}</span>
                           <span class="bulk-result-cols">{{ bulkApplyResult.columnNames.join(', ') }}</span>
                         </div>
-                        <button class="bulk-result-close" type="button" (click)="dismissBulkResult()" title="Dismiss">
-                          <span class="material-icons">close</span>
+                        <button
+                          class="bulk-result-close"
+                          type="button"
+                          (click)="dismissBulkResult()"
+                          title="Dismiss"
+                          aria-label="Dismiss confirmation"
+                        >
+                          <span class="material-icons" aria-hidden="true">close</span>
                         </button>
                       </div>
                     }
                   </div>
                 }
               </div>
-            </div>
+            </section>
           } @else {
             <div class="no-selection">
-              <span class="material-icons">touch_app</span>
+              <span class="material-icons" aria-hidden="true">touch_app</span>
               <p>Select a column to configure</p>
             </div>
           }
@@ -473,7 +563,7 @@
       @if (duplicateCount > 0) {
         <div class="duplicates-section">
           <h3>
-            <span class="material-icons">content_copy</span>
+            <span class="material-icons" aria-hidden="true">content_copy</span>
             Duplicate Rows
           </h3>
 
@@ -497,22 +587,28 @@
 
               @if (cleaningConfig.removeDuplicates) {
                 <div class="impact-warning">
-                  <span class="material-icons">warning</span>
+                  <span class="material-icons" aria-hidden="true">warning</span>
                   <span>Will remove {{ duplicateCount }} rows ({{ duplicatePercentage.toFixed(1) }}% of data)</span>
                 </div>
               }
             </div>
 
             @if (sampleDuplicates.length > 0) {
-              <button class="btn-text" (click)="showDuplicateSamples = !showDuplicateSamples">
-                <span class="material-icons">
+              <button
+                type="button"
+                class="btn-text"
+                (click)="showDuplicateSamples = !showDuplicateSamples"
+                [attr.aria-expanded]="showDuplicateSamples"
+                aria-controls="step3-duplicate-samples"
+              >
+                <span class="material-icons" aria-hidden="true">
                   {{ showDuplicateSamples ? 'expand_less' : 'expand_more' }}
                 </span>
                 {{ showDuplicateSamples ? 'Hide' : 'Show' }} Sample Duplicates
               </button>
 
               @if (showDuplicateSamples) {
-                <div class="duplicate-samples">
+                <div class="duplicate-samples" id="step3-duplicate-samples">
                   <app-data-preview-table
                     [data]="sampleDuplicates"
                     [columns]="columnNames"

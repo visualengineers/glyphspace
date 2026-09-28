@@ -1,3 +1,4 @@
+import { firstValueFrom } from 'rxjs';
 import { FilterService } from './filter.service';
 import { GlyphObject } from '../glyph/glyph-object';
 import { FilterMode } from '../shared/enum/filter-mode';
@@ -50,15 +51,14 @@ describe('FilterService', () => {
     expect(service.getFilters().length).toBe(0);
   });
 
-  it('should emit filterChanged$ when refreshFilters is called', (done: DoneFn) => {
+  it('should emit filterChanged$ when refreshFilters is called', async () => {
     const glyphMap = createGlyphMap(['1', '2', '3']);
     service.setActiveGlyphData(glyphMap);
 
-    service.filterChanged$.subscribe(() => {
-      done();
-    });
+    const emitted = firstValueFrom(service.filterChanged$);
 
     service.refreshFilters();
+    await emitted;
   });
 
   it('should mark no items as passive when no filters exist', () => {
@@ -67,7 +67,7 @@ describe('FilterService', () => {
     service.refreshFilters();
 
     glyphMap.forEach(glyph => {
-      expect(glyph.passive).toBeFalse();
+      expect(glyph.passive).toBe(false);
     });
     expect(service.filteredItems).toBe(3);
   });
@@ -84,9 +84,9 @@ describe('FilterService', () => {
     service.ensureFilter(filter);
     service.refreshFilters();
 
-    expect(glyphMap.get('1')?.passive).toBeFalse();
-    expect(glyphMap.get('2')?.passive).toBeFalse();
-    expect(glyphMap.get('3')?.passive).toBeTrue();
+    expect(glyphMap.get('1')?.passive).toBe(false);
+    expect(glyphMap.get('2')?.passive).toBe(false);
+    expect(glyphMap.get('3')?.passive).toBe(true);
     expect(service.filteredItems).toBe(2);
   });
 
@@ -101,9 +101,9 @@ describe('FilterService', () => {
     service.ensureFilter(filter);
     service.refreshFilters();
 
-    expect(glyphMap.get('1')?.passive).toBeFalse();
-    expect(glyphMap.get('2')?.passive).toBeTrue();
-    expect(glyphMap.get('3')?.passive).toBeTrue();
+    expect(glyphMap.get('1')?.passive).toBe(false);
+    expect(glyphMap.get('2')?.passive).toBe(true);
+    expect(glyphMap.get('3')?.passive).toBe(true);
     expect(service.filteredItems).toBe(1);
   });
 
@@ -128,7 +128,7 @@ describe('FilterService', () => {
 
     // After clearing, all items should be active
     glyphMap.forEach(glyph => {
-      expect(glyph.passive).toBeFalse();
+      expect(glyph.passive).toBe(false);
     });
   });
 
@@ -142,7 +142,7 @@ describe('FilterService', () => {
     service.refreshFilters();
 
     glyphMap.forEach(glyph => {
-      expect(glyph.passive).toBeFalse();
+      expect(glyph.passive).toBe(false);
     });
     expect(service.filteredItems).toBe(2);
   });
