@@ -26,7 +26,7 @@ The bar at the top of each canvas shows **Pos:** (the projection), **Time:** (th
 - **DIMENSIONALITY REDUCTION:** the projection this canvas uses, e.g. `pca`, `umap`, `tsne` or, for imported data, `fastmap` and the methods you chose in the wizard. Changing it moves the items to their new positions in an animation.
 - **BACKGROUND PROJECTIONS:** right after an import, the projections that are still being computed. Each finished one is added to **DIMENSIONALITY REDUCTION**.
 - **TRANSITION SPEED AND PLAYBACK:** the speed of that animation (**−** / **+**) and a play/pause button for it.
-- **Avoid collision:** pushes overlapping items apart. Turning it off (or fitting the canvas) moves them back.
+- **Avoid collision:** pushes overlapping items apart, just far enough that what is drawn no longer overlaps: dots, petals or stars, or whole circles when the circle background or the coordinate system is shown. It adjusts when you zoom to another level. Turning it off (or fitting the canvas) moves the items back.
 - **Aggregate items:** merges items that lie close together. In the zoomed-out view, each group is drawn as a single ring.
 
 ## Navigating
@@ -63,7 +63,7 @@ How an item is drawn depends on the zoom level:
 | Zoomed in | The selected glyph type |
 | Zoomed in further | A larger glyph of the selected type |
 
-The size of the dots and glyphs is set with **Size** in the sidebar's **Encoding** tab. The glyph type is chosen there too, under **GLYPH TYPE**:
+The size of the dots and glyphs is set with **Size** in the sidebar's **Encoding** tab. When you zoom in further, glyphs grow more slowly than the distances between them, so glyphs that overlap begin to separate. The glyph type is chosen there too, under **GLYPH TYPE**:
 
 | Glyph type | Button | Shape |
 |---|---|---|

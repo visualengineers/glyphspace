@@ -28,7 +28,9 @@ All canvases show the same dataset, filters and selection. Each canvas chooses i
 
 ## Zoom levels and how glyphs are drawn
 
-`CanvasCameraService.calculateZoomLevel` maps the camera zoom to a `ZoomLevel` (`shared/enum/zoom-level.ts`): below 2 is `low`, below 10 `medium`, from 10 `high`. Wheel and pinch zoom are clamped to 0.5–50. When the level changes, the canvas updates `GlyphSizeInfo`, rebuilds the spatial grid and re-renders every glyph.
+`CanvasCameraService.calculateZoomLevel` maps the camera zoom to a `ZoomLevel` (`shared/enum/zoom-level.ts`): below `GLYPH_ZOOM` (2) is `low`, below `FULL_DETAIL_ZOOM` (10) `medium`, from there `high` (`glyph/glyph-zoom.ts`). Wheel and pinch zoom are clamped to 0.5–50. When the level changes, the canvas updates `GlyphSizeInfo`, rebuilds the spatial grid and re-renders every glyph.
+
+**Glyphs grow slower than the zoom** ([ADR 0012](../decisions/0012-glyphs-grow-slower-than-the-zoom.md)). Beyond `GLYPH_ZOOM` a glyph's size on screen grows with zoom^`GLYPH_ZOOM_GROWTH` (0.5), so zooming in separates overlapping glyphs. Each animation frame the canvas passes `glyphScale(camera.zoom)` to `CanvasRendererService.setGlyphScale`, which scales every glyph mesh; meshes added later get the same scale (`addGlyphMesh`). Renderers draw at `sizeInfo.radius` and leave `scale` alone. Hit testing, viewport clipping and the spatial grid use the unscaled radius, which is larger and so stays safe.
 
 `GlyphObject.renderGlyph` decides what to draw:
 
@@ -54,7 +56,7 @@ There is no permanent animation loop. `CanvasRendererService.requestRender(task)
 | `FitAnimation` | Easing the camera to fit all glyphs (500 ms). With more than 5,000 glyphs the camera jumps instead. |
 | `SceneRender` | A single frame, after any change. |
 | `GlyphAnimation` | Pulsing the item hovered in another canvas (low zoom only). |
-| `ForceSimulation` | Collision avoidance: a d3 `forceCollide` simulation with the high-zoom radius, 50 ticks. |
+| `ForceSimulation` | Collision avoidance: a d3 `forceCollide` simulation, 50 ticks. Each item's radius is what is visible at the current level, times the glyph scale (`visibleRadius` in `glyph/glyph-reach.ts`): the point; the glyph's longest axis; the whole circle for images, and at full detail with a background or axes. `GlyphCanvasComponent.updateCollisionForce` sets it on every configuration change; a zoom-level change runs the simulation again while it is on. |
 | `OriginalSimulation` | Moving glyphs back to their target positions: after collision avoidance, and as the animation when a canvas switches projection. |
 
 Each frame `animate` also updates the camera's view rectangle and calls `CanvasRendererService.updateClipping`. Clipping runs every second frame and only when the view moved by at least half a glyph radius; glyphs outside the view are marked invisible and are left out by the next non-forced `renderGlyphs`, glyphs entering the view are rendered. With more than 500 glyphs, clipping and hit testing use the `SpatialGrid` (`shared/helpers/spatial-grid.ts`), whose cell size targets about 100 items per cell.

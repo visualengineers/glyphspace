@@ -25,6 +25,8 @@ export class CanvasRendererService {
   glyphGroup = new THREE.Group();
 
   sizeInfo = new GlyphSizeInfo();
+  /** Scale of every glyph mesh, from the camera zoom (see glyphScale). */
+  private _glyphScale = 1;
   positionBounds: { minX: number; maxX: number; minY: number; maxY: number } | undefined;
 
   // Spatial grid
@@ -143,7 +145,7 @@ export class CanvasRendererService {
           aggregated,
           renderConfig
         );
-        if (mesh != null) this.glyphGroup.add(mesh);
+        if (mesh != null) this.addGlyphMesh(mesh);
       }
     });
 
@@ -170,9 +172,29 @@ export class CanvasRendererService {
       aggregated,
       renderConfig
     );
-    if (newMesh) this.glyphGroup.add(newMesh);
+    if (newMesh) this.addGlyphMesh(newMesh);
 
     this.requestRender(RenderTask.SceneRender);
+  }
+
+  get glyphScale(): number {
+    return this._glyphScale;
+  }
+
+  /**
+   * Scale all glyph meshes, e.g. after the camera zoom changed. Cheap: no
+   * glyph is rebuilt, three.js applies the scale when it draws.
+   */
+  setGlyphScale(scale: number): void {
+    if (scale === this._glyphScale) return;
+    this._glyphScale = scale;
+    for (const mesh of this.glyphGroup.children) mesh.scale.setScalar(scale);
+    this.requestRender(RenderTask.SceneRender);
+  }
+
+  private addGlyphMesh(mesh: THREE.Object3D): void {
+    mesh.scale.setScalar(this._glyphScale);
+    this.glyphGroup.add(mesh);
   }
 
   updateClipping(
@@ -380,7 +402,7 @@ export class CanvasRendererService {
       });
 
       // Simple iterative collision resolution
-      const enlargedRadius = this.sizeInfo.getRadius(ZoomLevel.high) * LENS_ENLARGEMENT_FACTOR;
+      const enlargedRadius = this.sizeInfo.getRadius(ZoomLevel.high) * LENS_ENLARGEMENT_FACTOR * this._glyphScale;
       const minDist = enlargedRadius * 2;
 
       for (let iter = 0; iter < 5; iter++) {
@@ -416,7 +438,7 @@ export class CanvasRendererService {
       const mesh = glyph.getMesh(selectedTimestamp, selectedAlgorithm, canvasId);
       if (mesh !== undefined) this.glyphGroup.remove(mesh);
       const newMesh = glyph.render(lensSize, selectedTimestamp, selectedAlgorithm, canvasId, aggregated, renderConfig);
-      if (newMesh) this.glyphGroup.add(newMesh);
+      if (newMesh) this.addGlyphMesh(newMesh);
     });
 
     this.requestRender(RenderTask.SceneRender);

@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { ZoomLevel } from '../../shared/enum/zoom-level';
 import { panCamera } from '../../shared/helpers/three-helper';
 import { FIT_ANIMATION_DURATION_MS, FIT_MARGIN_FACTOR } from '../../shared/constants/canvas-constants';
+import { FULL_DETAIL_ZOOM, GLYPH_ZOOM } from '../../glyph/glyph-zoom';
 
 @Injectable()
 export class CanvasCameraService {
@@ -126,8 +127,8 @@ export class CanvasCameraService {
   }
 
   calculateZoomLevel(zoomLevel: number): ZoomLevel {
-    if (zoomLevel < 2) return ZoomLevel.low;
-    if (zoomLevel < 10) return ZoomLevel.medium;
+    if (zoomLevel < GLYPH_ZOOM) return ZoomLevel.low;
+    if (zoomLevel < FULL_DETAIL_ZOOM) return ZoomLevel.medium;
     return ZoomLevel.high;
   }
 

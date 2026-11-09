@@ -45,7 +45,8 @@ import {
 import { ThumbnailService } from '../services/thumbnail.service';
 import { buildGlyphRenderConfig, GlyphRenderConfig } from '../glyph/glyph-render-config';
 import { GlyphConfiguration } from '../glyph/glyph-configuration';
-import { typicalGlyphReach } from '../glyph/glyph-reach';
+import { typicalGlyphReach, visibleRadius } from '../glyph/glyph-reach';
+import { glyphScale } from '../glyph/glyph-zoom';
 import { hasFeatureAxes } from '../shared/enum/glyph-type';
 
 @Component({
@@ -324,7 +325,6 @@ export class GlyphCanvasComponent implements AfterViewInit, OnDestroy, OnChanges
         this.canvasHeight = height;
         this.rendererSvc.updateRendererSize(width, height);
         this.cameraSvc.updateCameraBounds(width, height);
-        this.simulation?.force('collide', forceCollide(this.rendererSvc.sizeInfo.getRadius(ZoomLevel.high)));
         this.resetAnimatedGlyph();
         this.rendererSvc.renderGlyphs(
           this.glyphData,
@@ -355,8 +355,10 @@ export class GlyphCanvasComponent implements AfterViewInit, OnDestroy, OnChanges
           glyphConfig.scaleLinear
         )
       : 1;
-    if (!sizeInfo.setSizes(glyphConfig.itemSize, reach)) return;
-    this.simulation?.force('collide', forceCollide(sizeInfo.getRadius(ZoomLevel.high)));
+    const changed = sizeInfo.setSizes(glyphConfig.itemSize, reach);
+    // Options such as the background also change what collision avoidance keeps apart.
+    this.updateCollisionForce();
+    if (!changed) return;
     this.rendererSvc.rebuildSpatialGrid(this.glyphData, this.id, this.selectedTimestamp, this.selectedAlgorithm);
   }
 
@@ -364,9 +366,28 @@ export class GlyphCanvasComponent implements AfterViewInit, OnDestroy, OnChanges
     this.simulation = forceSimulation(
       this.glyphData.map(glyph => glyph.getCacheObject(this.id, this.selectedTimestamp, this.selectedAlgorithm))
     )
-      .force('collide', forceCollide(this.rendererSvc.sizeInfo.getRadius(ZoomLevel.high)))
       .velocityDecay(0.5)
       .stop();
+    this.updateCollisionForce();
+  }
+
+  /**
+   * Collision avoidance keeps apart what is drawn at the current zoom level, at
+   * its current scale: points, the glyphs' own reach, or whole circles where a
+   * background or the axes are drawn (visibleRadius). The simulation's nodes
+   * are the cache objects of glyphData, in the same order.
+   */
+  private updateCollisionForce(): void {
+    if (!this.simulation) return;
+    const sizeInfo = this.rendererSvc.sizeInfo;
+    const level = sizeInfo.currentZoomLevel;
+    const config = this.buildRenderConfig();
+    const scale = this.rendererSvc.glyphScale;
+    const radii = this.glyphData.map(glyph => visibleRadius(glyph, level, sizeInfo, config) * scale);
+    this.simulation.force(
+      'collide',
+      forceCollide<GlyphCacheObject>((_, i) => radii[i] ?? 0)
+    );
   }
   //#endregion
 
@@ -406,6 +427,8 @@ export class GlyphCanvasComponent implements AfterViewInit, OnDestroy, OnChanges
       this.animationSpeed = 0.1;
       this.rendererSvc.requestRender(RenderTask.OriginalSimulation);
     } else {
+      this.updateCollisionForce();
+      this.simulation?.alpha(1);
       this.rendererSvc.requestRender(RenderTask.ForceSimulation);
     }
   }
@@ -597,6 +620,14 @@ export class GlyphCanvasComponent implements AfterViewInit, OnDestroy, OnChanges
         this.buildRenderConfig(),
         true
       );
+      // Another level draws something else (points, glyphs, backgrounds): keep that apart too.
+      if (this.collisionAvoidance) {
+        this.rendererSvc.setGlyphScale(glyphScale(newZoom));
+        this.updateCollisionForce();
+        this.currentTicks = 0;
+        this.simulation?.alpha(1);
+        this.rendererSvc.requestRender(RenderTask.ForceSimulation);
+      }
       return true;
     }
     return false;
@@ -661,6 +692,7 @@ export class GlyphCanvasComponent implements AfterViewInit, OnDestroy, OnChanges
     }
 
     const fitCompleted = this.cameraSvc.updateFitAnimation(this.glyphData.length);
+    this.rendererSvc.setGlyphScale(glyphScale(this.cameraSvc.camera.zoom));
     if (fitCompleted) {
       this.handleZoomLevelChange(this.cameraSvc.fitStartZoom, this.cameraSvc.camera.zoom);
       this.rendererSvc.cancelRender(RenderTask.FitAnimation);
@@ -701,7 +733,9 @@ export class GlyphCanvasComponent implements AfterViewInit, OnDestroy, OnChanges
   }
 
   private resetAnimatedGlyph() {
-    this.animateGlyph?.getMesh(this.selectedTimestamp, this.selectedAlgorithm, this.id)?.scale.set(1, 1, 1); // Reset scale
+    this.animateGlyph
+      ?.getMesh(this.selectedTimestamp, this.selectedAlgorithm, this.id)
+      ?.scale.setScalar(this.rendererSvc.glyphScale); // Reset the pulse
     if (this.animateGlyph != null)
       this.rendererSvc.renderGlyph(
         this.animateGlyph,
