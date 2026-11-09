@@ -477,8 +477,10 @@ $wizard-list-viewport-height: 420px;
 // morphs to row N in step 3 with minimal vertical movement). Sized to fit the
 // Step 3 two-line item (name/type + config summary) without clipping.
 $wizard-list-row-height: 56px;
-// Box height shared by Step 2's table viewport and Step 3's rail/well shell.
-$wizard-list-box-height: $wizard-list-viewport-height + $wizard-header-row-height;
+// Step 2's table box and Step 3's rail/well box both fill the step down to the
+// same bottom edge, so they grow with the window. This is their smallest height
+// (header row + five rows); below it the step scrolls instead.
+$wizard-list-min-box-height: $wizard-header-row-height + 5 * $wizard-list-row-height;
 // Max height of a list when it is stacked above its detail panel (< 1024px).
 $wizard-stacked-list-max-height: min(50vh, #{$wizard-list-viewport-height});
 

@@ -281,10 +281,11 @@ describe('Step3ConfigureDataFeaturesComponent – accessibility', () => {
 });
 
 /**
- * Only the column list and the detail well scroll. Each list item with missing
- * values carries a visually-hidden "missing" label (position: absolute); before
- * the list was a containing block, those labels escaped it at their unscrolled
- * position and gave the whole step a third, outer scrollbar.
+ * The rail/well box fills the step down to its bottom edge; only the column list
+ * and the detail well scroll. Each list item with missing values carries a
+ * visually-hidden "missing" label (position: absolute); before the list was a
+ * containing block, those labels escaped it at their unscrolled position and
+ * gave the whole step a third, outer scrollbar.
  */
 describe('Step3ConfigureDataFeaturesComponent – layout', () => {
   let scroller: HTMLElement;
@@ -329,5 +330,15 @@ describe('Step3ConfigureDataFeaturesComponent – layout', () => {
     expect(host.querySelectorAll('.column-list .visually-hidden').length).toBe(40);
     expect(list && list.scrollHeight > list.clientHeight).toBe(true); // the list does scroll
     expect(scroller.scrollHeight).toBeLessThanOrEqual(scroller.clientHeight);
+
+    // The box fills the step down to its bottom edge instead of a fixed height.
+    const content = host.querySelector<HTMLElement>('.step-content');
+    const shell = host.querySelector<HTMLElement>('.config-shell');
+    if (!content || !shell) throw new Error('step not rendered');
+    // Measured against the shell's scroller: only the step padding and the box margin lie below the box.
+    const gap = scroller.getBoundingClientRect().bottom - shell.getBoundingClientRect().bottom;
+    const expectedGap =
+      parseFloat(getComputedStyle(content).paddingBottom) + parseFloat(getComputedStyle(shell).marginBottom);
+    expect(gap).toBeCloseTo(expectedGap, 0);
   });
 });

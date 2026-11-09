@@ -238,10 +238,11 @@ describe('Step2ColumnSelectionComponent – accessibility (rendered)', () => {
 });
 
 /**
- * Only the column table scrolls. Rows of flagged columns carry a visually-hidden
- * label (position: absolute); before the table container was a containing block,
- * those labels escaped it at their unscrolled row position and gave the whole
- * step a second, outer scrollbar.
+ * The column table fills the step down to its bottom edge and is the only thing
+ * that scrolls. Rows of flagged columns carry a visually-hidden label (position:
+ * absolute); before the table container was a containing block, those labels
+ * escaped it at their unscrolled row position and gave the whole step a second,
+ * outer scrollbar.
  */
 describe('Step2ColumnSelectionComponent – layout', () => {
   let scroller: HTMLElement;
@@ -251,10 +252,10 @@ describe('Step2ColumnSelectionComponent – layout', () => {
     localStorage.clear();
   });
 
-  it('keeps every row inside the scrolling table, so the step itself does not scroll', async () => {
+  /** Step 2 with 40 mostly-empty columns (each row shows the "(quality issues detected)" label). */
+  async function renderInShell(height?: number): Promise<{ host: HTMLElement; table: HTMLElement }> {
     localStorage.clear();
     const service = createTestPreprocessingService();
-    // 40 mostly-empty columns: each row shows the "(quality issues detected)" label.
     const columns: ColumnStatistics[] = Array.from({ length: 40 }, (_, i) => ({
       name: `column${i}`,
       dataType: DataType.Numeric,
@@ -275,12 +276,37 @@ describe('Step2ColumnSelectionComponent – layout', () => {
     }).compileComponents();
     const fixture = TestBed.createComponent(Step2ColumnSelectionComponent);
     const host = fixture.nativeElement as HTMLElement;
-    scroller = mountInShellLayout(host);
+    scroller = mountInShellLayout(host, height);
     fixture.detectChanges();
-
     const table = host.querySelector<HTMLElement>('.columns-table-container');
+    if (!table) throw new Error('table not rendered');
+    return { host, table };
+  }
+
+  it('keeps every row inside the scrolling table, so the step itself does not scroll', async () => {
+    const { host, table } = await renderInShell();
+
     expect(host.querySelectorAll('tbody .visually-hidden').length).toBe(40);
-    expect(table && table.scrollHeight > table.clientHeight).toBe(true); // the table does scroll
+    expect(table.scrollHeight).toBeGreaterThan(table.clientHeight); // the table does scroll
     expect(scroller.scrollHeight).toBeLessThanOrEqual(scroller.clientHeight);
+  });
+
+  it('fills the step down to its bottom edge instead of stopping at a fixed height', async () => {
+    const { host, table } = await renderInShell();
+    const content = host.querySelector<HTMLElement>('.step-content');
+    if (!content) throw new Error('step content not rendered');
+
+    // Measured against the shell's scroller: only the step padding and the box margin lie below the box.
+    const gap = scroller.getBoundingClientRect().bottom - table.getBoundingClientRect().bottom;
+    const expectedGap =
+      parseFloat(getComputedStyle(content).paddingBottom) + parseFloat(getComputedStyle(table).marginBottom);
+    expect(gap).toBeCloseTo(expectedGap, 0);
+  });
+
+  it('keeps a usable minimum height in a small window and lets the step scroll instead', async () => {
+    const { table } = await renderInShell(400);
+
+    expect(getComputedStyle(table).height).toBe('320px'); // header row + five rows (plus the border)
+    expect(scroller.scrollHeight).toBeGreaterThan(scroller.clientHeight);
   });
 });

@@ -9,8 +9,12 @@
   min-height: 0;
 }
 
+// A column so the table box can take the height left under the tip and the controls.
 .step-content {
   @include wizard.step-content;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .info-box {
@@ -61,15 +65,16 @@
 }
 
 // Table Layout
-// A14: bounded, internally scrolling viewport with a sticky header (from the
-// shared `table` mixin) so the row list matches Step 3's master-rail list. The
-// viewport height is derived from the shared value + the sticky header height so
-// the visible ROW area equals Step 3's `.column-list` height.
+// A14: internally scrolling viewport with a sticky header (from the shared
+// `table` mixin). It fills the step down to the same bottom edge as Step 3's
+// rail/well box, so both grow with the window; below the shared minimum the
+// step scrolls instead.
 .columns-table-container {
   @include wizard.table-container;
   @include wizard.scroll-y;
   overflow-x: auto;
-  max-height: wizard.$wizard-list-box-height;
+  flex: 1 1 auto;
+  min-height: wizard.$wizard-list-min-box-height;
   margin-bottom: v.$space-4;
 }
 
