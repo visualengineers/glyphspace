@@ -21,7 +21,7 @@ import { DataLoaderService } from '../services/data-loader.service';
 import { FilterService } from '../services/filter.service';
 import { GlyphObject } from '../glyph/glyph-object';
 import { ZoomLevel } from '../shared/enum/zoom-level';
-import { forceCollide, forceSimulation, Simulation } from 'd3';
+import { forceCollide, forceSimulation, forceX, forceY, Simulation } from 'd3';
 import { clusterGlyphs, getGlyphFromObject } from '../shared/helpers/glyph-helper';
 import { InteractionCommand } from '../shared/enum/interaction-command';
 import { GlyphCacheObject } from '../glyph/glyph-cache-object';
@@ -42,6 +42,9 @@ import {
   MOUSE_IDLE_MS,
   CLICK_TIME_THRESHOLD_MS,
   CLICK_DISTANCE_THRESHOLD,
+  TRANSITION_SPEED,
+  transitionStep,
+  COLLISION_ATTRACTION,
 } from '../shared/constants/canvas-constants';
 import { ThumbnailService } from '../services/thumbnail.service';
 import { buildGlyphRenderConfig, GlyphRenderConfig } from '../glyph/glyph-render-config';
@@ -87,11 +90,14 @@ export class GlyphCanvasComponent implements AfterViewInit, OnDestroy, OnChanges
 
   // D3 force simulation and aggregation
   private simulation: Simulation<GlyphCacheObject, undefined> | undefined;
+  /** Radii the collision force keeps apart, by glyphData index. */
+  private collisionRadii: number[] = [];
   collisionAvoidance = false;
   private currentTicks = 0;
   private maxTicks = 50;
   aggregated = false;
-  private animationSpeed = 0.1;
+  /** Step of the transitions, from the speed level of the settings overlay. */
+  private animationSpeed = transitionStep(TRANSITION_SPEED.default);
 
   // Hover and interaction
   private mouse = new THREE.Vector2();
@@ -358,8 +364,9 @@ export class GlyphCanvasComponent implements AfterViewInit, OnDestroy, OnChanges
         )
       : 1;
     const changed = sizeInfo.setSizes(glyphConfig.itemSize, reach);
-    // Options such as the background also change what collision avoidance keeps apart.
-    this.updateCollisionForce();
+    // Size, axes and options such as the background change what collision
+    // avoidance keeps apart; while it is on, it follows at once.
+    if (this.updateCollisionForce()) this.rerunCollisionAvoidance();
     if (!changed) return;
     this.rendererSvc.rebuildSpatialGrid(this.glyphData, this.id, this.selectedTimestamp, this.selectedAlgorithm);
   }
@@ -368,8 +375,11 @@ export class GlyphCanvasComponent implements AfterViewInit, OnDestroy, OnChanges
     this.simulation = forceSimulation(
       this.glyphData.map(glyph => glyph.getCacheObject(this.id, this.selectedTimestamp, this.selectedAlgorithm))
     )
+      .force('x', forceX<GlyphCacheObject>(node => node.position.x).strength(COLLISION_ATTRACTION))
+      .force('y', forceY<GlyphCacheObject>(node => node.position.y).strength(COLLISION_ATTRACTION))
       .velocityDecay(0.5)
       .stop();
+    this.collisionRadii = [];
     this.updateCollisionForce();
   }
 
@@ -377,19 +387,32 @@ export class GlyphCanvasComponent implements AfterViewInit, OnDestroy, OnChanges
    * Collision avoidance keeps apart what is drawn at the current zoom level, at
    * its current scale: points, the glyphs' own reach, or whole circles where a
    * background or the axes are drawn (visibleRadius). The simulation's nodes
-   * are the cache objects of glyphData, in the same order.
+   * are the cache objects of glyphData, in the same order. Returns whether a
+   * radius changed.
    */
-  private updateCollisionForce(): void {
-    if (!this.simulation) return;
+  private updateCollisionForce(): boolean {
+    if (!this.simulation) return false;
     const sizeInfo = this.rendererSvc.sizeInfo;
     const level = sizeInfo.currentZoomLevel;
     const config = this.buildRenderConfig();
     const scale = this.rendererSvc.glyphScale;
     const radii = this.glyphData.map(glyph => visibleRadius(glyph, level, sizeInfo, config) * scale);
-    this.simulation.force(
-      'collide',
-      forceCollide<GlyphCacheObject>((_, i) => radii[i] ?? 0)
-    );
+    const changed =
+      radii.length !== this.collisionRadii.length || radii.some((radius, i) => radius !== this.collisionRadii[i]);
+    this.collisionRadii = radii;
+    this.simulation.force('collide', forceCollide<GlyphCacheObject>((_, i) => radii[i] ?? 0).iterations(2));
+    return changed;
+  }
+
+  /**
+   * While collision avoidance is on, run it again from where the items are:
+   * larger items move apart, smaller ones back towards their own positions.
+   */
+  private rerunCollisionAvoidance(): void {
+    if (!this.collisionAvoidance || !this.simulation) return;
+    this.currentTicks = 0;
+    this.simulation.alpha(1);
+    this.rendererSvc.requestRender(RenderTask.ForceSimulation);
   }
   //#endregion
 
@@ -426,12 +449,10 @@ export class GlyphCanvasComponent implements AfterViewInit, OnDestroy, OnChanges
         cached.x = cached.position.x;
         cached.y = cached.position.y;
       });
-      this.animationSpeed = 0.1;
       this.rendererSvc.requestRender(RenderTask.OriginalSimulation);
     } else {
       this.updateCollisionForce();
-      this.simulation?.alpha(1);
-      this.rendererSvc.requestRender(RenderTask.ForceSimulation);
+      this.rerunCollisionAvoidance();
     }
   }
 
@@ -521,8 +542,8 @@ export class GlyphCanvasComponent implements AfterViewInit, OnDestroy, OnChanges
     this.rendererSvc.requestRender(RenderTask.FitAnimation);
   }
 
-  onAnimationSpeedChanged(speed: number) {
-    this.animationSpeed = speed;
+  onAnimationSpeedChanged(level: number) {
+    this.animationSpeed = transitionStep(level);
   }
 
   onTogglePlayback() {
@@ -626,9 +647,7 @@ export class GlyphCanvasComponent implements AfterViewInit, OnDestroy, OnChanges
       if (this.collisionAvoidance) {
         this.rendererSvc.setGlyphScale(glyphScale(newZoom));
         this.updateCollisionForce();
-        this.currentTicks = 0;
-        this.simulation?.alpha(1);
-        this.rendererSvc.requestRender(RenderTask.ForceSimulation);
+        this.rerunCollisionAvoidance();
       }
       return true;
     }
