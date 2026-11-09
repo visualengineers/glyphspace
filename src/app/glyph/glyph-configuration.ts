@@ -1,4 +1,5 @@
 import { GlyphType } from '../shared/enum/glyph-type';
+import { GLYPH_SIZE_PX, POINT_SIZE_PX } from './glyph-size-info';
 
 export interface GlyphOption {
   property: string;
@@ -13,12 +14,14 @@ export class GlyphConfiguration {
   private _useContour = true;
   private _radius = 0;
   private _scaleLinear = false;
+  private _pointSize: number = POINT_SIZE_PX.default;
+  private _glyphSize: number = GLYPH_SIZE_PX.default;
 
   private _glyphType: GlyphType = GlyphType.Star;
 
   private options: GlyphOption[] = [
-    { property: 'useCoordinateSystem', label: 'Coordinate System' },
-    { property: 'useBackground', label: 'Circle Background' },
+    { property: 'useCoordinateSystem', label: 'Coordinate system' },
+    { property: 'useBackground', label: 'Circle background' },
     { property: 'useContour', label: 'Contour' },
   ];
 
@@ -84,4 +87,25 @@ export class GlyphConfiguration {
   set scaleLinear(scaleLinear: boolean) {
     this._scaleLinear = scaleLinear;
   }
+
+  /** Diameter of a point in px at 100 % zoom, within POINT_SIZE_PX. */
+  get pointSize(): number {
+    return this._pointSize;
+  }
+  set pointSize(px: number) {
+    this._pointSize = clampSize(px, POINT_SIZE_PX);
+  }
+
+  /** Diameter of a glyph in px in the magic lens, within GLYPH_SIZE_PX. */
+  get glyphSize(): number {
+    return this._glyphSize;
+  }
+  set glyphSize(px: number) {
+    this._glyphSize = clampSize(px, GLYPH_SIZE_PX);
+  }
+}
+
+function clampSize(px: number, limits: { min: number; max: number; default: number }): number {
+  if (!Number.isFinite(px)) return limits.default;
+  return Math.min(limits.max, Math.max(limits.min, Math.round(px)));
 }

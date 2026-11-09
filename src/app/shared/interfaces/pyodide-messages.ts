@@ -2,7 +2,8 @@ import { DatasetCollection } from './dataset-collection';
 
 export type WorkerRequest =
   | { type: 'getJson'; file: string }
-  | { type: 'unzip'; fileName: string; buffer: ArrayBuffer }
+  // Unpack a ZIP archive flat into the folder /<folder>
+  | { type: 'unzip'; folder: string; buffer: ArrayBuffer }
   | { type: 'getThumb'; file: string }
   // Preprocessing requests
   | { type: 'profileData'; fileName: string; buffer: ArrayBuffer }

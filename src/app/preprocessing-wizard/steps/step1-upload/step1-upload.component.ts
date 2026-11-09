@@ -28,6 +28,8 @@ export const SAMPLE_LOAD_ERROR = 'The sample data could not be loaded. Please tr
 
 /** Upload size limit (50 MB). */
 const MAX_FILE_BYTES = 50 * 1024 * 1024;
+/** Size limit of the item image archive (200 MB); it is unpacked in browser memory. */
+const MAX_ARCHIVE_BYTES = 200 * 1024 * 1024;
 
 /** Downloads the bundled sample CSV as a File, exactly like a user-picked one. */
 async function fetchSampleFile(): Promise<File> {
@@ -63,6 +65,12 @@ export class Step1UploadComponent implements OnInit, OnDestroy, WizardStep {
   isLoading = false;
   error: string | null = null;
   profile: DataProfile | null = null;
+  /** The file has to be uploaded again (lost by a page reload, see PreprocessingState). */
+  uploadMissing = false;
+  rawFileName: string | null = null;
+  /** Chosen ZIP archive of item images (Image glyph type). */
+  archiveName: string | null = null;
+  archiveError: string | null = null;
 
   // Expose step info to template
   readonly stepInfo = getStepInfo('upload');
@@ -77,6 +85,9 @@ export class Step1UploadComponent implements OnInit, OnDestroy, WizardStep {
     this.subscription.add(
       this.preprocessingService.state$.subscribe(state => {
         this.profile = state.dataProfile;
+        this.uploadMissing = state.uploadMissing;
+        this.rawFileName = state.rawFileName;
+        this.archiveName = state.thumbnailArchiveName;
       })
     );
   }
@@ -86,7 +97,7 @@ export class Step1UploadComponent implements OnInit, OnDestroy, WizardStep {
   }
 
   canProceed(): boolean {
-    return this.profile !== null;
+    return this.profile !== null && !this.uploadMissing;
   }
 
   proceed(): void {
@@ -103,6 +114,28 @@ export class Step1UploadComponent implements OnInit, OnDestroy, WizardStep {
     if (file) {
       void this.handleFile(file);
     }
+  }
+
+  onArchiveSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const archive = input.files?.[0];
+    input.value = '';
+    if (!archive) return;
+    if (!archive.name.toLowerCase().endsWith('.zip')) {
+      this.archiveError = 'Please choose a ZIP file.';
+      return;
+    }
+    if (archive.size > MAX_ARCHIVE_BYTES) {
+      this.archiveError = 'The ZIP file exceeds the 200 MB limit.';
+      return;
+    }
+    this.archiveError = null;
+    void this.preprocessingService.setThumbnailArchive(archive);
+  }
+
+  removeArchive(): void {
+    this.archiveError = null;
+    void this.preprocessingService.setThumbnailArchive(null);
   }
 
   /** "Upload Different File": back to the upload zone, focus on "Browse Files". */

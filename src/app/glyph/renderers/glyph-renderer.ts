@@ -33,7 +33,7 @@ export interface GlyphRenderContext {
 
 /**
  * Interface for glyph type renderers.
- * Each glyph type (Star, Flower, Whisker, Thumb) implements this.
+ * Each glyph type (Star, Flower, Thumb) implements this.
  */
 export interface GlyphRenderer {
   render(ctx: GlyphRenderContext, sizeInfo: GlyphSizeInfo, linearScale: boolean): THREE.Object3D;

@@ -1,0 +1,84 @@
+<section class="group" aria-labelledby="encoding-glyph-type">
+  <h3 class="section-label" id="encoding-glyph-type">Glyph type</h3>
+  <div class="segmented" role="group" aria-labelledby="encoding-glyph-type">
+    @for (option of glyphTypes; track option.type) {
+      <button
+        type="button"
+        [class.active]="glyphConfig.glyphType === option.type"
+        [attr.aria-pressed]="glyphConfig.glyphType === option.type"
+        (click)="setGlyphType(option.type)"
+      >
+        {{ option.label }}
+      </button>
+    }
+  </div>
+</section>
+
+<section class="group" aria-labelledby="encoding-color-by">
+  <h3 class="section-label" id="encoding-color-by">Color by</h3>
+  <select
+    class="select"
+    aria-labelledby="encoding-color-by"
+    [ngModel]="colorFeature"
+    (ngModelChange)="selectColorFeature($event)"
+  >
+    @for (featureId of featureIds; track featureId) {
+      <option [value]="featureId">{{ colorOptionLabel(featureId) }}</option>
+    }
+  </select>
+  <span class="visually-hidden" id="encoding-color-scale">Color scale</span>
+  <app-color-scale-selector
+    ariaLabelledby="encoding-color-scale"
+    [groupedColorScales]="groupedColorScales"
+    [selectedScale]="selectedScale"
+    (scaleSelected)="selectColorScale($event)"
+  >
+  </app-color-scale-selector>
+  @if (selectedScale.type === 'categorical') {
+    <p class="hint">{{ paletteHint }}</p>
+  }
+</section>
+
+<section class="group" aria-labelledby="encoding-appearance">
+  <h3 class="section-label" id="encoding-appearance">Appearance</h3>
+  @for (option of glyphConfig.glyphOptions; track option.property) {
+    <label class="check">
+      <input type="checkbox" [checked]="isOptionEnabled(option.property)" (change)="toggleOption(option.property)" />
+      {{ option.label }}
+    </label>
+  }
+
+  <div class="slider">
+    <label for="encoding-point-size">Point size</label>
+    <input
+      #pointSize
+      id="encoding-point-size"
+      type="range"
+      step="1"
+      [min]="pointSizeLimits.min"
+      [max]="pointSizeLimits.max"
+      [value]="glyphConfig.pointSize"
+      aria-describedby="encoding-size-hint"
+      (input)="setPointSize(pointSize.value)"
+    />
+    <output for="encoding-point-size">{{ glyphConfig.pointSize }} px</output>
+  </div>
+  <div class="slider">
+    <label for="encoding-glyph-size">Glyph size</label>
+    <input
+      #glyphSize
+      id="encoding-glyph-size"
+      type="range"
+      step="2"
+      [min]="glyphSizeLimits.min"
+      [max]="glyphSizeLimits.max"
+      [value]="glyphConfig.glyphSize"
+      aria-describedby="encoding-size-hint"
+      (input)="setGlyphSize(glyphSize.value)"
+    />
+    <output for="encoding-glyph-size">{{ glyphConfig.glyphSize }} px</output>
+  </div>
+  <p class="hint" id="encoding-size-hint">
+    Point size applies at 100 % zoom. Glyph size is the size in the magic lens; glyphs on the canvas scale with it.
+  </p>
+</section>

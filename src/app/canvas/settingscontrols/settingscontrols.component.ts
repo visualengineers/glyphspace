@@ -65,9 +65,6 @@ export class SettingsControlPanelComponent implements OnDestroy, OnInit {
   @Input() timestamps: string[] = [];
   @Input() selectedTimestamp!: string;
 
-  @Input() contexts: string[] = [];
-  @Input() selectedContext!: string;
-
   @Input() maximized = false;
 
   @Output() fitToView = new EventEmitter<void>();
@@ -82,7 +79,6 @@ export class SettingsControlPanelComponent implements OnDestroy, OnInit {
   @Output() settingsChanged = new EventEmitter<{
     timestamp: string;
     algorithm: string;
-    context: string;
   }>();
 
   constructor(
@@ -251,7 +247,6 @@ export class SettingsControlPanelComponent implements OnDestroy, OnInit {
     this.settingsChanged.emit({
       timestamp: this.selectedTimestamp,
       algorithm: this.selectedAlgorithm,
-      context: this.selectedContext,
     });
     this.paused = false;
   }

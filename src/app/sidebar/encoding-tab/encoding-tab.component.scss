@@ -1,0 +1,111 @@
+@use '../../../styles/variables' as v;
+@use '../../../styles/mixins' as m;
+@use '../sidebar' as s;
+
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.section-label {
+  @include s.section-label;
+}
+
+.visually-hidden {
+  @include m.visually-hidden;
+}
+
+.hint {
+  @include s.hint;
+}
+
+// --- Glyph type ---
+.segmented {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+
+  button {
+    @include s.outline-button;
+    min-height: 36px;
+    font-size: v.$font-size-base;
+    font-weight: 400;
+
+    &.active {
+      @include s.selected;
+      font-weight: 600;
+    }
+  }
+}
+
+// --- Color ---
+.select {
+  min-height: 36px;
+  padding: 0 8px;
+  border: 1px solid v.$sidebar-border-strong;
+  border-radius: 8px;
+  background: v.$white;
+  color: v.$sidebar-text;
+  font: inherit;
+  font-size: v.$font-size-base;
+
+  &:focus-visible {
+    @include s.focus-ring;
+    outline-offset: 0;
+  }
+}
+
+// --- Appearance ---
+.check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  font-size: v.$font-size-base;
+  color: v.$sidebar-text;
+  cursor: pointer;
+
+  input {
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    accent-color: v.$sidebar-accent;
+    cursor: pointer;
+  }
+}
+
+.slider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 36px;
+  font-size: v.$font-size-base;
+  color: v.$sidebar-text;
+
+  label {
+    flex: none;
+    width: 82px;
+  }
+
+  input {
+    flex: 1;
+    min-width: 0;
+    accent-color: v.$sidebar-accent;
+    cursor: pointer;
+  }
+
+  output {
+    flex: none;
+    width: 48px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    color: v.$sidebar-text-secondary;
+  }
+}

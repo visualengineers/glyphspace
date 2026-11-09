@@ -1,7 +1,21 @@
 import * as THREE from 'three';
 import { GlyphSizeInfo } from '../glyph-size-info';
 import { ZoomLevel } from '../../shared/enum/zoom-level';
+import { axisAngle } from '../glyph-geometry';
 import { GlyphRenderContext } from './glyph-renderer';
+
+/*
+ * Reference grid behind the glyph (background disc, its ring and the axes).
+ * It is kept light and thin so that it never looks stronger than the data
+ * drawn on top of it.
+ */
+const BACKGROUND_COLOR = 0xf3f3f3;
+const RING_COLOR = 0xe0e0e0;
+/** Ring width as a fraction of the glyph radius. */
+const RING_WIDTH = 0.01;
+const AXES_COLOR = 0xd4d4d4;
+/** Axis line width as a fraction of the glyph radius, so lines scale with the glyph. */
+const AXES_WIDTH = 0.015;
 
 // Shared geometry cache for performance (reuse common geometries)
 const geometryCache = {
@@ -50,7 +64,7 @@ export function addBackgroundCircle(group: THREE.Group, sizeInfo: GlyphSizeInfo,
   if (!background) return;
 
   const geom = getCachedCircleGeometry(sizeInfo.radius, 32);
-  const mat = new THREE.MeshBasicMaterial({ color: 0xf0f0f0 });
+  const mat = new THREE.MeshBasicMaterial({ color: BACKGROUND_COLOR });
   if (ctx.highlighted) {
     const color = new THREE.Color(ctx.highlightColor);
     color.lerp(new THREE.Color(0xffffff), 0.6);
@@ -59,16 +73,11 @@ export function addBackgroundCircle(group: THREE.Group, sizeInfo: GlyphSizeInfo,
   group.add(new THREE.Mesh(geom, mat));
 
   if (ctx.useContour) {
-    const ringWidth = sizeInfo.radius * 0.01;
+    // Opaque like the disc, so it is drawn before (behind) the transparent glyph shape.
+    const ringWidth = sizeInfo.radius * RING_WIDTH;
     const contourGeom = getCachedRingGeometry(sizeInfo.radius - ringWidth, sizeInfo.radius, 32);
-    const contourMat = new THREE.MeshBasicMaterial({
-      color: 0xcccccc,
-      side: THREE.DoubleSide,
-      depthTest: false,
-    });
-    const contour = new THREE.Mesh(contourGeom, contourMat);
-    contour.renderOrder = 999;
-    group.add(contour);
+    const contourMat = new THREE.MeshBasicMaterial({ color: RING_COLOR, side: THREE.DoubleSide });
+    group.add(new THREE.Mesh(contourGeom, contourMat));
   }
 }
 
@@ -81,15 +90,14 @@ export function addCoordinateAxes(
   const axes = sizeInfo.currentZoomLevel === ZoomLevel.high && ctx.useCoordinateSystem;
   if (!axes) return;
 
-  const axesColor = 0xa0a0a0;
-  const lineWidth = sizeInfo.contourThickness / 3;
+  const lineWidth = sizeInfo.radius * AXES_WIDTH;
+  const mat = new THREE.MeshBasicMaterial({ color: AXES_COLOR, side: THREE.DoubleSide });
   for (let i = 0; i < segments; i++) {
-    const angle = (i / segments) * Math.PI * 2;
     const geom = new THREE.PlaneGeometry(lineWidth, sizeInfo.radius);
     geom.translate(0, sizeInfo.radius / 2, 0);
-    const mat = new THREE.MeshBasicMaterial({ color: axesColor, side: THREE.DoubleSide });
     const mesh = new THREE.Mesh(geom, mat);
-    mesh.rotation.z = angle - Math.PI / 2;
+    // The plane points up (+y); turn it onto the axis direction.
+    mesh.rotation.z = axisAngle(i, segments) - Math.PI / 2;
     group.add(mesh);
   }
 }

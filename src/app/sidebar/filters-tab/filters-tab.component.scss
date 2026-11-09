@@ -1,0 +1,183 @@
+@use '../../../styles/variables' as v;
+@use '../../../styles/mixins' as m;
+@use '../sidebar' as s;
+
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+// --- Text search ---
+.search {
+  position: relative;
+
+  input {
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 36px;
+    padding: 0 36px 0 10px;
+    border: 1px solid v.$sidebar-border-strong;
+    border-radius: 8px;
+    background: v.$white;
+    color: v.$sidebar-text;
+    font: inherit;
+    font-size: v.$font-size-base;
+
+    &::placeholder {
+      color: v.$sidebar-muted;
+    }
+
+    &:focus-visible {
+      @include s.focus-ring;
+      outline-offset: 0;
+    }
+  }
+}
+
+.clear-search,
+.remove-term {
+  @include s.plain-button;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  color: v.$sidebar-muted;
+
+  .material-icons {
+    font-size: v.$icon-size-md;
+  }
+
+  &:hover {
+    color: v.$sidebar-text;
+  }
+}
+
+.clear-search {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+}
+
+.search-terms {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: v.$z-dropdown;
+  margin: 4px 0 0;
+  padding: 4px;
+  border: 1px solid v.$sidebar-border-strong;
+  border-radius: 8px;
+  background: v.$white;
+  box-shadow: v.$shadow-dropdown;
+  list-style: none;
+
+  li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 2px 4px 2px 8px;
+    font-size: v.$font-size-base;
+    color: v.$sidebar-text;
+  }
+}
+
+// --- Filter cards ---
+.filter-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid v.$sidebar-card-border;
+  border-radius: 10px;
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 32px;
+}
+
+.card-title {
+  @include m.text-truncate;
+  min-width: 0;
+  font-weight: 600;
+  font-size: v.$font-size-base;
+  color: v.$sidebar-text;
+}
+
+.card-tags {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+
+.glyph-toggle {
+  @include s.plain-button;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 32px;
+  min-height: 32px;
+  padding: 0 6px;
+  border: 1px solid v.$sidebar-border-strong;
+  border-radius: 8px;
+  background: v.$white;
+
+  &.in-glyph {
+    border-color: v.$sidebar-accent;
+    background: v.$sidebar-accent-tint;
+  }
+
+  // A feature outside the glyph shows no icon until the card is hovered or
+  // the button gets keyboard focus; then it offers to add the feature.
+  &:not(.in-glyph) {
+    opacity: 0;
+    transition: opacity 0.15s ease;
+
+    .filter-card:hover &,
+    &:focus-visible {
+      opacity: 1;
+    }
+  }
+
+  &[aria-disabled='true'] {
+    cursor: not-allowed;
+
+    &:not(.in-glyph) {
+      .filter-card:hover &,
+      &:focus-visible {
+        opacity: 0.5;
+      }
+    }
+  }
+}
+
+.axis-number {
+  font-size: v.$font-size-sm;
+  font-weight: 700;
+  color: v.$sidebar-accent-strong;
+}
+
+.type-tag {
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: v.$sidebar-tag-bg;
+  color: v.$sidebar-muted;
+  font-size: v.$font-size-xs;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glyph-toggle {
+    transition: none;
+  }
+}

@@ -66,7 +66,7 @@ export class Step5GlyphColorSettingsComponent implements OnInit, WizardStep {
   readonly DataType = DataType;
 
   // Glyph preview
-  selectedGlyphType: 'star' | 'flower' | 'whisker' = 'star';
+  selectedGlyphType: 'star' | 'flower' = 'star';
   preview: GlyphPreview = buildGlyphPreview([]);
   readonly PREVIEW_RADIUS = PREVIEW_RADIUS;
   readonly PREVIEW_CENTER = PREVIEW_CENTER;

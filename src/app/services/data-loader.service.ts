@@ -16,6 +16,8 @@ import { FilterService } from './filter.service';
 import { DatasetCollectionService } from './dataset-collection.service';
 import { DatasetCacheService } from './dataset-cache.service';
 import { SchemaConfigSyncService } from './schema-config-sync.service';
+import { FirstInOrder } from '../shared/helpers/first-in-order';
+import { ThumbnailService } from './thumbnail.service';
 
 @Injectable({
   providedIn: 'root',
@@ -33,7 +35,8 @@ export class DataLoaderService {
     private filterService: FilterService,
     private collectionSvc: DatasetCollectionService,
     private cacheSvc: DatasetCacheService,
-    private schemaSyncSvc: SchemaConfigSyncService
+    private schemaSyncSvc: SchemaConfigSyncService,
+    private thumbnails: ThumbnailService
   ) {
     this.dataSetCollectionSubject$ = this.collectionSvc.dataSetCollectionSubject$;
     this.loadDatasets(DEFAULT_DATASETCOLLECTION);
@@ -43,6 +46,11 @@ export class DataLoaderService {
   // === Data loading ===
 
   private loadDatasets(datasets: DatasetCollection) {
+    // All bundled datasets load in parallel. The one shown on start is the first
+    // in collection order that loads, whatever order the downloads finish in.
+    const key = (dataset: string, time: string) => JSON.stringify([dataset, time]);
+    const startup = new FirstInOrder(datasets.flatMap(ds => ds.items.map(item => key(ds.dataset, item.time))));
+
     datasets.forEach(ds => {
       ds.items.forEach(item => {
         const basePath = 'assets/data/';
@@ -75,17 +83,19 @@ export class DataLoaderService {
 
             const items = this.cacheSvc.buildDataSet(datasetId, time, schema, meta, feature, positions);
 
-            if (!this.filterService.totalItems) {
+            startup.succeeded(key(datasetId, time), () => {
+              if (this.filterService.totalItems) return; // another dataset was opened meanwhile
               this.filterService.totalItems = items;
               this.filterService.filteredItems = items;
-              this.schemaSyncSvc.applySchemaToConfig(schema);
+              this.schemaSyncSvc.applySchemaToConfig(schema, meta);
               this.config.updateConfiguration();
               this.config.loadData(datasetId);
-            }
+            });
           },
           error: err => {
             console.error(`[DataLoader] Failed to load dataset "${datasetId}":`, err);
             this.toast.error(`Failed to load dataset "${datasetId}"`);
+            startup.failed(key(datasetId, time));
           },
         });
       });
@@ -189,6 +199,17 @@ export class DataLoaderService {
     }
   }
 
+  /**
+   * Use the item images in a ZIP archive for a dataset (Image glyph type), also
+   * in later sessions. Returns the number of item images found.
+   */
+  public async attachThumbnails(datasetName: string, archive: Blob): Promise<number> {
+    const count = await this.thumbnails.attachArchive(datasetName, archive);
+    // Glyphs drawn meanwhile still show placeholders.
+    if (this.config.loadedData === datasetName) this.config.updateConfiguration();
+    return count;
+  }
+
   public async deleteDataset(datasetName: string): Promise<boolean> {
     const entry = this.collectionSvc.getCollectionEntry(datasetName);
 
@@ -197,6 +218,7 @@ export class DataLoaderService {
     }
 
     await this.datasetStorage.deleteDataset(datasetName);
+    this.thumbnails.forget(datasetName);
     this.cacheSvc.deleteDataset(datasetName);
     this.collectionSvc.removeDataset(datasetName);
 
@@ -225,8 +247,6 @@ export class DataLoaderService {
     const resolved = this.resolveDatasetParams(name, timestamp || undefined);
     if (!resolved) return undefined;
 
-    const collection = this.collectionSvc.getCollectionEntry(resolved.name);
-
     let data = this.cacheSvc.getGlyphMap(resolved.name);
     if (!data) {
       await this.loadDataSet(resolved.name, resolved.timestamp);
@@ -237,7 +257,6 @@ export class DataLoaderService {
       this.filterService.setActiveGlyphData(data);
     }
     this.filterService.filteredItems = this.filterService.totalItems;
-    if (collection) this.config.dataSource = collection.source;
     return data ? Array.from(data.values()) : undefined;
   }
 
@@ -266,7 +285,10 @@ export class DataLoaderService {
     }
     const schemaResult = schema?.get(resolved.timestamp);
     if (schemaResult) {
-      this.schemaSyncSvc.applySchemaToConfig(schemaResult);
+      this.schemaSyncSvc.applySchemaToConfig(
+        schemaResult,
+        this.cacheSvc.getMetaMap(resolved.name)?.get(resolved.timestamp)
+      );
       const glyphMap = this.cacheSvc.getGlyphMap(resolved.name);
       if (glyphMap) this.schemaSyncSvc.calculateFeatureMaxValues(glyphMap);
     }
@@ -282,11 +304,6 @@ export class DataLoaderService {
   getPositions(name: string): string[];
   getPositions(name: string, time?: string): string[] {
     return this.collectionSvc.getPositions(name, time);
-  }
-
-  getContexts(name: string): string[];
-  getContexts(name: string, _time?: string): string[] {
-    return this.collectionSvc.getContexts(name, _time);
   }
 
   getDataSetNames(): string[] {
@@ -335,7 +352,7 @@ export class DataLoaderService {
 
     this.cacheSvc.buildDataSet(datasetName, timestamp, schema, meta, features, positions);
 
-    this.schemaSyncSvc.applySchemaToConfig(schema);
+    this.schemaSyncSvc.applySchemaToConfig(schema, meta);
     const metaMap = this.cacheSvc.getMetaMap(datasetName);
     const metaEntry = metaMap?.get(timestamp);
     if (metaEntry) this.schemaSyncSvc.extractFeatureMaxValuesFromMeta(metaEntry);
@@ -442,7 +459,7 @@ export class DataLoaderService {
         positions.set(key, position);
       }
 
-      this.schemaSyncSvc.applySchemaToConfig(schema);
+      this.schemaSyncSvc.applySchemaToConfig(schema, meta);
       this.config.updateConfiguration();
 
       const totalItems = this.cacheSvc.buildDataSet(name, timestamp, schema, meta, features, positions);
@@ -455,7 +472,7 @@ export class DataLoaderService {
         for (const [algo, posArr] of Object.entries(saved.positions)) {
           positionsMap.set(algo, posArr);
         }
-        this.schemaSyncSvc.applySchemaToConfig(saved.schema);
+        this.schemaSyncSvc.applySchemaToConfig(saved.schema, saved.meta);
         this.config.updateConfiguration();
         const totalItems = this.cacheSvc.buildDataSet(
           name,

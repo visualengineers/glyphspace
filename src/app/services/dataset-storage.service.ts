@@ -15,8 +15,11 @@ export interface StoredDataset {
 }
 
 const DB_NAME = 'glyphspace-datasets';
-const DB_VERSION = 1;
+// Version 2 added the store of item image archives.
+const DB_VERSION = 2;
 const STORE_NAME = 'datasets';
+/** ZIP archives of item images (Image glyph type), by dataset name. */
+const THUMBNAIL_STORE = 'thumbnails';
 
 @Injectable({ providedIn: 'root' })
 export class DatasetStorageService {
@@ -30,6 +33,9 @@ export class DatasetStorageService {
           const db = request.result;
           if (!db.objectStoreNames.contains(STORE_NAME)) {
             db.createObjectStore(STORE_NAME, { keyPath: 'name' });
+          }
+          if (!db.objectStoreNames.contains(THUMBNAIL_STORE)) {
+            db.createObjectStore(THUMBNAIL_STORE);
           }
         };
         request.onsuccess = () => resolve(request.result);
@@ -86,17 +92,48 @@ export class DatasetStorageService {
     }
   }
 
+  /** Deletes the dataset and its image archive. */
   async deleteDataset(name: string): Promise<void> {
     try {
       const db = await this.openDb();
       return new Promise<void>((resolve, reject) => {
-        const tx = db.transaction(STORE_NAME, 'readwrite');
+        const tx = db.transaction([STORE_NAME, THUMBNAIL_STORE], 'readwrite');
         tx.objectStore(STORE_NAME).delete(name);
+        tx.objectStore(THUMBNAIL_STORE).delete(name);
         tx.oncomplete = () => resolve();
         tx.onerror = () => reject(tx.error);
       });
     } catch (error) {
       console.warn('[DatasetStorage] Failed to delete dataset:', error);
+    }
+  }
+
+  /** Keeps the ZIP archive of a dataset's item images. */
+  async saveThumbnailArchive(name: string, archive: Blob): Promise<void> {
+    try {
+      const db = await this.openDb();
+      return new Promise<void>((resolve, reject) => {
+        const tx = db.transaction(THUMBNAIL_STORE, 'readwrite');
+        tx.objectStore(THUMBNAIL_STORE).put(archive, name);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    } catch (error) {
+      console.warn('[DatasetStorage] Failed to save the image archive:', error);
+    }
+  }
+
+  async getThumbnailArchive(name: string): Promise<Blob | undefined> {
+    try {
+      const db = await this.openDb();
+      return new Promise<Blob | undefined>((resolve, reject) => {
+        const request = db.transaction(THUMBNAIL_STORE, 'readonly').objectStore(THUMBNAIL_STORE).get(name);
+        request.onsuccess = () => resolve(request.result ?? undefined);
+        request.onerror = () => reject(request.error);
+      });
+    } catch (error) {
+      console.warn('[DatasetStorage] Failed to read the image archive:', error);
+      return undefined;
     }
   }
 }

@@ -7,7 +7,8 @@ import { Features } from '../shared/interfaces/glyph-feature';
 import { hexToRgb } from '../shared/helpers/d3-helper';
 import { GlyphConfiguration } from '../glyph/glyph-configuration';
 import { COLOR_SCALES, ColorScale } from '../shared/interfaces/color-scale';
-import { normalizeFeatureValue } from '../shared/helpers/color-helper';
+import { featureColor } from '../shared/helpers/color-helper';
+import { canAddGlyphAxis, canRemoveGlyphAxis } from '../glyph/glyph-axes';
 
 @Injectable({
   providedIn: 'root',
@@ -21,7 +22,7 @@ export class ConfigService {
   private _metadataLabels: Record<string, string> = {};
   private _featureTypes: Record<string, string> = {};
   private _featureMaxValues: Record<string, number> = {};
-  private _dataSource = '';
+  private _featureCategoryCounts: Record<string, number> = {};
   private _selectedColorScale = 0;
 
   // Flag to indicate if a modal (like preprocessing wizard) is open
@@ -85,14 +86,6 @@ export class ConfigService {
     this.loadedDataSubject.next(name);
   }
 
-  get dataSource(): string {
-    return this._dataSource;
-  }
-
-  set dataSource(source: string) {
-    this._dataSource = source;
-  }
-
   get loadedData() {
     return this.loadedDataSubject.getValue();
   }
@@ -114,23 +107,9 @@ export class ConfigService {
   }
 
   getRgbaColor(features: Features): string {
-    let currentColor = hexToRgb('#00cc88');
-    if (features != null) {
-      const featureValue = normalizeFeatureValue(
-        features['1'][this._colorFeature],
-        this._colorFeature,
-        this._featureTypes,
-        this._featureMaxValues
-      );
-
-      const scale = this.color;
-      if (scale) {
-        currentColor = scale(featureValue);
-        if (!this.colorRange) currentColor = hexToRgb(currentColor);
-      }
-    }
-
-    return currentColor;
+    const scale = this.colorScale;
+    if (features == null || !scale) return hexToRgb('#00cc88');
+    return hexToRgb(featureColor(scale, features['1'][this._colorFeature], this._colorFeature, this));
   }
 
   getConfiguration(): GlyphConfiguration {
@@ -146,8 +125,28 @@ export class ConfigService {
     this.activeFeatures.push(...features);
   }
 
+  /** Append a feature as the glyph's last axis, within the axis limit. Returns whether it was added. */
+  addGlyphAxis(featureId: string): boolean {
+    if (!canAddGlyphAxis(this._activeFeatures, featureId)) return false;
+    this._activeFeatures.push(featureId);
+    this.updateConfiguration();
+    return true;
+  }
+
+  /** Take a feature out of the glyph, keeping the minimum number of axes. Returns whether it was removed. */
+  removeGlyphAxis(featureId: string): boolean {
+    if (!canRemoveGlyphAxis(this._activeFeatures, featureId)) return false;
+    this._activeFeatures.splice(this._activeFeatures.indexOf(featureId), 1);
+    this.updateConfiguration();
+    return true;
+  }
+
+  get colorScale(): ColorScale | undefined {
+    return this.colorScales.find(s => s.id === this._selectedColorScale);
+  }
+
   get color(): d3.ScaleLinear<string, string> | d3.ScaleQuantize<string> | undefined {
-    return this.colorScales.find(s => s.id === this._selectedColorScale)?.scale;
+    return this.colorScale?.scale;
   }
 
   get colorRange(): number {
@@ -201,5 +200,14 @@ export class ConfigService {
 
   get featureMaxValues(): Record<string, number> {
     return this._featureMaxValues;
+  }
+
+  /** Number of categories of each feature that has categories (from the dataset meta). */
+  set featureCategoryCounts(counts: Record<string, number>) {
+    this._featureCategoryCounts = { ...counts };
+  }
+
+  get featureCategoryCounts(): Record<string, number> {
+    return this._featureCategoryCounts;
   }
 }

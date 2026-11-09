@@ -748,6 +748,8 @@ describe('PreprocessingService – Undo/Redo history', () => {
 
       const first = svc.processData();
       const second = svc.processData();
+      // The run reaches the worker after checking that the file is loaded.
+      await vi.waitFor(() => expect(spy).toHaveBeenCalled());
       expect(spy).toHaveBeenCalledTimes(1);
 
       finishRun({ datasets: {} });

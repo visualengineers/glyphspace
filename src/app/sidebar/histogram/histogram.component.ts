@@ -17,7 +17,7 @@ import { FeatureFilter } from '../../shared/filter/feature-filter';
 import { IdFilter } from '../../shared/filter/id-filter';
 import { FilterMode } from '../../shared/enum/filter-mode';
 import { Subscription } from 'rxjs';
-import { COLOR_SCALES, ColorScale, getColorScaleById } from '../../shared/interfaces/color-scale';
+import { COLOR_SCALES, ColorScale, getColorScaleById, paletteColor } from '../../shared/interfaces/color-scale';
 import { CategoryFilter } from '../../shared/filter/category-filter';
 import { InteractionCommand } from '../../shared/enum/interaction-command';
 import { Histogram, StackedBin } from '../../shared/types/histogram.types';
@@ -164,7 +164,9 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges, OnD
 
   private createHistogram(): void {
     const container = this.histogramContainer.nativeElement;
-    this.width = container.clientWidth - this.margin.left - this.margin.right;
+    // 0 while the histogram is hidden (e.g. in an inactive sidebar tab); the
+    // resize observer draws it once it gets a width.
+    this.width = Math.max(0, container.clientWidth - this.margin.left - this.margin.right);
     this.innerHeight = this.height - this.margin.top - this.margin.bottom;
 
     this.svg = d3
@@ -179,7 +181,8 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges, OnD
   }
 
   private updateChart(): void {
-    if (!this.svg || !this.histogramData) return;
+    // Without a width every bar would get a negative width (invalid SVG).
+    if (!this.svg || !this.histogramData || this.width <= 0) return;
 
     // Clear cached bins when data changes
     this.cachedStackedBins = null;
@@ -261,7 +264,7 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges, OnD
       .attr('class', 'bar')
       .attr('x', (d: { x0: number }) => d.x0)
       .attr('y', 0)
-      .attr('width', (d: { x1: number; x0: number }) => d.x1 - d.x0)
+      .attr('width', (d: { x1: number; x0: number }) => Math.max(0, d.x1 - d.x0))
       .attr('height', this.innerHeight)
       .attr('rx', 3)
       .attr('ry', 3)
@@ -311,7 +314,7 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges, OnD
           const tot = this.totalCounts?.get(d.bin) || 1;
           return this.innerHeight * (1 - sel / tot);
         })
-        .attr('width', (d: StackedBin) => d.x1 - d.x0)
+        .attr('width', (d: StackedBin) => Math.max(0, d.x1 - d.x0))
         .attr('height', (d: StackedBin) => {
           // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- guarded by `if (hasSelection)` and filtered to bins present in selectionCounts
           const sel = this.selectionCounts!.get(d.bin) || 0;
@@ -363,7 +366,7 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges, OnD
       .attr('class', 'bar')
       .attr('x', (d: { bin: number }) => this.xScale(d.bin))
       .attr('y', (d: { value: number }) => this.yScale(d.value))
-      .attr('width', this.xScale(1) - this.xScale(0) - 1)
+      .attr('width', this.barWidth())
       .attr('height', (d: { value: number }) => this.innerHeight - this.yScale(d.value))
       .attr('fill', (d: { bin: number }) => (hasSelection ? '#d4d4d4' : this.getBarColor(d.bin, bins.length)))
       .attr('rx', 3)
@@ -393,7 +396,7 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges, OnD
           const overlayHeight = barHeight * (d.sel / d.tot);
           return this.innerHeight - overlayHeight;
         })
-        .attr('width', this.xScale(1) - this.xScale(0) - 1)
+        .attr('width', this.barWidth())
         .attr('height', (d: { bin: number; binValue: number; sel: number; tot: number }) => {
           const barHeight = this.innerHeight - this.yScale(d.binValue);
           return barHeight * (d.sel / d.tot);
@@ -507,9 +510,19 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges, OnD
     return tooltip;
   }
 
+  /** Width of a numeric histogram bar: its bin less a 1 px gap, never negative. */
+  private barWidth(): number {
+    return Math.max(0, this.xScale(1) - this.xScale(0) - 1);
+  }
+
   private getBarColor(bin: number, binCount: number): string {
     if (!this.colorScale || this.configuration.colorFeature !== this.property) {
       return this.defaultBarColor;
+    }
+
+    // Category bins are the category codes; palettes color them in order, like the glyphs.
+    if (this.colorScale.type === 'categorical' && this.categories?.length) {
+      return paletteColor(this.colorScale, bin);
     }
 
     const t = binCount > 1 ? bin / (binCount - 1) : 0;
@@ -618,8 +631,7 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges, OnD
     }
 
     const idFilter = this.dataProvider.getFilters().find((f: ItemFilter) => f instanceof IdFilter && !f.empty()) as
-      | IdFilter
-      | undefined;
+      IdFilter | undefined;
 
     if (!idFilter) {
       this.selectionCounts = null;

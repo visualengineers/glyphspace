@@ -1,0 +1,118 @@
+@if (!hasAxes) {
+  <div class="not-applicable">
+    <strong>Image glyphs</strong>
+    <p>
+      Items are drawn as images, so there are no axes to show. The legend and the glyph icons on the filters do not
+      apply.
+    </p>
+  </div>
+} @else {
+  <div class="stage" [style.height.px]="stageHeight">
+    <svg
+      class="glyph"
+      [attr.viewBox]="'0 0 ' + svgSize + ' ' + svgSize"
+      [attr.width]="svgSize"
+      [attr.height]="svgSize"
+      role="img"
+      [attr.aria-label]="shapeDescription"
+    >
+      <circle class="backdrop" [attr.cx]="svgCenter" [attr.cy]="svgCenter" [attr.r]="svgCenter" />
+      <circle class="disc" [attr.cx]="svgCenter" [attr.cy]="svgCenter" [attr.r]="glyphRadius" />
+      <path class="spokes" [attr.d]="spokesPath" />
+      @if (glyphType === GlyphType.Star) {
+        <path class="star" [attr.d]="starPath" [attr.fill]="color" [attr.stroke]="color" />
+      } @else {
+        @for (petal of petalPaths; track $index) {
+          <path class="petal" [attr.d]="petal" [attr.fill]="color" [attr.stroke]="color" />
+        }
+      }
+    </svg>
+
+    @for (label of axisLabels; track label.id) {
+      <span class="axis-label" [class.selected]="selectedAxis === label.id" [style]="label.style">
+        <button
+          #nameButton
+          type="button"
+          class="axis-name"
+          [attr.aria-pressed]="selectedAxis === label.id"
+          [title]="label.name"
+          (click)="toggleSelected(label.id)"
+          (keydown.escape)="deselect(nameButton)"
+        >
+          <span class="axis-number">{{ label.number }}</span> {{ label.name }}
+        </button>
+        @if (selectedAxis === label.id) {
+          <button
+            type="button"
+            class="axis-remove"
+            [attr.aria-disabled]="!canRemoveSelected"
+            [attr.aria-label]="'Remove ' + label.name + ' from the glyph'"
+            [attr.aria-describedby]="canRemoveSelected ? null : ids.hint"
+            [title]="removeTitle"
+            (click)="removeSelected()"
+            (keydown.escape)="deselect(nameButton)"
+          >
+            ×
+          </button>
+        }
+      </span>
+    }
+  </div>
+
+  <div class="axis-actions">
+    <button
+      #addButton
+      type="button"
+      class="add-axis"
+      [attr.aria-expanded]="addOpen"
+      [attr.aria-controls]="ids.addPanel"
+      [attr.aria-disabled]="!addOpen && !canAddMore"
+      [attr.aria-describedby]="ids.hint"
+      [title]="canAddMore ? 'Add a feature as glyph axis' : hint"
+      (click)="toggleAdd()"
+    >
+      {{ addOpen ? 'Close' : '+ Add axis' }}
+    </button>
+    <span class="hint" [id]="ids.hint">{{ hint }}</span>
+  </div>
+
+  @if (addOpen) {
+    <div class="add-panel" [id]="ids.addPanel">
+      <input
+        #searchInput
+        type="search"
+        class="search"
+        placeholder="Search features…"
+        aria-label="Search features to add"
+        [value]="query"
+        (input)="query = searchInput.value"
+        (keydown.escape)="closeAdd(true)"
+      />
+      <ul class="candidates">
+        @for (candidate of candidates; track candidate.id) {
+          <li>
+            <button
+              type="button"
+              class="candidate"
+              [attr.aria-disabled]="!canAddMore"
+              (click)="add(candidate.id)"
+              (keydown.escape)="closeAdd(true)"
+            >
+              <span class="candidate-name">{{ candidate.name }}</span>
+              <span class="candidate-action" aria-hidden="true">{{ canAddMore ? 'add' : 'limit reached' }}</span>
+            </button>
+          </li>
+        } @empty {
+          <li class="empty">{{ query ? 'No matching feature.' : 'All features are in the glyph.' }}</li>
+        }
+      </ul>
+      <span class="hint" aria-live="polite">
+        {{
+          canAddMore
+            ? 'Up to ' + maxAxes + ' axes stay readable in a glyph.'
+            : 'Limit of ' + maxAxes + ' axes reached. Remove one to add another.'
+        }}
+      </span>
+    </div>
+  }
+}

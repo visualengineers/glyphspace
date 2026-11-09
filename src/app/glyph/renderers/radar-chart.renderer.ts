@@ -3,6 +3,7 @@ import { Line2 } from 'three/examples/jsm/lines/Line2.js';
 import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { GlyphSizeInfo } from '../glyph-size-info';
+import { axisLength, starPoints } from '../glyph-geometry';
 import { GlyphRenderer, GlyphRenderContext } from './glyph-renderer';
 import { addBackgroundCircle, addCoordinateAxes, addPlaceHolder } from './shared-rendering';
 
@@ -17,17 +18,8 @@ export class RadarChartRenderer implements GlyphRenderer {
     addCoordinateAxes(group, segments, sizeInfo, ctx);
     if (addPlaceHolder(group, values, sizeInfo, color)) return group;
 
-    const points: THREE.Vector2[] = [];
-
-    keys.forEach((key, i) => {
-      const angle = (i / segments) * Math.PI * 2;
-      const value = +featureMap[key] || 0;
-      const maxVal = featureMaxValues[i] || 1;
-      const norm = linearScale ? value : value / maxVal;
-      const x = Math.cos(angle) * sizeInfo.radius * norm;
-      const y = Math.sin(angle) * sizeInfo.radius * norm;
-      points.push(new THREE.Vector2(x, y));
-    });
+    const lengths = keys.map((key, i) => axisLength(+featureMap[key] || 0, featureMaxValues[i], linearScale));
+    const points = starPoints(lengths, sizeInfo.radius).map(([x, y]) => new THREE.Vector2(x, y));
 
     // Fill shape
     const shape = new THREE.Shape(points);

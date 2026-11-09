@@ -44,6 +44,8 @@ describe('stepSummaries', () => {
       currentStep: 0,
       rawFileName: null,
       dataProfile: null,
+      uploadMissing: false,
+      thumbnailArchiveName: null,
       columnConfigs: new Map(),
       cleaningConfig: { ...DEFAULT_CLEANING_CONFIG },
       projectionConfig: { ...DEFAULT_PROJECTION_CONFIG },

@@ -1,0 +1,129 @@
+@use '../../../styles/variables' as v;
+@use '../../../styles/mixins' as m;
+@use '../sidebar' as s;
+
+:host {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.trigger {
+  @include s.outline-button;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 0 10px;
+
+  svg path {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  &[aria-expanded='true'] {
+    border-color: v.$sidebar-accent;
+  }
+}
+
+.trigger-label {
+  @include s.section-label;
+}
+
+.count-badge {
+  min-width: 18px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: v.$sidebar-accent-tint;
+  color: v.$sidebar-accent-strong;
+  text-align: center;
+}
+
+.match-count {
+  font-size: v.$font-size-base;
+  font-weight: 600;
+  color: v.$sidebar-text;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: v.$z-dropdown;
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
+  border: 1px solid v.$sidebar-border-strong;
+  border-radius: 10px;
+  background: v.$white;
+  box-shadow: 0 6px 18px rgba(31, 41, 51, 0.14);
+}
+
+.filter-list {
+  max-height: 240px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+  @include m.styled-scrollbar-thin;
+}
+
+.filter-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 36px;
+  padding: 0 4px 0 10px;
+  border-radius: 6px;
+  font-size: v.$font-size-base;
+  color: v.$sidebar-text;
+
+  &:hover {
+    background: v.$sidebar-tag-bg;
+  }
+}
+
+.filter-label {
+  @include m.text-truncate;
+  min-width: 0;
+}
+
+.remove {
+  @include s.plain-button;
+  flex: none;
+  min-width: 32px;
+  min-height: 32px;
+  border-radius: 6px;
+  color: v.$sidebar-danger;
+  font-size: v.$font-size-lg;
+}
+
+.empty {
+  padding: 8px 10px;
+  font-size: v.$font-size-sm;
+  color: v.$sidebar-muted;
+}
+
+.clear-all {
+  @include s.plain-button;
+  margin-top: 4px;
+  min-height: 34px;
+  border-top: 1px solid v.$sidebar-card-border;
+  color: v.$sidebar-accent;
+  font-size: v.$font-size-sm;
+  font-weight: 600;
+
+  &:disabled {
+    color: v.$sidebar-disabled;
+    cursor: default;
+  }
+}

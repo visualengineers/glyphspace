@@ -4,15 +4,31 @@ import { DataLoaderService } from '../../services/data-loader.service';
 import { DataProcessorService } from '../../services/data-processor';
 import { ToastService } from '../../services/toast.service';
 import { PreprocessingService } from '../services/preprocessing.service';
+import { WizardFileStore } from '../services/wizard-file-store';
 
 /**
  * A PreprocessingService on stub collaborators, outside Angular DI. The data
  * loader reports no existing dataset names; `dataProcessor` carries only the
- * DataProcessorService members a spec relies on (none by default).
+ * DataProcessorService members a spec relies on (none by default); the file
+ * store keeps uploads in memory unless `fileStore` replaces it.
  */
-export function createTestPreprocessingService(dataProcessor: object = {}): PreprocessingService {
+export function createTestPreprocessingService(
+  dataProcessor: object = {},
+  fileStore: WizardFileStore = createMemoryFileStore()
+): PreprocessingService {
   const dataLoader = { getDataSetNames: () => [] as string[] } as unknown as DataLoaderService;
-  return new PreprocessingService(dataProcessor as DataProcessorService, dataLoader);
+  return new PreprocessingService(dataProcessor as DataProcessorService, dataLoader, fileStore);
+}
+
+/** A WizardFileStore that keeps the files in a Map. */
+export function createMemoryFileStore(files = new Map<string, Blob>()): WizardFileStore {
+  return {
+    save: async (name: string, file: Blob) => void files.set(name, file),
+    load: async (name: string) => files.get(name),
+    prune: async (keep: readonly string[]) => {
+      for (const name of files.keys()) if (!keep.includes(name)) files.delete(name);
+    },
+  } as WizardFileStore;
 }
 
 /**

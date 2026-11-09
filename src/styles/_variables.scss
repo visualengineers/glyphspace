@@ -164,3 +164,25 @@ $z-toast: 10100; // global toast stack, above the wizard overlay
 
 // Layout breakpoint below which the wizard's two-column step layouts stack.
 $breakpoint-stack: 1024px;
+
+// ============================================================================
+// Sidebar (glyph legend, filters, encoding) — values from the sidebar mockup
+// (issue #90). Text colors reach >= 4.5:1 on white and on the header tint.
+// ============================================================================
+$sidebar-width: 340px;
+$sidebar-text: #1f2933; // 14.9:1 on white
+$sidebar-text-secondary: #3d4852; // 9.4:1
+$sidebar-muted: #5b6670; // 5.9:1
+$sidebar-disabled: #9aa4ad; // disabled controls only, never for text that must be read
+$sidebar-border: #dde1e6;
+$sidebar-border-strong: #c3c9d0;
+$sidebar-card-border: #e6e9ed;
+$sidebar-header-bg: #fbfcfd;
+$sidebar-tag-bg: #eef0f3;
+$sidebar-accent: #1a6fae; // 5.3:1 on white: borders, focus ring, slider
+$sidebar-accent-strong: #14588c; // 6.6:1 on the accent tint: selected text
+$sidebar-accent-tint: #e6f2fb;
+$sidebar-danger: #a12b2b; // 7.2:1 on white: remove (×) buttons
+$sidebar-glyph-fill: rgba(47, 143, 107, 0.35); // glyph icons on the filter cards
+$sidebar-glyph-stroke: #1f6f52;
+$sidebar-glyph-outline: #7b8794; // icon of a feature that is not in the glyph

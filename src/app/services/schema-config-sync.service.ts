@@ -8,8 +8,10 @@ import { GlyphSchema } from '../shared/interfaces/glyph-schema';
 export class SchemaConfigSyncService {
   constructor(private config: ConfigService) {}
 
-  applySchemaToConfig(schema: GlyphSchema): void {
+  /** Apply a dataset's schema, and the category counts from its meta, to the configuration. */
+  applySchemaToConfig(schema: GlyphSchema, meta?: GlyphMeta): void {
     this.config.colorFeature = schema.color;
+    this.config.featureCategoryCounts = categoryCounts(meta);
     this.config.replaceActiveFeatures(schema.glyph);
     this.config.featureLabels = schema.label;
     this.config.metadataLabels = schema.metadata ?? {};
@@ -59,4 +61,13 @@ export class SchemaConfigSyncService {
 
     this.config.featureMaxValues = maxValues;
   }
+}
+
+/** Number of categories of each feature that has categories (label-encoded or boolean). */
+function categoryCounts(meta: GlyphMeta | undefined): Record<string, number> {
+  const counts: Record<string, number> = {};
+  Object.entries(meta?.features ?? {}).forEach(([featureId, stats]) => {
+    if (stats.categories?.length) counts[featureId] = stats.categories.length;
+  });
+  return counts;
 }

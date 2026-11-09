@@ -10,6 +10,12 @@ export interface PreprocessingState {
   // Data
   rawFileName: string | null;
   dataProfile: DataProfile | null;
+  // The settings were restored after a page reload, but the uploaded file could
+  // not be put back into the worker: it has to be uploaded again (not persisted).
+  uploadMissing: boolean;
+  // ZIP archive of item images for the Image glyph type (optional); the file
+  // itself is kept in the WizardFileStore under this name.
+  thumbnailArchiveName: string | null;
 
   // Configuration
   columnConfigs: Map<string, ColumnConfig>;
@@ -97,6 +103,8 @@ export function createInitialState(): PreprocessingState {
     currentStep: 0,
     rawFileName: null,
     dataProfile: null,
+    uploadMissing: false,
+    thumbnailArchiveName: null,
     columnConfigs: new Map(),
     cleaningConfig: { ...DEFAULT_CLEANING_CONFIG },
     projectionConfig: { ...DEFAULT_PROJECTION_CONFIG },

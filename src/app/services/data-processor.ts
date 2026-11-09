@@ -44,13 +44,14 @@ export class DataProcessorService {
     });
   }
 
-  async unzip(file: File): Promise<string> {
+  /** Unpack a ZIP archive into the worker folder `folder`; returns the names of its images. */
+  async unzip(folder: string, archive: Blob): Promise<string[]> {
     const result = await this.sendRequestUntil<WorkerReply & { type: 'unzipped' }>('unzipped', {
       type: 'unzip',
-      fileName: file.name,
-      buffer: await file.arrayBuffer(),
+      folder,
+      buffer: await archive.arrayBuffer(),
     });
-    return result.folder;
+    return result.images;
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- returns dynamically typed JSON from the worker filesystem

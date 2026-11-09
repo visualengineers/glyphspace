@@ -6,11 +6,12 @@ import { Features, StringStringMap } from '../shared/interfaces/glyph-feature';
 import { GlyphCacheObject } from './glyph-cache-object';
 import { GlyphType } from '../shared/enum/glyph-type';
 import { GlyphSizeInfo } from './glyph-size-info';
-import { normalizeFeatureValue } from '../shared/helpers/color-helper';
+import { featureColor } from '../shared/helpers/color-helper';
 import { GlyphRenderContext, getGlyphRenderer } from './renderers/glyph-renderer';
 import { ThumbnailRenderer } from './renderers/thumbnail.renderer';
 import { getCachedCircleGeometry, getCachedRingGeometry, getCachedBasicMaterial } from './renderers/shared-rendering';
 import { GlyphRenderConfig } from './glyph-render-config';
+import { axisLength } from './glyph-geometry';
 
 // Side-effect import: registers all built-in glyph renderers
 import './renderers/glyph-renderer-registry';
@@ -65,30 +66,32 @@ export class GlyphObject {
     this.highlighted = highlight;
   }
 
-  private getCurrentColor(renderConfig: GlyphRenderConfig, trueColor = false): string | number {
-    if (this.highlighted && !trueColor) {
+  /**
+   * Color of the glyph shape. A hovered glyph takes the highlight color unless
+   * `showHighlight` is off (full-detail glyphs show it in their background
+   * instead); a filtered-out glyph is always grey.
+   */
+  private getCurrentColor(renderConfig: GlyphRenderConfig, showHighlight = true): string | number {
+    if (this.highlighted && showHighlight) {
       return this.highlightColor;
     }
-    if (this.passive && !trueColor) {
+    if (this.passive) {
       return this.passivecolor;
     }
 
-    let currentColor: string | number = 0x00cc88;
-    if (this.features != null) {
-      const featureValue = normalizeFeatureValue(
-        this.features['1'][renderConfig.colorFeature],
-        renderConfig.colorFeature,
-        renderConfig.featureTypes,
-        renderConfig.featureMaxValues
-      );
+    const scale = renderConfig.colorScale;
+    if (this.features == null || !scale) return 0x00cc88;
+    return featureColor(scale, this.features['1'][renderConfig.colorFeature], renderConfig.colorFeature, renderConfig);
+  }
 
-      const scale = renderConfig.colorScale;
-      if (scale) {
-        currentColor = scale(featureValue);
-      }
-    }
-
-    return currentColor;
+  /** Length of each glyph axis as a fraction of the glyph radius, in the order of `axes` (as drawn). */
+  public axisLengths(
+    axes: readonly string[],
+    featureMaxValues: Record<string, number>,
+    linearScale: boolean
+  ): number[] {
+    const values = this.features?.[this.currentContext] ?? {};
+    return axes.map(axis => axisLength(+values[axis] || 0, featureMaxValues[axis], linearScale));
   }
 
   public render(
@@ -172,7 +175,7 @@ export class GlyphObject {
    */
   private buildRenderContext(sizeInfo: GlyphSizeInfo, renderConfig: GlyphRenderConfig): GlyphRenderContext {
     const featureCtx = this.getFeatureContext(this.currentContext, renderConfig);
-    const color = this.getCurrentColor(renderConfig, sizeInfo.currentZoomLevel === ZoomLevel.high);
+    const color = this.getCurrentColor(renderConfig, sizeInfo.currentZoomLevel !== ZoomLevel.high);
 
     return {
       featureMap: featureCtx?.featureMap ?? {},
@@ -193,10 +196,10 @@ export class GlyphObject {
   private getFeatureContext(contextId: number, renderConfig: GlyphRenderConfig) {
     if (!this.features) return null;
 
-    const featureMap = Object.fromEntries(
-      Object.entries(this.features[contextId] || {}).filter(([k]) => renderConfig.activeFeatures.includes(k))
-    );
-    const keys = Object.keys(featureMap);
+    // Axes follow the order of the active features, so an added feature becomes the last axis.
+    const features = this.features[contextId] || {};
+    const keys = renderConfig.activeFeatures.filter(k => k in features);
+    const featureMap = Object.fromEntries(keys.map(k => [k, features[k]]));
     const values = keys.map(k => +featureMap[k]);
 
     const globalMaxValues = renderConfig.featureMaxValues;

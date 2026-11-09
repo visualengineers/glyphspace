@@ -683,7 +683,7 @@ describe('Step5GlyphColorSettingsComponent – template', () => {
     const pressed = Array.from(render().querySelectorAll('.glyph-type-tabs button')).map(b =>
       b.getAttribute('aria-pressed')
     );
-    expect(pressed).toEqual(['true', 'false', 'false']);
+    expect(pressed).toEqual(['true', 'false']);
   });
 
   it('tells the user these settings can be changed later in the dashboard', () => {

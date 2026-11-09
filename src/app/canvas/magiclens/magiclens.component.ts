@@ -6,7 +6,7 @@ import { ZoomLevel } from '../../shared/enum/zoom-level';
 import { getGlyphFromObject } from '../../shared/helpers/glyph-helper';
 import { hitTest, screenToWorld } from '../../shared/helpers/three-helper';
 import { ConfigService } from '../../services/config.service';
-import { DataProcessorService } from '../../services/data-processor';
+import { ThumbnailService } from '../../services/thumbnail.service';
 import { GlyphSizeInfo } from '../../glyph/glyph-size-info';
 import { buildGlyphRenderConfig } from '../../glyph/glyph-render-config';
 
@@ -35,7 +35,6 @@ export class MagiclensComponent implements AfterViewInit, OnDestroy {
 
   // Lens geometry
   readonly lensRadius = 250; // Lens canvas diameter in pixels
-  private readonly LENS_ZOOM_FACTOR = 12; // Magnification multiplier
   private readonly DETECTION_RADIUS_PX = 30; // Screen-space radius for glyph detection
   private readonly LENS_MOUSE_OFFSET_PX = 10; // Spacing between cursor and lens popup
   private readonly CIRCULAR_LAYOUT_PADDING = 1.2; // Radius multiplier for 2-3 glyph layout
@@ -61,10 +60,15 @@ export class MagiclensComponent implements AfterViewInit, OnDestroy {
 
   constructor(
     private config: ConfigService,
-    private dataProcessor: DataProcessorService
+    private thumbnails: ThumbnailService
   ) {
+    this.applyGlyphSize();
+  }
+
+  /** Lens glyphs are drawn at the configured glyph size; the lens camera shows world units as px. */
+  private applyGlyphSize(): void {
     this.sizeInfo.currentZoomLevel = ZoomLevel.high;
-    this.sizeInfo.radius = this.sizeInfo.radius * this.LENS_ZOOM_FACTOR;
+    this.sizeInfo.radius = this.config.getConfiguration().glyphSize / 2;
     this.sizeInfo.hitTolerance = this.sizeInfo.radius;
   }
 
@@ -184,6 +188,7 @@ export class MagiclensComponent implements AfterViewInit, OnDestroy {
   renderMagicLensGlyphs(timestamp: string, algorithm: string): void {
     const startTime = performance.now();
     this.lensGlyphGroup.clear();
+    this.applyGlyphSize();
 
     // Adaptive limit based on previous performance
     const glyphsToRender =
@@ -193,7 +198,7 @@ export class MagiclensComponent implements AfterViewInit, OnDestroy {
     const nodes: { x: number; y: number; threeObj: THREE.Object3D }[] = [];
 
     for (const glyph of glyphsToRender) {
-      const renderConfig = buildGlyphRenderConfig(this.config, this.dataProcessor);
+      const renderConfig = buildGlyphRenderConfig(this.config, this.thumbnails);
       const mesh = glyph.renderGlyph(this.sizeInfo, timestamp, algorithm, this.parentId, false, renderConfig);
       if (mesh != null) {
         const wrapper = new THREE.Group();
