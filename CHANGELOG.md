@@ -8,25 +8,25 @@ GlyphSpace has no version numbers yet, so releases are named by the date they re
 
 ### Added
 
-- Documentation in `docs/`: a user guide, specifications of the data formats and worker protocols, architecture decision records, and development guides. This changelog.
+- Documentation in `docs/`: a user guide, specifications of the data formats and worker protocols, architecture decision records, and development guides. This changelog (#93).
 - Item images for imported datasets: Step 1 of the wizard takes an optional ZIP file with one picture per item, named after the item's ID (JPG, PNG or WebP). The **Image** glyph type shows them, and the dataset keeps them in the browser (#92).
 - A **Size** slider in the sidebar's **Encoding** tab sets dots and glyphs together: a typical glyph of the dataset reaches about as far as the dot it replaces, so items keep their size when zooming from dots to glyphs (#90).
 
 ### Changed
 
-- The wizard redesign ticket list moved from `ROADMAP.md` to [docs/specs/wizard-redesign.md](docs/specs/wizard-redesign.md).
-- Node 26 (`.nvmrc`; `package.json` requires 26 or newer), Angular 22.2, TypeScript 6.0, Vitest 5.1, three.js 0.187, lint-staged 17, Playwright 1.65 and the latest minor versions of the other packages. After pulling, install Node 26 and run `npx playwright install chromium` once. Existing components keep their change detection; new components use OnPush, Angular 22's default ([ADR 0011](docs/decisions/0011-existing-components-keep-eager-change-detection.md)). The HTTP client uses Angular's default `fetch` backend.
-- The wizard runs on Pyodide 314.0.7: Python 3.14, pandas 3.0, scikit-learn 1.8, numpy 2.4. The download stays about the same (about 40 MB). One-hot and label encoding of numeric columns no longer fill text into a number column, which pandas 4 will reject.
+- The wizard redesign ticket list moved from `ROADMAP.md` to [docs/specs/wizard-redesign.md](docs/specs/wizard-redesign.md) (#93).
+- Node 26 (`.nvmrc`; `package.json` requires 26 or newer), Angular 22.2, TypeScript 6.0, Vitest 5.1, three.js 0.187, lint-staged 17, Playwright 1.65 and the latest minor versions of the other packages. After pulling, install Node 26 and run `npx playwright install chromium` once. Existing components keep their change detection; new components use OnPush, Angular 22's default ([ADR 0011](docs/decisions/0011-existing-components-keep-eager-change-detection.md)). The HTTP client uses Angular's default `fetch` backend (#95).
+- The wizard runs on Pyodide 314.0.7: Python 3.14, pandas 3.0, scikit-learn 1.8, numpy 2.4. The download stays about the same (about 40 MB). One-hot and label encoding of numeric columns no longer fill text into a number column, which pandas 4 will reject (#95).
 - The sidebar was redesigned (#90). On top, the glyph legend shows the glyph with numbered axes; axes are added with **+ Add axis** and removed from their label, between 3 and 8 per glyph. Below it, **FILTERS** lists every active filter, search terms included, next to the number of matching items. The **Filters** tab marks the glyph's features on their cards and adds or removes them there; the **Encoding** tab holds glyph type, colour and appearance. The whole sidebar can be hidden.
 - Glyph axes follow the order of the glyph features: axis 1 points up, the others follow clockwise, and an added feature becomes the last axis. Canvases, legend and the wizard's Step 5 preview draw them the same way (#90).
 - New categorical palettes: Glasbey, Tableau 10 and Colorblind, none with grey, which marks filtered-out items. Categories take the colours in order, in the glyphs and the histograms alike. The new palettes have new ids; datasets and wizard settings saved with Observable10 or Tableau20 open with Glasbey or Tableau 10 (#89).
 - The flower glyph has Glyphboard's petal shape. The axes behind a glyph are lighter and thinner, and the contour ring lies behind the data (#91).
 - Dot and glyph sizes no longer depend on the screen's pixel ratio or the canvas size (#90).
-- When zooming in beyond the dots, glyphs grow more slowly than the distances between them, so overlapping glyphs separate; at the highest zoom they are smaller than before ([ADR 0012](docs/decisions/0012-glyphs-grow-slower-than-the-zoom.md)).
-- The magic lens shows the items nearest the cursor in their arrangement on the canvas, as large as they fit without overlapping. Before, it scattered them at random and they piled up along its border. When more items are under the cursor than the lens shows, the ring around the cursor shrinks to the area it shows. The lens is 300 px wide (was 250).
-- Zooming from dots to glyphs no longer stalls the page as long: a flower glyph is drawn as one shape and one outline instead of one per petal, and the flower outline only at the highest zoom level, where it is visible.
+- When zooming in beyond the dots, glyphs grow more slowly than the distances between them, so overlapping glyphs separate; at the highest zoom they are smaller than before ([ADR 0012](docs/decisions/0012-glyphs-grow-slower-than-the-zoom.md)) (#97).
+- The magic lens shows the items nearest the cursor in their arrangement on the canvas, as large as they fit without overlapping. Before, it scattered them at random and they piled up along its border. When more items are under the cursor than the lens shows, the ring around the cursor shrinks to the area it shows. The lens is 300 px wide (was 250) (#94).
+- Zooming from dots to glyphs no longer stalls the page as long: a flower glyph is drawn as one shape and one outline instead of one per petal, and the flower outline only at the highest zoom level, where it is visible (#94).
 - The **Thumbnails** glyph type is now called **Image** (#90).
-- The glyph type buttons show a small star, flower or picture next to their name. **Image** is off for a dataset without item images, and such a dataset opens with **Star** instead of grey placeholders. `tools/process.py` marks bundled datasets that have images in `src/assets/thumbnails/` (`images: true` in `src/default-dataset.ts`).
+- The glyph type buttons show a small star, flower or picture next to their name. **Image** is off for a dataset without item images, and such a dataset opens with **Star** instead of grey placeholders (#96).
 
 ### Removed
 
@@ -43,15 +43,15 @@ GlyphSpace has no version numbers yet, so releases are named by the date they re
 - Reprocessing a dataset, or importing another file under the same name, replaces its items; before, old values could stay (#92).
 - Processing no longer fails when an ID contains a comma (#92).
 - **Clear all** no longer brings old search terms back on the next search (#92).
-- **Avoid collision** works with the new glyph size: it keeps apart what is drawn (dots, petals or stars, or whole circles with a background or axes) instead of full glyph circles, so the projection keeps its shape, and it adjusts when the zoom level changes.
+- **Avoid collision** works with the new glyph size: it keeps apart what is drawn (dots, petals or stars, or whole circles with a background or axes) instead of full glyph circles, so the projection keeps its shape, and it adjusts when the zoom level changes (#97).
 - A fill value that is neither true nor false for a true/false column is reported as K8 (#92).
 - Step 1's file requirements no longer promise that `-x`/`-y` and latitude/longitude columns become positions; only the command-line tool uses them (#92).
 - The help on background projections points to the canvas's position settings (**Pos**) instead of controls that don't exist (#92).
-- Histograms in the hidden sidebar tab no longer cause invalid SVG errors in the console.
+- Histograms in the hidden sidebar tab no longer cause invalid SVG errors in the console (#94).
 
 ### Security
 
-- All `npm audit` findings are fixed (2 critical, 7 high, 39 moderate), partly through `overrides` for minimatch and glob.
+- All `npm audit` findings are fixed (2 critical, 7 high, 39 moderate), partly through `overrides` for minimatch and glob (#94).
 
 ## 2026-11-09: Wizard redesign
 
