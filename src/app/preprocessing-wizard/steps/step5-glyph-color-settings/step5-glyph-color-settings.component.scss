@@ -14,7 +14,7 @@
   min-height: 0;
 
   .step-content {
-    @include w.step-content;
+    @include w.step-content-column;
   }
 
   // Reminds that this step only seeds the dashboard's initial view.
@@ -82,10 +82,16 @@
     display: grid;
     grid-template-columns: 3fr 2fr;
     gap: v.$space-4;
-    margin-bottom: v.$space-4;
+    // Both panels fill the step's height (one row); the feature lists scroll inside.
+    @include w.fill-step-height;
+    grid-template-rows: minmax(0, 1fr);
 
+    // Stacked: both panels at their natural height, the step scrolls the rest.
     @include w.below-stack {
       grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: none;
+      flex: none;
+      min-height: 0;
     }
   }
 
@@ -95,13 +101,14 @@
     display: flex;
     flex-direction: column;
     min-width: 0;
-    max-height: 480px;
+    // Fills its grid cell: the selected list keeps its natural height (shrinking
+    // and scrolling when space runs out), the available list takes the rest.
+    min-height: 0;
     overflow: hidden;
 
     // Stacked: grow with the content instead of clipping it; the two lists
     // below keep their own bounded, scrolling heights.
     @include w.below-stack {
-      max-height: none;
       overflow: visible;
     }
 
@@ -149,13 +156,17 @@
       display: flex;
       flex-direction: column;
       gap: 3px;
+      flex: 0 1 auto;
       min-height: 50px;
-      max-height: 200px;
       @include w.scroll-y;
       padding: 6px;
       border: 2px dashed v.$gray-300;
       border-radius: 8px;
       background: v.$wizard-header-bg;
+
+      @include w.below-stack {
+        max-height: 200px;
+      }
     }
 
     // Search + type filter above the available list (same anatomy as steps 2/3)
@@ -225,9 +236,14 @@
       flex-direction: column;
       gap: 1px;
       @include w.scroll-y;
-      flex: 1;
-      min-height: 0;
-      max-height: 240px;
+      // Takes the panel's remaining height; about three rows at the least.
+      flex: 1 1 0;
+      min-height: 90px;
+
+      @include w.below-stack {
+        flex: none;
+        max-height: 240px;
+      }
     }
 
     .feature-row {

@@ -19,7 +19,12 @@ import {
   OutlierStrategy,
 } from '../../models/data-type.enum';
 import { ToastService } from '../../../services/toast.service';
-import { createTestPreprocessingService, createToastServiceSpy } from '../../testing/preprocessing-test-helpers';
+import {
+  createTestPreprocessingService,
+  createToastServiceSpy,
+  expectFillsStep,
+  mountInShellLayout,
+} from '../../testing/preprocessing-test-helpers';
 
 function makeConfig(name: string, isColorFeature = false): ColumnConfig {
   return {
@@ -585,13 +590,32 @@ describe('Step5GlyphColorSettingsComponent – template', () => {
       .compileComponents();
   });
 
-  afterEach(() => localStorage.clear());
+  let shellScroller: HTMLElement | undefined;
+
+  afterEach(() => {
+    shellScroller?.remove();
+    shellScroller = undefined;
+    localStorage.clear();
+  });
 
   function render(): HTMLElement {
     const fixture = TestBed.createComponent(Step5GlyphColorSettingsComponent);
     fixture.detectChanges();
     return fixture.nativeElement as HTMLElement;
   }
+
+  it('fills the step with the glyph features and preview panels, so the step itself does not scroll', () => {
+    const el = render();
+    shellScroller = mountInShellLayout(el);
+
+    expectFillsStep(shellScroller, el.querySelector<HTMLElement>('.glyph-section-two-col'));
+    // The available list takes the features panel's remaining height down to its bottom.
+    const panel = el.querySelector<HTMLElement>('.glyph-features-panel');
+    const list = el.querySelector<HTMLElement>('.available-features-list');
+    if (!panel || !list) throw new Error('feature panel not rendered');
+    const panelInnerBottom = panel.getBoundingClientRect().bottom - parseFloat(getComputedStyle(panel).paddingBottom);
+    expect(Math.abs(list.getBoundingClientRect().bottom - panelInnerBottom)).toBeLessThanOrEqual(1);
+  });
 
   function selectedNames(el: HTMLElement): (string | undefined)[] {
     return Array.from(el.querySelectorAll('.feature-row.selected .feature-name')).map(n => n.textContent?.trim());

@@ -28,7 +28,12 @@ import {
   OutlierStrategy,
 } from '../../models/data-type.enum';
 import { createSpyObj } from '../../../../testing/create-spy-obj';
-import { createTestPreprocessingService, createToastServiceSpy } from '../../testing/preprocessing-test-helpers';
+import {
+  createTestPreprocessingService,
+  createToastServiceSpy,
+  expectFillsStep,
+  mountInShellLayout,
+} from '../../testing/preprocessing-test-helpers';
 
 function makeConfig(name: string, isColorFeature = false): ColumnConfig {
   return {
@@ -114,13 +119,35 @@ describe('Step6ReviewProcessingComponent – summary and deep links', () => {
     }).compileComponents();
   });
 
-  afterEach(() => localStorage.clear());
+  let shellScroller: HTMLElement | undefined;
+
+  afterEach(() => {
+    shellScroller?.remove();
+    shellScroller = undefined;
+    localStorage.clear();
+  });
 
   function render(): HTMLElement {
     const fixture = TestBed.createComponent(Step6ReviewProcessingComponent);
     fixture.detectChanges();
     return fixture.nativeElement as HTMLElement;
   }
+
+  it('fills the step with the column table (the info box below it ends at the bottom edge)', () => {
+    const el = render();
+    shellScroller = mountInShellLayout(el);
+
+    // The info box only reaches the bottom edge (above the step's own button bar)
+    // when the table above it takes the remaining height.
+    const buttonBar = el.querySelector('.action-buttons');
+    if (!buttonBar) throw new Error('button bar not rendered');
+    expectFillsStep(
+      shellScroller,
+      el.querySelector<HTMLElement>('.review-section .info-box'),
+      buttonBar.getBoundingClientRect().top
+    );
+    expect(getComputedStyle(el.querySelector('.review-section .columns-table') as Element).overflowY).toBe('auto');
+  });
 
   function cardTitles(el: HTMLElement): string[] {
     return Array.from(el.querySelectorAll('.summary-card .card-label')).map(h =>

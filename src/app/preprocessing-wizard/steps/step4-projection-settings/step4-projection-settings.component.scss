@@ -14,7 +14,7 @@
   min-height: 0;
 
   .step-content {
-    @include w.step-content;
+    @include w.step-content-column;
   }
 
   // ============================================================================
@@ -31,6 +31,13 @@
 
   .projection-panel {
     padding-bottom: v.$space-2;
+    // Fills its grid cell; expanded parameters scroll inside the panel.
+    @include w.scroll-y;
+    min-height: 0;
+
+    @include w.below-stack {
+      overflow: visible;
+    }
 
     .projection-panel-header {
       @include w.list-header-row;
@@ -366,10 +373,17 @@
     // wizard stack breakpoint so neither panel is squeezed (WCAG 1.4.10).
     grid-template-columns: 2fr 3fr;
     gap: v.$space-4;
-    align-items: start;
+    // Both panels fill the step's height (one row); their contents scroll inside.
+    @include w.fill-step-height;
+    grid-template-rows: minmax(0, 1fr);
 
+    // Stacked: both panels at their natural height, the step scrolls the rest.
     @include w.below-stack {
       grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: none;
+      align-items: start;
+      flex: none;
+      min-height: 0;
     }
 
     // Panels inside the grid should not add their own bottom margin and must be
@@ -383,7 +397,8 @@
   .projection-columns-panel {
     display: flex;
     flex-direction: column;
-    max-height: 560px;
+    // Fills its grid cell; the column list below the header scrolls.
+    min-height: 0;
 
     @include w.below-stack {
       max-height: min(560px, 80vh);

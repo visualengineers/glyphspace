@@ -74,6 +74,7 @@ Unmatched errors fall back to a generic blocking issue. `detectPreflightIssues` 
 - **Popups:** help tooltips and method previews go through `shared/popup-coordinator.ts` — one popup at a time, opens on hover/focus/click, closes on Escape or outside click, 180 ms hover grace. Method previews (`shared/projection-preview/`) draw synthetic data with a framework-free engine in `engine/`.
 - **Consequence hints (Step 3):** `steps/step3-configure-data-features/consequence-preview.ts` turns the column profile into text such as "12.4 – 98.1 → 0.00 – 1.00" or "Drops 132 of 5,000 rows".
 - **Styles:** tokens in `src/styles/_variables.scss`, wizard mixins in `preprocessing-wizard/shared/_wizard-shared.scss`.
+- **Step layout (Steps 2–6):** the step content is a column (`step-content-column`) and its main box takes the remaining height (`fill-step-height`): Step 2's table, Step 3's rail/well box, the two-column panels of Steps 4 and 5, Step 6's column table. All end at one bottom edge and grow with the window; lists scroll inside them, and the step itself only scrolls below the box's minimum height (header row + five rows) or in the stacked layout below 1024 px. Don't give these boxes fixed heights. Every scroll container uses `scroll-y` (`position: relative` + `overflow-y: auto`): without the position, absolutely positioned children such as `.visually-hidden` labels escape the list and stretch the step. Specs check this with `mountInShellLayout` and `expectFillsStep` (`preprocessing-wizard/testing/preprocessing-test-helpers.ts`).
 
 ## Tests
 

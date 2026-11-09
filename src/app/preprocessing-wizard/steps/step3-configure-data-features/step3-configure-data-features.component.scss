@@ -18,10 +18,7 @@
   // A column so the rail/well box can take the height left above the
   // (optional) duplicates section.
   .step-content {
-    @include w.step-content;
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
+    @include w.step-content-column;
   }
 
   .error-message {
@@ -37,16 +34,13 @@
     border: 1px solid v.$gray-300;
     border-radius: 4px;
     overflow: hidden;
-    margin-bottom: v.$space-4;
     // A14: same tone as the detail well (not white), so while the detail well
     // slides in during the morph the area behind it is grey, never a white flash.
     background: v.$wizard-well-bg;
     // A14: fills the step down to the same bottom edge as Step 2's table box, so
-    // both grow with the window and the morph needs no height change. Content
-    // taller than the box scrolls inside the rail / detail well; below the shared
-    // minimum the step scrolls instead.
-    flex: 1 1 auto;
-    min-height: w.$wizard-list-min-box-height;
+    // the morph needs no height change. Content taller than the box scrolls
+    // inside the rail / detail well.
+    @include w.fill-step-height;
 
     // Narrow work area: rail above the detail well, both at their natural height
     // (the rail list scrolls within a bounded height, the page scrolls the rest).

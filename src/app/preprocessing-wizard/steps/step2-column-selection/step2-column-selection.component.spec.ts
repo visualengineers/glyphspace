@@ -6,7 +6,11 @@ import { ColumnStatistics, DataProfile } from '../../models/column-statistics';
 import { ColumnConfig } from '../../models/column-config';
 import { PreprocessingState } from '../../models/preprocessing-state';
 import { ColumnRole, DataType } from '../../models/data-type.enum';
-import { createTestPreprocessingService, mountInShellLayout } from '../../testing/preprocessing-test-helpers';
+import {
+  createTestPreprocessingService,
+  expectFillsStep,
+  mountInShellLayout,
+} from '../../testing/preprocessing-test-helpers';
 
 /**
  * Step 2 shift-click range selection. The anchor of a range is the last clicked
@@ -292,15 +296,9 @@ describe('Step2ColumnSelectionComponent – layout', () => {
   });
 
   it('fills the step down to its bottom edge instead of stopping at a fixed height', async () => {
-    const { host, table } = await renderInShell();
-    const content = host.querySelector<HTMLElement>('.step-content');
-    if (!content) throw new Error('step content not rendered');
+    const { table } = await renderInShell();
 
-    // Measured against the shell's scroller: only the step padding and the box margin lie below the box.
-    const gap = scroller.getBoundingClientRect().bottom - table.getBoundingClientRect().bottom;
-    const expectedGap =
-      parseFloat(getComputedStyle(content).paddingBottom) + parseFloat(getComputedStyle(table).marginBottom);
-    expect(gap).toBeCloseTo(expectedGap, 0);
+    expectFillsStep(scroller, table);
   });
 
   it('keeps a usable minimum height in a small window and lets the step scroll instead', async () => {

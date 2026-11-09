@@ -22,6 +22,7 @@ import { WizardAnnouncer } from '../../shared/wizard-announcer.service';
 import {
   createTestPreprocessingService,
   createToastServiceSpy,
+  expectFillsStep,
   mountInShellLayout,
 } from '../../testing/preprocessing-test-helpers';
 
@@ -329,16 +330,7 @@ describe('Step3ConfigureDataFeaturesComponent – layout', () => {
     const list = host.querySelector<HTMLElement>('.column-list');
     expect(host.querySelectorAll('.column-list .visually-hidden').length).toBe(40);
     expect(list && list.scrollHeight > list.clientHeight).toBe(true); // the list does scroll
-    expect(scroller.scrollHeight).toBeLessThanOrEqual(scroller.clientHeight);
-
-    // The box fills the step down to its bottom edge instead of a fixed height.
-    const content = host.querySelector<HTMLElement>('.step-content');
-    const shell = host.querySelector<HTMLElement>('.config-shell');
-    if (!content || !shell) throw new Error('step not rendered');
-    // Measured against the shell's scroller: only the step padding and the box margin lie below the box.
-    const gap = scroller.getBoundingClientRect().bottom - shell.getBoundingClientRect().bottom;
-    const expectedGap =
-      parseFloat(getComputedStyle(content).paddingBottom) + parseFloat(getComputedStyle(shell).marginBottom);
-    expect(gap).toBeCloseTo(expectedGap, 0);
+    // The rail/well box fills the step down to its bottom edge instead of a fixed height.
+    expectFillsStep(scroller, host.querySelector<HTMLElement>('.config-shell'));
   });
 });

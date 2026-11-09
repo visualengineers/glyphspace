@@ -34,6 +34,28 @@ export function mountInShellLayout(stepHost: HTMLElement, height = 800): HTMLEle
   return scroller;
 }
 
+/**
+ * Asserts that `box` ends at the steps' shared bottom edge in a step mounted
+ * with mountInShellLayout (only the step's bottom padding and the box's margin
+ * lie between it and `areaBottom`), and that the step itself does not scroll.
+ * `areaBottom` is the bottom of the step's content area: the scroller's bottom,
+ * or the top of a button bar the step renders itself (Step 6).
+ */
+export function expectFillsStep(
+  scroller: HTMLElement,
+  box: HTMLElement | null,
+  areaBottom = scroller.getBoundingClientRect().bottom
+): void {
+  if (!box) throw new Error('main box not rendered');
+  const content = box.closest<HTMLElement>('.step-content');
+  if (!content) throw new Error('main box is not inside .step-content');
+  const expectedGap =
+    parseFloat(getComputedStyle(content).paddingBottom) + parseFloat(getComputedStyle(box).marginBottom);
+  const gap = areaBottom - box.getBoundingClientRect().bottom;
+  expect(gap).toBeCloseTo(expectedGap, 0);
+  expect(scroller.scrollHeight).toBeLessThanOrEqual(scroller.clientHeight);
+}
+
 /** A ToastService whose every public method is a mock. */
 export function createToastServiceSpy(): Mocked<ToastService> {
   return createSpyObj<ToastService>('ToastService', [

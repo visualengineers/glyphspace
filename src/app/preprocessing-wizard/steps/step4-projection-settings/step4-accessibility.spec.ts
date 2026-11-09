@@ -16,7 +16,11 @@ import {
   OutlierStrategy,
   ScalingMethod,
 } from '../../models/data-type.enum';
-import { createTestPreprocessingService } from '../../testing/preprocessing-test-helpers';
+import {
+  createTestPreprocessingService,
+  expectFillsStep,
+  mountInShellLayout,
+} from '../../testing/preprocessing-test-helpers';
 
 const NAMES = ['x', 'y'];
 
@@ -89,7 +93,26 @@ describe('Step4ProjectionSettingsComponent – accessibility', () => {
     fixture.detectChanges();
   });
 
-  afterEach(() => localStorage.clear());
+  let shellScroller: HTMLElement | undefined;
+
+  afterEach(() => {
+    shellScroller?.remove();
+    shellScroller = undefined;
+    localStorage.clear();
+  });
+
+  it('fills the step with the columns and methods panels, so the step itself does not scroll', () => {
+    shellScroller = mountInShellLayout(host);
+    fixture.detectChanges();
+
+    expectFillsStep(shellScroller, host.querySelector<HTMLElement>('.projection-options-two-col'));
+    // Both panels stretch to the full height of the row.
+    const heights = Array.from(host.querySelectorAll<HTMLElement>('.projection-options-two-col > .config-panel')).map(
+      panel => panel.offsetHeight
+    );
+    expect(heights.length).toBe(2);
+    expect(heights[0]).toBe(heights[1]);
+  });
 
   function el<T extends Element>(selector: string, root: ParentNode = host): T {
     const found = root.querySelector<T>(selector);

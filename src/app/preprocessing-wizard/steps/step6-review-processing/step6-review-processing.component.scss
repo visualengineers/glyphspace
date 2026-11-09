@@ -14,11 +14,17 @@
   }
 
   .step-content {
-    @include w.step-content;
+    @include w.step-content-column;
   }
 
-  // Review Section
+  // Review Section: a column whose column table takes the height left between
+  // the summary (and any possible issues) and the info box, like Steps 2–5.
   .review-section {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+
     // Column tile + one wider card per settings step (Projection, Glyphs & Color).
     // Flex (zero basis + min widths, grow 1:2:2) sizes the three like the former
     // `minmax(160px, 0.8fr) repeat(2, minmax(240px, 1.6fr))` grid, but wraps
@@ -184,7 +190,9 @@
 
     .columns-table {
       @include w.table-container;
-      margin-bottom: v.$space-4;
+      // Fills the step and scrolls under its sticky header.
+      @include w.scroll-y;
+      @include w.fill-step-height;
 
       table {
         @include w.table;
