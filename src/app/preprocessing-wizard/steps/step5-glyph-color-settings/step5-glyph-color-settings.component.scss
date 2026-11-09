@@ -151,7 +151,7 @@
       gap: 3px;
       min-height: 50px;
       max-height: 200px;
-      overflow-y: auto;
+      @include w.scroll-y;
       padding: 6px;
       border: 2px dashed v.$gray-300;
       border-radius: 8px;
@@ -224,7 +224,7 @@
       display: flex;
       flex-direction: column;
       gap: 1px;
-      overflow-y: auto;
+      @include w.scroll-y;
       flex: 1;
       min-height: 0;
       max-height: 240px;

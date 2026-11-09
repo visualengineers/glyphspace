@@ -67,8 +67,8 @@
 // the visible ROW area equals Step 3's `.column-list` height.
 .columns-table-container {
   @include wizard.table-container;
+  @include wizard.scroll-y;
   overflow-x: auto;
-  overflow-y: auto;
   max-height: wizard.$wizard-list-box-height;
   margin-bottom: v.$space-4;
 }

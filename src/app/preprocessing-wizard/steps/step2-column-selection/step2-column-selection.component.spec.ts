@@ -6,7 +6,7 @@ import { ColumnStatistics, DataProfile } from '../../models/column-statistics';
 import { ColumnConfig } from '../../models/column-config';
 import { PreprocessingState } from '../../models/preprocessing-state';
 import { ColumnRole, DataType } from '../../models/data-type.enum';
-import { createTestPreprocessingService } from '../../testing/preprocessing-test-helpers';
+import { createTestPreprocessingService, mountInShellLayout } from '../../testing/preprocessing-test-helpers';
 
 /**
  * Step 2 shift-click range selection. The anchor of a range is the last clicked
@@ -234,5 +234,53 @@ describe('Step2ColumnSelectionComponent – accessibility (rendered)', () => {
     const event = pressSlash(search);
 
     expect(event.defaultPrevented).toBe(false);
+  });
+});
+
+/**
+ * Only the column table scrolls. Rows of flagged columns carry a visually-hidden
+ * label (position: absolute); before the table container was a containing block,
+ * those labels escaped it at their unscrolled row position and gave the whole
+ * step a second, outer scrollbar.
+ */
+describe('Step2ColumnSelectionComponent – layout', () => {
+  let scroller: HTMLElement;
+
+  afterEach(() => {
+    scroller?.remove();
+    localStorage.clear();
+  });
+
+  it('keeps every row inside the scrolling table, so the step itself does not scroll', async () => {
+    localStorage.clear();
+    const service = createTestPreprocessingService();
+    // 40 mostly-empty columns: each row shows the "(quality issues detected)" label.
+    const columns: ColumnStatistics[] = Array.from({ length: 40 }, (_, i) => ({
+      name: `column${i}`,
+      dataType: DataType.Numeric,
+      count: 10,
+      missingCount: 8,
+      missingPercentage: 80,
+      uniqueCount: 2,
+    }));
+    const dataProfile = { fileName: 'wide.csv', totalRows: 10, totalColumns: 40, columns } as DataProfile;
+    const columnConfigs = new Map(columns.map(c => [c.name, { name: c.name, enabled: true } as ColumnConfig]));
+    (service as unknown as { updateState(u: Partial<PreprocessingState>): void }).updateState({
+      dataProfile,
+      columnConfigs,
+    });
+    await TestBed.configureTestingModule({
+      imports: [Step2ColumnSelectionComponent],
+      providers: [{ provide: PreprocessingService, useValue: service }],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(Step2ColumnSelectionComponent);
+    const host = fixture.nativeElement as HTMLElement;
+    scroller = mountInShellLayout(host);
+    fixture.detectChanges();
+
+    const table = host.querySelector<HTMLElement>('.columns-table-container');
+    expect(host.querySelectorAll('tbody .visually-hidden').length).toBe(40);
+    expect(table && table.scrollHeight > table.clientHeight).toBe(true); // the table does scroll
+    expect(scroller.scrollHeight).toBeLessThanOrEqual(scroller.clientHeight);
   });
 });

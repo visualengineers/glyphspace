@@ -19,7 +19,11 @@ import {
 } from '../../models/data-type.enum';
 import { ToastService } from '../../../services/toast.service';
 import { WizardAnnouncer } from '../../shared/wizard-announcer.service';
-import { createTestPreprocessingService, createToastServiceSpy } from '../../testing/preprocessing-test-helpers';
+import {
+  createTestPreprocessingService,
+  createToastServiceSpy,
+  mountInShellLayout,
+} from '../../testing/preprocessing-test-helpers';
 
 const NAMES = ['alpha', 'beta', 'gamma'];
 
@@ -273,5 +277,57 @@ describe('Step3ConfigureDataFeaturesComponent – accessibility', () => {
     expect(shown('step3-missing')).toBe(MissingValueStrategy.RemoveRows);
     expect(shown('step3-outlier-method')).toBe(OutlierMethod.IQR_1_5);
     expect(shown('step3-outlier-strategy')).toBe(OutlierStrategy.Remove);
+  });
+});
+
+/**
+ * Only the column list and the detail well scroll. Each list item with missing
+ * values carries a visually-hidden "missing" label (position: absolute); before
+ * the list was a containing block, those labels escaped it at their unscrolled
+ * position and gave the whole step a third, outer scrollbar.
+ */
+describe('Step3ConfigureDataFeaturesComponent – layout', () => {
+  let scroller: HTMLElement;
+
+  afterEach(() => {
+    scroller?.remove();
+    localStorage.clear();
+  });
+
+  it('keeps every column inside the scrolling list, so the step itself does not scroll', async () => {
+    localStorage.clear();
+    const names = Array.from({ length: 40 }, (_, i) => `column${i}`);
+    const service = createTestPreprocessingService({
+      detectOutliers: () => Promise.resolve({ outlier_count: 0, outlier_indices: [] }),
+      detectDuplicates: () =>
+        Promise.resolve({ duplicateCount: 0, duplicateIndices: [], percentage: 0, sampleDuplicates: [] }),
+    });
+    (service as unknown as { updateState(u: Partial<PreprocessingState>): void }).updateState({
+      rawFileName: 'wide.csv',
+      dataProfile: { ...makeProfile(), totalColumns: names.length, columns: names.map(makeColumn) },
+      columnConfigs: new Map(names.map(name => [name, makeConfig(name)])),
+    });
+    await TestBed.configureTestingModule({
+      imports: [Step3ConfigureDataFeaturesComponent],
+      providers: [
+        { provide: PreprocessingService, useValue: service },
+        { provide: ToastService, useValue: createToastServiceSpy() },
+      ],
+    })
+      .overrideComponent(Step3ConfigureDataFeaturesComponent, {
+        set: { imports: [FormsModule, ConsequenceHintComponent], schemas: [NO_ERRORS_SCHEMA] },
+      })
+      .compileComponents();
+    const fixture = TestBed.createComponent(Step3ConfigureDataFeaturesComponent);
+    const host = fixture.nativeElement as HTMLElement;
+    scroller = mountInShellLayout(host);
+    fixture.detectChanges();
+    await new Promise(resolve => setTimeout(resolve));
+    fixture.detectChanges();
+
+    const list = host.querySelector<HTMLElement>('.column-list');
+    expect(host.querySelectorAll('.column-list .visually-hidden').length).toBe(40);
+    expect(list && list.scrollHeight > list.clientHeight).toBe(true); // the list does scroll
+    expect(scroller.scrollHeight).toBeLessThanOrEqual(scroller.clientHeight);
   });
 });

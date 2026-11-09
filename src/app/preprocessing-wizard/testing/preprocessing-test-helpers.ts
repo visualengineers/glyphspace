@@ -15,6 +15,25 @@ export function createTestPreprocessingService(dataProcessor: object = {}): Prep
   return new PreprocessingService(dataProcessor as DataProcessorService, dataLoader);
 }
 
+/**
+ * Mount a step's host element in a box laid out like the wizard shell: a
+ * fixed-height scroller (`.wizard-content`) around a positioned, flexing step
+ * container (`.step-container`). Returns the scroller, so a spec can check that
+ * the step fits it without an outer scrollbar. The default height is about the
+ * shell's content area in a 1300 px tall window. The caller removes it.
+ */
+export function mountInShellLayout(stepHost: HTMLElement, height = 800): HTMLElement {
+  const scroller = document.createElement('div');
+  scroller.style.cssText = `height: ${height}px; width: 1200px; overflow-y: auto; display: flex; flex-direction: column;`;
+  const container = document.createElement('div');
+  container.style.cssText = 'position: relative; flex: 1; display: flex; flex-direction: column; min-height: 0;';
+  stepHost.style.cssText = 'flex: 1; display: flex; flex-direction: column; min-height: 0;';
+  container.appendChild(stepHost);
+  scroller.appendChild(container);
+  document.body.appendChild(scroller);
+  return scroller;
+}
+
 /** A ToastService whose every public method is a mock. */
 export function createToastServiceSpy(): Mocked<ToastService> {
   return createSpyObj<ToastService>('ToastService', [

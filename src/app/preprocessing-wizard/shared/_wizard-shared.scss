@@ -492,7 +492,19 @@ $wizard-stacked-list-max-height: min(50vh, #{$wizard-list-viewport-height});
 }
 
 // Tables
+// Every box in the wizard that scrolls its own content (lists, tables, the
+// Step 3 detail well, the shell's columns) is also a containing block. Absolutely
+// positioned descendants, such as the `.visually-hidden` labels in list rows,
+// are then placed and clipped inside it. Without `position: relative` they are
+// placed against an outer box at their unscrolled row position, escape the
+// clipping and stretch the whole step, which shows up as an extra outer scrollbar.
+@mixin scroll-y {
+  position: relative;
+  overflow-y: auto;
+}
+
 @mixin table-container {
+  position: relative; // see scroll-y: scrolls horizontally, so it contains its content
   background: white;
   border: 1px solid v.$gray-300;
   border-radius: 8px;

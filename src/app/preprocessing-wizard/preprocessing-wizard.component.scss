@@ -152,8 +152,8 @@ $shell-stack-width: 767.98px;
   box-sizing: border-box;
   background: v.$wizard-header-bg;
   border-right: 1px solid v.$gray-300;
+  @include w.scroll-y;
   overflow-x: hidden;
-  overflow-y: auto;
 }
 
 .wizard-main {
@@ -166,7 +166,7 @@ $shell-stack-width: 767.98px;
 
 .wizard-content {
   flex: 1;
-  overflow-y: auto;
+  @include w.scroll-y;
   display: flex;
   flex-direction: column;
   min-height: 0;
