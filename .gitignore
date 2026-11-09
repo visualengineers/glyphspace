@@ -28,6 +28,9 @@
 /.sass-cache
 /connect.lock
 /coverage
+# Vitest browser mode: screenshots of failed tests (next to the spec) and their attachment copies
+__screenshots__/
+/.vitest-attachments
 /libpeerconnection.log
 npm-debug.log
 testem.log
@@ -42,9 +45,13 @@ testem.log
 Thumbs.db
 
 # Miscellaneous
-/.angular/cache 
-/src/assets/__pycache__
+/.angular/cache
+__pycache__/
+.pytest_cache/
 /src/assets/tests
 /.claude
 /.angular
 Claude.md
+
+# Planning artifacts (brainstorming/plans/specs) — keep out of the repo
+/docs/superpowers/

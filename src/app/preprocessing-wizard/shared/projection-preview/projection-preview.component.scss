@@ -1,0 +1,180 @@
+@use '../../../../styles/variables' as v;
+@use '../../../../styles/mixins' as m;
+@use '../wizard-shared' as w;
+
+.projection-preview-container {
+  position: relative;
+  display: inline-flex;
+  vertical-align: middle;
+}
+
+.preview-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px;
+  color: v.$text-muted;
+  transition: color 0.2s ease;
+
+  &:hover {
+    color: v.$color-accent;
+  }
+
+  &:focus {
+    outline: none;
+  }
+
+  &:focus-visible {
+    @include m.focus-ring;
+    color: v.$color-accent;
+    border-radius: 50%;
+  }
+
+  .material-icons {
+    font-size: v.$icon-size-md;
+  }
+}
+
+.projection-preview {
+  position: fixed;
+  z-index: v.$z-popover;
+  width: 372px;
+  max-width: min(372px, calc(100vw - 16px));
+  box-sizing: border-box;
+  background: v.$white;
+  border: 1px solid v.$gray-300;
+  border-radius: 12px;
+  box-shadow: 0 14px 32px -10px rgba(20, 40, 60, 0.25);
+  padding: v.$space-4;
+  text-align: left;
+  // Always rendered so the trigger's aria-describedby resolves; hidden (and
+  // out of the accessibility tree) until opened.
+  visibility: hidden;
+  pointer-events: none;
+
+  &.visible {
+    visibility: visible;
+    pointer-events: auto;
+  }
+}
+
+.preview-head {
+  display: flex;
+  align-items: center;
+  gap: v.$space-2;
+  flex-wrap: wrap;
+}
+
+.preview-name {
+  font-size: v.$font-size-lg;
+  font-weight: 700;
+  color: v.$gray-800;
+}
+
+// Speed tag: same three severity tones as Step 4's speed badges.
+.preview-tag {
+  font-size: v.$font-size-xs;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  padding: 2px 7px;
+  border-radius: 5px;
+  white-space: nowrap;
+
+  &.tag-primary {
+    @include w.severity-badge(info);
+  }
+
+  &.tag-fast {
+    @include w.severity-badge(success);
+  }
+
+  &.tag-medium {
+    @include w.severity-badge(warning);
+  }
+
+  &.tag-slow {
+    @include w.severity-badge(error);
+  }
+}
+
+.preview-rows {
+  font-size: v.$font-size-xs;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid v.$gray-300;
+  color: v.$text-muted;
+  white-space: nowrap;
+}
+
+.preview-sub {
+  font-size: v.$font-size-sm;
+  color: v.$text-muted;
+  margin-top: 2px;
+}
+
+.preview-desc {
+  font-size: v.$font-size-base;
+  color: v.$gray-700;
+  margin-top: v.$space-2;
+  line-height: 1.45;
+}
+
+.preview-canvas-wrap {
+  margin-top: v.$space-3;
+  background: v.$gray-100;
+  border: 1px solid v.$gray-200;
+  border-radius: 8px;
+  overflow: hidden;
+
+  canvas {
+    display: block;
+    width: 340px;
+    height: 200px;
+    max-width: 100%;
+  }
+}
+
+.preview-caption {
+  margin-top: 11px;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-height: 34px;
+}
+
+.preview-dots {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+
+  .dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 3px;
+    background: v.$gray-300;
+    transition:
+      width 0.35s ease,
+      background-color 0.35s ease;
+
+    &.active {
+      width: 18px;
+      background: v.$color-accent;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      transition: none;
+    }
+  }
+}
+
+.preview-cap-text {
+  font-size: v.$font-size-base;
+  color: v.$text-muted;
+  line-height: 1.35;
+}

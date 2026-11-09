@@ -1,15 +1,41 @@
-import { Component, OnInit, Output, EventEmitter } from '@angular/core';
+import { Component, OnInit, forwardRef, ViewChild, ElementRef, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PreprocessingService } from '../../services/preprocessing.service';
 import { MiniHistogramComponent } from '../../../shared/components/mini-histogram/mini-histogram.component';
 import { ColumnStatistics, HistogramData } from '../../models/column-statistics';
-import { ColumnConfig } from '../../models/column-config';
-import { getDataTypeColor, getDataTypeBgColor } from '../../models/data-type.enum';
+import { ColumnConfig, isFeatureColumn, isMetadataColumn } from '../../models/column-config';
+import {
+  ColumnRole,
+  DataType,
+  getColumnRoleLabel,
+  getDataTypeColor,
+  getDataTypeBgColor,
+} from '../../models/data-type.enum';
 import { HelpTooltipComponent } from '../../shared/help-tooltip/help-tooltip.component';
 import { HELP_TEXT } from '../../shared/constants/help-text';
-import { STEP_INFO } from '../../shared/constants/step-info';
+import { getStepInfo } from '../../shared/constants/step-info';
 import { DataTypeBadgeComponent } from '../../shared/data-type-badge/data-type-badge.component';
+import { WizardStep, WIZARD_STEP } from '../../shared/wizard-step';
+
+/** Input types that take no typed text, so "/" is free for the search shortcut there. */
+const NON_TEXT_INPUT_TYPES: ReadonlySet<string> = new Set([
+  'checkbox',
+  'radio',
+  'button',
+  'submit',
+  'reset',
+  'range',
+  'color',
+  'file',
+]);
+
+/** Whether a key typed on `target` is text entry (the "/" shortcut must not steal it). */
+function isTextEntry(target: EventTarget | null): boolean {
+  if (target instanceof HTMLInputElement) return !NON_TEXT_INPUT_TYPES.has(target.type);
+  if (target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) return true;
+  return target instanceof HTMLElement && target.isContentEditable;
+}
 
 @Component({
   selector: 'app-step2-column-selection',
@@ -17,18 +43,49 @@ import { DataTypeBadgeComponent } from '../../shared/data-type-badge/data-type-b
   imports: [CommonModule, FormsModule, MiniHistogramComponent, HelpTooltipComponent, DataTypeBadgeComponent],
   templateUrl: './step2-column-selection.component.html',
   styleUrl: './step2-column-selection.component.scss',
+  providers: [{ provide: WIZARD_STEP, useExisting: forwardRef(() => Step2ColumnSelectionComponent) }],
 })
-export class Step2ColumnSelectionComponent implements OnInit {
-  @Output() continue = new EventEmitter<void>();
+export class Step2ColumnSelectionComponent implements OnInit, WizardStep {
+  readonly primaryLabel = 'Continue to Configure Data & Features';
+
+  /** Names what is missing when Continue is disabled. */
+  get disabledHint(): string {
+    return this.enabledCount === 0
+      ? 'Please select at least one column to continue'
+      : 'Use at least one column as a feature to continue — metadata alone cannot be projected';
+  }
+
+  @ViewChild('searchInput') searchInput?: ElementRef<HTMLInputElement>;
 
   columns: ColumnStatistics[] = [];
   columnConfigs = new Map<string, ColumnConfig>();
   searchTerm = '';
+  // A14: Type filter, mirroring Step 3's master-rail type filter so both steps
+  // share the same header controls (enables the minimal Flip morph).
+  filterType: DataType | 'all' = 'all';
   columnHistogramCache = new Map<string, HistogramData>();
+
+  // Enum reference for the template's type-filter <select>.
+  DataType = DataType;
+  // Options of the per-column "Use as" <select>.
+  readonly columnRoles: readonly ColumnRole[] = [ColumnRole.Feature, ColumnRole.Metadata];
+  readonly getColumnRoleLabel = getColumnRoleLabel;
+
+  // Anchor column for shift-click range select. Stored by name (not by index) so
+  // it stays valid when the search/type filter re-indexes the visible list.
+  private lastCheckedName: string | null = null;
+  // Whether Shift was held during the click that precedes the next (change).
+  private pendingShift = false;
+
+  // Distribution bars use the single cyan accent (A15) instead of per-type colors.
+  // These mirror $active-color (#00bcd4) / $status-info (#00838f); the mini-histogram
+  // renders to a d3 canvas so the color must be passed as a string here.
+  readonly distributionColor = '#00bcd4';
+  readonly distributionHoverColor = '#00838f';
 
   // Expose help text and step info to template
   readonly HELP_TEXT = HELP_TEXT;
-  readonly stepInfo = STEP_INFO[1]; // Step 2 (index 1)
+  readonly stepInfo = getStepInfo('columns');
 
   constructor(private preprocessingService: PreprocessingService) {}
 
@@ -47,13 +104,22 @@ export class Step2ColumnSelectionComponent implements OnInit {
   }
 
   get filteredColumns(): ColumnStatistics[] {
-    if (!this.searchTerm) {
-      return this.columns;
-    }
-    const term = this.searchTerm.toLowerCase();
-    return this.columns.filter(
-      col => col.name.toLowerCase().includes(term) || col.dataType.toLowerCase().includes(term)
-    );
+    const term = this.searchTerm.trim().toLowerCase();
+    return this.columns.filter(col => {
+      // Type filter (A14): restrict to a single data type when selected.
+      if (this.filterType !== 'all' && col.dataType !== this.filterType) {
+        return false;
+      }
+      // Text filter: match by column name or data type.
+      if (term && !col.name.toLowerCase().includes(term) && !col.dataType.toLowerCase().includes(term)) {
+        return false;
+      }
+      return true;
+    });
+  }
+
+  get hasActiveFilter(): boolean {
+    return !!this.searchTerm || this.filterType !== 'all';
   }
 
   get enabledCount(): number {
@@ -62,6 +128,11 @@ export class Step2ColumnSelectionComponent implements OnInit {
 
   get disabledCount(): number {
     return this.columnConfigs.size - this.enabledCount;
+  }
+
+  /** Selected columns that are used as metadata (tooltip and search only). */
+  get metadataCount(): number {
+    return Array.from(this.columnConfigs.values()).filter(isMetadataColumn).length;
   }
 
   isColumnEnabled(columnName: string): boolean {
@@ -73,32 +144,100 @@ export class Step2ColumnSelectionComponent implements OnInit {
     this.columnConfigs = this.preprocessingService.currentState.columnConfigs;
   }
 
-  toggleAllColumns(): void {
-    if (this.enabledCount === this.columns.length) {
-      this.deselectAll();
+  getColumnRole(columnName: string): ColumnRole {
+    return this.columnConfigs.get(columnName)?.role ?? ColumnRole.Feature;
+  }
+
+  onRoleChange(columnName: string, event: Event): void {
+    const value = (event.target as HTMLSelectElement).value;
+    const role = this.columnRoles.find(candidate => candidate === value);
+    if (!role) return;
+    this.preprocessingService.setColumnRole(columnName, role);
+    this.columnConfigs = this.preprocessingService.currentState.columnConfigs;
+  }
+
+  /**
+   * Records whether Shift was held for the click that is about to trigger a
+   * (change). It does NOT toggle anything and does NOT preventDefault — the native
+   * checkbox performs the real toggle, so single selection works and is rendered
+   * correctly via [checked]. The flag is consumed by onCheckboxChange().
+   */
+  onCheckboxClick(event: MouseEvent): void {
+    this.pendingShift = event.shiftKey;
+  }
+
+  /**
+   * Native change handler. The clicked row has already been toggled by the browser;
+   * `newState` is its resulting checked value. We commit that single toggle, and if
+   * Shift was held with a valid anchor, we extend the SAME state across the whole
+   * inclusive range [min(anchor,current) .. max(anchor,current)] on the filtered list.
+   * The anchor is resolved in the *current* filtered list; if it is no longer
+   * visible, the shift-click acts as a plain click.
+   */
+  onCheckboxChange(index: number, columnName: string, event: Event): void {
+    const newState = (event.target as HTMLInputElement).checked;
+    const visible = this.filteredColumns;
+    const anchorIndex = this.pendingShift ? visible.findIndex(col => col.name === this.lastCheckedName) : -1;
+
+    if (anchorIndex !== -1 && anchorIndex !== index) {
+      const lo = Math.min(anchorIndex, index);
+      const hi = Math.max(anchorIndex, index);
+      const names = visible.slice(lo, hi + 1).map(col => col.name);
+      this.preprocessingService.setColumnsEnabled(names, newState);
     } else {
-      this.selectAll();
+      this.preprocessingService.setColumnsEnabled([columnName], newState);
     }
+
+    this.columnConfigs = this.preprocessingService.currentState.columnConfigs;
+    this.lastCheckedName = columnName;
+    this.pendingShift = false;
   }
 
-  selectAll(): void {
-    this.preprocessingService.selectAllColumns();
+  // ── Select-all operates on the currently filtered/visible set (A9) ──────────
+  get filteredEnabledCount(): number {
+    return this.filteredColumns.filter(col => this.isColumnEnabled(col.name)).length;
+  }
+
+  get allFilteredSelected(): boolean {
+    return this.filteredColumns.length > 0 && this.filteredEnabledCount === this.filteredColumns.length;
+  }
+
+  get someFilteredSelected(): boolean {
+    return this.filteredEnabledCount > 0 && this.filteredEnabledCount < this.filteredColumns.length;
+  }
+
+  toggleAllColumns(): void {
+    const names = this.filteredColumns.map(col => col.name);
+    this.preprocessingService.setColumnsEnabled(names, !this.allFilteredSelected);
     this.columnConfigs = this.preprocessingService.currentState.columnConfigs;
   }
 
-  deselectAll(): void {
-    this.preprocessingService.deselectAllColumns();
-    this.columnConfigs = this.preprocessingService.currentState.columnConfigs;
+  /** "Clear search": empties the filter and keeps focus in the search field. */
+  clearSearch(): void {
+    this.searchTerm = '';
+    this.searchInput?.nativeElement.focus();
   }
 
-  onContinue(): void {
-    if (this.enabledCount > 0) {
-      this.continue.emit();
+  /**
+   * Focus the column search field when the user presses "/" (unless already
+   * typing). Bound to the step's host, not the document, so the single-key
+   * shortcut is only active while focus is inside this step (WCAG 2.1.4).
+   */
+  @HostListener('keydown', ['$event'])
+  onKeyDown(event: KeyboardEvent): void {
+    if (event.key !== '/' || isTextEntry(event.target)) return;
+    event.preventDefault();
+    this.searchInput?.nativeElement.focus();
+  }
+
+  canProceed(): boolean {
+    return Array.from(this.columnConfigs.values()).some(isFeatureColumn);
+  }
+
+  proceed(): void {
+    if (this.canProceed()) {
+      this.preprocessingService.nextStep();
     }
-  }
-
-  goBack(): void {
-    this.preprocessingService.previousStep();
   }
 
   getColumnConfig(columnName: string): ColumnConfig | undefined {
@@ -110,6 +249,20 @@ export class Step2ColumnSelectionComponent implements OnInit {
    */
   hasIssues(column: ColumnStatistics): boolean {
     return column.missingPercentage > 50 || column.uniqueCount === 1;
+  }
+
+  /**
+   * True when a column was auto-deselected by a smart default (mostly missing or
+   * constant) and has not been re-enabled by the user.
+   */
+  isAutoDeselected(columnName: string): boolean {
+    const config = this.columnConfigs.get(columnName);
+    return !!config && !config.enabled && !!config.issueDescription;
+  }
+
+  /** Human-readable reason a column was auto-deselected (for the marker tooltip). */
+  getDeselectReason(columnName: string): string {
+    return this.columnConfigs.get(columnName)?.issueDescription ?? '';
   }
 
   /**

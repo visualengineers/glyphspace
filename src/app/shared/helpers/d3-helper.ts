@@ -46,15 +46,21 @@ export function addAlphaToRgba(color: string, alpha: number): string {
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
+/** Feature values below this threshold count as zero. */
+const ZERO_VALUE_THRESHOLD = 0.01;
+
+/** Radius of the dot drawn instead of a glyph whose feature values are all ~0. */
+const ZERO_VALUE_DOT_RADIUS = 4;
+
 function prepareFeatureData(
   glyph: GlyphObject,
   activeFeatures: string[]
 ): {
   featureMap: Record<string, number>;
   keys: string[];
-  values: number[];
   maxValue: number;
   segments: number;
+  allZero: boolean;
 } {
   const featureMap: Record<string, number> = Object.fromEntries(
     Object.entries(glyph.features[glyph.currentContext] || {})
@@ -66,8 +72,18 @@ function prepareFeatureData(
   const values = keys.map(k => featureMap[k]);
   const maxValue = Math.max(...values) || 1;
   const segments = keys.length;
+  const allZero = values.every(v => v < ZERO_VALUE_THRESHOLD);
 
-  return { featureMap, keys, values, maxValue, segments };
+  return { featureMap, keys, maxValue, segments, allZero };
+}
+
+/** Draw a small filled dot at the glyph center, used when all feature values are ~0. */
+function drawZeroValueDot(context: CanvasRenderingContext2D, centerX: number, centerY: number, color: string): void {
+  context.beginPath();
+  context.arc(centerX, centerY, ZERO_VALUE_DOT_RADIUS, 0, 2 * Math.PI);
+  context.fillStyle = color;
+  context.fill();
+  context.closePath();
 }
 
 function computeCenterCoordinates(radius: number, width = 350): { centerX: number; centerY: number } {
@@ -88,19 +104,14 @@ export function drawRadarChart(
 ) {
   if (!context) return;
 
-  const { featureMap, keys, values, maxValue, segments } = prepareFeatureData(glyph, activeFeatures);
+  const { featureMap, keys, maxValue, segments, allZero } = prepareFeatureData(glyph, activeFeatures);
   const { centerX, centerY } = computeCenterCoordinates(radius);
 
   drawBackgroundCircle(context, centerX, centerY, radius, glyphConfig);
   drawAxes(context, keys, centerX, centerY, radius, glyphConfig);
 
-  const allZero = values.every(v => v < 0.01);
   if (allZero) {
-    context.beginPath();
-    context.arc(centerX, centerY, 4, 0, 2 * Math.PI);
-    context.fillStyle = color;
-    context.fill();
-    context.closePath();
+    drawZeroValueDot(context, centerX, centerY, color);
   } else {
     const effectiveRadius = radius * 0.95;
     context.beginPath();
@@ -142,19 +153,14 @@ export function drawFlowerGlyph(
 ) {
   if (!context) return;
 
-  const { featureMap, keys, values, maxValue, segments } = prepareFeatureData(glyph, activeFeatures);
+  const { featureMap, keys, maxValue, segments, allZero } = prepareFeatureData(glyph, activeFeatures);
   const { centerX, centerY } = computeCenterCoordinates(radius);
 
   drawBackgroundCircle(context, centerX, centerY, radius, glyphConfig);
   drawAxes(context, keys, centerX, centerY, radius, glyphConfig);
 
-  const allZero = values.every(v => v < 0.01);
   if (allZero) {
-    context.beginPath();
-    context.arc(centerX, centerY, 4, 0, 2 * Math.PI);
-    context.fillStyle = color;
-    context.fill();
-    context.closePath();
+    drawZeroValueDot(context, centerX, centerY, color);
   } else {
     context.save();
     context.translate(centerX, centerY);
@@ -205,19 +211,14 @@ export function drawWhiskerGlyph(
 ) {
   if (!context) return;
 
-  const { featureMap, keys, values, maxValue, segments } = prepareFeatureData(glyph, activeFeatures);
+  const { featureMap, keys, maxValue, segments, allZero } = prepareFeatureData(glyph, activeFeatures);
   const { centerX, centerY } = computeCenterCoordinates(radius);
 
   drawBackgroundCircle(context, centerX, centerY, radius, glyphConfig);
   drawAxes(context, keys, centerX, centerY, radius, glyphConfig);
 
-  const allZero = values.every(v => v < 0.01);
   if (allZero) {
-    context.beginPath();
-    context.arc(centerX, centerY, 4, 0, 2 * Math.PI);
-    context.fillStyle = color;
-    context.fill();
-    context.closePath();
+    drawZeroValueDot(context, centerX, centerY, color);
   } else {
     context.save();
     context.translate(centerX, centerY);

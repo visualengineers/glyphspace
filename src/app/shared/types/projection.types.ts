@@ -43,17 +43,6 @@ export interface ProjectionComputeConfig {
   isomapNeighbors?: number;
   lleNeighbors?: number;
   ltsaNeighbors?: number;
-  // TriMap parameters
-  trimapWeightAdj?: number;
-}
-
-/**
- * Progress update during projection computation.
- */
-export interface ProjectionProgress {
-  method: ProjectionMethod;
-  progress: number; // 0-100
-  message?: string;
 }
 
 /**

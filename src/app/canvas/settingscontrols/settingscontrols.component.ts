@@ -5,7 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { FilterService } from '../../services/filter.service';
 import { ProjectionService } from '../../services/projection.service';
 import { Subscription } from 'rxjs';
-import { COLOR_SCALES, getContinuousGradient, getCategoricalColors } from '../../shared/interfaces/color-scale';
+import { getColorScaleById, getContinuousGradient, getCategoricalColors } from '../../shared/interfaces/color-scale';
 import { getGlyphTypeName } from '../../shared/enum/glyph-type';
 
 export type SettingMode = 'position' | null;
@@ -199,7 +199,7 @@ export class SettingsControlPanelComponent implements OnDestroy, OnInit {
       return;
     }
 
-    const colorScale = COLOR_SCALES.find(cs => cs.id === colorRange) || COLOR_SCALES[0];
+    const colorScale = getColorScaleById(colorRange);
 
     let gradient: string;
     if (colorScale.type === 'categorical') {

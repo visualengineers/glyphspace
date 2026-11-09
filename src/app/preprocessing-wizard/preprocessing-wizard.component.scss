@@ -1,5 +1,10 @@
 @use '../../styles/variables' as v;
+@use '../../styles/mixins' as m;
 @use './shared/wizard-shared' as w;
+
+// Below this width the step sidebar turns into a compact step strip above the
+// work area (200% zoom on 1280px = 640 CSS px; WCAG 1.4.10).
+$shell-stack-width: 767.98px;
 
 .preprocessing-wizard {
   display: flex;
@@ -8,91 +13,164 @@
   background: v.$wizard-content-bg;
 }
 
-.wizard-header {
-  background: v.$wizard-header-bg;
-  z-index: 100;
-  flex-shrink: 0;
-}
-
-.header-content {
+// Full-width title bar (title + global actions), stepper no longer lives here
+.wizard-titlebar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 16px;
+  padding: 0.75rem 1rem;
   background: v.$gray-100;
   border-bottom: 1px solid v.$gray-300;
+  flex-shrink: 0;
+  z-index: v.$z-header;
 
   h1 {
-    font-size: 16px;
+    font-size: v.$font-size-lg;
     font-weight: bold;
     color: v.$gray-800;
     margin: 0;
   }
 }
 
+// Wizard title + current step title (focus targets on open / on step change).
+.wizard-titles {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  min-width: 0;
+
+  h1,
+  .step-title {
+    border-radius: 0.125rem;
+
+    &:focus {
+      outline: none;
+    }
+
+    &:focus-visible {
+      @include m.focus-ring;
+    }
+  }
+}
+
+// Decorative, aria-hidden separator.
+.title-separator {
+  color: v.$gray-400;
+}
+
+.step-title {
+  margin: 0;
+  font-size: v.$font-size-md;
+  font-weight: 600;
+  color: v.$gray-700;
+
+  .step-count {
+    font-weight: normal;
+    color: v.$text-muted;
+  }
+}
+
+// Global actions, in order: Undo, Redo | Start over, Close.
 .header-actions {
   display: flex;
-  gap: 8px;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+// Separates the history pair from the session actions.
+.header-divider {
+  width: 1px;
+  height: 1.25rem;
+  margin: 0 0.25rem;
+  background: v.$gray-300;
 }
 
 .btn-icon {
-  width: 32px;
-  height: 32px;
+  width: 2rem;
+  height: 2rem;
   display: flex;
   align-items: center;
   justify-content: center;
   background: rgba(200, 200, 200, 0.5);
   border: none;
-  border-radius: 4px;
+  border-radius: 0.25rem;
+  color: v.$gray-600;
   cursor: pointer;
-  transition: background-color 0.2s ease;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
 
   .material-icons {
-    font-size: 20px;
-    color: v.$gray-600;
+    font-size: v.$icon-size-lg;
+    color: inherit;
   }
 
-  &:hover {
+  &:hover:not(:disabled) {
     background: rgba(180, 180, 180, 0.7);
   }
+
+  &:focus-visible {
+    @include m.focus-ring(1px);
+  }
+
+  &:disabled {
+    background: transparent;
+    color: v.$gray-400;
+    cursor: default;
+  }
+}
+
+// A4: undo/redo use the accent so they read as history, not as session actions.
+.btn-history {
+  color: v.$color-accent;
+
+  &:hover:not(:disabled) {
+    background: rgba(v.$active-color, 0.12);
+  }
+
+  // Inline Material-Symbols-style glyph; fill follows the button color so the
+  // hover/disabled states need no extra rules.
+  .history-icon {
+    width: v.$icon-size-lg;
+    height: v.$icon-size-lg;
+    display: block;
+    fill: currentColor;
+  }
+}
+
+// Two-column body: navigation left, work area right
+.wizard-body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+.wizard-sidebar {
+  width: 15rem;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  background: v.$wizard-header-bg;
+  border-right: 1px solid v.$gray-300;
+  @include w.scroll-y;
+  overflow-x: hidden;
+}
+
+.wizard-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
 }
 
 .wizard-content {
   flex: 1;
-  overflow-y: auto; // Allow scrolling for steps that need it (Step 1)
+  @include w.scroll-y;
   display: flex;
   flex-direction: column;
   min-height: 0;
   background: v.$wizard-content-bg;
-}
-
-.error-banner {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
-  background: rgba(v.$status-error, 0.1);
-  border-left: 3px solid v.$status-error;
-  color: v.$status-error-dark;
-  margin: 0 16px 16px;
-  border-radius: 2px;
-
-  .material-icons {
-    font-size: 20px;
-  }
-
-  .btn-close {
-    margin-left: auto;
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 0;
-
-    .material-icons {
-      font-size: 18px;
-      color: v.$status-error-dark;
-    }
-  }
 }
 
 .step-container {
@@ -100,6 +178,7 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
+  position: relative;
 
   > * {
     flex: 1;
@@ -109,66 +188,174 @@
   }
 }
 
-.step-placeholder {
-  max-width: 1000px;
-  margin: 0 auto;
-  padding: 60px 20px;
-  text-align: center;
-
-  h2 {
-    font-size: 18px;
-    font-weight: bold;
-    color: v.$gray-700;
-    margin-bottom: 8px;
+// A14: Step 2 -> 3 collapse. The shell adds these to Step 2's live DOM (so they
+// carry no view-encapsulation attribute, hence ::ng-deep, scoped to the wizard's
+// step container; the extra .step-container outranks Step 2's own overflow
+// rule). Only the cover width is set inline (it depends on the table).
+:host .step-container ::ng-deep {
+  .wizard-morph-collapsing {
+    position: relative;
+    overflow: hidden;
   }
 
-  p {
-    font-size: 13px;
-    color: v.$gray-500;
+  .wizard-morph-cover {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    // Same tone as Step 3's detail well, which slides in right after.
+    background: v.$wizard-well-bg;
+    will-change: transform;
+    pointer-events: none;
+    // Above the sticky table header so nothing shows through the grey panel.
+    z-index: v.$z-morph-cover;
   }
 }
 
-.wizard-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 16px;
-  background: v.$wizard-header-bg;
-  border-top: 1px solid v.$gray-300;
-  flex-shrink: 0;
-}
+// Centralized navigation bar for every step before review, pinned to the bottom of the work area
+.wizard-nav {
+  @include w.action-buttons-footer;
 
-.footer-info {
-  font-size: 13px;
-  color: v.$gray-600;
-}
+  .btn-secondary {
+    @include w.btn-secondary;
+  }
 
-.btn-secondary {
-  @include w.btn-secondary;
-  padding: 8px 16px;
-}
+  .buttons-right {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-left: auto;
+  }
 
-.btn-primary {
-  @include w.btn-primary;
-  padding: 8px 16px;
-}
+  // A4: subtle undo/redo hint centered between Back and Continue. It takes the
+  // free middle space so the navigation buttons are neither moved nor covered;
+  // the text is truncated when space runs out.
+  .history-hint {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    padding: 0 0.75rem;
+    font-size: v.$font-size-base;
+    color: v.$text-muted;
 
-@media (max-width: 768px) {
-  .header-content {
-    h1 {
-      font-size: 14px;
+    .material-icons {
+      font-size: v.$icon-size-sm;
+      color: v.$text-muted;
+      flex-shrink: 0;
+    }
+
+    .history-hint-text {
+      @include m.text-truncate;
+    }
+
+    .history-hint-action {
+      flex-shrink: 0;
+      background: none;
+      border: none;
+      padding: 0;
+      font: inherit;
+      font-weight: 600;
+      color: v.$color-accent;
+      cursor: pointer;
+      text-decoration: underline;
+
+      &:hover {
+        color: v.$color-accent-hover;
+      }
+
+      &:focus-visible {
+        @include m.focus-ring;
+      }
     }
   }
 
-  .wizard-content {
-    padding: 12px 0;
+  .warning-message {
+    @include w.message-warning;
   }
 
-  .wizard-footer {
-    padding: 10px;
+  .btn-primary {
+    @include w.btn-primary;
+  }
+}
+
+// Start-over confirmation (native modal <dialog>, browser top layer).
+.confirm-dialog {
+  max-width: 24rem;
+  padding: 1.25rem 1.5rem;
+  border: none;
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  color: v.$gray-800;
+
+  &::backdrop {
+    background: rgba(0, 0, 0, 0.35);
   }
 
-  .footer-info {
+  h2 {
+    margin: 0 0 0.5rem;
+    font-size: v.$font-size-lg;
+  }
+
+  p {
+    margin: 0 0 1.25rem;
+    font-size: v.$font-size-md;
+    color: v.$gray-700;
+  }
+
+  .confirm-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+  }
+
+  .btn-secondary {
+    @include w.btn-secondary;
+  }
+
+  // Destructive action: error red instead of the primary accent (white 6.54:1).
+  .btn-danger {
+    @include w.btn-base;
+    background: v.$severity-error-text;
+    color: v.$white;
+    font-weight: 600;
+
+    &:hover {
+      opacity: 0.9;
+    }
+  }
+}
+
+.visually-hidden {
+  @include m.visually-hidden;
+}
+
+// Narrow viewports / 200% zoom: the step sidebar becomes a compact strip above
+// the work area (the stepper switches to its horizontal compact form).
+@media (max-width: $shell-stack-width) {
+  .wizard-titlebar {
+    padding: 0.5rem 0.75rem;
+
+    h1 {
+      font-size: v.$font-size-md;
+    }
+  }
+
+  .title-separator {
     display: none;
+  }
+
+  .wizard-body {
+    flex-direction: column;
+  }
+
+  .wizard-sidebar {
+    width: auto;
+    flex-shrink: 0;
+    border-right: none;
+    border-bottom: 1px solid v.$gray-300;
+    overflow: visible;
   }
 }

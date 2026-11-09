@@ -1,0 +1,201 @@
+@use '../../../../styles/variables' as v;
+@use '../../../../styles/mixins' as m;
+@use '../wizard-shared' as w;
+
+.issue-card {
+  border: 1px solid v.$gray-300;
+  border-radius: 6px;
+  padding: 14px v.$space-4;
+  background: white;
+
+  // Blocking / hard failure.
+  &.blocking {
+    background: w.severity(error, bg);
+    border-color: w.severity(error, border);
+
+    .severity-icon {
+      color: w.severity(error, icon);
+    }
+
+    .class-badge {
+      @include w.severity-badge(error);
+    }
+  }
+
+  // Warning / degraded or possible issue.
+  &.warning {
+    background: w.severity(warning, bg);
+    border-color: w.severity(warning, border);
+
+    .severity-icon {
+      color: w.severity(warning, icon);
+    }
+
+    .class-badge {
+      @include w.severity-badge(warning);
+    }
+  }
+
+  .issue-head {
+    display: flex;
+    align-items: center;
+    gap: v.$space-2;
+    margin-bottom: 10px;
+
+    .severity-icon {
+      font-size: v.$icon-size-lg;
+      flex-shrink: 0;
+    }
+
+    .class-badge {
+      font-family: 'Roboto Mono', 'Courier New', monospace;
+      font-size: v.$font-size-xs;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+
+    .issue-title {
+      font-size: v.$font-size-md;
+      font-weight: 600;
+      color: v.$gray-800;
+      flex: 1;
+    }
+
+    .severity-pill {
+      font-size: v.$font-size-xs;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+      color: v.$text-muted;
+      background: v.$gray-100;
+      border: 1px solid v.$gray-300;
+      border-radius: 10px;
+      padding: 2px v.$space-2;
+      flex-shrink: 0;
+    }
+  }
+
+  .issue-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+
+    .grid-row {
+      display: grid;
+      grid-template-columns: 44px 1fr;
+      gap: 10px;
+      align-items: start;
+
+      // WHY / FIX keys: #666 (>= 5.2:1 on the tinted card backgrounds).
+      .grid-key {
+        font-size: v.$font-size-xs;
+        font-weight: 700;
+        color: v.$text-muted;
+        letter-spacing: 0.05em;
+        padding-top: 2px;
+      }
+
+      .grid-val {
+        font-size: v.$font-size-base;
+        color: v.$gray-700;
+        line-height: 1.45;
+      }
+    }
+  }
+
+  .technical-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: v.$space-1;
+    margin-top: 10px;
+    padding: 0;
+    background: none;
+    border: none;
+    color: v.$color-accent;
+    font-size: v.$font-size-sm;
+    font-weight: 600;
+    cursor: pointer;
+
+    .material-icons {
+      font-size: v.$icon-size-sm;
+    }
+
+    &:hover {
+      text-decoration: underline;
+    }
+
+    &:focus-visible {
+      @include m.focus-ring;
+    }
+  }
+
+  .technical-detail {
+    margin: v.$space-2 0 0;
+    padding: 10px v.$space-3;
+    background: v.$gray-100;
+    border: 1px solid v.$gray-200;
+    border-radius: 4px;
+    font-family: 'Roboto Mono', 'Courier New', monospace;
+    font-size: v.$font-size-sm;
+    color: v.$gray-700;
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-x: auto;
+  }
+
+  .issue-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-top: 14px;
+
+    // Accent-outline primary action on a light info tint.
+    .btn-fix {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 14px;
+      background: v.$severity-info-tint;
+      border: 1px solid v.$color-accent;
+      border-radius: 4px;
+      color: v.$color-accent;
+      font-size: v.$font-size-base;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color 0.15s ease;
+
+      .material-icons {
+        font-size: v.$icon-size-sm;
+      }
+
+      &:hover {
+        background: color-mix(in srgb, v.$severity-info-tint 80%, v.$active-color 20%);
+      }
+
+      &:focus-visible {
+        @include m.focus-ring(1px);
+      }
+    }
+
+    .btn-dismiss {
+      padding: 7px v.$space-3;
+      background: transparent;
+      border: 1px solid v.$gray-300;
+      border-radius: 4px;
+      color: v.$text-muted;
+      font-size: v.$font-size-base;
+      cursor: pointer;
+
+      &:hover {
+        background: v.$gray-100;
+      }
+
+      &:focus-visible {
+        @include m.focus-ring(1px);
+      }
+    }
+  }
+}

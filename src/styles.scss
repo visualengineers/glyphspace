@@ -1,3 +1,5 @@
+@use 'styles/mixins' as m;
+
 /* You can add global styles to this file, and also import other style files */
 
 /* styles.scss */
@@ -26,4 +28,25 @@ body {
 
 .spinning {
   animation: spin 1s linear infinite;
+}
+
+/* Preprocessing wizard (lazy-loaded): wizard-wide rules that must reach into
+   every step component, so they live in the global stylesheet. */
+
+// Keyboard focus safety net (WCAG 2.4.7 / 1.4.11): any focusable element in the
+// wizard without a component-specific ring gets the accessible accent ring.
+.preprocessing-wizard :focus-visible {
+  @include m.focus-ring;
+}
+
+// Reduced motion: no CSS transitions or animations anywhere inside the wizard
+// (the Step 2 -> 3 morph is skipped in code for the same preference).
+@media (prefers-reduced-motion: reduce) {
+  .preprocessing-wizard,
+  .preprocessing-wizard *,
+  .preprocessing-wizard *::before,
+  .preprocessing-wizard *::after {
+    transition: none !important;
+    animation: none !important;
+  }
 }

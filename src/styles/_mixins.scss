@@ -1,5 +1,15 @@
 @use 'variables' as v;
 
+// ============================================================================
+// Focus ring — the ONE keyboard focus indicator (WCAG 2.4.7 / 1.4.11): 2px in
+// the accessible accent, >= 4.85:1 against every wizard surface.
+// ============================================================================
+
+@mixin focus-ring($offset: 2px) {
+  outline: 2px solid v.$color-accent;
+  outline-offset: $offset;
+}
+
 /**
  * Tooltip mixin using data-tooltip attribute
  * Displays a tooltip on hover using ::after pseudo-element
@@ -26,12 +36,12 @@
     background: v.$tooltip-bg;
     color: v.$tooltip-text;
     padding: 3px 6px;
-    font-size: 12px;
+    font-size: v.$font-size-sm;
     white-space: nowrap;
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.15s ease-in-out;
-    z-index: 1000;
+    z-index: v.$z-tooltip;
     box-sizing: border-box;
     max-width: 150px;
 
@@ -138,17 +148,20 @@
     border: 1px solid v.$ui-border-light;
     background: white;
 
+    // Match the native wizard <select> chevron (see the `select` mixin): the
+    // same solid triangle, colour and size, so every dropdown affordance in the
+    // wizard reads as identical.
     &::after {
       content: '';
       display: inline-block;
-      width: 16px;
-      height: 16px;
+      width: 12px;
+      height: 12px;
       margin-left: auto;
       flex-shrink: 0;
-      background-image: url("data:image/svg+xml;utf8,<svg fill='none' stroke='%23333' stroke-width='2' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'><path d='M6 9l6 6 6-6'/></svg>");
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
       background-repeat: no-repeat;
       background-position: center;
-      background-size: 16px 16px;
+      background-size: 12px 12px;
     }
 
     &:hover {
@@ -177,7 +190,7 @@
     border: 1px solid v.$ui-border-light;
     border-radius: 8px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
-    z-index: 10;
+    z-index: v.$z-dropdown;
     padding: 4px;
     margin-top: 4px;
     display: flex;
@@ -185,7 +198,7 @@
   }
 
   .color-scale-group-label {
-    @include menu-label($size: 11px);
+    @include menu-label($size: v.$font-size-xs);
     padding: 4px 6px 2px;
   }
 
@@ -206,9 +219,10 @@
       background: v.$option-hover-bg;
     }
 
+    // Selected option: accent outline (the former 30% cyan outline was ~1.3:1).
     &.active {
       background: rgba(v.$active-color, 0.08);
-      outline: 1px solid rgba(v.$active-color, 0.3);
+      outline: 1px solid v.$color-accent;
     }
 
     .color-gradient {
@@ -248,6 +262,22 @@
 }
 
 // ============================================================================
+// Visually hidden — text for screen readers only
+// ============================================================================
+
+@mixin visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+// ============================================================================
 // Form Group — shared between canvas settingscontrols and wizard
 // ============================================================================
 
@@ -262,13 +292,17 @@
     border-radius: 8px;
     border: 1px solid v.$ui-border-light;
     background: white;
-    font-size: 13px;
+    font-size: v.$font-size-base;
     cursor: pointer;
     color: v.$gray-700;
 
     &:focus {
       outline: none;
       border-color: v.$color-blue-highlight;
+    }
+
+    &:focus-visible {
+      @include focus-ring;
     }
   }
 }

@@ -1,0 +1,48 @@
+<div class="issue-card" [class.blocking]="issue.severity === 'blocking'" [class.warning]="issue.severity === 'warning'">
+  <div class="issue-head">
+    <span class="severity-icon material-icons" aria-hidden="true">
+      {{ issue.severity === 'blocking' ? 'error' : 'warning' }}
+    </span>
+    @if (issue.code) {
+      <span class="class-badge">{{ issue.code }}</span>
+    }
+    <span class="issue-title">{{ issue.title }}</span>
+    <span class="severity-pill">{{ pillLabel }}</span>
+  </div>
+
+  <div class="issue-grid">
+    <div class="grid-row">
+      <span class="grid-key">WHY</span>
+      <span class="grid-val">{{ issue.why }}</span>
+    </div>
+    <div class="grid-row">
+      <span class="grid-key">FIX</span>
+      <span class="grid-val">{{ issue.fix }}</span>
+    </div>
+  </div>
+
+  @if (issue.raw) {
+    <button
+      type="button"
+      class="technical-toggle"
+      [attr.aria-expanded]="technicalOpen"
+      [attr.aria-controls]="detailsId"
+      (click)="toggleTechnical()"
+    >
+      <span class="material-icons" aria-hidden="true">{{ technicalOpen ? 'expand_less' : 'expand_more' }}</span>
+      {{ technicalOpen ? 'Hide technical details' : 'Technical details' }}
+    </button>
+    <!-- Always rendered (hidden while collapsed) so aria-controls always resolves. -->
+    <pre class="technical-detail" [id]="detailsId" [hidden]="!technicalOpen">{{ issue.raw }}</pre>
+  }
+
+  <div class="issue-actions">
+    <button type="button" class="btn-fix" (click)="fix.emit(issue)">
+      Fix in step {{ stepNumber }} · {{ stepName }}
+      <span class="material-icons" aria-hidden="true">arrow_forward</span>
+    </button>
+    @if (issue.dismissable) {
+      <button type="button" class="btn-dismiss" (click)="dismiss.emit(issue)">Dismiss</button>
+    }
+  </div>
+</div>

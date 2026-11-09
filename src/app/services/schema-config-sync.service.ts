@@ -12,6 +12,7 @@ export class SchemaConfigSyncService {
     this.config.colorFeature = schema.color;
     this.config.replaceActiveFeatures(schema.glyph);
     this.config.featureLabels = schema.label;
+    this.config.metadataLabels = schema.metadata ?? {};
 
     if (schema.colorScaleId !== undefined) {
       this.config.colorRange = schema.colorScaleId;

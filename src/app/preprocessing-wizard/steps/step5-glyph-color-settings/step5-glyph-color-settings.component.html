@@ -1,0 +1,367 @@
+<div class="step5-glyph-color-settings">
+  <div class="step-content">
+    <p class="initial-view-note">
+      <span class="material-icons" aria-hidden="true">tune</span>
+      <span
+        >These settings define the dashboard's initial view. You can change these later in the dashboard's Encoding
+        panel.</span
+      >
+    </p>
+
+    <!-- ====== Color Feature (single row) ====== -->
+    <span id="wizard-anchor-color" class="scroll-anchor"></span>
+    <section class="config-panel color-feature-panel" aria-label="Color">
+      <div class="panel-header-row">
+        <div class="form-group">
+          <!-- The help button sits next to, not inside, the label so it stays out of the select's name. -->
+          <div class="label-row">
+            <label class="menu-label" for="step5-color-attribute">Color attribute</label>
+            <app-help-tooltip [helpText]="HELP_TEXT.general.colorFeature" topic="Color attribute"></app-help-tooltip>
+          </div>
+          <select id="step5-color-attribute" [ngModel]="colorFeature" (ngModelChange)="setColorFeature($event)">
+            @for (column of columns; track column.name) {
+              <option [value]="column.name">{{ column.name }}</option>
+            }
+          </select>
+        </div>
+
+        <div class="form-group">
+          <div class="label-row">
+            <span class="menu-label" id="step5-color-scale-label">Color scale</span>
+            <app-help-tooltip [helpText]="HELP_TEXT.general.colorScale" topic="Color scale"></app-help-tooltip>
+          </div>
+          <!-- A custom element cannot be the target of <label for>; the selector names its own button. -->
+          <app-color-scale-selector
+            ariaLabelledby="step5-color-scale-label"
+            [groupedColorScales]="groupedColorScales"
+            [selectedScale]="getSelectedColorScale()"
+            (scaleSelected)="selectColorScale($event)"
+          >
+          </app-color-scale-selector>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====== Two-Column: Glyph Features + Live Preview ====== -->
+    <span id="wizard-anchor-glyph" class="scroll-anchor"></span>
+    <div class="glyph-section-two-col">
+      <!-- LEFT: Feature Selection -->
+      <section class="config-panel glyph-features-panel" aria-labelledby="step5-glyph-heading">
+        <div class="glyph-panel-header">
+          <!-- Help button outside the heading so it does not become part of the section's name. -->
+          <div class="heading-with-help">
+            <h3 id="step5-glyph-heading">
+              <span class="material-icons" aria-hidden="true">star_outline</span>
+              Glyph Features ({{ selectedGlyphFeatures.length }}/{{ MAX_GLYPH_FEATURES }})
+            </h3>
+            <app-help-tooltip [helpText]="HELP_TEXT.general.glyphFeatures" topic="Glyph features"></app-help-tooltip>
+          </div>
+          <button
+            type="button"
+            class="btn-suggestion-compact"
+            (click)="applySuggestedFeaturesByUser()"
+            [disabled]="suggestedFeatures.length === 0 || !suggestionsWouldChange()"
+          >
+            <span class="material-icons" aria-hidden="true">auto_awesome</span>
+            Smart Suggestions
+          </button>
+        </div>
+
+        <!-- Progress bar (visual only; the heading states the count) -->
+        <div class="feature-progress" aria-hidden="true">
+          <div class="progress-bar-container">
+            <div
+              class="progress-fill"
+              [style.width.%]="(selectedGlyphFeatures.length / MAX_GLYPH_FEATURES) * 100"
+              [class.complete]="isGlyphSelectionValid"
+            ></div>
+          </div>
+        </div>
+
+        <!-- Selected features (drop zone). The order defines the glyph axes; the
+             move buttons are the non-drag way to change it (WCAG 2.1.1, 2.5.7). -->
+        <div
+          class="feature-list-unified"
+          role="list"
+          aria-label="Selected glyph features, in axis order"
+          (drop)="onDropInSelected($event)"
+          (dragover)="onDragOver($event)"
+        >
+          @if (selectedGlyphFeatures.length === 0) {
+            <div class="empty-hint" role="listitem">
+              <span class="material-icons" aria-hidden="true">info</span>
+              Click features below or use Smart Suggestions
+            </div>
+          }
+          @for (feature of selectedGlyphFeatures; track feature; let i = $index; let first = $first; let last = $last) {
+            <div
+              class="feature-row selected"
+              role="listitem"
+              [class.drop-target]="dragOverIndex === i"
+              draggable="true"
+              (dragstart)="onDragStart($event, feature, 'selected', i)"
+              (dragend)="onDragEnd($event)"
+              (dragover)="onItemDragOver($event, i)"
+              (drop)="onDropOnSelectedItem($event, i)"
+            >
+              <span class="material-icons drag-handle" title="Drag to reorder" aria-hidden="true">drag_indicator</span>
+              <span class="feature-order">{{ i + 1 }}</span>
+              <span class="feature-name" [title]="feature">{{ feature }}</span>
+              @if (getFeatureVariance(feature) !== null) {
+                <span class="variance-bar" title="Relative variance: {{ getFeatureVariance(feature)?.toFixed(4) }}">
+                  <span class="variance-fill" [style.width.%]="getFeatureVariancePercent(feature)"></span>
+                </span>
+              }
+              <button
+                type="button"
+                class="btn-row-icon btn-move"
+                [id]="moveButtonId('up', i)"
+                [disabled]="first"
+                title="Move up"
+                [attr.aria-label]="'Move ' + feature + ' up'"
+                (click)="moveGlyphFeature(i, 'up')"
+              >
+                <span class="material-icons" aria-hidden="true">arrow_upward</span>
+              </button>
+              <button
+                type="button"
+                class="btn-row-icon btn-move"
+                [id]="moveButtonId('down', i)"
+                [disabled]="last"
+                title="Move down"
+                [attr.aria-label]="'Move ' + feature + ' down'"
+                (click)="moveGlyphFeature(i, 'down')"
+              >
+                <span class="material-icons" aria-hidden="true">arrow_downward</span>
+              </button>
+              <button
+                type="button"
+                class="btn-row-icon btn-remove"
+                [id]="removeButtonId(i)"
+                title="Remove feature"
+                [attr.aria-label]="'Remove ' + feature"
+                (click)="removeSelectedFeature(i)"
+              >
+                <span class="material-icons" aria-hidden="true">close</span>
+              </button>
+            </div>
+          }
+        </div>
+
+        @if (selectedGlyphFeatures.length > 0 && selectedGlyphFeatures.length < MIN_GLYPH_FEATURES) {
+          <div class="validation-warning" role="status">
+            <span class="material-icons" aria-hidden="true">warning</span>
+            <span
+              >{{ MIN_GLYPH_FEATURES - selectedGlyphFeatures.length }} more needed (a glyph needs 3–12 features)</span
+            >
+          </div>
+        }
+        @if (selectedGlyphFeatures.length > MAX_GLYPH_FEATURES) {
+          <div class="validation-warning" role="status">
+            <span class="material-icons" aria-hidden="true">error_outline</span>
+            <span
+              >Remove {{ selectedGlyphFeatures.length - MAX_GLYPH_FEATURES }} — a glyph takes at most
+              {{ MAX_GLYPH_FEATURES }} features</span
+            >
+          </div>
+        }
+
+        <div class="feature-separator"></div>
+
+        <!-- Available features -->
+        <div class="available-label">
+          <span>Available features</span>
+          <span class="variance-label">Variance</span>
+        </div>
+
+        <div class="feature-filter-bar">
+          <div class="search-box">
+            <span class="material-icons" aria-hidden="true">search</span>
+            <input
+              type="text"
+              [(ngModel)]="featureSearch"
+              placeholder="Search features…"
+              aria-label="Search available features"
+              class="search-input"
+            />
+            @if (featureSearch) {
+              <button type="button" class="clear-search" aria-label="Clear search" (click)="featureSearch = ''">
+                <span class="material-icons" aria-hidden="true">close</span>
+              </button>
+            }
+          </div>
+          <select [(ngModel)]="featureTypeFilter" class="filter-select" aria-label="Filter features by type">
+            <option value="all">All Types</option>
+            <option [value]="DataType.Numeric">Numeric</option>
+            <option [value]="DataType.Categorical">Categorical</option>
+            <option [value]="DataType.Text">Text</option>
+            <option [value]="DataType.Date">Date</option>
+            <option [value]="DataType.Boolean">Boolean</option>
+            <option [value]="DataType.Coordinate">Coordinate</option>
+            <option [value]="DataType.ID">ID</option>
+          </select>
+        </div>
+
+        <div
+          class="available-features-list"
+          role="group"
+          aria-label="Available features"
+          (drop)="onDropInAvailable($event)"
+          (dragover)="onDragOver($event)"
+        >
+          @for (feature of filteredAvailableFeatures; track feature; let i = $index) {
+            <button
+              type="button"
+              class="feature-row available"
+              [id]="availableButtonId(i)"
+              [class.dragging]="draggedFromList === 'available' && draggedFeature === feature"
+              [attr.aria-label]="'Add ' + feature"
+              (click)="addAvailableFeature(feature, i)"
+              draggable="true"
+              (dragstart)="onDragStart($event, feature, 'available', -1)"
+              (dragend)="onDragEnd($event)"
+            >
+              <span class="material-icons add-icon" aria-hidden="true">add</span>
+              <span class="feature-name" [title]="feature">{{ feature }}</span>
+              @if (getFeatureVariance(feature) !== null) {
+                <span class="variance-bar" title="Relative variance: {{ getFeatureVariance(feature)?.toFixed(4) }}">
+                  <span class="variance-fill" [style.width.%]="getFeatureVariancePercent(feature)"></span>
+                </span>
+              }
+            </button>
+          }
+          @if (filteredAvailableFeatures.length === 0) {
+            <div class="available-empty">
+              <span>No features match</span>
+              @if (featureSearch || featureTypeFilter !== 'all') {
+                <button type="button" class="btn-clear-inline" (click)="clearFeatureFilters()">Clear filters</button>
+              }
+            </div>
+          }
+        </div>
+      </section>
+
+      <!-- RIGHT: Live SVG Glyph Preview -->
+      <section class="config-panel glyph-preview-panel" aria-labelledby="step5-preview-heading">
+        <h3 id="step5-preview-heading">
+          <span class="material-icons" aria-hidden="true">visibility</span>
+          Glyph Preview
+        </h3>
+
+        <div class="preview-svg-container">
+          @if (selectedGlyphFeatures.length >= MIN_GLYPH_FEATURES) {
+            <svg viewBox="0 0 240 240" class="glyph-preview-svg" role="img" [attr.aria-label]="previewDescription">
+              <circle
+                [attr.cx]="PREVIEW_CENTER"
+                [attr.cy]="PREVIEW_CENTER"
+                [attr.r]="PREVIEW_RADIUS"
+                fill="#f0f0f0"
+                stroke="#ddd"
+                stroke-width="0.5"
+              />
+
+              @for (axis of preview.axes; track $index) {
+                <line
+                  [attr.x1]="PREVIEW_CENTER"
+                  [attr.y1]="PREVIEW_CENTER"
+                  [attr.x2]="axis.x"
+                  [attr.y2]="axis.y"
+                  stroke="#ccc"
+                  stroke-width="0.5"
+                />
+              }
+
+              @if (selectedGlyphType === 'star') {
+                <path
+                  [attr.d]="preview.starPath"
+                  fill="rgba(0, 188, 212, 0.35)"
+                  stroke="#00bcd4"
+                  stroke-width="1.5"
+                  stroke-linejoin="round"
+                />
+              }
+
+              @if (selectedGlyphType === 'flower') {
+                @for (petal of preview.petals; track $index) {
+                  <g
+                    [attr.transform]="
+                      'translate(' + PREVIEW_CENTER + ',' + PREVIEW_CENTER + ') rotate(' + petal.angleDeg + ')'
+                    "
+                  >
+                    <path [attr.d]="petal.path" fill="rgba(0, 188, 212, 0.45)" stroke="#00bcd4" stroke-width="1" />
+                  </g>
+                }
+              }
+
+              @if (selectedGlyphType === 'whisker') {
+                @for (bar of preview.bars; track $index) {
+                  <g
+                    [attr.transform]="
+                      'translate(' + PREVIEW_CENTER + ',' + PREVIEW_CENTER + ') rotate(' + bar.angleDeg + ')'
+                    "
+                  >
+                    <rect
+                      x="-3"
+                      [attr.y]="-bar.length"
+                      width="6"
+                      [attr.height]="bar.length"
+                      fill="rgba(0, 188, 212, 0.5)"
+                      stroke="#00bcd4"
+                      stroke-width="0.5"
+                      rx="1"
+                    />
+                  </g>
+                }
+              }
+
+              @for (label of preview.labels; track label.name) {
+                <text
+                  [attr.x]="label.x"
+                  [attr.y]="label.y"
+                  [attr.text-anchor]="label.anchor"
+                  dominant-baseline="middle"
+                  class="axis-label"
+                >
+                  <title>{{ label.name }}</title>
+                  {{ label.text }}
+                </text>
+              }
+            </svg>
+          } @else {
+            <div class="preview-placeholder">
+              <span class="material-icons" aria-hidden="true">star_outline</span>
+              <p>Select at least {{ MIN_GLYPH_FEATURES }} features to see preview</p>
+            </div>
+          }
+        </div>
+
+        <div class="glyph-type-tabs" role="group" aria-label="Glyph type">
+          <button
+            type="button"
+            [class.active]="selectedGlyphType === 'star'"
+            [attr.aria-pressed]="selectedGlyphType === 'star'"
+            (click)="selectedGlyphType = 'star'"
+          >
+            <span class="material-icons" aria-hidden="true">star</span> Star
+          </button>
+          <button
+            type="button"
+            [class.active]="selectedGlyphType === 'flower'"
+            [attr.aria-pressed]="selectedGlyphType === 'flower'"
+            (click)="selectedGlyphType = 'flower'"
+          >
+            <span class="material-icons" aria-hidden="true">local_florist</span> Flower
+          </button>
+          <button
+            type="button"
+            [class.active]="selectedGlyphType === 'whisker'"
+            [attr.aria-pressed]="selectedGlyphType === 'whisker'"
+            (click)="selectedGlyphType = 'whisker'"
+          >
+            <span class="material-icons" aria-hidden="true">equalizer</span> Whisker
+          </button>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>

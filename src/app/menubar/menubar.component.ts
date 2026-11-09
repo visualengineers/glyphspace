@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, OnDestroy, OnInit, Output } from '@angular/core';
+import { Component, ElementRef, EventEmitter, Input, OnDestroy, OnInit, Output, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Subscription } from 'rxjs';
 import { PreprocessingWizardComponent } from '../preprocessing-wizard/preprocessing-wizard.component';
@@ -17,6 +17,9 @@ import { ConfigService } from '../services/config.service';
 export class MenuBarComponent implements OnInit, OnDestroy {
   @Output() addCanvas = new EventEmitter<void>();
   @Input() totalCells = 0;
+
+  @ViewChild('uploadButton') uploadButton?: ElementRef<HTMLButtonElement>;
+  @ViewChild('menuToggle') menuToggle?: ElementRef<HTMLButtonElement>;
 
   menuOpen = false;
   showWizard = false;
@@ -69,6 +72,18 @@ export class MenuBarComponent implements OnInit, OnDestroy {
   closePreprocessingWizard() {
     this.showWizard = false;
     this.configService.modalOpen = false;
+    this.restoreFocusAfterWizard();
+  }
+
+  /**
+   * WCAG 2.4.3: closing the wizard dialog returns focus to the Upload button that
+   * opened it — or to the menu toggle when the (mobile) menu is collapsed.
+   */
+  private restoreFocusAfterWizard(): void {
+    const toggle = this.menuToggle?.nativeElement;
+    const menuCollapsed = !this.menuOpen && !!toggle && toggle.getClientRects().length > 0;
+    const target = menuCollapsed ? toggle : this.uploadButton?.nativeElement;
+    target?.focus();
   }
 
   download() {

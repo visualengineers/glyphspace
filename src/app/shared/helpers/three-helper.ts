@@ -17,27 +17,38 @@ export function createGrayPlaceholderTexture(size = 16, gray = 136): THREE.Textu
   return texture;
 }
 
-export function hitTest(
-  event: MouseEvent,
-  renderer: THREE.WebGLRenderer,
-  scene: THREE.Group,
-  camera: THREE.Camera,
-  sizeInfo: GlyphSizeInfo
-) {
-  const rect = renderer.domElement.getBoundingClientRect();
-
-  const mouseNDC = {
+/** Convert the mouse position of an event to normalized device coordinates within `rect`. */
+function toMouseNDC(event: MouseEvent, rect: DOMRect): { x: number; y: number } {
+  return {
     x: ((event.clientX - rect.left) / rect.width) * 2 - 1,
     y: -((event.clientY - rect.top) / rect.height) * 2 + 1,
   };
+}
+
+/**
+ * Return the object whose projected world position lies closest to the mouse,
+ * within `sizeInfo.hitTolerance` screen pixels, or null if none qualifies.
+ */
+function findClosestToPointer(
+  event: MouseEvent,
+  renderer: THREE.WebGLRenderer,
+  objects: readonly THREE.Object3D[],
+  camera: THREE.Camera,
+  sizeInfo: GlyphSizeInfo
+): THREE.Object3D | null {
+  const rect = renderer.domElement.getBoundingClientRect();
+  const mouseNDC = toMouseNDC(event, rect);
 
   let closestObject: THREE.Object3D | null = null;
   let closestDist = Infinity;
   const tolerancePx = sizeInfo.hitTolerance;
 
-  for (const object of scene.children) {
+  // Reuse vector to avoid allocations
+  const screenPos = new THREE.Vector3();
+
+  for (const object of objects) {
     // Use object's world position projected to screen
-    const screenPos = object.getWorldPosition(new THREE.Vector3()).project(camera);
+    object.getWorldPosition(screenPos).project(camera);
 
     const dx = ((mouseNDC.x - screenPos.x) * rect.width) / 2;
     const dy = ((mouseNDC.y - screenPos.y) * rect.height) / 2;
@@ -49,6 +60,16 @@ export function hitTest(
     }
   }
   return closestObject;
+}
+
+export function hitTest(
+  event: MouseEvent,
+  renderer: THREE.WebGLRenderer,
+  scene: THREE.Group,
+  camera: THREE.Camera,
+  sizeInfo: GlyphSizeInfo
+): THREE.Object3D | null {
+  return findClosestToPointer(event, renderer, scene.children, camera, sizeInfo);
 }
 
 /**
@@ -63,35 +84,7 @@ export function hitTestCandidates(
   sizeInfo: GlyphSizeInfo
 ): THREE.Object3D | null {
   if (candidates.length === 0) return null;
-
-  const rect = renderer.domElement.getBoundingClientRect();
-
-  const mouseNDC = {
-    x: ((event.clientX - rect.left) / rect.width) * 2 - 1,
-    y: -((event.clientY - rect.top) / rect.height) * 2 + 1,
-  };
-
-  let closestObject: THREE.Object3D | null = null;
-  let closestDist = Infinity;
-  const tolerancePx = sizeInfo.hitTolerance;
-
-  // Reuse vector to avoid allocations
-  const worldPos = new THREE.Vector3();
-
-  for (const object of candidates) {
-    object.getWorldPosition(worldPos);
-    const screenPos = worldPos.project(camera);
-
-    const dx = ((mouseNDC.x - screenPos.x) * rect.width) / 2;
-    const dy = ((mouseNDC.y - screenPos.y) * rect.height) / 2;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-
-    if (dist < tolerancePx && dist < closestDist) {
-      closestObject = object;
-      closestDist = dist;
-    }
-  }
-  return closestObject;
+  return findClosestToPointer(event, renderer, candidates, camera, sizeInfo);
 }
 
 /**
@@ -103,12 +96,7 @@ export function screenToWorld(
   camera: THREE.OrthographicCamera
 ): { x: number; y: number } {
   const rect = renderer.domElement.getBoundingClientRect();
-
-  // Convert to NDC
-  const mouseNDC = {
-    x: ((event.clientX - rect.left) / rect.width) * 2 - 1,
-    y: -((event.clientY - rect.top) / rect.height) * 2 + 1,
-  };
+  const mouseNDC = toMouseNDC(event, rect);
 
   // Convert NDC to world coordinates for orthographic camera
   const worldX = camera.position.x + (mouseNDC.x * (camera.right - camera.left)) / 2 / camera.zoom;
@@ -158,12 +146,6 @@ export function convertToScreenSpace(
   const screenY = ((-ndc.y + 1) / 2) * rect.height + rect.top;
 
   return new THREE.Vector2(screenX, screenY);
-}
-
-export function jitterFromVector(vec: THREE.Vector3) {
-  const seed = (vec.x * 73856093) ^ (vec.y * 19349663) ^ (vec.z * 83492791);
-  const rng = Math.sin(seed) * 10000;
-  return (rng - Math.floor(rng)) * 2 - 1; // in [-1, 1]
 }
 
 export function scalePosition(

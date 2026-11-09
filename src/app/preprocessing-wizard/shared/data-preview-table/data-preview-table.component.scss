@@ -7,9 +7,9 @@
 }
 
 .no-data {
-  padding: 32px;
+  padding: v.$space-8;
   text-align: center;
-  color: v.$gray-500;
+  color: v.$text-muted;
 }
 
 .table-container {
@@ -30,22 +30,22 @@ table {
   thead th {
     &.highlighted {
       background: rgba(v.$active-color, 0.1);
-      color: v.$active-color;
+      color: v.$color-accent;
     }
   }
 
   tbody td {
     &.highlighted {
-      background: rgba(v.$status-success, 0.1);
+      background: v.$severity-success-tint;
     }
   }
 }
 
 .table-footer {
-  padding: 10px 12px;
+  padding: 10px v.$space-3;
   background: v.$gray-100;
   border-top: 1px solid v.$gray-200;
-  font-size: 13px;
-  color: v.$gray-600;
+  font-size: v.$font-size-base;
+  color: v.$text-muted;
   text-align: center;
 }

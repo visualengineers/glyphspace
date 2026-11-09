@@ -18,6 +18,7 @@ export class ConfigService {
   private _activeFeatures: string[] = [];
   private _colorFeature = '';
   private _featureLabels: Record<string, string> = {};
+  private _metadataLabels: Record<string, string> = {};
   private _featureTypes: Record<string, string> = {};
   private _featureMaxValues: Record<string, number> = {};
   private _dataSource = '';
@@ -167,6 +168,15 @@ export class ConfigService {
 
   set featureLabels(labels: Record<string, string>) {
     this._featureLabels = { ...labels };
+  }
+
+  /** Column names of the metadata ids (tooltip and search only). */
+  get metadataLabels(): Record<string, string> {
+    return this._metadataLabels;
+  }
+
+  set metadataLabels(labels: Record<string, string>) {
+    this._metadataLabels = { ...labels };
   }
 
   set colorFeature(feature: string) {

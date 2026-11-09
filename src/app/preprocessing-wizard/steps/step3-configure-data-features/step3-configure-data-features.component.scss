@@ -2,41 +2,23 @@
 @use '../../../../styles/variables' as v;
 @use '../../../../styles/mixins' as m;
 
+// A4/A6: invisible scroll anchor used by deep-links (undo/redo "Show change"
+// and review edit-links) so a target setting scrolls into view without a sticky
+// header covering it.
+.scroll-anchor {
+  @include w.scroll-anchor;
+}
+
 .step3-configure-data-features {
   display: flex;
   flex-direction: column;
+  flex: 1;
+  min-height: 0;
 
+  // A column so the rail/well box can take the height left above the
+  // (optional) duplicates section.
   .step-content {
-    @include w.step-content;
-  }
-
-  .step-header {
-    @include w.step-header;
-  }
-
-  .info-box {
-    @include w.info-box;
-    position: relative;
-
-    .dismiss-btn {
-      position: absolute;
-      top: 8px;
-      right: 8px;
-      background: none;
-      border: none;
-      cursor: pointer;
-      color: v.$gray-500;
-      padding: 2px;
-      display: flex;
-
-      &:hover {
-        color: v.$gray-800;
-      }
-
-      .material-icons {
-        font-size: 16px;
-      }
-    }
+    @include w.step-content-column;
   }
 
   .error-message {
@@ -44,92 +26,136 @@
   }
 
   // ============================================================================
-  // List + Detail Layout
+  // Option 1d layout: master rail (left) + recessed "imprint" well (right)
   // ============================================================================
 
-  .config-layout {
+  .config-shell {
     display: flex;
-    gap: 16px;
-    margin-bottom: 16px;
+    border: 1px solid v.$gray-300;
+    border-radius: 4px;
+    overflow: hidden;
+    // A14: same tone as the detail well (not white), so while the detail well
+    // slides in during the morph the area behind it is grey, never a white flash.
+    background: v.$wizard-well-bg;
+    // A14: fills the step down to the same bottom edge as Step 2's table box, so
+    // the morph needs no height change. Content taller than the box scrolls
+    // inside the rail / detail well.
+    @include w.fill-step-height;
+
+    // Narrow work area: rail above the detail well, both at their natural height
+    // (the rail list scrolls within a bounded height, the page scrolls the rest).
+    @include w.below-stack {
+      flex: none;
+      flex-direction: column;
+      min-height: 0;
+    }
   }
 
-  // ── Left Panel: Column List ──────────────────────────────────────────────────
-
-  .column-list-panel {
-    width: 320px;
+  // ── Left rail ────────────────────────────────────────────────────────────
+  // A14: width comes from shared wizard values so this rail and Step 2's left
+  // column band line up. The rail fills the box height; its list flexes and
+  // scrolls under the (taller) rail header.
+  .master-rail {
+    width: w.$wizard-rail-width;
     flex-shrink: 0;
     display: flex;
     flex-direction: column;
-    border: 1px solid v.$gray-300;
-    border-radius: 4px;
     background: white;
+    border-right: 1px solid v.$gray-300;
+
+    @include w.below-stack {
+      width: auto;
+      border-right: none;
+      border-bottom: 1px solid v.$gray-300;
+    }
   }
 
-  .list-header {
-    padding: 10px 12px;
-    border-bottom: 1px solid v.$gray-300;
-    background: v.$wizard-header-bg;
+  .rail-header {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: v.$space-2;
+    padding: 10px v.$space-3;
+    background: v.$wizard-header-bg;
+    border-bottom: 1px solid v.$gray-200;
+  }
+
+  .rail-title {
+    font-size: v.$font-size-xs;
+    font-weight: 700;
+    letter-spacing: 0.7px;
+    color: v.$text-muted;
+    text-transform: uppercase;
   }
 
   .search-box {
     @include w.search-box;
   }
 
-  .list-filters {
+  .rail-filters {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: v.$space-2;
 
     .filter-select {
       @include w.select;
-      font-size: 12px;
-      padding: 4px 24px 4px 8px;
       flex: 1;
+      min-width: 0;
+      font-size: v.$font-size-sm;
+      padding: v.$space-1 v.$space-6 v.$space-1 v.$space-2;
     }
 
-    .checkbox-label {
+    .issues-check {
       display: flex;
       align-items: center;
-      gap: 4px;
+      gap: v.$space-1;
       cursor: pointer;
-      font-size: 12px;
+      font-size: v.$font-size-sm;
       color: v.$gray-700;
       white-space: nowrap;
 
       input[type='checkbox'] {
+        @include w.checkbox;
         width: 14px;
         height: 14px;
-        cursor: pointer;
-        accent-color: v.$active-color;
       }
     }
   }
 
-  .list-footer {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 11px;
-    color: v.$gray-500;
-
-    .projection-count {
-      color: v.$active-color;
-      font-weight: 600;
-    }
+  .rail-count {
+    font-size: v.$font-size-xs;
+    color: v.$text-muted;
   }
 
   .column-list {
-    flex: none;
+    // A14: fill the remaining rail height below the header and scroll internally
+    // (no longer a fixed viewport height, so the box can match Step 2).
+    flex: 1;
+    min-height: 0;
+    @include w.scroll-y;
+
+    @include w.below-stack {
+      flex: none;
+      max-height: w.$wizard-stacked-list-max-height;
+    }
   }
 
   .column-item {
     display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 10px 12px;
+    align-items: flex-start;
+    gap: 10px;
+    // Rendered as a <button>: reset the native button look.
+    width: 100%;
+    margin: 0;
+    background: none;
+    border: 0;
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    padding: 10px 14px 10px v.$space-3;
+    // A14: shared fixed row height so rail item N lines up with the Step 2 row N
+    // (minimal vertical movement during the Flip morph).
+    min-height: w.$wizard-list-row-height;
+    box-sizing: border-box;
     cursor: pointer;
     border-bottom: 1px solid v.$gray-200;
     border-left: 3px solid transparent;
@@ -140,170 +166,249 @@
     }
 
     &.selected {
-      background: rgba(v.$active-color, 0.06);
-      border-left-color: v.$active-color;
-    }
+      background: rgba(v.$active-color, 0.08);
+      border-left-color: v.$color-accent;
 
-    &.has-issues {
       .column-name {
-        color: v.$status-warning-dark;
+        color: v.$color-accent;
+        font-weight: 700;
       }
     }
   }
 
-  .item-content {
+  .item-main {
     flex: 1;
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 3px;
   }
 
-  .item-top {
+  .item-line1 {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: v.$space-2;
 
     .column-name {
-      @include w.column-name-text;
-      font-size: 13px;
+      font-size: v.$font-size-base;
+      font-weight: 600;
+      color: v.$gray-800;
+      @include m.text-truncate;
+    }
+
+    .type-label {
+      @include w.data-type-badge;
+    }
+  }
+
+  .item-line2 {
+    .config-summary {
+      font-size: v.$font-size-xs;
+      color: v.$text-muted;
+    }
+  }
+
+  // Missing-value warning badge (informational — warning tone, error at >= 20%)
+  .missing-badge {
+    @include w.severity-badge(warning);
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    flex-shrink: 0;
+    padding: 2px 6px;
+    border-radius: 8px;
+    font-size: v.$font-size-xs;
+    font-weight: 700;
+
+    .material-icons {
+      font-size: v.$icon-size-xs;
+    }
+
+    &.high {
+      @include w.severity-badge(error);
+    }
+  }
+
+  .no-columns {
+    @include w.no-content($padding: v.$space-8 v.$space-4, $icon-size: v.$icon-size-2xl);
+
+    .btn-clear {
+      @include w.btn-text;
+      font-size: v.$font-size-sm;
+      padding: v.$space-1 10px;
+    }
+  }
+
+  // ── Right recessed well ────────────────────────────────────────────────────
+  .detail-well {
+    flex: 1;
+    min-width: 0;
+    // A14: fill the fixed box height and scroll internally when the column config
+    // is taller than the box (instead of stretching the whole step downwards).
+    min-height: 0;
+    // Only scroll vertically. `overflow-y: auto` alone makes overflow-x compute
+    // to `auto` too, which produced a stray horizontal scrollbar; pin it hidden.
+    @include w.scroll-y;
+    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: v.$space-3;
+    padding: 18px;
+    background: v.$wizard-well-bg;
+
+    // Stacked: natural height, no inner scroll box and nothing clipped.
+    @include w.below-stack {
+      overflow: visible;
+      padding: v.$space-3;
+    }
+  }
+
+  .breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: v.$space-1;
+    font-size: v.$font-size-xs;
+    color: v.$text-muted;
+
+    .material-icons {
+      font-size: v.$icon-size-xs;
+    }
+
+    .crumb-current {
+      color: v.$color-accent;
+      font-weight: 700;
       @include m.text-truncate;
     }
   }
 
-  .item-bottom {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    flex-wrap: wrap;
-
-    .config-summary {
-      font-size: 11px;
-      color: v.$gray-500;
-    }
-
-    .issue-badge {
-      font-size: 10px;
-      font-weight: 600;
-      padding: 1px 6px;
-      border-radius: 8px;
-
-      &.missing {
-        background: rgba(v.$status-warning, 0.1);
-        color: v.$status-warning-dark;
-      }
-
-      &.outliers {
-        background: rgba(v.$status-error, 0.1);
-        color: v.$status-error-dark;
-      }
-    }
-  }
-
-  .item-projection {
-    flex-shrink: 0;
-
-    input[type='checkbox'] {
-      width: 16px;
-      height: 16px;
-      cursor: pointer;
-      accent-color: v.$active-color;
-    }
-  }
-
-  .data-type-badge {
-    @include w.data-type-badge;
-  }
-
-  .no-columns {
-    @include w.no-content($padding: 32px 16px, $icon-size: 32px);
-
-    .btn-clear {
-      @include w.btn-text;
-      font-size: 12px;
-      padding: 4px 10px;
-    }
-  }
-
-  // ── Right Panel: Detail Configuration ────────────────────────────────────────
-
-  .detail-panel {
-    flex: 1;
-    border: 1px solid v.$gray-300;
-    border-radius: 4px;
-    background: white;
+  .detail-card {
+    // Grow to fill the well when content is short, but never shrink below the
+    // content's natural height — so tall configurations (e.g. the outlier
+    // principles note) make the card taller and the .detail-well scrolls,
+    // instead of the card clipping its own overflow.
+    flex: 1 0 auto;
     display: flex;
     flex-direction: column;
+    background: white;
+    border: 1px solid v.$gray-300;
+    border-radius: 6px;
+    overflow: hidden;
   }
 
-  .detail-header {
+  .card-header {
     display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 12px 16px;
-    border-bottom: 1px solid v.$gray-300;
-    background: v.$wizard-header-bg;
-
-    h3 {
-      font-size: 15px;
-      font-weight: 600;
-      color: v.$gray-800;
-      margin: 0;
-    }
-  }
-
-  .stats-bar {
-    display: flex;
-    flex-wrap: wrap;
+    flex-direction: column;
     gap: 6px;
-    padding: 10px 16px;
+    padding: 14px 18px;
     border-bottom: 1px solid v.$gray-200;
-    background: v.$wizard-header-bg;
 
-    .stat {
-      display: inline-flex;
+    .card-eyebrow {
+      font-size: v.$font-size-xs;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      color: v.$color-accent;
+    }
+
+    .card-title-row {
+      display: flex;
       align-items: center;
-      gap: 4px;
-      padding: 3px 8px;
-      background: white;
-      border: 1px solid v.$gray-200;
-      border-radius: 4px;
-      font-size: 12px;
-      line-height: 1;
+      gap: 10px;
 
-      .stat-label {
-        color: v.$gray-500;
-        font-weight: 400;
-      }
-
-      .stat-value {
-        font-weight: 600;
+      h3 {
+        min-width: 0;
+        font-size: v.$font-size-xl;
+        font-weight: 700;
         color: v.$gray-800;
-        font-variant-numeric: tabular-nums;
-
-        &.warn {
-          color: v.$status-warning-dark;
-        }
-      }
-
-      &.top-values .stat-value {
-        font-weight: 500;
-        max-width: 100px;
+        margin: 0;
         @include m.text-truncate;
       }
 
-      &.stat-date .stat-value {
-        font-weight: 500;
-        font-size: 11px;
+      .type-pill {
+        flex-shrink: 0;
+        padding: 2px 6px;
+        border: 1px solid v.$gray-200;
+        border-radius: 4px;
+        font-size: v.$font-size-xs;
+        font-weight: 700;
+        letter-spacing: 0.6px;
+        text-transform: uppercase;
+        color: v.$text-muted;
       }
+
+      .btn-reset-column {
+        @include w.btn-reset;
+        padding: 3px 10px;
+        gap: v.$space-1;
+      }
+    }
+  }
+
+  .stat-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: v.$space-3 18px;
+    border-bottom: 1px solid v.$gray-200;
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: v.$space-1;
+      padding: 3px v.$space-2;
+      background: v.$wizard-header-bg;
+      border: 1px solid v.$gray-200;
+      border-radius: 4px;
+      font-size: v.$font-size-sm;
+      line-height: 1;
+
+      .chip-label {
+        color: v.$text-muted;
+      }
+
+      .chip-value {
+        font-weight: 600;
+        color: v.$gray-800;
+        font-variant-numeric: tabular-nums;
+      }
+
+      &.chip-warning {
+        @include w.severity-panel(warning);
+
+        .material-icons {
+          font-size: v.$icon-size-xs;
+        }
+
+        .chip-value {
+          color: v.$severity-warning-text;
+        }
+      }
+    }
+  }
+
+  .settings-section {
+    display: flex;
+    flex-direction: column;
+    padding: v.$space-4 18px;
+
+    .settings-label {
+      display: block;
+      font-size: v.$font-size-xs;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      color: v.$text-muted;
+      text-transform: uppercase;
+      margin-bottom: 10px;
     }
   }
 
   .config-section {
-    padding: 10px 16px;
+    padding-bottom: v.$space-3;
+    margin-bottom: v.$space-3;
     border-bottom: 1px solid v.$gray-200;
 
     &:last-child {
+      padding-bottom: 0;
+      margin-bottom: 0;
       border-bottom: none;
     }
   }
@@ -315,17 +420,17 @@
     margin-bottom: 6px;
 
     .section-label {
-      font-size: 11px;
+      font-size: v.$font-size-xs;
       font-weight: 600;
-      color: v.$gray-600;
+      color: v.$text-muted;
       text-transform: uppercase;
       letter-spacing: 0.5px;
     }
 
     .section-count {
-      font-size: 11px;
+      font-size: v.$font-size-xs;
       font-weight: 600;
-      color: v.$status-warning-dark;
+      color: v.$severity-warning-text;
       margin-left: auto;
     }
 
@@ -333,11 +438,206 @@
       margin-left: auto;
 
       .material-icons {
-        font-size: 16px;
-        color: v.$active-color;
+        font-size: v.$icon-size-sm;
+        color: v.$color-accent;
+      }
+    }
 
-        &.spinning {
-          animation: spin 1s linear infinite;
+    // Per-setting reset, only rendered when the value deviates from the smart
+    // default (A2). Mirrors the reset control in Step 4's projection params.
+    .btn-reset-field {
+      @include w.btn-reset;
+
+      // Reserve the button's space even when inactive so revealing it never
+      // shifts the surrounding label / missing-count (review point 2).
+      &.is-hidden {
+        visibility: hidden;
+        pointer-events: none;
+      }
+    }
+
+    // When a warning count already claims the right edge, sit next to it.
+    .section-count + .btn-reset-field {
+      margin-left: v.$space-1;
+    }
+  }
+
+  // Label row inside an outlier control-group: label on the left, its own inline
+  // reset on the right (space reserved via .is-hidden — no layout shift).
+  .cg-label-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+
+    label {
+      margin: 0;
+    }
+
+    .btn-reset-field {
+      @include w.btn-reset;
+      padding: 1px 6px;
+
+      &.is-hidden {
+        visibility: hidden;
+        pointer-events: none;
+      }
+    }
+  }
+
+  .bulk-apply {
+    padding-top: 14px;
+    margin-top: 2px;
+    display: flex;
+    flex-direction: column;
+    gap: v.$space-2;
+
+    .bulk-actions {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: v.$space-2;
+    }
+
+    // Compact, content-width button (review point 3b — no full-width whitespace).
+    .btn-bulk-apply {
+      @include w.btn-base;
+      align-self: flex-start;
+      background: rgba(v.$active-color, 0.08);
+      border: 1px solid rgba(v.$active-color, 0.5);
+      color: v.$color-accent;
+      font-size: v.$font-size-sm;
+      font-weight: 600;
+      padding: 6px 10px;
+      gap: 6px;
+
+      .material-icons {
+        font-size: v.$icon-size-sm;
+      }
+
+      &:hover {
+        background: rgba(v.$active-color, 0.14);
+        border-color: v.$color-accent;
+      }
+    }
+
+    .btn-bulk-toggle {
+      @include w.btn-text;
+      font-size: v.$font-size-xs;
+      padding: v.$space-1 6px;
+      gap: 3px;
+
+      .material-icons {
+        font-size: v.$icon-size-sm;
+      }
+    }
+
+    // Progressive-disclosure list of affected columns (review point 3a).
+    .bulk-targets {
+      background: v.$wizard-header-bg;
+      border: 1px solid v.$gray-200;
+      border-radius: 4px;
+      padding: v.$space-2 10px;
+
+      .bulk-targets-hint {
+        display: block;
+        font-size: v.$font-size-xs;
+        color: v.$text-muted;
+        margin-bottom: 6px;
+
+        em {
+          font-style: normal;
+          font-weight: 600;
+          color: v.$color-accent;
+        }
+      }
+
+      ul {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+
+      li {
+        display: flex;
+        align-items: center;
+        gap: v.$space-1;
+        font-size: v.$font-size-sm;
+        color: v.$gray-800;
+
+        .material-icons {
+          font-size: v.$icon-size-xs;
+          color: v.$text-muted;
+        }
+
+        .target-name {
+          font-weight: 500;
+        }
+
+        .target-note {
+          font-size: v.$font-size-xs;
+          color: v.$text-muted;
+          font-style: italic;
+        }
+      }
+    }
+
+    // Post-apply confirmation (review point 5).
+    .bulk-result {
+      @include w.severity-panel(info);
+      display: flex;
+      align-items: flex-start;
+      gap: v.$space-2;
+      border-radius: 4px;
+      padding: v.$space-2 10px;
+
+      > .material-icons {
+        font-size: v.$icon-size-md;
+        flex-shrink: 0;
+      }
+
+      .bulk-result-body {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+
+        strong {
+          font-size: v.$font-size-sm;
+          color: v.$gray-800;
+        }
+
+        .bulk-result-settings {
+          font-size: v.$font-size-xs;
+          color: v.$severity-info-text;
+          font-weight: 600;
+        }
+
+        .bulk-result-cols {
+          font-size: v.$font-size-xs;
+          color: v.$text-muted;
+          word-break: break-word;
+        }
+      }
+
+      .bulk-result-close {
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 0;
+        display: flex;
+        flex-shrink: 0;
+
+        .material-icons {
+          font-size: v.$icon-size-sm;
+          color: v.$text-muted;
+        }
+
+        &:hover .material-icons {
+          color: v.$gray-800;
         }
       }
     }
@@ -346,8 +646,7 @@
   .config-select {
     @include w.select;
     width: 100%;
-    max-width: 320px;
-    font-size: 13px;
+    max-width: 340px;
     padding: 6px 28px 6px 10px;
 
     &:disabled {
@@ -359,25 +658,25 @@
   .fill-value-input {
     @include w.input-base;
     width: 100%;
-    max-width: 320px;
-    font-size: 13px;
+    max-width: 340px;
     padding: 6px 10px;
     margin-top: 6px;
   }
 
   .outlier-controls {
     display: flex;
-    gap: 12px;
+    flex-wrap: wrap;
+    gap: v.$space-3;
 
     .control-group {
-      flex: 1;
+      flex: 1 1 160px;
       display: flex;
       flex-direction: column;
       gap: 3px;
 
       label {
-        font-size: 11px;
-        color: v.$gray-600;
+        font-size: v.$font-size-xs;
+        color: v.$text-muted;
       }
 
       .config-select {
@@ -386,80 +685,50 @@
     }
   }
 
-  .projection-section {
-    .projection-label {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      cursor: pointer;
-      font-size: 13px;
-      font-weight: 500;
-      color: v.$gray-800;
-
-      input[type='checkbox'] {
-        @include w.checkbox;
-      }
-    }
-  }
-
   .no-selection {
-    @include w.no-content($icon-size: 40px, $text-size: 14px);
+    @include w.no-content($icon-size: v.$icon-size-2xl, $text-size: v.$font-size-md);
     flex: 1;
-    gap: 8px;
+    gap: v.$space-2;
+    background: white;
+    border: 1px solid v.$gray-300;
+    border-radius: 6px;
   }
 
   // ============================================================================
-  // Duplicates Section (unchanged)
+  // Duplicates Section
   // ============================================================================
 
   .duplicates-section {
     background: white;
     border: 1px solid v.$gray-300;
     border-radius: 4px;
-    padding: 16px;
-    margin-bottom: 16px;
+    padding: v.$space-4;
+    margin-bottom: v.$space-4;
 
     h3 {
       display: flex;
       align-items: center;
-      gap: 8px;
-      font-size: 14px;
+      gap: v.$space-2;
+      font-size: v.$font-size-md;
       font-weight: 600;
       color: v.$gray-800;
-      margin-bottom: 12px;
+      margin-bottom: v.$space-3;
 
       .material-icons {
-        font-size: 20px;
-        color: v.$active-color;
-      }
-    }
-
-    .no-duplicates {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 12px;
-      background: rgba(v.$status-success, 0.05);
-      border-left: 3px solid v.$status-success;
-      border-radius: 2px;
-      color: v.$status-success-dark;
-      font-size: 13px;
-
-      .material-icons {
-        font-size: 18px;
-        color: v.$status-success;
+        font-size: v.$icon-size-lg;
+        color: v.$color-accent;
       }
     }
 
     .duplicate-info {
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: v.$space-3;
 
       .duplicate-summary {
         display: flex;
         align-items: center;
-        padding: 12px;
+        padding: v.$space-3;
         background: v.$gray-100;
         border-radius: 4px;
 
@@ -469,14 +738,14 @@
           gap: 2px;
 
           .stat-large {
-            font-size: 24px;
+            font-size: v.$font-size-2xl;
             font-weight: 700;
-            color: v.$status-warning-dark;
+            color: v.$severity-warning-text;
           }
 
           .stat-label {
-            font-size: 12px;
-            color: v.$gray-600;
+            font-size: v.$font-size-sm;
+            color: v.$text-muted;
           }
         }
       }
@@ -484,34 +753,34 @@
       .duplicate-action {
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: v.$space-2;
 
         .checkbox-label {
           display: flex;
           align-items: center;
-          gap: 8px;
+          gap: v.$space-2;
           cursor: pointer;
-          font-size: 13px;
+          font-size: v.$font-size-base;
           color: v.$gray-800;
           font-weight: 500;
 
           input[type='checkbox'] {
-            @include w.checkbox;
+            @include w.selection-checkbox;
           }
         }
 
         .impact-warning {
+          @include w.severity-badge(warning);
           display: flex;
           align-items: center;
           gap: 6px;
-          padding: 8px 10px;
-          background: rgba(v.$status-warning, 0.1);
+          padding: v.$space-2 10px;
           border-radius: 3px;
-          font-size: 12px;
-          color: v.$status-warning-dark;
+          font-size: v.$font-size-sm;
 
           .material-icons {
-            font-size: 16px;
+            font-size: v.$icon-size-sm;
+            color: v.$severity-warning-icon;
           }
         }
       }
@@ -519,52 +788,15 @@
       .btn-text {
         @include w.btn-text;
         justify-content: flex-start;
-        font-size: 12px;
-        padding: 6px 8px;
+        font-size: v.$font-size-sm;
+        padding: 6px v.$space-2;
       }
 
       .duplicate-samples {
-        margin-top: 8px;
-        border: 1px solid v.$gray-300;
-        border-radius: 4px;
-        overflow-x: auto;
-        overflow-y: auto;
+        margin-top: v.$space-2;
+        @include w.scroll-y;
         max-height: 250px;
-
-        .sample-table {
-          @include w.table;
-          font-size: 12px;
-        }
       }
-    }
-  }
-
-  // ============================================================================
-  // Action Buttons
-  // ============================================================================
-
-  .action-buttons {
-    @include w.action-buttons-footer;
-
-    .btn-secondary {
-      @include w.btn-secondary;
-    }
-
-    .buttons-right {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin-left: auto;
-    }
-
-    .warning-message {
-      @include w.message-warning;
-      padding: 8px 12px;
-      font-size: 13px;
-    }
-
-    .btn-primary {
-      @include w.btn-primary;
     }
   }
 }

@@ -17,7 +17,7 @@ import { FeatureFilter } from '../../shared/filter/feature-filter';
 import { IdFilter } from '../../shared/filter/id-filter';
 import { FilterMode } from '../../shared/enum/filter-mode';
 import { Subscription } from 'rxjs';
-import { COLOR_SCALES, ColorScale } from '../../shared/interfaces/color-scale';
+import { COLOR_SCALES, ColorScale, getColorScaleById } from '../../shared/interfaces/color-scale';
 import { CategoryFilter } from '../../shared/filter/category-filter';
 import { InteractionCommand } from '../../shared/enum/interaction-command';
 import { Histogram, StackedBin } from '../../shared/types/histogram.types';
@@ -25,6 +25,7 @@ import {
   prepareStackedBinsFromObject,
   getEffectiveHistogramType,
   formatBinTooltip,
+  categoryLabelsByBin,
 } from '../../shared/utils/histogram.utils';
 
 @Component({
@@ -111,7 +112,7 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges, OnD
 
     this.configSub.add(
       this.configuration.glyphConfigSubject$.subscribe(() => {
-        this.colorScale = COLOR_SCALES.find(cs => cs.id === this.configuration.colorRange) || COLOR_SCALES[0];
+        this.colorScale = getColorScaleById(this.configuration.colorRange);
         this.updateChart();
       })
     );
@@ -327,23 +328,7 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges, OnD
   }
 
   private buildBinCategoryMap() {
-    this.binToCategory.clear();
-    if (!this.categories?.length) return;
-
-    const nonZeroBins = Object.entries(this.histogramData)
-      .filter(([, v]) => v !== 0)
-      .map(([k]) => +k);
-
-    // Optional safety check
-    if (nonZeroBins.length !== this.categories.length) {
-      console.warn('Histogram/category length mismatch', nonZeroBins.length, this.categories.length);
-    }
-
-    nonZeroBins.forEach((bin, i) => {
-      if (this.categories && this.categories[i] !== undefined) {
-        this.binToCategory.set(bin, this.categories[i]);
-      }
-    });
+    this.binToCategory = categoryLabelsByBin(this.histogramData, this.categories);
   }
 
   private getCategoricalValue(bin: number): string {
@@ -436,17 +421,7 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges, OnD
           this.removeFilter();
           return;
         }
-        const [x0, x1] = selection;
-        const minBin = Math.round(this.xScale.invert(x0));
-        const maxBin = Math.round(this.xScale.invert(x1));
-
-        bars.attr('fill', (d: { bin: number }) =>
-          d.bin >= minBin && d.bin <= maxBin
-            ? hasSelection
-              ? '#d4d4d4'
-              : this.getBarColor(d.bin, bins.length)
-            : '#bdbdbd'
-        );
+        this.applyBrushFill(bars, selection, bins.length, hasSelection);
 
         this.filtering(selection);
       });
@@ -490,17 +465,23 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges, OnD
       this.suppressBrushEvent = false;
 
       // Re-apply outside-range greying since the brush 'end' handler was suppressed
-      const [x0, x1] = this.brushSelection;
-      const minBin = Math.round(this.xScale.invert(x0));
-      const maxBin = Math.round(this.xScale.invert(x1));
-      bars.attr('fill', (d: { bin: number }) =>
-        d.bin >= minBin && d.bin <= maxBin
-          ? hasSelection
-            ? '#d4d4d4'
-            : this.getBarColor(d.bin, bins.length)
-          : '#bdbdbd'
-      );
+      this.applyBrushFill(bars, this.brushSelection, bins.length, hasSelection);
     }
+  }
+
+  /** Visual-only: grey out numeric bars outside the brushed pixel range. */
+  private applyBrushFill(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    bars: d3.Selection<SVGRectElement, any, any, any>,
+    [x0, x1]: [number, number],
+    binCount: number,
+    hasSelection: boolean
+  ): void {
+    const minBin = Math.round(this.xScale.invert(x0));
+    const maxBin = Math.round(this.xScale.invert(x1));
+    bars.attr('fill', (d: { bin: number }) =>
+      d.bin >= minBin && d.bin <= maxBin ? (hasSelection ? '#d4d4d4' : this.getBarColor(d.bin, binCount)) : '#bdbdbd'
+    );
   }
 
   private createTooltip(): d3.Selection<HTMLDivElement, unknown, null, undefined> {
