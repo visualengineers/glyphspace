@@ -375,7 +375,7 @@ def apply_feature_engineering(df, config):
             and not pd.api.types.is_numeric_dtype(col_data)
         )
         if is_onehot:
-            n_unique = col_data.fillna('missing').astype(str).nunique()
+            n_unique = _category_text(col_data).nunique()
             if n_unique > MAX_ONEHOT_UNIQUE:
                 onehot_offenders.append((col, n_unique))
     if onehot_offenders:
@@ -420,14 +420,14 @@ def apply_feature_engineering(df, config):
 
         # One-hot encoding
         elif encoding == 'onehot' or (encoding == 'none' and not pd.api.types.is_numeric_dtype(col_data)):
-            col_data_filled = col_data.fillna('missing').astype(str)
+            col_data_filled = _category_text(col_data)
             dummies = pd.get_dummies(col_data_filled, prefix=col)
             encoded_dfs.append(dummies.astype(float))
             feature_names.extend(dummies.columns.tolist())
 
         # Label encoding
         elif encoding == 'label':
-            col_data_filled = col_data.fillna('missing').astype(str)
+            col_data_filled = _category_text(col_data)
             le = LabelEncoder()
             # Keep the row index: after dropped rows (removeMissing/removeDuplicates) a
             # fresh RangeIndex would misalign in the concat below.
@@ -514,6 +514,15 @@ def _scale(features: pd.DataFrame, scaling: str) -> pd.DataFrame:
     features = features.fillna({col: 0.0 for col in empty})
     scaled = _SCALERS[scaling]().fit_transform(features)
     return pd.DataFrame(scaled, columns=features.columns, index=features.index)
+
+
+def _category_text(col_data: pd.Series) -> pd.Series:
+    """The values as text for one-hot and label encoding, with 'missing' for missing values.
+
+    Converts first and fills afterwards: filling a numeric column with text is
+    deprecated in pandas 3 and an error in pandas 4.
+    """
+    return col_data.astype(str).where(col_data.notna(), 'missing')
 
 
 def _boolean_categories(values: pd.Series, codes: pd.Series) -> list[str]:

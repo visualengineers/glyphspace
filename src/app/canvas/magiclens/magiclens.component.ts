@@ -1,4 +1,12 @@
-import { Component, ElementRef, Input, ViewChild, AfterViewInit, OnDestroy } from '@angular/core';
+import {
+  Component,
+  ElementRef,
+  Input,
+  ViewChild,
+  AfterViewInit,
+  OnDestroy,
+  ChangeDetectionStrategy,
+} from '@angular/core';
 import * as THREE from 'three';
 import { GlyphObject } from '../../glyph/glyph-object';
 import { ZoomLevel } from '../../shared/enum/zoom-level';
@@ -15,6 +23,7 @@ import { layoutLens } from './lens-layout';
   selector: 'app-magiclens',
   imports: [],
   templateUrl: './magiclens.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './magiclens.component.scss',
 })
 export class MagiclensComponent implements AfterViewInit, OnDestroy {

@@ -1,4 +1,4 @@
-import { Component, Input } from '@angular/core';
+import { Component, Input, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DataType, getDataTypeBadgeClass, getDataTypeLabel } from '../../models/data-type.enum';
 
@@ -9,6 +9,7 @@ import { DataType, getDataTypeBadgeClass, getDataTypeLabel } from '../../models/
   template: `<span class="data-type-badge" [ngClass]="getDataTypeBadgeClass(dataType)">{{
     getDataTypeLabel(dataType)
   }}</span>`,
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './data-type-badge.component.scss',
 })
 export class DataTypeBadgeComponent {

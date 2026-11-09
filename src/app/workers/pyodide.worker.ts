@@ -8,7 +8,7 @@ import { InputFileRegistry, PyodideFs, assertSafeFileName, resultFileFor } from 
 // -- Load Pyodide from CDN --
 
 /** The Pyodide release loaded from the CDN (single source of truth). */
-const PYODIDE_VERSION = '0.29.5';
+const PYODIDE_VERSION = '314.0.7';
 const PYODIDE_INDEX_URL = `https://cdn.jsdelivr.net/pyodide/v${PYODIDE_VERSION}/full/`;
 
 /** The subset of the Pyodide API this worker uses. */

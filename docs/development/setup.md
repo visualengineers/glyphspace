@@ -6,8 +6,8 @@ _For contributors setting up GlyphSpace on their machine._
 
 | Tool | Version | Used for |
 |---|---|---|
-| Node.js | 24 (`.nvmrc`; `package.json` accepts `^24.15.0` or `>=26.0.0`) | the app, its tests and tooling |
-| npm | the one that ships with Node | dependencies (`package-lock.json`) |
+| Node.js | 26 (`.nvmrc`; `package.json` accepts `>=26.0.0`) | the app, its tests and tooling |
+| npm | the one that ships with Node (11.20 with Node 26.13) | dependencies (`package-lock.json`); older npm versions can drop entries that newer ones require, so update the lock file with a current npm |
 | Python | 3.10 or newer, with `pandas`, `numpy`, `scikit-learn`, `umap-learn` and `pytest` | only for `tools/` (bundled datasets, Python tests) |
 
 The repository has no Python requirements file; install the packages above into the environment you use for `tools/`.

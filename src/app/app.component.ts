@@ -1,4 +1,4 @@
-import { Component, HostListener, OnInit } from '@angular/core';
+import { Component, HostListener, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { ConfigService } from './services/config.service';
 import { GlyphCanvasComponent } from './canvas/glyph-canvas.component';
 import { DataLoaderService } from './services/data-loader.service';
@@ -18,6 +18,7 @@ interface GlyphCanvasItem {
   selector: 'app-root',
   imports: [GlyphCanvasComponent, MenuBarComponent, ToastComponent, SidebarComponent],
   templateUrl: './app.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './app.component.scss',
 })
 export class AppComponent implements OnInit {

@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Observable, map } from 'rxjs';
 import { Toast, ToastService } from '../../../services/toast.service';
@@ -79,6 +79,7 @@ const TYPE_PREFIX: Readonly<Partial<Record<Toast['type'], string>>> = {
       }
     </div>
   `,
+  changeDetection: ChangeDetectionStrategy.Eager,
   styles: [
     `
       @use '../../../../styles/variables' as v;

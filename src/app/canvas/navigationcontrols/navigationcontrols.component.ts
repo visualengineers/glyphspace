@@ -1,9 +1,10 @@
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Component, EventEmitter, Input, Output, ChangeDetectionStrategy } from '@angular/core';
 
 @Component({
   selector: 'app-navigationcontrols',
   standalone: true,
   templateUrl: './navigationcontrols.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./navigationcontrols.component.scss'],
 })
 export class CanvasNavigationControlsComponent {
