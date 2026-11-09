@@ -17,6 +17,7 @@ Each architecture decision record (ADR) captures one decision: the situation, wh
 | [0009](0009-unit-tests-in-real-chromium-with-vitest.md) | Run unit tests with Vitest in a real Chromium | Accepted (retroactive) | 2026-09 |
 | [0010](0010-one-size-for-points-and-glyphs.md) | One size for points and glyphs, glyph radius from the dataset | Accepted | 2026-11-09 |
 | [0011](0011-existing-components-keep-eager-change-detection.md) | Existing components keep eager change detection; new ones use OnPush | Accepted | 2026-11-09 |
+| [0012](0012-glyphs-grow-slower-than-the-zoom.md) | Glyphs grow slower than the zoom | Accepted | 2026-11-09 |
 
 "Retroactive" means the ADR was written after the fact, from the code, commit messages and the [wizard redesign spec](../specs/wizard-redesign.md). Where the reasons were not written down at the time, the ADR says so instead of guessing.
 

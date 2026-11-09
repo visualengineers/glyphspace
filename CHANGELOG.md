@@ -22,6 +22,7 @@ GlyphSpace has no version numbers yet, so releases are named by the date they re
 - New categorical palettes: Glasbey, Tableau 10 and Colorblind, none with grey, which marks filtered-out items. Categories take the colours in order, in the glyphs and the histograms alike. The new palettes have new ids; datasets and wizard settings saved with Observable10 or Tableau20 open with Glasbey or Tableau 10 (#89).
 - The flower glyph has Glyphboard's petal shape. The axes behind a glyph are lighter and thinner, and the contour ring lies behind the data (#91).
 - Dot and glyph sizes no longer depend on the screen's pixel ratio or the canvas size (#90).
+- When zooming in beyond the dots, glyphs grow more slowly than the distances between them, so overlapping glyphs separate; at the highest zoom they are smaller than before ([ADR 0012](docs/decisions/0012-glyphs-grow-slower-than-the-zoom.md)).
 - The magic lens shows the items nearest the cursor in their arrangement on the canvas, as large as they fit without overlapping. Before, it scattered them at random and they piled up along its border. When more items are under the cursor than the lens shows, the ring around the cursor shrinks to the area it shows. The lens is 300 px wide (was 250).
 - Zooming from dots to glyphs no longer stalls the page as long: a flower glyph is drawn as one shape and one outline instead of one per petal, and the flower outline only at the highest zoom level, where it is visible.
 - The **Thumbnails** glyph type is now called **Image** (#90).
@@ -42,6 +43,7 @@ GlyphSpace has no version numbers yet, so releases are named by the date they re
 - Reprocessing a dataset, or importing another file under the same name, replaces its items; before, old values could stay (#92).
 - Processing no longer fails when an ID contains a comma (#92).
 - **Clear all** no longer brings old search terms back on the next search (#92).
+- **Avoid collision** works with the new glyph size: it keeps apart what is drawn (dots, petals or stars, or whole circles with a background or axes) instead of full glyph circles, so the projection keeps its shape, and it adjusts when the zoom level changes.
 - A fill value that is neither true nor false for a true/false column is reported as K8 (#92).
 - Step 1's file requirements no longer promise that `-x`/`-y` and latitude/longitude columns become positions; only the command-line tool uses them (#92).
 - The help on background projections points to the canvas's position settings (**Pos**) instead of controls that don't exist (#92).

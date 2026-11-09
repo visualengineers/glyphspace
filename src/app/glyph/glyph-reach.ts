@@ -1,4 +1,8 @@
 import type { GlyphObject } from './glyph-object';
+import type { GlyphRenderConfig } from './glyph-render-config';
+import type { GlyphSizeInfo } from './glyph-size-info';
+import { ZoomLevel } from '../shared/enum/zoom-level';
+import { hasFeatureAxes } from '../shared/enum/glyph-type';
 
 /** Glyphs reaching less than this are drawn as if they reached this far, so they stay at most 4× a point. */
 export const MIN_GLYPH_REACH = 0.25;
@@ -27,4 +31,24 @@ export function typicalGlyphReach(
   reaches.sort((a, b) => a - b);
   const median = reaches[Math.floor((reaches.length - 1) / 2)];
   return Math.min(1, Math.max(MIN_GLYPH_REACH, median));
+}
+
+/**
+ * How far an item visibly reaches at a zoom level, in world units before the
+ * zoom-dependent glyph scale: the point at the low level; otherwise the
+ * glyph's own longest axis, or its whole circle where an image, or at full
+ * detail a background or the axes, fill it. Collision avoidance keeps these
+ * apart.
+ */
+export function visibleRadius(
+  glyph: GlyphObject,
+  level: ZoomLevel,
+  sizeInfo: GlyphSizeInfo,
+  config: GlyphRenderConfig
+): number {
+  const radius = sizeInfo.getRadius(level);
+  if (level === ZoomLevel.low || !hasFeatureAxes(config.glyphType)) return radius;
+  if (level === ZoomLevel.high && (config.useBackground || config.useCoordinateSystem)) return radius;
+  const lengths = glyph.axisLengths(config.activeFeatures, config.featureMaxValues, config.scaleLinear);
+  return radius * Math.min(1, Math.max(MIN_GLYPH_REACH, ...lengths));
 }

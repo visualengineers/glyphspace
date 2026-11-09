@@ -24,3 +24,5 @@ The magic lens doesn't use this radius: it sizes its glyphs to fit the lens (`la
 - Glyph radii depend on the loaded dataset and change when glyph axes are added or removed, or when the scale changes. The canvas recomputes them on every configuration change (`GlyphCanvasComponent.applyGlyphSizes`), samples at most 2,000 items for it, and updates the collision force and spatial grid.
 - On a dataset with small values, the glyph circle (background disc, axes) is large compared with the dots, because the data inside it is small.
 - `GLYPH_REACH_IN_POINT_RADII` (2) was set by eye on `wineqr` and `nutrients`; change it there if glyphs look too large or too small at the switch.
+
+_Note 2026-11-09:_ the large radius made glyphs cover each other at full detail and spread items too far with collision avoidance. [ADR 0012](0012-glyphs-grow-slower-than-the-zoom.md) lets glyphs grow slower than the zoom and makes collision avoidance keep apart only what is visible.
