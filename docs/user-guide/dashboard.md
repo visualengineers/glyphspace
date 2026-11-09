@@ -69,7 +69,7 @@ The size of the dots and glyphs is set with **Size** in the sidebar's **Encoding
 |---|---|---|
 | Star | **Star** | A radar chart: one axis per glyph feature; the outline connects the values. |
 | Flower | **Flower** | One petal per glyph feature; petal length shows the value. |
-| Image | **Image** | The item's image, for datasets that include images: `wineqr`, or a dataset imported with a ZIP of item images (see [Importing data](importing-data.md#step-1-upload-data)). |
+| Image | **Image** | The item's image, for datasets that include images: `wineqr`, or a dataset imported with a ZIP of item images (see [Importing data](importing-data.md#step-1-upload-data)). For other datasets the button is greyed out, and a dataset without images opens with **Star**. |
 
 Which features a glyph shows, and in which order, is set in the glyph legend at the top of the sidebar ([Encoding and filters](encoding-and-filters.md#glyph-legend)). Axis 1 points up and the others follow clockwise. The colour comes from the feature chosen under **COLOR BY**. Items that don't match the current filters or selection are drawn in light grey and behind the others, at every zoom level.
 

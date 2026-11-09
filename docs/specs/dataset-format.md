@@ -102,6 +102,7 @@ type DatasetCollection = {
       position: Record<string, string>;  // projection name → file
     };
   }[];
+  images?: boolean;             // bundled only: item images in assets/thumbnails/<dataset>/
 }[];
 ```
 

@@ -30,8 +30,35 @@ describe('EncodingTabComponent', () => {
   });
 
   it('offers the glyph types Star, Flower and Image', () => {
-    expect(glyphTypeButtons().map(b => b.textContent?.trim())).toEqual(['Star', 'Flower', 'Image']);
+    expect(glyphTypeButtons().map(b => b.querySelector('.type-label')?.textContent?.trim())).toEqual([
+      'Star',
+      'Flower',
+      'Image',
+    ]);
     expect(glyphTypeButtons()[0].getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('shows a small glyph next to each glyph type', () => {
+    const [star, flower, image] = glyphTypeButtons();
+
+    expect(star.querySelector('app-glyph-icon path.shape')).not.toBeNull();
+    expect(flower.querySelector('app-glyph-icon path.shape')).not.toBeNull();
+    expect(image.querySelector('.material-icons')?.textContent?.trim()).toBe('image');
+    expect(image.querySelector('.material-icons')?.getAttribute('aria-hidden')).toBe('true');
+  });
+
+  it('keeps Image off for a dataset without item images and says why', () => {
+    fixture.componentRef.setInput('imagesAvailable', false);
+    fixture.detectChanges();
+    const image = glyphTypeButtons()[2];
+
+    image.click();
+
+    expect(config.getConfiguration().glyphType).toBe(GlyphType.Star);
+    expect(image.getAttribute('aria-disabled')).toBe('true');
+    expect(image.title).toContain('no item images');
+    expect(el.querySelector(`#${image.getAttribute('aria-describedby')}`)?.textContent).toContain('no item images');
+    expect(glyphTypeButtons()[1].getAttribute('aria-disabled')).toBeNull();
   });
 
   it('switches the glyph type', () => {

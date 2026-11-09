@@ -25,6 +25,7 @@ GlyphSpace has no version numbers yet, so releases are named by the date they re
 - The magic lens shows the items nearest the cursor in their arrangement on the canvas, as large as they fit without overlapping. Before, it scattered them at random and they piled up along its border. When more items are under the cursor than the lens shows, the ring around the cursor shrinks to the area it shows. The lens is 300 px wide (was 250).
 - Zooming from dots to glyphs no longer stalls the page as long: a flower glyph is drawn as one shape and one outline instead of one per petal, and the flower outline only at the highest zoom level, where it is visible.
 - The **Thumbnails** glyph type is now called **Image** (#90).
+- The glyph type buttons show a small star, flower or picture next to their name. **Image** is off for a dataset without item images, and such a dataset opens with **Star** instead of grey placeholders. `tools/process.py` marks bundled datasets that have images in `src/assets/thumbnails/` (`images: true` in `src/default-dataset.ts`).
 
 ### Removed
 

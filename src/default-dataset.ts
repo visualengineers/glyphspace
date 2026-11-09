@@ -4,6 +4,7 @@ export const DEFAULT_DATASETCOLLECTION: DatasetCollection = [
   {
     dataset: 'wineqr',
     source: 'local',
+    images: true,
     items: [
       {
         algorithms: {

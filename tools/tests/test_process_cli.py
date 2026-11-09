@@ -269,3 +269,17 @@ def test_the_cli_lists_the_written_datasets(process):
     assert (dataset['dataset'], dataset['source']) == ('edge', 'local')
     assert set(dataset['items'][0]['algorithms']) == {'feature', 'meta', 'schema', 'position'}
     assert set(dataset['items'][0]['algorithms']['position']) == {'pca', 'tsne', 'umap'}
+    assert 'images' not in dataset
+
+
+def test_the_cli_marks_datasets_with_item_images(process):
+    process.process_csv_file(cli_csv())
+    images = Path('src/assets/thumbnails/edge')
+    images.mkdir(parents=True)
+    (images / 'r0.jpg').write_bytes(b'jpg')
+
+    process.discover_datasets()
+
+    source = Path('src/default-dataset.ts').read_text(encoding='utf-8')
+    [dataset] = json.loads(source.split('DEFAULT_DATASETCOLLECTION: DatasetCollection = ', 1)[1])
+    assert dataset['images'] is True

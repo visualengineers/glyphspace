@@ -57,7 +57,7 @@ Switching datasets in the **Data** menu clears all filters.
 
 | Control | What it does |
 |---|---|
-| **GLYPH TYPE** | **Star**, **Flower** or **Image**. See [Points and glyphs](dashboard.md#points-and-glyphs). |
+| **GLYPH TYPE** | **Star**, **Flower** or **Image**, each with a small picture of the glyph. **Image** is greyed out for a dataset without item images; its tooltip says so. See [Points and glyphs](dashboard.md#points-and-glyphs). |
 | **COLOR BY** | The feature that colours the items. Each option shows the feature's type, such as **(numeric)**, or its number of categories, such as **(5 categories)**. |
 | Colour scale (below **COLOR BY**) | The colours used for it. With a categorical palette, a hint says how many categories get a colour of their own. |
 | **APPEARANCE** | Toggles for the glyph drawing: **Coordinate system**, **Circle background** and **Contour**. Flower outlines appear only when zoomed in furthest. |

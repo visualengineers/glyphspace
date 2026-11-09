@@ -39,6 +39,7 @@ from dataset_common import (
 
 datafolder = "./src/assets/data/"
 datasetcollection = "./src/default-dataset.ts"
+thumbnailfolder = "./src/assets/thumbnails/"
 
 SOURCE = "local"
 GLYPH_LIMIT = 5
@@ -46,9 +47,18 @@ CARDINALITY_THRESHOLD = 1  # text columns are label encoded unless constant
 HISTOGRAM_BINS = 20
 
 
+def has_item_images(dataset: str, folder: str = thumbnailfolder) -> bool:
+    """Whether folder/<dataset>/ holds item images (<id>.jpg, as the dashboard loads them)."""
+    images = Path(folder) / dataset
+    return images.is_dir() and any(p.suffix.lower() == ".jpg" for p in images.iterdir())
+
+
 def discover_datasets() -> str:
     """Write the DatasetCollection of all files in datafolder to src/default-dataset.ts."""
     result = collect_datasets(datafolder, SOURCE)
+    for entry in result:
+        if has_item_images(entry["dataset"]):
+            entry["images"] = True
 
     with open(datasetcollection, "w", encoding="utf-8") as f:
         f.write('import { DatasetCollection } from "./app/shared/interfaces/dataset-collection";\n\n')
