@@ -46,6 +46,12 @@ GLYPH_LIMIT = 5
 CARDINALITY_THRESHOLD = 1  # text columns are label encoded unless constant
 HISTOGRAM_BINS = 20
 
+# Bundled datasets in this order come first in src/default-dataset.ts, and the
+# first one opens on start; any other dataset follows in alphabetical order.
+# Without it the order came from the file system (alphabetical on Windows,
+# arbitrary on Linux), and regenerating the list could change the start dataset.
+DATASET_ORDER = ["wineqr", "nutrients"]
+
 
 def has_item_images(dataset: str, folder: str = thumbnailfolder) -> bool:
     """Whether folder/<dataset>/ holds item images (<id>.jpg, as the dashboard loads them)."""
@@ -53,9 +59,15 @@ def has_item_images(dataset: str, folder: str = thumbnailfolder) -> bool:
     return images.is_dir() and any(p.suffix.lower() == ".jpg" for p in images.iterdir())
 
 
+def ordered_datasets(entries: list[dict], order: list[str] = DATASET_ORDER) -> list[dict]:
+    """The entries with the datasets named in order first, in that order, then the others by name."""
+    rank = {name: i for i, name in enumerate(order)}
+    return sorted(entries, key=lambda entry: (rank.get(entry["dataset"], len(rank)), entry["dataset"]))
+
+
 def discover_datasets() -> str:
     """Write the DatasetCollection of all files in datafolder to src/default-dataset.ts."""
-    result = collect_datasets(datafolder, SOURCE)
+    result = ordered_datasets(collect_datasets(datafolder, SOURCE))
     for entry in result:
         if has_item_images(entry["dataset"]):
             entry["images"] = True
