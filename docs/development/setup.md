@@ -58,4 +58,5 @@ Run the Python commands from the repository root. On Windows, `tools/process.py`
 | `src/testing/`, `src/test-setup.ts` | shared test helpers and the per-test setup |
 | `tools/` | the CLI for bundled datasets, the sample-data generator, the Python tests |
 | `docs/` | this documentation ([index](../README.md)) |
+| `CLAUDE.md` | guidance for Claude Code: where the docs are, the architecture in brief, the commands |
 | `.github/workflows/deploy.yaml` | CI and deployment ([Deployment](deployment.md)) |
