@@ -17,6 +17,7 @@ import { ProjectionService } from '../../services/projection.service';
 import { Subscription } from 'rxjs';
 import { getColorScaleById, getContinuousGradient, getCategoricalColors } from '../../shared/interfaces/color-scale';
 import { getGlyphTypeName } from '../../shared/enum/glyph-type';
+import { TRANSITION_SPEED } from '../../shared/constants/canvas-constants';
 
 export type SettingMode = 'position' | null;
 
@@ -31,14 +32,13 @@ export type SettingMode = 'position' | null;
 export class SettingsControlPanelComponent implements OnDestroy, OnInit {
   @Input() visible = false;
 
-  private readonly MAX_ANIMATION_SPEED = 10;
-  private readonly MIN_ANIMATION_SPEED = 1;
   private readonly PROJECTION_FADE_DELAY_MS = 4500;
   private readonly PROJECTION_REMOVE_DELAY_MS = 5000;
 
   panelActive = false;
   activeSetting: SettingMode = null;
-  animationSpeed = this.MAX_ANIMATION_SPEED;
+  /** Transition speed level shown in the overlay; the canvas turns it into a step (transitionStep). */
+  animationSpeed: number = TRANSITION_SPEED.default;
   paused = true;
 
   // Color info
@@ -83,6 +83,7 @@ export class SettingsControlPanelComponent implements OnDestroy, OnInit {
   @Output() delete = new EventEmitter<void>();
   @Output() toggleCollision = new EventEmitter<void>();
   @Output() toggleAggregation = new EventEmitter<void>();
+  /** Emits the new transition speed level. */
   @Output() changeAnimationSpeed = new EventEmitter<number>();
   @Output() togglePlayback = new EventEmitter<void>();
   @Output() toggleMaximize = new EventEmitter<void>();
@@ -263,16 +264,16 @@ export class SettingsControlPanelComponent implements OnDestroy, OnInit {
   }
 
   increaseSpeed() {
-    if (this.animationSpeed < this.MAX_ANIMATION_SPEED) {
+    if (this.animationSpeed < TRANSITION_SPEED.max) {
       this.animationSpeed++;
-      this.changeAnimationSpeed.emit(this.animationSpeed / 1000);
+      this.changeAnimationSpeed.emit(this.animationSpeed);
     }
   }
 
   decreaseSpeed() {
-    if (this.animationSpeed > this.MIN_ANIMATION_SPEED) {
+    if (this.animationSpeed > TRANSITION_SPEED.min) {
       this.animationSpeed--;
-      this.changeAnimationSpeed.emit(this.animationSpeed / 1000);
+      this.changeAnimationSpeed.emit(this.animationSpeed);
     }
   }
 

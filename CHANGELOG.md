@@ -43,6 +43,8 @@ GlyphSpace has no version numbers yet, so releases are named by the date they re
 - Reprocessing a dataset, or importing another file under the same name, replaces its items; before, old values could stay (#92).
 - Processing no longer fails when an ID contains a comma (#92).
 - **Clear all** no longer brings old search terms back on the next search (#92).
+- The transition speed of a canvas: 10, after lowering and raising it again, is as fast as on start (it was ten times slower), and turning off **Avoid collision** keeps the chosen speed (#99).
+- **Avoid collision** follows changes of **Size**, the glyph axes and the appearance while it is on, instead of having to be turned off and on again; smaller items move back towards their places (#99).
 - **Avoid collision** works with the new glyph size: it keeps apart what is drawn (dots, petals or stars, or whole circles with a background or axes) instead of full glyph circles, so the projection keeps its shape, and it adjusts when the zoom level changes (#97).
 - A fill value that is neither true nor false for a true/false column is reported as K8 (#92).
 - Step 1's file requirements no longer promise that `-x`/`-y` and latitude/longitude columns become positions; only the command-line tool uses them (#92).
