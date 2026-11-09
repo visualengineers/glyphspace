@@ -45,6 +45,8 @@ import {
 import { ThumbnailService } from '../services/thumbnail.service';
 import { buildGlyphRenderConfig, GlyphRenderConfig } from '../glyph/glyph-render-config';
 import { GlyphConfiguration } from '../glyph/glyph-configuration';
+import { typicalGlyphReach } from '../glyph/glyph-reach';
+import { hasFeatureAxes } from '../shared/enum/glyph-type';
 
 @Component({
   selector: 'glyph-canvas',
@@ -180,6 +182,8 @@ export class GlyphCanvasComponent implements AfterViewInit, OnDestroy, OnChanges
 
           this.selectedTimestamp = this.timestamps[0];
           this.selectedAlgorithm = this.algorithms[0];
+          // Glyph radii depend on the dataset (see applyGlyphSizes); positions need the selection above.
+          this.applyGlyphSizes(this.config.getConfiguration());
 
           this.rendererSvc.glyphGroup.clear();
 
@@ -336,10 +340,22 @@ export class GlyphCanvasComponent implements AfterViewInit, OnDestroy, OnChanges
     this.resizeObserver.observe(container);
   }
 
-  /** Take over point and glyph size; hit testing and collision avoidance depend on the radius. */
+  /**
+   * Take over the item size. Glyphs get a radius that makes a typical glyph of
+   * this dataset look about as large as its point; images fill their radius.
+   * Hit testing and collision avoidance depend on the radius.
+   */
   private applyGlyphSizes(glyphConfig: GlyphConfiguration): void {
     const sizeInfo = this.rendererSvc.sizeInfo;
-    if (!sizeInfo.setSizes(glyphConfig.pointSize, glyphConfig.glyphSize)) return;
+    const reach = hasFeatureAxes(glyphConfig.glyphType)
+      ? typicalGlyphReach(
+          this.glyphData,
+          this.config.activeFeatures,
+          this.config.featureMaxValues,
+          glyphConfig.scaleLinear
+        )
+      : 1;
+    if (!sizeInfo.setSizes(glyphConfig.itemSize, reach)) return;
     this.simulation?.force('collide', forceCollide(sizeInfo.getRadius(ZoomLevel.high)));
     this.rendererSvc.rebuildSpatialGrid(this.glyphData, this.id, this.selectedTimestamp, this.selectedAlgorithm);
   }

@@ -1,11 +1,10 @@
 import * as THREE from 'three';
 import { Line2 } from 'three/examples/jsm/lines/Line2.js';
 import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
-import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { GlyphSizeInfo } from '../glyph-size-info';
 import { axisLength, starPoints } from '../glyph-geometry';
 import { GlyphRenderer, GlyphRenderContext } from './glyph-renderer';
-import { addBackgroundCircle, addCoordinateAxes, addPlaceHolder } from './shared-rendering';
+import { addBackgroundCircle, addCoordinateAxes, addPlaceHolder, getCachedContourMaterial } from './shared-rendering';
 
 export class RadarChartRenderer implements GlyphRenderer {
   render(ctx: GlyphRenderContext, sizeInfo: GlyphSizeInfo, linearScale: boolean): THREE.Object3D {
@@ -41,14 +40,7 @@ export class RadarChartRenderer implements GlyphRenderer {
       const lineGeom = new LineGeometry();
       lineGeom.setPositions(positions);
 
-      const lineMat = new LineMaterial({
-        color: color,
-        linewidth: sizeInfo.contourThickness,
-        transparent: true,
-        opacity: 0.9,
-      });
-
-      const line = new Line2(lineGeom, lineMat);
+      const line = new Line2(lineGeom, getCachedContourMaterial(color, sizeInfo.contourThickness));
       line.computeLineDistances();
       line.scale.set(1, 1, 1);
       group.add(line);

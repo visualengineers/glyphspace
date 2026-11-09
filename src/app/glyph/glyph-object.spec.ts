@@ -57,7 +57,24 @@ describe('GlyphObject', () => {
 
     const mesh = glyph.render(sizeInfo, 't', 'pca', 0, false, renderConfig(['1', '2', '3', '4'], GlyphType.Flower));
 
-    expect(mesh?.children.filter(child => child instanceof THREE.Mesh).length).toBe(3);
+    // All petals share one mesh, so a zoom-level change has few objects to rebuild.
+    const petals = mesh?.children.filter(child => child instanceof THREE.Mesh) as THREE.Mesh[];
+    expect(petals.length).toBe(1);
+    expect((petals[0].geometry as THREE.ShapeGeometry).parameters.shapes).toHaveLength(3);
+  });
+
+  it('outlines flower petals only at full detail', () => {
+    const glyph = createGlyph({ '1': 0.5, '2': 0.3, '3': 1 });
+    const config = { ...renderConfig(['1', '2', '3'], GlyphType.Flower), useContour: true };
+    const lines = (level: ZoomLevel) => {
+      const sizeInfo = new GlyphSizeInfo();
+      sizeInfo.currentZoomLevel = level;
+      const mesh = glyph.render(sizeInfo, 't', 'pca', 0, false, config);
+      return mesh?.children.filter(child => child.type === 'Line2').length;
+    };
+
+    expect(lines(ZoomLevel.medium)).toBe(0);
+    expect(lines(ZoomLevel.high)).toBe(1);
   });
 
   // Issue #50: full-detail glyphs kept their color although they were filtered out.

@@ -10,7 +10,7 @@ GlyphSpace has no version numbers yet, so releases are named by the date they re
 
 - Documentation in `docs/`: a user guide, specifications of the data formats and worker protocols, architecture decision records, and development guides. This changelog.
 - Item images for imported datasets: Step 1 of the wizard takes an optional ZIP file with one picture per item, named after the item's ID (JPG, PNG or WebP). The **Image** glyph type shows them, and the dataset keeps them in the browser (#92).
-- **Point size** and **Glyph size** sliders in the sidebar's **Encoding** tab (#90).
+- A **Size** slider in the sidebar's **Encoding** tab sets dots and glyphs together: a typical glyph of the dataset reaches about as far as the dot it replaces, so items keep their size when zooming from dots to glyphs (#90).
 
 ### Changed
 
@@ -19,7 +19,9 @@ GlyphSpace has no version numbers yet, so releases are named by the date they re
 - Glyph axes follow the order of the glyph features: axis 1 points up, the others follow clockwise, and an added feature becomes the last axis. Canvases, legend and the wizard's Step 5 preview draw them the same way (#90).
 - New categorical palettes: Glasbey, Tableau 10 and Colorblind, none with grey, which marks filtered-out items. Categories take the colours in order, in the glyphs and the histograms alike. The new palettes have new ids; datasets and wizard settings saved with Observable10 or Tableau20 open with Glasbey or Tableau 10 (#89).
 - The flower glyph has Glyphboard's petal shape. The axes behind a glyph are lighter and thinner, and the contour ring lies behind the data (#91).
-- Dot and glyph sizes no longer depend on the screen's pixel ratio or the canvas size. The magic lens draws glyphs at the glyph size (#90).
+- Dot and glyph sizes no longer depend on the screen's pixel ratio or the canvas size (#90).
+- The magic lens shows the items nearest the cursor in their arrangement on the canvas, as large as they fit without overlapping. Before, it scattered them at random and they piled up along its border. When more items are under the cursor than the lens shows, the ring around the cursor shrinks to the area it shows. The lens is 300 px wide (was 250).
+- Zooming from dots to glyphs no longer stalls the page as long: a flower glyph is drawn as one shape and one outline instead of one per petal, and the flower outline only at the highest zoom level, where it is visible.
 - The **Thumbnails** glyph type is now called **Image** (#90).
 - Angular 21.2.26 (CLI 21.2.29), Vitest 4.1.12, Playwright 1.65. After pulling, run `npx playwright install chromium` once for Playwright's new browser build.
 

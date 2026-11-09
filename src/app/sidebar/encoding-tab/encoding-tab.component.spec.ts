@@ -3,7 +3,7 @@ import { EncodingTabComponent } from './encoding-tab.component';
 import { ConfigService } from '../../services/config.service';
 import { GlyphType } from '../../shared/enum/glyph-type';
 import { COLOR_SCALES } from '../../shared/interfaces/color-scale';
-import { GLYPH_SIZE_PX, POINT_SIZE_PX } from '../../glyph/glyph-size-info';
+import { ITEM_SIZE_PX } from '../../glyph/glyph-size-info';
 
 describe('EncodingTabComponent', () => {
   let fixture: ComponentFixture<EncodingTabComponent>;
@@ -16,8 +16,7 @@ describe('EncodingTabComponent', () => {
   beforeEach(() => {
     config = TestBed.inject(ConfigService);
     config.getConfiguration().glyphType = GlyphType.Star;
-    config.getConfiguration().pointSize = POINT_SIZE_PX.default;
-    config.getConfiguration().glyphSize = GLYPH_SIZE_PX.default;
+    config.getConfiguration().itemSize = ITEM_SIZE_PX.default;
     config.colorFeature = '1';
     config.colorRange = 2;
     fixture = TestBed.createComponent(EncodingTabComponent);
@@ -58,20 +57,19 @@ describe('EncodingTabComponent', () => {
     expect(el.querySelector('.hint')?.textContent).toContain('This feature has 14 categories, so colors repeat.');
   });
 
-  it('shows the size values and applies slider changes once per frame', async () => {
+  it('has one size slider for points and glyphs, applied once per frame', async () => {
     const update = vi.spyOn(config, 'updateConfiguration');
-    const points = slider('encoding-point-size');
-    const glyphs = slider('encoding-glyph-size');
+    const size = slider('encoding-size');
+    expect(el.querySelectorAll('input[type=range]').length).toBe(1);
 
-    points.value = '12';
-    points.dispatchEvent(new Event('input'));
-    glyphs.value = '80';
-    glyphs.dispatchEvent(new Event('input'));
+    size.value = '9';
+    size.dispatchEvent(new Event('input'));
+    size.value = '12';
+    size.dispatchEvent(new Event('input'));
     fixture.detectChanges();
 
-    expect(config.getConfiguration().pointSize).toBe(12);
-    expect(config.getConfiguration().glyphSize).toBe(80);
-    expect(Array.from(el.querySelectorAll('output')).map(o => o.textContent?.trim())).toEqual(['12 px', '80 px']);
+    expect(config.getConfiguration().itemSize).toBe(12);
+    expect(Array.from(el.querySelectorAll('output')).map(o => o.textContent?.trim())).toEqual(['12 px']);
 
     await new Promise(resolve => requestAnimationFrame(resolve));
     expect(update).toHaveBeenCalledTimes(1);

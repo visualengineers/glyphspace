@@ -1,27 +1,26 @@
 import { ZoomLevel } from '../shared/enum/zoom-level';
 
 /**
- * Point size: diameter of a point in px at 100 % zoom. Positions are scaled to
- * the canvas, so world units are screen pixels at that zoom.
+ * Item size: diameter of a point in px at 100 % zoom (positions are scaled to
+ * the canvas, so world units are screen pixels there). Glyphs get a radius
+ * that makes a typical glyph cover about as much as its point.
  */
-export const POINT_SIZE_PX = { min: 2, max: 20, default: 6 } as const;
+export const ITEM_SIZE_PX = { min: 2, max: 20, default: 6 } as const;
 
-/** Glyph size: diameter of a glyph in px in the magic lens; glyphs on the canvas scale with it. */
-export const GLYPH_SIZE_PX = { min: 16, max: 120, default: 48 } as const;
-
-/** Canvas radius (world units) of a full-detail glyph per px of glyph size: 48 px give radius 5. */
-const HIGH_RADIUS_PER_GLYPH_PX = 5 / 48;
-
-/** Glyphs at medium zoom are half as large as full-detail ones. */
-const MEDIUM_RADIUS_FACTOR = 0.5;
+/**
+ * How far a typical glyph reaches, in point radii. A glyph is mostly empty
+ * space between thin petals or spokes, so it has to reach beyond the point's
+ * radius to look about as large as the filled dot it replaces.
+ */
+export const GLYPH_REACH_IN_POINT_RADII = 2;
 
 export class GlyphSizeInfo {
   private radii = new Map<ZoomLevel, number>();
   private contourThicknesses = new Map<ZoomLevel, number>();
   private hitTolerances = new Map<ZoomLevel, number>();
 
-  private _pointSize: number = POINT_SIZE_PX.default;
-  private _glyphSize: number = GLYPH_SIZE_PX.default;
+  private _itemSize: number = ITEM_SIZE_PX.default;
+  private _reach = 1;
 
   private _currentZoomLevel: ZoomLevel = ZoomLevel.low;
   private _currentRadius = 1;
@@ -37,7 +36,7 @@ export class GlyphSizeInfo {
 
   clone(): GlyphSizeInfo {
     const cloned = new GlyphSizeInfo(this.baseContour, this.baseHitTolerance);
-    cloned.setSizes(this._pointSize, this._glyphSize);
+    cloned.setSizes(this._itemSize, this._reach);
 
     // Keep overrides of the current values (e.g. an enlarged radius)
     cloned._currentZoomLevel = this._currentZoomLevel;
@@ -54,10 +53,12 @@ export class GlyphSizeInfo {
     const depthFactor = window.screen.pixelDepth / 24;
     const scale = 1.25;
 
-    const highRadius = this._glyphSize * HIGH_RADIUS_PER_GLYPH_PX;
-    this.radii.set(ZoomLevel.low, this._pointSize / 2);
-    this.radii.set(ZoomLevel.medium, highRadius * MEDIUM_RADIUS_FACTOR);
-    this.radii.set(ZoomLevel.high, highRadius);
+    // A glyph keeps its size across zoom levels; only how it is drawn changes.
+    const pointRadius = this._itemSize / 2;
+    const glyphRadius = (pointRadius * GLYPH_REACH_IN_POINT_RADII) / this._reach;
+    this.radii.set(ZoomLevel.low, pointRadius);
+    this.radii.set(ZoomLevel.medium, glyphRadius);
+    this.radii.set(ZoomLevel.high, glyphRadius);
 
     this.contourThicknesses.set(ZoomLevel.low, this.baseContour);
     this.contourThicknesses.set(ZoomLevel.medium, this.baseContour);
@@ -70,21 +71,24 @@ export class GlyphSizeInfo {
     this.updateInfo();
   }
 
-  /** Take over the user's point and glyph size (px). Returns whether a size changed. */
-  setSizes(pointSize: number, glyphSize: number): boolean {
-    if (pointSize === this._pointSize && glyphSize === this._glyphSize) return false;
-    this._pointSize = pointSize;
-    this._glyphSize = glyphSize;
+  /**
+   * Take over the item size (px) and how far a typical glyph reaches as a
+   * fraction of its radius (see typicalGlyphReach). Returns whether anything changed.
+   */
+  setSizes(itemSize: number, reach: number): boolean {
+    if (itemSize === this._itemSize && reach === this._reach) return false;
+    this._itemSize = itemSize;
+    this._reach = reach > 0 ? reach : 1;
     this.update();
     return true;
   }
 
-  get pointSize(): number {
-    return this._pointSize;
+  get itemSize(): number {
+    return this._itemSize;
   }
 
-  get glyphSize(): number {
-    return this._glyphSize;
+  get reach(): number {
+    return this._reach;
   }
 
   private updateInfo() {

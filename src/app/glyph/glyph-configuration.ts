@@ -1,5 +1,5 @@
 import { GlyphType } from '../shared/enum/glyph-type';
-import { GLYPH_SIZE_PX, POINT_SIZE_PX } from './glyph-size-info';
+import { ITEM_SIZE_PX } from './glyph-size-info';
 
 export interface GlyphOption {
   property: string;
@@ -14,8 +14,7 @@ export class GlyphConfiguration {
   private _useContour = true;
   private _radius = 0;
   private _scaleLinear = false;
-  private _pointSize: number = POINT_SIZE_PX.default;
-  private _glyphSize: number = GLYPH_SIZE_PX.default;
+  private _itemSize: number = ITEM_SIZE_PX.default;
 
   private _glyphType: GlyphType = GlyphType.Star;
 
@@ -88,20 +87,12 @@ export class GlyphConfiguration {
     this._scaleLinear = scaleLinear;
   }
 
-  /** Diameter of a point in px at 100 % zoom, within POINT_SIZE_PX. */
-  get pointSize(): number {
-    return this._pointSize;
+  /** Size of an item in px at 100 % zoom (a point's diameter), within ITEM_SIZE_PX; glyphs follow it. */
+  get itemSize(): number {
+    return this._itemSize;
   }
-  set pointSize(px: number) {
-    this._pointSize = clampSize(px, POINT_SIZE_PX);
-  }
-
-  /** Diameter of a glyph in px in the magic lens, within GLYPH_SIZE_PX. */
-  get glyphSize(): number {
-    return this._glyphSize;
-  }
-  set glyphSize(px: number) {
-    this._glyphSize = clampSize(px, GLYPH_SIZE_PX);
+  set itemSize(px: number) {
+    this._itemSize = clampSize(px, ITEM_SIZE_PX);
   }
 }
 

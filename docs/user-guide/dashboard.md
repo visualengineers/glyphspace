@@ -63,7 +63,7 @@ How an item is drawn depends on the zoom level:
 | Zoomed in | The selected glyph type |
 | Zoomed in further | A larger glyph of the selected type |
 
-The size of the dots and glyphs is set with **Point size** and **Glyph size** in the sidebar's **Encoding** tab. The glyph type is chosen there too, under **GLYPH TYPE**:
+The size of the dots and glyphs is set with **Size** in the sidebar's **Encoding** tab. The glyph type is chosen there too, under **GLYPH TYPE**:
 
 | Glyph type | Button | Shape |
 |---|---|---|
@@ -83,7 +83,7 @@ Click an item to show its tooltip right away and pin it, so you can move the mou
 
 ## Magic lens
 
-Turn the lens on with the **Magic Lens** button or **L**. It shows the items near the cursor as glyphs of the **Glyph size** set in the sidebar, spread out so they don't overlap, even where the canvas is crowded or zoomed out. The same items are enlarged in the other canvases.
+Turn the lens on with the **Magic Lens** button or **L**. It shows the items near the cursor as large glyphs, in the same arrangement as on the canvas, spread out just enough not to overlap, even where the canvas is crowded or zoomed out. The fewer items, the larger they are drawn. The lens shows up to 30 items, those nearest the cursor; where more are under it, the ring around the cursor shrinks to the area the lens shows. The same items are enlarged in the other canvases.
 
 - **Click** to pin the lens in place (the canvas dims). Then hover over the glyphs inside the lens to see their tooltips.
 - **Click again** to release it.

@@ -2,7 +2,7 @@ import { Component, Input, OnDestroy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ConfigService } from '../../services/config.service';
 import { GlyphConfiguration } from '../../glyph/glyph-configuration';
-import { GLYPH_SIZE_PX, POINT_SIZE_PX } from '../../glyph/glyph-size-info';
+import { ITEM_SIZE_PX } from '../../glyph/glyph-size-info';
 import { GlyphType, getGlyphTypeName } from '../../shared/enum/glyph-type';
 import {
   COLOR_SCALES,
@@ -36,8 +36,7 @@ export class EncodingTabComponent implements OnDestroy {
     label: getGlyphTypeName(type),
   }));
   readonly groupedColorScales = buildGroupedColorScales(COLOR_SCALES);
-  readonly pointSizeLimits = POINT_SIZE_PX;
-  readonly glyphSizeLimits = GLYPH_SIZE_PX;
+  readonly sizeLimits = ITEM_SIZE_PX;
 
   private sizeFrame?: number;
 
@@ -63,18 +62,13 @@ export class EncodingTabComponent implements OnDestroy {
     this.config.updateConfiguration();
   }
 
-  // --- Sizes ---
-  setPointSize(value: string): void {
-    this.glyphConfig.pointSize = +value;
+  // --- Size ---
+  setItemSize(value: string): void {
+    this.glyphConfig.itemSize = +value;
     this.scheduleSizeUpdate();
   }
 
-  setGlyphSize(value: string): void {
-    this.glyphConfig.glyphSize = +value;
-    this.scheduleSizeUpdate();
-  }
-
-  /** Dragging a slider fires many input events; redraw the canvases at most once per frame. */
+  /** Dragging the slider fires many input events; redraw the canvases at most once per frame. */
   private scheduleSizeUpdate(): void {
     if (this.sizeFrame !== undefined) return;
     this.sizeFrame = requestAnimationFrame(() => {

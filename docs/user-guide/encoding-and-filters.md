@@ -60,9 +60,8 @@ Switching datasets in the **Data** menu clears all filters.
 | **GLYPH TYPE** | **Star**, **Flower** or **Image**. See [Points and glyphs](dashboard.md#points-and-glyphs). |
 | **COLOR BY** | The feature that colours the items. Each option shows the feature's type, such as **(numeric)**, or its number of categories, such as **(5 categories)**. |
 | Colour scale (below **COLOR BY**) | The colours used for it. With a categorical palette, a hint says how many categories get a colour of their own. |
-| **APPEARANCE** | Toggles for the glyph drawing: **Coordinate system**, **Circle background** and **Contour**. |
-| **Point size** | Diameter of the dots at 100 % zoom: 2 to 20 px, 6 px at the start. |
-| **Glyph size** | Diameter of the glyphs in the magic lens: 16 to 120 px, 48 px at the start. The glyphs on the canvases grow and shrink with it. |
+| **APPEARANCE** | Toggles for the glyph drawing: **Coordinate system**, **Circle background** and **Contour**. Flower outlines appear only when zoomed in furthest. |
+| **Size** | Diameter of the dots at 100 % zoom: 2 to 20 px, 6 px at the start. Glyphs follow it: a typical glyph of the dataset reaches about as far as its dot, so items keep their size when you zoom from dots to glyphs. Glyphs of datasets with small values therefore get a larger circle. |
 
 The colour scales:
 
