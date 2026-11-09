@@ -25,7 +25,7 @@ flowchart LR
 5. Writes `.nojekyll` and copies `3rdpartylicenses.txt` into `dist/glyphspace/browser/`.
 6. On `main` only: uploads `dist/glyphspace/browser/` as the artifact `site` (kept one day).
 
-**deploy** runs only for pushes to `main`, after verify. It downloads the artifact and publishes it to the `gh-pages` branch with `peaceiris/actions-gh-pages` (Jekyll disabled). Deploys never cancel each other.
+**deploy** runs only for pushes to `main`, after verify. It downloads the artifact and publishes it to the `gh-pages` branch with `peaceiris/actions-gh-pages` (Jekyll disabled). A running deploy is never cancelled (`cancel-in-progress: false`), but a deploy that is still waiting is replaced by a newer one, so only the latest of several quick pushes may be published.
 
 Permissions follow least privilege: the workflow can only read the repository; the deploy job alone may write.
 

@@ -27,7 +27,7 @@ If the cause can't be identified, the card reads **We couldn't finish processing
 
 ### Warnings before processing
 
-Step 6 checks your settings before you start. A **Heads up** box lists likely problems with the same codes: constant or mostly empty columns still in the projection (K3), neighbour counts larger than the number of rows (K4), and slow methods (t-SNE, Sammon, UMAP) on a large dataset (K6). You can start anyway or fix them first.
+Step 6 checks your settings before you start. A **Heads up** box lists likely problems with the same codes: constant or mostly empty columns still in the projection (K3), neighbour counts as large as the number of rows or larger (K4), and slow methods (t-SNE, Sammon, UMAP) on a large dataset (K6). You can start anyway or fix them first.
 
 ### A background projection fails
 
@@ -56,7 +56,7 @@ If one of the additional projections fails, a notification reads **METHOD could 
 | An imported dataset is missing from the **Data** menu | Imported datasets live in the browser they were imported in. Clearing the site data, a private window or another browser starts empty. Import the CSV again. |
 | Scrolling doesn't zoom | Zooming is paused while a tooltip is pinned or the magic lens is on. Click the item again to release the tooltip, or press **L** to close the lens. |
 | No tooltip appears | Tooltips show in **Navigation Mode** (press **N**). Hold the mouse still over an item for a moment. |
-| Keyboard shortcuts don't work | Keep the mouse over the canvas, and click outside any text field first. |
+| Keyboard shortcuts don't work | Move the mouse over the canvas just before pressing the key (shortcuts pause 2 seconds after the mouse stops), and click outside any text field first. |
 | **Thumbnails** shows grey squares | The dataset has no images. Thumbnails exist only for bundled datasets that provide them (see [Preparing data](preparing-data.md#thumbnails)). |
 | **Export** downloads fewer rows than expected | It exports only the items that pass the current filters and selection. Clear them with **Clear all** in the sidebar header. |
 | **Add** (canvas) is disabled | There can be at most four canvases. Remove one first. |

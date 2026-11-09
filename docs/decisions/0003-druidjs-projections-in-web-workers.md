@@ -1,6 +1,6 @@
 # 0003. Compute projections with DruidJS, FastMap first, the rest in web workers
 
-**Status:** Accepted (recorded retroactively on 2026-11-09) · **Date:** 2025-12-28 (DruidJS), 2026-01 (FastMap first, worker per method) · **Related:** [Worker protocol](../specs/worker-protocol.md), [Processing config](../specs/processing-config.md#projections), [ADR 0002](0002-preprocess-in-the-browser-with-pyodide.md)
+**Status:** Accepted (recorded retroactively on 2026-11-09) · **Date:** 2025-12-28 (DruidJS, worker per method), 2026-01 (FastMap first) · **Related:** [Worker protocol](../specs/worker-protocol.md), [Processing config](../specs/processing-config.md#projections), [ADR 0002](0002-preprocess-in-the-browser-with-pyodide.md)
 
 ## Context
 

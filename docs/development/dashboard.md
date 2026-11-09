@@ -83,7 +83,7 @@ Components talk through subjects on `ConfigService` rather than calling each oth
 2. Each canvas calls `DataLoaderService.getGlyphData(name)`. It takes the `GlyphObject`s from `DatasetCacheService`, gives them to `FilterService` (`setActiveGlyphData`, counts), and sets `ConfigService.dataSource` from the collection entry.
 3. The canvas takes the timestamps and projections from `DatasetCollectionService` and selects the first of each.
 4. It clears the scene, computes the position bounds, and calls `fitToView`: scale positions, rebuild the spatial grid, reset to the low zoom level, render all glyphs, animate the camera.
-5. Meanwhile the sidebar calls `getMetaData()` and `getSchema()`. `getSchema` applies the schema to `ConfigService` through `SchemaConfigSyncService` (below). The sidebar keeps the current colour feature if the new dataset has it, otherwise takes the schema's. If that feature is `numeric` or `categorical` and the selected scale is of the other type, it switches to the first scale of the feature's type. It also picks a random item for the glyph preview.
+5. Meanwhile the sidebar calls `getMetaData()` and `getSchema()`. `getSchema` applies the schema to `ConfigService` through `SchemaConfigSyncService` (below), which sets the colour feature to the new dataset's `schema.color` before the sidebar reads it. So after a dataset switch the colour feature is always the schema's, or the first feature if the schema's doesn't exist. If that feature is `numeric` or `categorical` and the selected scale is of the other type, it switches to the first scale of the feature's type. It also picks a random item for the glyph preview.
 
 `SchemaConfigSyncService.applySchemaToConfig` copies `color` → `colorFeature`, `glyph` → `activeFeatures`, `label` → `featureLabels`, `metadata` → `metadataLabels`, `types` → `featureTypes`, and `colorScaleId` → the selected scale. Older schemas without `colorScaleId` use `colorRange`: `true` selects scale 0, `false` scale 4. The maxima for normalising categorical colours (`ConfigService.featureMaxValues`) are set from the meta file's `max` values when an imported dataset is loaded (`extractFeatureMaxValuesFromMeta`), and recomputed from the items, for categorical features only, whenever `getSchema()` runs (`calculateFeatureMaxValues`).
 
@@ -108,8 +108,8 @@ The menubar's Download exports the active (non-passive) items of the current dat
 
 Selection mode is switched with `s` or the navigation overlay (`canvas/navigationcontrols/`). In selection mode:
 
-- A click (less than 4 px movement and 300 ms, `canvas-constants.ts`) on an item toggles its id in the canvas's `IdFilter`; a click on empty space clears all id filters.
-- Dragging draws a rectangle. On release, every glyph whose screen position is inside is selected, replacing the previous selection unless Shift is held.
+- A click on an item toggles its id in the canvas's `IdFilter`. Here a click means press and release at the same point: any mouse movement while pressed makes it a rectangle, and there is no time limit. (The 4 px / 300 ms click thresholds in `canvas-constants.ts` only apply outside selection mode, to pin the tooltip and fix the lens.)
+- Dragging draws a rectangle. On release, every glyph whose screen position is inside is selected, replacing the previous selection unless Shift is held. A rectangle that contains no glyph clears all id filters.
 
 Both end in `CanvasSelectionService.applyFilters`, which registers the filter as an Or filter, refreshes the filters and calls `redraw()`.
 
@@ -123,11 +123,12 @@ Outside selection mode, `mousemove` hit-tests at most every 50 ms. Below 500 gly
 
 ### Other canvas modes
 
-Keyboard shortcuts work while the mouse is over the canvas and not in a text field (`checkTextInput`, `shared/helpers/angular-helper.ts`):
+Keyboard shortcuts work while the mouse is over the canvas and has moved within the last 2 seconds (`MOUSE_IDLE_MS`), and not in a text field (`checkTextInput`, `shared/helpers/angular-helper.ts`):
 
 | Key | Action |
 |---|---|
 | `c` | Collision avoidance on/off |
+| `d` | Settings overlay on/off |
 | `a` | Aggregation on/off: `clusterGlyphs` (`shared/helpers/glyph-helper.ts`) groups items within 10 canvas units with a d3 quadtree; visible at the low zoom level |
 | `f` | Fit to view |
 | `s` | Selection mode |

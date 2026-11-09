@@ -24,7 +24,7 @@ Things to know:
 - **Layout is real.** Specs can measure elements. The wizard's step-layout specs use `mountInShellLayout` and `expectFillsStep` to check that each step's main box fills the available height ([Wizard](wizard.md#ui-helpers)).
 - **Spy objects:** `src/testing/create-spy-obj.ts` builds typed spy objects, in the style of Jasmine's `createSpyObj`.
 - **Wizard helpers:** `preprocessing-wizard/testing/preprocessing-test-helpers.ts` provides `createTestPreprocessingService()` and `createToastServiceSpy()`.
-- **Workers:** the worker logic is tested through its pure parts: `workers/druid-runner.spec.ts`, `workers/pyodide-calls.spec.ts`, `workers/pyodide-files.spec.ts` and `workers/projection.worker.spec.ts`; `preprocessing-wizard/services/preprocessing.service.worker-files.spec.ts` covers file pruning.
+- **Workers:** the worker logic is tested through its pure parts (`workers/druid-runner.spec.ts`, `workers/pyodide-calls.spec.ts`, `workers/pyodide-files.spec.ts`), plus a smoke test that starts the real projection worker with DruidJS (`workers/projection.worker.spec.ts`); `preprocessing-wizard/services/preprocessing.service.worker-files.spec.ts` covers file pruning.
 
 Vitest artifacts such as failure screenshots land in `.vitest-attachments/`.
 

@@ -99,9 +99,9 @@ These settings define the dashboard's initial view. You can change them later in
 
 ## Step 6: Review & Process
 
-The summary cards show the columns, projection and glyph settings, each with an edit button that takes you to the right step. A table lists every column with its type, encoding, scaling and whether it is in the projection.
+The summary cards show the columns, projection and glyph settings, each with an edit button that takes you to the right step. A table lists the selected columns: features with their type, encoding, scaling and whether they are in the projection, and metadata columns marked "Metadata — tooltip and search only". Deselected columns are left out.
 
-If something is likely to fail (for example a neighbour count larger than the number of rows), a **Heads up** box lists it. You can start anyway or fix it first.
+If something is likely to fail (for example a neighbour count that isn't below the number of rows), a **Heads up** box lists it. You can start anyway or fix it first.
 
 Click **Start Processing**. The wizard cleans and encodes the data, then computes FastMap. When **Your visualization is ready** appears:
 
@@ -113,7 +113,7 @@ If processing fails, the step explains the cause and how to fix it, with a butto
 
 ### Background projections
 
-The methods you ticked in Step 4 run in the background, each on its own, while you can already explore the FastMap layout. Under **Background Projections**, each one shows its progress and can be cancelled (**Cancel**) or, after a failure, retried (**Retry**). **Stop all background projections** cancels the rest.
+The methods you ticked in Step 4 run in the background, each on its own, while you can already explore the FastMap layout. Under **Background Projections**, each one shows its progress and can be cancelled (**Cancel**) or, after a failure or a cancel, run again (**Retry**). **Stop all background projections** cancels the rest.
 
 They keep running after you click **Open in Glyphspace**. Each finished projection appears in the canvas settings under **DIMENSIONALITY REDUCTION** (see [Dashboard](dashboard.md#canvas-settings)), and a notification says it is ready. If one fails, a notification says so, and the other projections are not affected.
 

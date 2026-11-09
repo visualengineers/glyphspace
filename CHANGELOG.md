@@ -26,7 +26,7 @@ The preprocessing wizard was reworked along requirements A1–A15 ([spec](docs/s
 - Smart defaults: mostly empty and constant columns start deselected, near-unique text columns start as metadata, a fitting colour feature is suggested.
 - Columns can be used as **metadata**: shown in the tooltip, found by the search and exported, but not encoded or projected (#71).
 - Errors appear where they happen, in plain language, with a link to the step that fixes them (classes K1–K8). Problems that can be predicted are shown before processing starts.
-- Background projections can be cancelled and restarted one by one, or all at once.
+- Background projections can be cancelled one by one or all at once, and restarted one by one.
 - The review step links each setting back to the step where it is changed.
 - **Try with sample data** in Step 1 (Wine Quality, red).
 - Keyboard and screen-reader support: the wizard is a modal dialog with focus handling and announcements.
@@ -78,7 +78,7 @@ The preprocessing wizard was reworked along requirements A1–A15 ([spec](docs/s
 ### Added
 
 - The preprocessing wizard: upload a CSV, choose and configure its columns, pick projection methods, and process it in the browser (#24).
-- Projections computed with DruidJS. FastMap is computed first so the dashboard opens quickly; the other methods follow in the background (#47).
+- Projections computed with DruidJS (#24). FastMap is computed first so the dashboard opens quickly; the other methods follow in the background (#47).
 - Category filters (#40) and category values in the histograms (#38).
 - Information in the canvas settings controls (#29).
 
@@ -102,7 +102,7 @@ The preprocessing wizard was reworked along requirements A1–A15 ([spec](docs/s
 
 - A menubar with position, colour and glyph menus, **Fit all**, and navigation and settings controls per canvas.
 - Histograms of the data distribution, which also change the glyph features; a glyph legend; text search.
-- The magic lens shows glyphs instead of dots (#25, closes #1).
+- The magic lens shows glyphs instead of dots (#27).
 
 ### Changed
 
@@ -111,6 +111,7 @@ The preprocessing wizard was reworked along requirements A1–A15 ([spec](docs/s
 
 ### Fixed
 
+- The magic lens was slow; it has a new render logic (#25, closes #1).
 - Data of different timestamps was cached and loaded wrongly.
 
 ## 2025-11-20: Nutrients dataset
@@ -131,6 +132,8 @@ The preprocessing wizard was reworked along requirements A1–A15 ([spec](docs/s
 
 ### Added
 
+- Animated transitions between projections (#4).
+- Download of a canvas as PNG (#9).
 - The MIT licence.
 
 ### Changed
@@ -143,8 +146,6 @@ The preprocessing wizard was reworked along requirements A1–A15 ([spec](docs/s
 GlyphSpace, a rewrite of [Glyphboard](https://github.com/visualengineers/glyphboard):
 
 - glyph canvases that position items by a dimensionality reduction and draw them as glyphs, with touch control;
-- animated transitions between projections (#4);
-- download of a canvas as PNG (#9);
 - thumbnails for the bundled dataset;
 - CSV import through Python running in the browser (Pyodide);
 - the CLI `tools/process.py` for bundled datasets;

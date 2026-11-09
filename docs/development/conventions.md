@@ -4,7 +4,7 @@ _For contributors preparing a change for review._
 
 ## Code style
 
-- **Formatting** is Prettier's job (`.prettierrc`): single quotes, semicolons, ES5 trailing commas, 2-space indent, lines up to 120 characters, no parentheses around a single arrow-function parameter. The pre-commit hook formats staged files under `src/`; `npm run format:check` checks everything.
+- **Formatting** is Prettier's job (`.prettierrc`): single quotes, semicolons, ES5 trailing commas, 2-space indent, lines up to 120 characters, no parentheses around a single arrow-function parameter. The pre-commit hook formats staged files under `src/`; `npm run format:check` checks all `.ts`, `.html`, `.scss` and `.json` files under `src/`.
 - **Linting** is ESLint with the recommended TypeScript, stylistic and Angular rule sets plus Angular's template accessibility rules (`eslint.config.js`). Component selectors use the prefix `app-` or `glyph-` (kebab-case); directive selectors `app` (camelCase).
 - **Explain every lint exception.** Write the reason on the same line: `// eslint-disable-next-line @typescript-eslint/no-explicit-any -- dataset is an opaque structure from Python`. `any` and `!` produce warnings, not errors, so they need a reason too.
 - **Comments say why**, not what the next line does. Keep them true: a comment that describes removed behaviour is worse than none.

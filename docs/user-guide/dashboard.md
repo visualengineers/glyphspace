@@ -31,7 +31,7 @@ The bar at the top of each canvas shows **Pos:** (the projection), **Time:** (th
 
 ## Navigating
 
-Three mode buttons appear in a canvas while the mouse is over it:
+Three mode buttons appear in a canvas while the mouse moves over it (they hide again 2 seconds after the mouse stops):
 
 | Mode | Key | What the mouse does |
 |---|---|---|
@@ -39,10 +39,10 @@ Three mode buttons appear in a canvas while the mouse is over it:
 | **Magic Lens** | **L** | A round lens follows the cursor and shows the items under it as full-size glyphs. |
 | **Selection Mode** | **S** | Click or drag to select items. |
 
-- **Zoom:** scroll wheel, centred on the cursor. On a touch screen, drag with one finger to pan and pinch with two to zoom. Zooming is paused while a tooltip is pinned or the magic lens is on.
+- **Zoom:** scroll wheel, centred on the cursor. On a touch screen, drag with one finger to pan and pinch with two to zoom. Wheel zooming is paused while a tooltip is pinned or the magic lens is on; pinching still zooms.
 - **Fit:** **F**, or the **Fit to screen** button.
 
-Keys only act while the mouse is over the canvas and you aren't typing in a text field.
+Keys only act while the mouse is over the canvas and has moved within the last 2 seconds, and you aren't typing in a text field.
 
 | Key | Action |
 |---|---|

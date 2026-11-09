@@ -29,7 +29,7 @@ Don't repeat content across kinds; link to it. The development docs explain the 
 - English, plain GitHub Markdown. Diagrams in Mermaid, which GitHub renders.
 - Start with an H1 title and one italic line saying who the page is for.
 - Development pages say once, under the title, that paths are relative to `src/app/` unless they start with `src/`, `tools/` or `docs/`.
-- Name code by its path in backticks (`services/filter.service.ts`) and by its symbol (`FilterService.applyFilters`), not by line number: line numbers go stale with the next change.
+- Name code by its path in backticks (`services/filter.service.ts`) and by its symbol (`FilterService.refreshFilters`), not by line number: line numbers go stale with the next change.
 - Link between docs pages with relative links (`../specs/dataset-format.md`).
 - Use the UI's exact labels in **bold** in the user guide.
 - Write what the code does. If you are not sure, check the code or leave it out; never document intent as fact.

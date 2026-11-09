@@ -28,7 +28,7 @@ Message types: `WorkerRequest` and `WorkerReply` in `src/app/shared/interfaces/p
 
 - Every request sent through `DataProcessorService.sendRequestUntil` carries a numeric `requestId`. Every reply to that request, including `processingProgress` and `error`, echoes it. The client accepts only replies with its own id, so two requests of the same type never take each other's replies.
 - `getThumb` is the exception: it is sent without an id, and `thumb` replies are routed by file name.
-- The client gives up after 60 s (`timeoutMs`) and rejects with `Worker request "<type>" timed out after 60000ms`. The worker is not told and finishes the request; its late reply is ignored.
+- The client gives up after 60 s (`timeoutMs`) and rejects with `Worker request "<type>" timed out after 60000ms`, where `<type>` is the reply type it waited for (e.g. `processed`), not the request type. The worker is not told and finishes the request; its late reply is ignored.
 
 ### Requests and replies
 
@@ -45,14 +45,14 @@ Message types: `WorkerRequest` and `WorkerReply` in `src/app/shared/interfaces/p
 | `unzip` | `fileName`, `buffer` | `unzipped { folder, images }` | Writes `<name>.zip`, unpacks it into `/<name>/` and lists its `.png`, `.jpg`, `.jpeg` and `.webp` files. No UI sends this request at present. |
 | `getThumb` | `file` | `thumb { file, data }` | Reads `/<file>`; `data` is transferred, not copied. |
 
-Any exception becomes `error { message }`. The client rejects the pending request with `new Error(message)`; errors without a pending request are logged.
+Any exception becomes `error { message }`. The client rejects the pending request with `new Error(message)`; every `error` reply is also logged to the console, with or without a pending request.
 
 The `processed` reply is typed as `DatasetCollection`, but the payload has the shape `{ datasets, selectedDataset }` described in [Processing config](processing-config.md#result). The wizard reads it through the `ProcessedCollection` type in `src/app/preprocessing-wizard/services/processing-config.ts`.
 
 ### Rules for requests that touch files or Python
 
 - **File names** pass `assertSafeFileName` (`src/app/workers/pyodide-files.ts`) before anything is written: a single path component, not `.` or `..`, without `/`, `\` or NUL, and not ending in `.py`, `.pyc` or `.so` (the worker's directory is on Python's import path, so such a file could replace a module).
-- **Python calls** are built only with `pythonCall(module, function, args)` (`src/app/workers/pyodide-calls.ts`). Module and function names are fixed identifiers; arguments, including column names from the CSV header and the config, are passed as data, never as source code. See [ADR 0004](../decisions/0004-no-python-code-built-from-data.md).
+- **Python calls** are built only with `pythonCall(module, function, args)`, plus one fixed source block for unzipping, `unpackZipCall(zipPath)` (both in `src/app/workers/pyodide-calls.ts`). Module and function names are fixed identifiers; arguments, including column names from the CSV header and the config, are passed as data, never as source code. See [ADR 0004](../decisions/0004-no-python-code-built-from-data.md).
 - **Inputs stay** in the file system after processing, so the user can process again without uploading again. The wizard calls `pruneFiles` with every file name still referenced by its state or its undo/redo history.
 
 ## Projection worker

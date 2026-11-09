@@ -35,7 +35,7 @@ sequenceDiagram
 
 ## 1. Upload and profile (Step 1)
 
-`PreprocessingService.loadCSV` sends the file to the worker (`profileData`). The worker writes it into its file system under the file's own name, where it stays for every later request, and runs `profile_data` (`src/assets/preprocessing_processor.py`): per column the detected type, counts, missing values, statistics and a histogram, plus ten preview rows and the duplicate count. `adoptLoadedFile` turns each column profile into a default config (`services/column-defaults.ts`, rules in [CSV input](../specs/csv-input.md#wizard)), as one undoable action.
+`PreprocessingService.loadCSV` sends the file to the worker (`profileData`). The worker writes it into its file system under the file's own name, where it stays for every later request, and runs `profile_data` (`src/assets/preprocessing_processor.py`): per column the detected type, counts, missing values, statistics and a histogram, plus ten preview rows and the duplicate count. `adoptLoadedFile` turns each column profile into a default config (`preprocessing-wizard/services/column-defaults.ts`, rules in [CSV input](../specs/csv-input.md#wizard)), as one undoable action.
 
 ## 2. Live analysis (Step 3)
 
@@ -54,7 +54,7 @@ A second click while a run is active is ignored; `processData` also returns the 
 
 ## 4. Background projections
 
-After the primary run, `startBackgroundProjections` starts every enabled, visible method from `steps/step6-review-processing/background-projections.ts`, each through `ProjectionService` in its own worker. `ProjectionService` publishes a status per method (pending, running, complete, error, cancelled) that Step 6 shows, and offers `cancel(method)`, `retry(method)` and `terminateAllWorkers()`. The primary run can't be cancelled: terminating the Pyodide worker would drop the loaded runtime and the uploaded file.
+After the primary run, `startBackgroundProjections` starts every enabled, visible method from `preprocessing-wizard/steps/step6-review-processing/background-projections.ts`, each through `ProjectionService` in its own worker. `ProjectionService` publishes a status per method (pending, running, complete, error, cancelled) that Step 6 shows, and offers `cancel(method)`, `retry(method)` and `terminateAllWorkers()`. The primary run can't be cancelled: terminating the Pyodide worker would drop the loaded runtime and the uploaded file.
 
 When a method finishes:
 
@@ -74,7 +74,7 @@ Either way a toast reports the result. Failures are classified by `classifyBackg
 
 ## Errors
 
-A failed request rejects with the worker's message. Processing errors are classified into K1–K8 by `classifyProcessingError` (`shared/constants/wizard-error-classes.ts`) and shown as an issue card with a "Fix in step N" link; `detectPreflightIssues` warns about K3, K4 and K6 before the run. See [Wizard](wizard.md#errors) and, for users, [Troubleshooting](../user-guide/troubleshooting.md).
+A failed request rejects with the worker's message. Processing errors are classified into K1–K8 by `classifyProcessingError` (`preprocessing-wizard/shared/constants/wizard-error-classes.ts`) and shown as an issue card with a "Fix in step N" link; `detectPreflightIssues` warns about K3, K4 and K6 before the run. See [Wizard](wizard.md#errors) and, for users, [Troubleshooting](../user-guide/troubleshooting.md).
 
 ## Bundled datasets (CLI)
 

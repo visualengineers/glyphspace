@@ -17,7 +17,7 @@ The configuration object the wizard sends with `processWithConfig`, what the Pyt
 | Field | Type | Meaning |
 |---|---|---|
 | `datasetName` | string | Name of the dataset. |
-| `timestamp` | string | Time of the dataset item (`ddmmyyyy`). The result is keyed `<datasetName>.<timestamp>`. |
+| `timestamp` | string | Time of the dataset item: the upload day as `yyyymmdd` (UTC). The result is keyed `<datasetName>.<timestamp>`. |
 | `columns` | column config[] | One entry per column of the CSV, see below. |
 | `cleaning` | `{ removeDuplicates: boolean }` | Drop duplicate rows. |
 | `projections` | `ProjectionConfig` | Projection switches and parameters. Not used by Python (see [Projections](#projections)). |
@@ -43,7 +43,7 @@ The configuration object the wizard sends with `processWithConfig`, what the Pyt
 | `outlierMethod` | `iqr_1.5`, `iqr_2.0`, `iqr_3.0`, `zscore_2`, `zscore_3`, `zscore_4` | How outliers are detected. |
 | `outlierStrategy` | `keep`, `remove`, `cap` | What happens to them. |
 
-Python still accepts two legacy values that the wizard no longer sends: the missing-value strategies `drop` (the default when a column has no strategy; rows are dropped only together with `cleaning.removeMissing`) and `fill_zero`, and the scaling `normalize` (same as `minmax`).
+Python still accepts three legacy values that the wizard no longer sends: the missing-value strategies `drop` (the default when a column has no strategy; rows are dropped only together with `cleaning.removeMissing`) and `fill_zero`, and the scaling `normalize` (same as `minmax`).
 
 ## Order of operations
 
@@ -59,7 +59,7 @@ Python still accepts two legacy values that the wizard no longer sends: the miss
 
 If no rows are left after step 5, processing stops with an error (class K2).
 
-Metadata columns skip steps 2–7 entirely, including any cleaning settings left over from when they were features. They reach the dataset only as original values.
+Metadata columns skip steps 2–4, 6 and 7, including any cleaning settings left over from when they were features. They reach the dataset only as original values. The duplicate check (step 5) still compares them, like every column of the CSV, so two rows that differ only in a metadata column are both kept.
 
 ## Cleaning
 
@@ -76,7 +76,7 @@ Outlier detection:
 - `iqr_<k>`: outside [Q1 − k·IQR, Q3 + k·IQR];
 - `zscore_<k>`: |x − mean| / sd > k, with the sample standard deviation.
 
-Missing and non-numeric values are never outliers, and boolean columns have none. `cap` clips outliers to the detection bounds and is an error for a non-numeric column.
+Missing and non-numeric values are never outliers, and boolean columns have none. `cap` clips outliers to the detection bounds; it is an error when outliers are found in a column that isn't numeric (a mixed column), while a pure text column has no outliers and passes.
 
 ## Encoding
 
@@ -139,4 +139,4 @@ Progress is reported through `set_progress_callback` as `(step, progress, messag
 ## Compatibility
 
 - A config from an older wizard state must still process: a column without `role` is a feature, and unknown projection settings are dropped when the state is restored (see [Wizard storage](wizard-storage.md)).
-- An unknown missing-value strategy, outlier strategy, scaling or role is an error, not ignored.
+- An unknown scaling or role is an error, not ignored. So is an unknown missing-value strategy on a column that has missing values, and an unknown outlier strategy on an enabled feature column; elsewhere these values are never looked at.

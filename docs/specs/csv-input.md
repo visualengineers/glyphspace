@@ -70,7 +70,7 @@ Every column except `ID` becomes a feature column:
 |---|---|
 | numeric | the number |
 | not numeric, and the name contains `date` or `time` (any case) | seconds since the epoch; values that don't parse become missing |
-| other text with a single distinct value | one-hot (one 0/1 column) |
+| other text with a single distinct value, counting a missing value as a value (`CARDINALITY_THRESHOLD` in `tools/process.py`) | one-hot (one 0/1 column) |
 | other text | label encoding of the sorted distinct values |
 
 A column counts as `categorical` in the schema when it is text or has at most 20 distinct values (`ENUMERATE_THRESHOLD`), otherwise `numeric`. Missing text becomes a category of its own, labelled "missing". Missing numbers and dates are 0 after normalisation.
@@ -81,7 +81,7 @@ If one-hot encoding would give two feature columns the same name, the CLI stops 
 
 | Columns | Result |
 |---|---|
-| `<prefix>-x` and `<prefix>-y` (any case) | A pre-computed projection named `<prefix>`. Rows without both numbers are left out of it. These columns are not used as input for the PCA, UMAP and t-SNE projections. |
+| `<prefix>-x` and `<prefix>-y` (any case) | A pre-computed projection named `<prefix>` (lowercased). Rows without both numbers are left out of it. Columns ending in lowercase `-x`/`-y` are not used as input for the PCA, UMAP and t-SNE projections; with `-X`/`-Y` they still are (the exclusion in `extract_projection_features` is case-sensitive). |
 | longitude `longitude`, `lon` or `längengrad` and latitude `latitude`, `lat` or `breitengrad` (any case) | A projection named `epsg` with x = longitude, y = latitude. Missing or invalid coordinates get random values within the data range ± 1. |
 | `thumb` | Not used as input for the projections. |
 
