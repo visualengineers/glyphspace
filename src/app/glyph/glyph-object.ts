@@ -21,6 +21,8 @@ export class GlyphObject {
   defaultcontext = 0;
   features!: Features;
   values: StringStringMap | undefined;
+  // Original values of the metadata columns (tooltip and search only)
+  metadata: StringStringMap | undefined;
   currentContext = 1;
   renderCache = new Map<number, GlyphCacheObject>();
   passive = false;

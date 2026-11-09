@@ -9,6 +9,22 @@ export enum DataType {
   Unknown = 'unknown',
 }
 
+/**
+ * What a selected column becomes in the dataset.
+ * - Feature: encoded and scaled; can feed the projection, glyphs, color and the
+ *   dashboard's filters.
+ * - Metadata: kept as its original values; shown in the tooltip and found by the
+ *   text search, but never encoded or projected.
+ */
+export enum ColumnRole {
+  Feature = 'feature',
+  Metadata = 'metadata',
+}
+
+export function getColumnRoleLabel(role: ColumnRole): string {
+  return role === ColumnRole.Metadata ? 'Metadata' : 'Feature';
+}
+
 export enum EncodingMethod {
   None = 'none',
   OneHot = 'onehot',
@@ -60,6 +76,7 @@ export interface DataTypeCapabilities {
   defaultEncoding: EncodingMethod;
   defaultScaling: ScalingMethod;
   defaultIncludeInProjection: boolean;
+  defaultRole: ColumnRole;
 }
 
 export const DATA_TYPE_CONFIG: Record<DataType, DataTypeCapabilities> = {
@@ -71,6 +88,7 @@ export const DATA_TYPE_CONFIG: Record<DataType, DataTypeCapabilities> = {
     defaultEncoding: EncodingMethod.Normalize,
     defaultScaling: ScalingMethod.MinMax,
     defaultIncludeInProjection: true,
+    defaultRole: ColumnRole.Feature,
   },
   [DataType.Categorical]: {
     encodingMethods: [EncodingMethod.Label, EncodingMethod.OneHot],
@@ -80,7 +98,9 @@ export const DATA_TYPE_CONFIG: Record<DataType, DataTypeCapabilities> = {
     defaultEncoding: EncodingMethod.Label,
     defaultScaling: ScalingMethod.None,
     defaultIncludeInProjection: true,
+    defaultRole: ColumnRole.Feature,
   },
+  // Free text belongs in the tooltip: encoding it gives one feature per distinct value.
   [DataType.Text]: {
     encodingMethods: [EncodingMethod.None, EncodingMethod.Label, EncodingMethod.OneHot],
     hasScaling: false,
@@ -89,6 +109,7 @@ export const DATA_TYPE_CONFIG: Record<DataType, DataTypeCapabilities> = {
     defaultEncoding: EncodingMethod.None,
     defaultScaling: ScalingMethod.None,
     defaultIncludeInProjection: false,
+    defaultRole: ColumnRole.Metadata,
   },
   [DataType.Date]: {
     encodingMethods: [],
@@ -98,6 +119,7 @@ export const DATA_TYPE_CONFIG: Record<DataType, DataTypeCapabilities> = {
     defaultEncoding: EncodingMethod.None,
     defaultScaling: ScalingMethod.MinMax,
     defaultIncludeInProjection: true,
+    defaultRole: ColumnRole.Feature,
   },
   [DataType.Boolean]: {
     encodingMethods: [EncodingMethod.None, EncodingMethod.Label],
@@ -107,7 +129,9 @@ export const DATA_TYPE_CONFIG: Record<DataType, DataTypeCapabilities> = {
     defaultEncoding: EncodingMethod.None,
     defaultScaling: ScalingMethod.None,
     defaultIncludeInProjection: true,
+    defaultRole: ColumnRole.Feature,
   },
+  // An identifier names an item; it has no structure to project.
   [DataType.ID]: {
     encodingMethods: [],
     hasScaling: false,
@@ -116,6 +140,7 @@ export const DATA_TYPE_CONFIG: Record<DataType, DataTypeCapabilities> = {
     defaultEncoding: EncodingMethod.None,
     defaultScaling: ScalingMethod.None,
     defaultIncludeInProjection: false,
+    defaultRole: ColumnRole.Metadata,
   },
   [DataType.Coordinate]: {
     encodingMethods: [],
@@ -125,6 +150,7 @@ export const DATA_TYPE_CONFIG: Record<DataType, DataTypeCapabilities> = {
     defaultEncoding: EncodingMethod.None,
     defaultScaling: ScalingMethod.None,
     defaultIncludeInProjection: true,
+    defaultRole: ColumnRole.Feature,
   },
   [DataType.Unknown]: {
     encodingMethods: [EncodingMethod.None, EncodingMethod.Label],
@@ -134,6 +160,7 @@ export const DATA_TYPE_CONFIG: Record<DataType, DataTypeCapabilities> = {
     defaultEncoding: EncodingMethod.None,
     defaultScaling: ScalingMethod.None,
     defaultIncludeInProjection: true,
+    defaultRole: ColumnRole.Feature,
   },
 };
 

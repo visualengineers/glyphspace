@@ -10,5 +10,10 @@ export interface GlyphFeature {
   defaultcontext: string;
   id: string | number; // Support both string and numeric IDs
   features: Features;
+  // Original value of each feature, by feature id (named by the schema's `label`)
   values: StringStringMap;
+  // Original value of each metadata column, by metadata id (named by the schema's
+  // `metadata`): shown in the tooltip and searched, never encoded. Absent in
+  // datasets without metadata columns.
+  metadata?: StringStringMap;
 }

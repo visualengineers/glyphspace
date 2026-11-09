@@ -2,9 +2,10 @@
   <div class="step-content">
     <!-- Info Box -->
     <div class="info-box">
-      <span class="material-icons">info</span>
+      <span class="material-icons" aria-hidden="true">info</span>
       <div>
-        <strong>Tip:</strong> Columns that are nearly all unique (IDs, titles, free text) or mostly empty are
+        <strong>Tip:</strong> Text, ID and nearly-unique columns (names, titles, free text) start as <em>Metadata</em>:
+        they appear in the tooltip and the search but are not encoded. Mostly empty or constant columns are
         <em>deselected automatically</em> — re-enable any of them if you need it. You can search by column name or type
         (e.g., "numeric").
       </div>
@@ -13,17 +14,19 @@
     <span id="wizard-anchor-columns" class="scroll-anchor"></span>
     <div class="column-actions">
       <div class="search-box">
-        <span class="material-icons">search</span>
+        <span class="material-icons" aria-hidden="true">search</span>
         <input
           #searchInput
           type="text"
           [(ngModel)]="searchTerm"
           placeholder="Search by name or type (e.g., 'numeric')... (press / to focus)"
           class="search-input"
+          aria-label="Search columns"
+          aria-keyshortcuts="/"
         />
         @if (searchTerm) {
-          <button class="clear-search" (click)="searchTerm = ''">
-            <span class="material-icons">close</span>
+          <button type="button" class="clear-search" (click)="clearSearch()" aria-label="Clear search">
+            <span class="material-icons" aria-hidden="true">close</span>
           </button>
         }
       </div>
@@ -46,7 +49,14 @@
       </select>
 
       <div class="selection-controls">
-        <span class="selection-count">{{ enabledCount }} of {{ columns.length }} selected</span>
+        <span class="selection-count"
+          >{{ enabledCount }} of {{ columns.length }} selected
+          @if (metadataCount > 0) {
+            · {{ metadataCount }} as metadata
+          }
+        </span>
+        <!-- Visible helper text (was only a checkbox title), kept in this row so the table does not move. -->
+        <span class="selection-tip">Tip: Shift-click to select a range</span>
       </div>
     </div>
 
@@ -54,7 +64,7 @@
     <div class="columns-table-container">
       @if (filteredColumns.length === 0) {
         <div class="no-results">
-          <span class="material-icons">search_off</span>
+          <span class="material-icons" aria-hidden="true">search_off</span>
           <p>No columns match your search or filter</p>
         </div>
       } @else {
@@ -62,40 +72,64 @@
           <thead>
             <tr>
               <!-- Left band: select-all + name + missing (matches Step 3 rail) -->
-              <th class="col-checkbox">
+              <th class="col-checkbox" scope="col">
                 <input
                   type="checkbox"
                   [checked]="allFilteredSelected"
                   [indeterminate]="someFilteredSelected"
                   (change)="toggleAllColumns()"
                   title="Toggle all visible columns"
+                  aria-label="Include all visible columns"
                 />
               </th>
-              <th class="col-name">Column Name</th>
-              <th class="col-missing">
+              <th class="col-name" scope="col">Column Name</th>
+              <th class="col-missing" scope="col">
                 <span class="header-with-tooltip">
                   Missing
-                  <app-help-tooltip [helpText]="HELP_TEXT.tableHeaders.missing" position="bottom"></app-help-tooltip>
+                  <app-help-tooltip
+                    topic="Missing values"
+                    [helpText]="HELP_TEXT.tableHeaders.missing"
+                    position="bottom"
+                  ></app-help-tooltip>
                 </span>
               </th>
               <!-- Stat columns: collapse away during the Step 2 -> 3 morph -->
-              <th class="col-type">
+              <th class="col-type" scope="col">
                 <span class="header-with-tooltip">
                   Data Type
-                  <app-help-tooltip [helpText]="HELP_TEXT.tableHeaders.type" position="bottom"></app-help-tooltip>
+                  <app-help-tooltip
+                    topic="Data type"
+                    [helpText]="HELP_TEXT.tableHeaders.type"
+                    position="bottom"
+                  ></app-help-tooltip>
                 </span>
               </th>
-              <th class="col-count">Count</th>
-              <th class="col-unique">
+              <th class="col-role" scope="col">
+                <span class="header-with-tooltip">
+                  Use as
+                  <app-help-tooltip
+                    topic="Feature or metadata"
+                    [helpText]="HELP_TEXT.tableHeaders.role"
+                    position="bottom"
+                  ></app-help-tooltip>
+                </span>
+              </th>
+              <th class="col-count" scope="col">Count</th>
+              <th class="col-unique" scope="col">
                 <span class="header-with-tooltip">
                   Unique
-                  <app-help-tooltip [helpText]="HELP_TEXT.tableHeaders.unique" position="bottom"></app-help-tooltip>
+                  <app-help-tooltip
+                    topic="Unique values"
+                    [helpText]="HELP_TEXT.tableHeaders.unique"
+                    position="bottom"
+                  ></app-help-tooltip>
                 </span>
               </th>
-              <th class="col-distribution">
+              <th class="col-distribution" scope="col">
                 <span class="header-with-tooltip">
                   Distribution
                   <app-help-tooltip
+                    topic="Distribution"
                     [helpText]="HELP_TEXT.tableHeaders.distribution"
                     position="bottom"
                   ></app-help-tooltip>
@@ -118,7 +152,7 @@
                     (click)="onCheckboxClick($event)"
                     (change)="onCheckboxChange(i, column.name, $event)"
                     [id]="'col-' + column.name"
-                    title="Shift-click to select a range"
+                    [attr.aria-label]="'Include ' + column.name"
                   />
                 </td>
 
@@ -127,7 +161,10 @@
                   <div class="name-cell">
                     <span class="name-text" [title]="column.name">{{ column.name }}</span>
                     @if (hasIssues(column)) {
-                      <span class="material-icons issue-icon" title="Quality issues detected">warning</span>
+                      <span class="material-icons issue-icon" aria-hidden="true" title="Quality issues detected"
+                        >warning</span
+                      >
+                      <span class="visually-hidden">(quality issues detected)</span>
                     }
                     @if (isAutoDeselected(column.name)) {
                       <span class="auto-deselected-badge" [title]="getDeselectReason(column.name)"
@@ -152,6 +189,22 @@
                 <!-- Data Type -->
                 <td class="col-type">
                   <app-data-type-badge [dataType]="column.dataType"></app-data-type-badge>
+                </td>
+
+                <!-- Use as: feature or metadata (tooltip and search only) -->
+                <td class="col-role">
+                  <select
+                    class="role-select"
+                    [disabled]="!isColumnEnabled(column.name)"
+                    (change)="onRoleChange(column.name, $event)"
+                    [attr.aria-label]="'Use ' + column.name + ' as'"
+                  >
+                    @for (role of columnRoles; track role) {
+                      <option [value]="role" [selected]="role === getColumnRole(column.name)">
+                        {{ getColumnRoleLabel(role) }}
+                      </option>
+                    }
+                  </select>
                 </td>
 
                 <!-- Count -->

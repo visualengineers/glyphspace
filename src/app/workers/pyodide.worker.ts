@@ -2,16 +2,30 @@
 
 import { DatasetCollection } from '../shared/interfaces/dataset-collection';
 import { WorkerReply, WorkerRequest } from '../shared/interfaces/pyodide-messages';
+import { PyArg, PyodideCallRuntime, pythonCall, runPythonCall, runPythonJson, unpackZipCall } from './pyodide-calls';
+import { InputFileRegistry, PyodideFs, assertSafeFileName, resultFileFor } from './pyodide-files';
 
 // -- Load Pyodide from CDN --
 
-// @ts-expect-error -- dynamic ESM import from CDN
-const pyodideModule = await import('https://cdn.jsdelivr.net/pyodide/v0.28.0/full/pyodide.mjs');
+/** The Pyodide release loaded from the CDN (single source of truth). */
+const PYODIDE_VERSION = '0.29.5';
+const PYODIDE_INDEX_URL = `https://cdn.jsdelivr.net/pyodide/v${PYODIDE_VERSION}/full/`;
 
-const pyodideReady = (async () => {
-  const pyodide = await pyodideModule.loadPyodide({
-    indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.28.0/full/',
-  });
+/** The subset of the Pyodide API this worker uses. */
+interface WorkerPyodide extends PyodideCallRuntime {
+  FS: PyodideFs & {
+    writeFile(path: string, data: Uint8Array | string): void;
+    readFile(path: string, options: { encoding: 'utf8' }): string;
+    readFile(path: string, options: { encoding: 'binary' }): Uint8Array<ArrayBuffer>;
+    readdir(path: string): string[];
+  };
+  loadPackage(name: string): Promise<unknown>;
+  pyimport(name: 'micropip'): { install(name: string): Promise<unknown> };
+}
+
+const pyodideReady = (async (): Promise<WorkerPyodide> => {
+  const { loadPyodide } = await import(`${PYODIDE_INDEX_URL}pyodide.mjs`);
+  const pyodide: WorkerPyodide = await loadPyodide({ indexURL: PYODIDE_INDEX_URL });
 
   await pyodide.loadPackage('micropip');
   const micropip = pyodide.pyimport('micropip');
@@ -31,268 +45,187 @@ function runSerialized<T>(fn: () => Promise<T>): Promise<T> {
   return prev.then(() => fn().finally(resolveNext!));
 }
 
+// A request as received by the worker. Requests sent via DataProcessorService
+// carry a `requestId` that every reply to them must echo back, so the main
+// thread can match replies to concurrent requests of the same reply type.
+type TaggedWorkerRequest = WorkerRequest & { requestId?: number };
+type RequestOf<T extends WorkerRequest['type']> = Extract<WorkerRequest, { type: T }>;
+type Reply = (message: WorkerReply, transfer?: Transferable[]) => void;
+
+/** Python modules served from src/assets and written to the FS on first use. */
+type PythonModule = 'preprocessing_processor' | 'preprocessing_processor_config';
+
+/** Input files written to the FS; pruned on request (see 'pruneFiles'). */
+const inputFiles = new InputFileRegistry();
+
+function errorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
+async function ensurePythonModule(pyodide: WorkerPyodide, name: PythonModule): Promise<void> {
+  const file = `${name}.py`;
+  if (pyodide.FS.analyzePath(file).exists) {
+    return;
+  }
+  const response = await fetch(`assets/${file}`);
+  if (!response.ok) {
+    throw new Error(`Failed to load ${file}: HTTP ${response.status}`);
+  }
+  pyodide.FS.writeFile(file, await response.text());
+}
+
+/** Writes an uploaded file into the FS and remembers it for pruneFiles. */
+function writeInputFile(pyodide: WorkerPyodide, fileName: string, buffer: ArrayBuffer): void {
+  assertSafeFileName(fileName);
+  pyodide.FS.writeFile(fileName, new Uint8Array(buffer));
+  inputFiles.track(fileName);
+}
+
+async function handleUnzip(
+  pyodide: WorkerPyodide,
+  { fileName, buffer }: RequestOf<'unzip'>,
+  reply: Reply
+): Promise<void> {
+  const zipName = fileName.replace(/\.zip$/, '');
+  const zipPath = `${zipName}.zip`;
+  assertSafeFileName(zipPath);
+  pyodide.FS.writeFile(zipPath, new Uint8Array(buffer));
+
+  try {
+    await runPythonCall(pyodide, unpackZipCall(zipPath));
+
+    // Ensure the directory now exists
+    if (!pyodide.FS.analyzePath(`/${zipName}`).exists) {
+      throw new Error(`Unpack failed: folder /${zipName} not found`);
+    }
+    const images = pyodide.FS.readdir(`/${zipName}`).filter(f => /\.(png|jpe?g|webp)$/i.test(f));
+    reply({ type: 'unzipped', folder: zipName, images });
+  } catch (err: unknown) {
+    reply({ type: 'error', message: `Unzip failed: ${errorMessage(err)}` });
+  }
+}
+
+function handleGetThumb(pyodide: WorkerPyodide, { file }: RequestOf<'getThumb'>, reply: Reply): void {
+  try {
+    const data = pyodide.FS.readFile(`/${file}`, { encoding: 'binary' });
+    reply({ type: 'thumb', file, data: data.buffer }, [data.buffer]);
+  } catch (err: unknown) {
+    reply({ type: 'error', message: `Thumbnail error: ${errorMessage(err)}` });
+  }
+}
+
+async function handleProfileData(
+  pyodide: WorkerPyodide,
+  { fileName, buffer }: RequestOf<'profileData'>,
+  reply: Reply
+): Promise<void> {
+  writeInputFile(pyodide, fileName, buffer);
+  await ensurePythonModule(pyodide, 'preprocessing_processor');
+
+  const call = pythonCall('preprocessing_processor', 'profile_data', [fileName]);
+  const profile = (await runPythonJson(pyodide, call)) as Record<string, unknown>;
+  reply({ type: 'dataProfile', profile: { ...profile, fileSize: buffer.byteLength } });
+}
+
+/** Runs one of preprocessing_processor's JSON-returning analysis functions. */
+async function runPreprocessing(pyodide: WorkerPyodide, func: string, args: readonly PyArg[]): Promise<unknown> {
+  await ensurePythonModule(pyodide, 'preprocessing_processor');
+  return runPythonJson(pyodide, pythonCall('preprocessing_processor', func, args));
+}
+
+async function handleProcessWithConfig(
+  pyodide: WorkerPyodide,
+  { fileName, config }: RequestOf<'processWithConfig'>,
+  reply: Reply
+): Promise<void> {
+  assertSafeFileName(fileName);
+  // The config module imports the shared outlier detection from preprocessing_processor.
+  await ensurePythonModule(pyodide, 'preprocessing_processor');
+  await ensurePythonModule(pyodide, 'preprocessing_processor_config');
+
+  // Python reports progress by calling this JS function (passed as data).
+  const sendProgress = (step: string, progress: number, message: string): void =>
+    reply({ type: 'processingProgress', step, progress, message });
+  await runPythonCall(pyodide, pythonCall('preprocessing_processor_config', 'set_progress_callback', [sendProgress]));
+
+  // Write the result to a file instead of returning a huge string through the FFI.
+  const outputFileName = resultFileFor(fileName);
+  const args = [fileName, JSON.stringify(config), outputFileName];
+  await runPythonCall(pyodide, pythonCall('preprocessing_processor_config', 'process_with_config', args));
+
+  const dataset = JSON.parse(pyodide.FS.readFile(outputFileName, { encoding: 'utf8' })) as DatasetCollection;
+  reply({ type: 'processed', dataset });
+
+  // Cleanup: only remove the transient result file. The input CSV must stay in
+  // the Pyodide FS -- it is written once at upload (profileData) and reused for
+  // every (re)processing run, and the app does not retain the raw bytes to
+  // re-write it. Deleting it here caused a FileNotFoundError on the second run /
+  // reprocess. Obsolete inputs are removed via 'pruneFiles' instead.
+  try {
+    if (pyodide.FS.analyzePath(outputFileName).exists) {
+      pyodide.FS.unlink(outputFileName);
+    }
+  } catch (cleanupErr) {
+    console.warn('Failed to cleanup files:', cleanupErr);
+  }
+}
+
+function handleGetProcessedFeatures(pyodide: WorkerPyodide, reply: Reply): void {
+  // Read processed features CSV exported by Python for JavaScript projections
+  try {
+    const csvText = pyodide.FS.readFile('processed_features.csv', { encoding: 'utf8' });
+    reply({ type: 'processedFeatures', data: csvText });
+  } catch (err: unknown) {
+    reply({ type: 'error', message: `Failed to read processed features: ${errorMessage(err)}` });
+  }
+}
+
+async function handleRequest(pyodide: WorkerPyodide, request: WorkerRequest, reply: Reply): Promise<void> {
+  switch (request.type) {
+    case 'getJson': {
+      const text = pyodide.FS.readFile(request.file, { encoding: 'utf8' });
+      return reply({ type: 'json', file: request.file, data: JSON.parse(text) });
+    }
+    case 'unzip':
+      return handleUnzip(pyodide, request, reply);
+    case 'getThumb':
+      return handleGetThumb(pyodide, request, reply);
+    case 'profileData':
+      return handleProfileData(pyodide, request, reply);
+    case 'computeHistogram': {
+      const { fileName, columnName, bins = 50 } = request;
+      const data = await runPreprocessing(pyodide, 'compute_histogram', [fileName, columnName, bins]);
+      return reply({ type: 'histogram', columnName, data });
+    }
+    case 'detectOutliers': {
+      const { fileName, columnName, method } = request;
+      const data = await runPreprocessing(pyodide, 'detect_outliers', [fileName, columnName, method]);
+      return reply({ type: 'outliers', columnName, data });
+    }
+    case 'detectDuplicates': {
+      const { fileName, subsetColumns } = request;
+      const args = subsetColumns && subsetColumns.length > 0 ? [fileName, subsetColumns] : [fileName];
+      return reply({ type: 'duplicates', data: await runPreprocessing(pyodide, 'detect_duplicates', args) });
+    }
+    case 'processWithConfig':
+      return handleProcessWithConfig(pyodide, request, reply);
+    case 'getProcessedFeatures':
+      return handleGetProcessedFeatures(pyodide, reply);
+    case 'pruneFiles':
+      return reply({ type: 'filesPruned', removed: inputFiles.prune(request.keep, pyodide.FS) });
+  }
+}
+
 // -- Web Worker message handler --
-self.onmessage = async (ev: MessageEvent<WorkerRequest>) => {
-  const pyodide = await pyodideReady;
+self.onmessage = (ev: MessageEvent<TaggedWorkerRequest>) => {
+  const request = ev.data;
+  const reply: Reply = (message, transfer = []) => postMessage({ ...message, requestId: request.requestId }, transfer);
 
   runSerialized(async () => {
     try {
-      switch (ev.data.type) {
-        case 'process': {
-          const { fileName, buffer } = ev.data;
-          pyodide.FS.writeFile(fileName, new Uint8Array(buffer));
-
-          // Only load processor.py once
-          if (!pyodide.FS.analyzePath('processor.py').exists) {
-            const pyCode = await fetch('assets/processor.py').then(res => res.text());
-            pyodide.FS.writeFile('processor.py', pyCode);
-          }
-
-          const dataset: DatasetCollection = await pyodide
-            .runPythonAsync(
-              `
-            import json, processor
-            processor.process_csv_file("${fileName}")
-          `
-            )
-            .then(JSON.parse);
-
-          postMessage({ type: 'processed', dataset } as WorkerReply);
-          break;
-        }
-        case 'getJson': {
-          const { file } = ev.data;
-          const text = pyodide.FS.readFile(file, { encoding: 'utf8' });
-          postMessage({ type: 'json', file, data: JSON.parse(text) } as WorkerReply);
-          break;
-        }
-        case 'unzip': {
-          const { fileName, buffer } = ev.data;
-          const zipName = fileName.replace(/\.zip$/, '');
-          const zipPath = `${zipName}.zip`;
-          pyodide.FS.writeFile(zipPath, new Uint8Array(buffer));
-
-          try {
-            await pyodide.runPythonAsync(`
-              import zipfile, os, shutil
-
-              def unpack_flat(zip_path):
-                  base = "/" + os.path.splitext(os.path.basename(zip_path))[0]
-                  if os.path.exists(base):
-                      shutil.rmtree(base)
-                  os.mkdir(base)
-
-                  with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-                      for member in zip_ref.namelist():
-                          if member.endswith('/'): continue
-                          source = zip_ref.open(member)
-                          target_path = os.path.join(base, os.path.basename(member))
-                          with open(target_path, 'wb') as target:
-                              shutil.copyfileobj(source, target)
-                  print("Unpacked to", base)
-
-              unpack_flat("${zipPath}")
-            `);
-
-            // Ensure the directory now exists
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Pyodide FS API has incomplete type definitions
-            if (!(pyodide.FS as any).analyzePath(`/${zipName}`).exists) {
-              throw new Error(`Unpack failed: folder /${zipName} not found`);
-            }
-
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Pyodide FS API has incomplete type definitions
-            const files = (pyodide.FS as any).readdir(`/${zipName}`);
-            const images = files.filter((f: string) => /\.(png|jpe?g|webp)$/i.test(f));
-
-            postMessage({ type: 'unzipped', folder: zipName, images });
-          } catch (err: unknown) {
-            postMessage({
-              type: 'error',
-              message: `Unzip failed: ${err instanceof Error ? err.message : String(err)}`,
-            });
-          }
-          break;
-        }
-        case 'getThumb': {
-          const filePath = ev.data.file;
-          try {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Pyodide FS API has incomplete type definitions
-            const data = (pyodide.FS as any).readFile(`/${filePath}`, { encoding: 'binary' });
-            postMessage(
-              {
-                type: 'thumb',
-                file: filePath,
-                data: data.buffer,
-              },
-              [data.buffer]
-            );
-          } catch (err: unknown) {
-            postMessage({
-              type: 'error',
-              message: `Thumbnail error: ${err instanceof Error ? err.message : String(err)}`,
-            });
-          }
-          break;
-        }
-        case 'profileData': {
-          const { fileName, buffer } = ev.data;
-          pyodide.FS.writeFile(fileName, new Uint8Array(buffer));
-
-          // Load preprocessing processor if not already loaded
-          if (!pyodide.FS.analyzePath('preprocessing_processor.py').exists) {
-            const pyCode = await fetch('assets/preprocessing_processor.py').then(res => res.text());
-            pyodide.FS.writeFile('preprocessing_processor.py', pyCode);
-          }
-
-          const profileJson = await pyodide.runPythonAsync(`
-            import preprocessing_processor
-            preprocessing_processor.profile_data("${fileName}")
-          `);
-
-          const profile = JSON.parse(profileJson);
-          profile.fileSize = buffer.byteLength;
-
-          postMessage({ type: 'dataProfile', profile } as WorkerReply);
-          break;
-        }
-        case 'computeHistogram': {
-          const { fileName, columnName, bins = 50 } = ev.data;
-
-          const histogramJson = await pyodide.runPythonAsync(`
-            import preprocessing_processor
-            preprocessing_processor.compute_histogram("${fileName}", "${columnName}", ${bins})
-          `);
-
-          const histogram = JSON.parse(histogramJson);
-
-          postMessage({ type: 'histogram', columnName, data: histogram } as WorkerReply);
-          break;
-        }
-        case 'detectOutliers': {
-          const { fileName, columnName, method } = ev.data;
-
-          const outliersJson = await pyodide.runPythonAsync(`
-            import preprocessing_processor
-            preprocessing_processor.detect_outliers("${fileName}", "${columnName}", "${method}")
-          `);
-
-          const outliers = JSON.parse(outliersJson);
-
-          postMessage({ type: 'outliers', columnName, data: outliers } as WorkerReply);
-          break;
-        }
-        case 'detectDuplicates': {
-          const { fileName, subsetColumns } = ev.data;
-
-          let pythonCode: string;
-          if (subsetColumns && subsetColumns.length > 0) {
-            const colsJson = JSON.stringify(subsetColumns);
-            pythonCode = `
-              import preprocessing_processor
-              import json
-              preprocessing_processor.detect_duplicates("${fileName}", ${colsJson})
-            `;
-          } else {
-            pythonCode = `
-              import preprocessing_processor
-              preprocessing_processor.detect_duplicates("${fileName}")
-            `;
-          }
-
-          const duplicatesJson = await pyodide.runPythonAsync(pythonCode);
-          const duplicates = JSON.parse(duplicatesJson);
-
-          postMessage({ type: 'duplicates', data: duplicates } as WorkerReply);
-          break;
-        }
-        case 'processWithConfig': {
-          const { fileName, config } = ev.data;
-
-          // Load config-based processor if not already loaded
-          if (!pyodide.FS.analyzePath('preprocessing_processor_config.py').exists) {
-            const pyCode = await fetch('assets/preprocessing_processor_config.py').then(res => res.text());
-            pyodide.FS.writeFile('preprocessing_processor_config.py', pyCode);
-          }
-
-          // Set up progress reporting
-          const configJson = JSON.stringify(config);
-
-          // Create a global callback function that Python can call
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Pyodide globals API has incomplete type definitions
-          (pyodide.globals as any).set('sendProgress', (step: string, progress: number, message: string) => {
-            postMessage({
-              type: 'processingProgress',
-              step: step,
-              progress: progress,
-              message: message,
-            });
-          });
-
-          // Define progress callback in Python that uses the global function
-          await pyodide.runPythonAsync(`
-import preprocessing_processor_config
-
-# Create progress callback that calls the JavaScript function
-def progress_callback(step, progress, message=''):
-    sendProgress(step, progress, message)
-
-preprocessing_processor_config.set_progress_callback(progress_callback)
-          `);
-
-          // Process the file with configuration
-          // Optimization: Write result to file instead of returning huge string
-          const outputFileName = `${fileName}.result.json`;
-
-          await pyodide.runPythonAsync(`
-import preprocessing_processor_config
-import json
-
-preprocessing_processor_config.process_with_config(
-    "${fileName}",
-    '''${configJson.replace(/'/g, "\\'")}''',
-    "${outputFileName}"
-)
-          `);
-
-          // Read the result file directly from FS (more memory efficient than passing through Python->JS FFI)
-          const resultText = pyodide.FS.readFile(outputFileName, { encoding: 'utf8' });
-          const dataset = JSON.parse(resultText);
-
-          postMessage({ type: 'processed', dataset } as WorkerReply);
-
-          // Cleanup: only remove the transient result file. The input CSV must
-          // stay in the Pyodide FS -- it is written once at upload (profileData)
-          // and reused for every (re)processing run, and the app does not retain
-          // the raw bytes to re-write it. Deleting it here caused a
-          // FileNotFoundError ('<name>' not found) on the second run / reprocess.
-          try {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Pyodide FS API has incomplete type definitions
-            if ((pyodide.FS as any).analyzePath(outputFileName).exists) {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Pyodide FS API has incomplete type definitions
-              (pyodide.FS as any).unlink(outputFileName);
-            }
-          } catch (cleanupErr) {
-            console.warn('Failed to cleanup files:', cleanupErr);
-          }
-
-          break;
-        }
-        case 'getProcessedFeatures': {
-          // Read processed features CSV exported by Python for JavaScript projections
-          try {
-            const csvText = pyodide.FS.readFile('processed_features.csv', { encoding: 'utf8' });
-            postMessage({ type: 'processedFeatures', data: csvText } as WorkerReply);
-          } catch (err: unknown) {
-            postMessage({
-              type: 'error',
-              message: `Failed to read processed features: ${err instanceof Error ? err.message : String(err)}`,
-            } as WorkerReply);
-          }
-          break;
-        }
-      }
+      await handleRequest(await pyodideReady, request, reply);
     } catch (err: unknown) {
-      postMessage({ type: 'error', message: err instanceof Error ? err.message : String(err) } as WorkerReply);
+      reply({ type: 'error', message: errorMessage(err) });
     }
   });
 };

@@ -20,7 +20,7 @@ import { DataLoaderService } from '../services/data-loader.service';
 import { FilterService } from '../services/filter.service';
 import { GlyphObject } from '../glyph/glyph-object';
 import { ZoomLevel } from '../shared/enum/zoom-level';
-import { forceCollide, forceSimulation, Simulation } from 'd3-force';
+import { forceCollide, forceSimulation, Simulation } from 'd3';
 import { clusterGlyphs, getGlyphFromObject } from '../shared/helpers/glyph-helper';
 import { InteractionCommand } from '../shared/enum/interaction-command';
 import { GlyphCacheObject } from '../glyph/glyph-cache-object';

@@ -3,6 +3,7 @@ export interface GlyphSchema {
   glyph: string[];
   label: Record<string, string>;
   tooltip: string[];
+  metadata?: Record<string, string>; // Metadata id -> column name (tooltip and search only, no feature)
   colorRange?: boolean; // Optional: true = continuous (rangeColor), false = categorical (categoryColor)
   colorScaleId?: number; // Optional: specific color scale ID from COLOR_SCALES
   types: Record<string, string>; // Feature ID -> data type ('numeric', 'categorical', 'text', 'date', 'boolean')

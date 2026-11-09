@@ -1,4 +1,5 @@
 @use '../../../../styles/variables' as v;
+@use '../../../../styles/mixins' as m;
 
 .help-tooltip-container {
   position: relative;
@@ -14,11 +15,11 @@
   border: none;
   cursor: pointer;
   padding: 2px;
-  color: v.$gray-600;
+  color: v.$text-muted;
   transition: color 0.2s ease;
 
   &:hover {
-    color: v.$active-color;
+    color: v.$color-accent;
   }
 
   &:focus {
@@ -26,27 +27,26 @@
   }
 
   &:focus-visible {
-    color: v.$active-color;
-    outline: 2px solid v.$active-color;
-    outline-offset: 2px;
+    @include m.focus-ring;
+    color: v.$color-accent;
     border-radius: 50%;
   }
 
   .material-icons {
-    font-size: 18px;
+    font-size: v.$icon-size-md;
   }
 }
 
 .tooltip-content {
   position: fixed;
-  z-index: 10000;
+  z-index: v.$z-popover;
   background: white;
   border: 1px solid v.$gray-300;
   border-radius: 4px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  padding: 12px;
+  padding: v.$space-3;
   width: 280px;
-  max-width: 280px;
+  max-width: min(280px, calc(100vw - 16px));
   opacity: 0;
   visibility: hidden;
   transition:
@@ -64,7 +64,7 @@
 }
 
 .tooltip-text {
-  font-size: 13px;
+  font-size: v.$font-size-base;
   font-weight: 400;
   line-height: 1.5;
   color: v.$gray-800;
@@ -84,19 +84,19 @@
 
   ul,
   ol {
-    margin: 8px 0;
+    margin: v.$space-2 0;
     padding-left: 20px;
   }
 
   li {
-    margin: 4px 0;
+    margin: v.$space-1 0;
   }
 
   code {
     background: v.$gray-100;
-    padding: 2px 4px;
+    padding: 2px v.$space-1;
     border-radius: 3px;
     font-family: 'Courier New', monospace;
-    font-size: 12px;
+    font-size: v.$font-size-sm;
   }
 }

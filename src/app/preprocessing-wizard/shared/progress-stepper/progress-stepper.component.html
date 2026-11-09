@@ -1,36 +1,52 @@
-<div class="progress-stepper" [class.vertical]="vertical">
-  <div class="stepper-container">
+<nav class="progress-stepper" [class.vertical]="vertical" aria-label="Wizard steps">
+  <ol class="stepper-container">
     @for (step of steps; track $index) {
-      <div class="step-wrapper">
-        <div
+      <li class="step-wrapper">
+        <!-- Unreachable steps are disabled so they are no Tab stops; the name is the label
+             (+ "completed"), the purpose/summary line is the description. -->
+        <button
+          type="button"
           class="step"
           [class.active]="isStepActive($index)"
           [class.completed]="isStepCompleted($index)"
           [class.clickable]="isStepClickable($index)"
+          [disabled]="!isStepClickable($index)"
+          [attr.aria-current]="isStepActive($index) ? 'step' : null"
+          [attr.aria-labelledby]="labelId($index)"
+          [attr.aria-describedby]="stepDetail($index) ? detailId($index) : null"
           (click)="onStepClick($index)"
-          (keydown.enter)="onStepClick($index)"
-          tabindex="0"
         >
-          <div class="step-circle">
+          <span class="step-circle" aria-hidden="true">
             @if (isStepCompleted($index) && !isStepActive($index)) {
-              <span class="material-icons">check</span>
+              <span class="material-icons" aria-hidden="true">check</span>
             } @else {
               <span class="step-number">{{ $index + 1 }}</span>
             }
-          </div>
+          </span>
 
-          <div class="step-text">
-            <div class="step-label">{{ step.label }}</div>
-            @if (step.description) {
-              <div class="step-description">{{ step.description }}</div>
+          <span class="step-text">
+            <span class="step-label" [id]="labelId($index)">
+              {{ step.label }}
+              @if (isStepCompleted($index)) {
+                <span class="visually-hidden">(completed)</span>
+              }
+            </span>
+            @if (stepDetail($index); as detail) {
+              <span
+                class="step-description"
+                [class.step-summary]="showsSummary($index)"
+                [id]="detailId($index)"
+                [attr.title]="showsSummary($index) ? detail : null"
+                >{{ detail }}</span
+              >
             }
-          </div>
-        </div>
+          </span>
+        </button>
 
         @if ($index < steps.length - 1) {
-          <div class="step-connector" [class.completed]="isStepCompleted($index + 1)"></div>
+          <span class="step-connector" aria-hidden="true" [class.completed]="isStepCompleted($index + 1)"></span>
         }
-      </div>
+      </li>
     }
-  </div>
-</div>
+  </ol>
+</nav>

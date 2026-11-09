@@ -3,7 +3,7 @@
     @if (!profile) {
       <!-- Help Info Box -->
       <div class="info-box">
-        <span class="material-icons">info</span>
+        <span class="material-icons" aria-hidden="true">info</span>
         <div>
           <strong>Supported formats:</strong> CSV files up to 50MB. Your data will be analyzed automatically to detect
           column types and quality issues.
@@ -20,43 +20,53 @@
         (drop)="onDrop($event)"
       >
         @if (isLoading) {
-          <div class="loading-state">
-            <div class="spinner"></div>
+          <div class="loading-state" role="status">
+            <div class="spinner" aria-hidden="true"></div>
             <div class="loading-text">Loading and analyzing your data...</div>
           </div>
         } @else {
           <div class="upload-content">
-            <span class="material-icons upload-icon">cloud_upload</span>
+            <span class="material-icons upload-icon" aria-hidden="true">cloud_upload</span>
             <div class="upload-text">
               <strong>Drag and drop your CSV file here</strong>
               <span>or</span>
             </div>
-            <label for="file-input" class="upload-button">
-              Browse Files
-              <input
-                id="file-input"
-                type="file"
-                accept=".csv"
-                (change)="onFileSelected($event)"
-                style="display: none"
-              />
-            </label>
+            <!-- A real button opens the (hidden) native picker, so "Browse Files" is a Tab stop (WCAG 2.1.1). -->
+            <button #browseButton type="button" class="upload-button" (click)="fileInput.click()">Browse Files</button>
+            <input #fileInput type="file" accept=".csv,text/csv" hidden (change)="onFileSelected($event)" />
             <div class="upload-hint">Maximum file size: 50MB</div>
           </div>
         }
       </div>
 
       @if (error) {
-        <div class="error-message">
-          <span class="material-icons">error</span>
+        <div class="error-message" role="alert">
+          <span class="material-icons" aria-hidden="true">error</span>
           {{ error }}
         </div>
       }
+
+      <div class="sample-data">
+        <button
+          type="button"
+          class="btn-sample"
+          (click)="loadSampleData()"
+          [disabled]="isLoading"
+          aria-describedby="step1-sample-attribution"
+        >
+          <span class="material-icons" aria-hidden="true">science</span>
+          Try with sample data
+        </button>
+        <p class="sample-attribution" id="step1-sample-attribution">
+          Sample: Wine Quality (red), P. Cortez et al., UCI Machine Learning Repository, CC BY 4.0
+        </p>
+      </div>
 
       <div class="requirements">
         <h3>
           File Requirements
           <app-help-tooltip
+            topic="File requirements"
             helpText="<strong>CSV Format:</strong><br/>• First row = column headers<br/>• Comma-separated values<br/>• Optional ID column"
           ></app-help-tooltip>
         </h3>
@@ -76,17 +86,17 @@
       <div class="data-profile">
         <div class="profile-header">
           <div class="profile-title">
-            <span class="material-icons">check_circle</span>
-            <h3>Data Loaded Successfully</h3>
+            <span class="material-icons" aria-hidden="true">check_circle</span>
+            <h3 #profileHeading tabindex="-1">Data Loaded Successfully</h3>
           </div>
           <div class="profile-actions">
-            <button class="btn-secondary" (click)="profile = null">Upload Different File</button>
+            <button type="button" class="btn-secondary" (click)="chooseDifferentFile()">Upload Different File</button>
           </div>
         </div>
 
         <div class="profile-stats">
           <div class="stat-card">
-            <span class="material-icons">description</span>
+            <span class="material-icons" aria-hidden="true">description</span>
             <div class="stat-content">
               <div class="stat-label">File Name</div>
               <div class="stat-value" [title]="profile.fileName">{{ profile.fileName }}</div>
@@ -94,7 +104,7 @@
           </div>
 
           <div class="stat-card">
-            <span class="material-icons">storage</span>
+            <span class="material-icons" aria-hidden="true">storage</span>
             <div class="stat-content">
               <div class="stat-label">File Size</div>
               <div class="stat-value">{{ formatFileSize(profile.fileSize) }}</div>
@@ -102,7 +112,7 @@
           </div>
 
           <div class="stat-card">
-            <span class="material-icons">table_rows</span>
+            <span class="material-icons" aria-hidden="true">table_rows</span>
             <div class="stat-content">
               <div class="stat-label">Total Rows</div>
               <div class="stat-value">{{ profile.totalRows }}</div>
@@ -110,7 +120,7 @@
           </div>
 
           <div class="stat-card">
-            <span class="material-icons">view_column</span>
+            <span class="material-icons" aria-hidden="true">view_column</span>
             <div class="stat-content">
               <div class="stat-label">Total Columns</div>
               <div class="stat-value">{{ profile.totalColumns }}</div>
@@ -118,11 +128,12 @@
           </div>
 
           <div class="stat-card" [ngClass]="qualityClass">
-            <span class="material-icons">assessment</span>
+            <span class="material-icons" aria-hidden="true">assessment</span>
             <div class="stat-content">
               <div class="stat-label">
                 Data Quality
                 <app-help-tooltip
+                  topic="Data quality score"
                   helpText="Quality score measures data completeness and consistency:<br/><br/><strong>90-100%:</strong> Excellent - minimal issues<br/><strong>70-89%:</strong> Good - some missing values<br/><strong>50-69%:</strong> Fair - notable quality issues<br/><strong>&lt;50%:</strong> Poor - significant problems<br/><br/>Based on: missing values, duplicates, column variability"
                   position="bottom"
                 ></app-help-tooltip>
@@ -133,7 +144,7 @@
 
           @if (profile.duplicateCount > 0) {
             <div class="stat-card warning">
-              <span class="material-icons">content_copy</span>
+              <span class="material-icons" aria-hidden="true">content_copy</span>
               <div class="stat-content">
                 <div class="stat-label">Duplicates Found</div>
                 <div class="stat-value">{{ profile.duplicateCount }}</div>

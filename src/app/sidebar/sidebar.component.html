@@ -124,9 +124,9 @@
 
       <!-- Color scale -->
       <div class="form-group">
-        <label class="menu-label" for="sidebar-color-scale">COLOR SCALE</label>
+        <span class="menu-label" id="sidebar-color-scale-label">COLOR SCALE</span>
         <app-color-scale-selector
-          id="sidebar-color-scale"
+          ariaLabelledby="sidebar-color-scale-label"
           [groupedColorScales]="groupedColorScales"
           [selectedScale]="getSelectedScale()"
           (scaleSelected)="selectColorScale($event)"

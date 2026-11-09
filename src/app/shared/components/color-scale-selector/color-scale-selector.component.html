@@ -1,42 +1,63 @@
-<div
-  class="color-scale-select"
-  (click)="$event.stopPropagation(); toggleDropdown()"
-  (keydown.enter)="$event.stopPropagation(); toggleDropdown()"
-  tabindex="0"
->
-  <div class="selected-scale">
+<div class="color-scale-select">
+  <button
+    type="button"
+    class="selected-scale"
+    aria-haspopup="listbox"
+    [attr.aria-expanded]="dropdownOpen"
+    [attr.aria-controls]="listboxId"
+    [attr.aria-labelledby]="triggerLabelledby"
+    [attr.aria-label]="triggerLabel"
+    (click)="toggleDropdown()"
+    (keydown)="onTriggerKeydown($event)"
+  >
+    <span class="visually-hidden" [id]="valueId">{{ selectedScale.name }}</span>
     @if (selectedScale.type === 'numeric') {
-      <div class="color-gradient" [style.background]="getContinuousGradient(selectedScale)"></div>
+      <span class="color-gradient" aria-hidden="true" [style.background]="getContinuousGradient(selectedScale)"></span>
     } @else {
       @for (c of getCategoricalColors(selectedScale); track c) {
-        <div class="color-box" [style.background]="c"></div>
+        <span class="color-box" aria-hidden="true" [style.background]="c"></span>
       }
     }
-  </div>
+  </button>
 
   @if (dropdownOpen) {
-    <div class="color-scale-options">
+    <div
+      class="color-scale-options"
+      role="listbox"
+      [id]="listboxId"
+      [attr.aria-labelledby]="triggerLabelledby"
+      [attr.aria-label]="ariaLabelledby ? null : ariaLabel"
+    >
       @for (group of groupedColorScales; track group.group; let gi = $index) {
-        <div class="color-scale-group-label">{{ group.group }}</div>
-        @for (scale of group.scales; track scale.id) {
-          <div
-            class="color-scale-option"
-            [class.active]="scale.id === selectedScale.id"
-            (click)="selectScale(scale.id); $event.stopPropagation()"
-            (keydown.enter)="selectScale(scale.id); $event.stopPropagation()"
-            tabindex="0"
-          >
-            @if (scale.type === 'numeric') {
-              <div class="color-gradient" [style.background]="getContinuousGradient(scale)"></div>
-            } @else {
-              @for (c of getCategoricalColors(scale); track c) {
-                <div class="color-box" [style.background]="c"></div>
+        <div role="group" [attr.aria-labelledby]="groupLabelId(gi)">
+          <div class="color-scale-group-label" role="presentation" [id]="groupLabelId(gi)">{{ group.group }}</div>
+          @for (scale of group.scales; track scale.id) {
+            <div
+              class="color-scale-option"
+              role="option"
+              tabindex="-1"
+              [class.active]="scale.id === selectedScale.id"
+              [attr.aria-selected]="scale.id === selectedScale.id"
+              (click)="selectScale(scale.id)"
+              (keydown)="onListKeydown($event)"
+            >
+              <span class="visually-hidden">{{ scale.name }}</span>
+              @if (scale.type === 'numeric') {
+                <span
+                  class="color-gradient"
+                  aria-hidden="true"
+                  [style.background]="getContinuousGradient(scale)"
+                ></span>
+              } @else {
+                @for (c of getCategoricalColors(scale); track c) {
+                  <span class="color-box" aria-hidden="true" [style.background]="c"></span>
+                }
               }
-            }
-          </div>
-        }
+            </div>
+          }
+        </div>
         @if (gi < groupedColorScales.length - 1) {
-          <div class="color-scale-group-divider"></div>
+          <div class="color-scale-group-divider" aria-hidden="true"></div>
         }
       }
     </div>

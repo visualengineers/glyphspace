@@ -1,10 +1,13 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
-import { WizardIssue, STEP_NAMES } from '../constants/wizard-error-classes';
+import { WizardIssue } from '../constants/wizard-error-classes';
+import { getStepInfo, stepNumber } from '../constants/step-info';
+
+let nextIssueCardId = 0;
 
 /**
  * A3: presentational card for a single wizard issue. Shows severity, an
  * everyday-language title, the WHY (cause) and FIX (action naming the step),
- * collapsible technical details, and a "Fix in Schritt N" jump button that the
+ * collapsible technical details, and a "Fix in step N" jump button that the
  * host wires to the A6 step-jump logic. Optionally dismissable (partial issues).
  */
 @Component({
@@ -21,15 +24,17 @@ export class WizardIssueCardComponent {
   @Output() fix = new EventEmitter<WizardIssue>();
   @Output() dismiss = new EventEmitter<WizardIssue>();
 
-  readonly STEP_NAMES = STEP_NAMES;
   technicalOpen = false;
 
+  /** Id of the collapsible technical details (target of the toggle's aria-controls). */
+  readonly detailsId = `wizard-issue-details-${nextIssueCardId++}`;
+
   get stepNumber(): number {
-    return this.issue.step + 1;
+    return stepNumber(this.issue.step);
   }
 
   get stepName(): string {
-    return STEP_NAMES[this.issue.step] ?? '';
+    return getStepInfo(this.issue.step).title;
   }
 
   get pillLabel(): string {

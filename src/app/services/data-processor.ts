@@ -3,6 +3,12 @@ import { DatasetCollection } from '../shared/interfaces/dataset-collection';
 import { BehaviorSubject, Observable, Subject, of } from 'rxjs';
 import { WorkerReply } from '../shared/interfaces/pyodide-messages';
 
+/**
+ * A worker reply as received on the main thread. Replies to a request sent via
+ * sendRequestUntil() echo that request's `requestId` (see pyodide.worker.ts).
+ */
+type TaggedWorkerReply = WorkerReply & { requestId?: number };
+
 @Injectable({ providedIn: 'root' })
 export class DataProcessorService {
   private worker = new Worker(new URL('../workers/pyodide.worker', import.meta.url), { type: 'module' });
@@ -10,7 +16,10 @@ export class DataProcessorService {
   private thumbCache = new Map<string, ImageBitmap>();
   private thumbSubjects = new Map<string, BehaviorSubject<ImageBitmap | null>>();
 
-  private message$ = new Subject<WorkerReply>();
+  private message$ = new Subject<TaggedWorkerReply>();
+  // Monotonic id attached to every request so its reply can be matched even when
+  // several requests expecting the same reply type are in flight.
+  private nextRequestId = 0;
   private processingProgress$ = new Subject<{ step: string; progress: number; message: string }>();
 
   constructor() {
@@ -42,15 +51,6 @@ export class DataProcessorService {
       buffer: await file.arrayBuffer(),
     });
     return result.folder;
-  }
-
-  async process(file: File): Promise<DatasetCollection> {
-    const result = await this.sendRequestUntil<WorkerReply & { type: 'processed' }>('processed', {
-      type: 'process',
-      fileName: file.name,
-      buffer: await file.arrayBuffer(),
-    });
-    return result.dataset;
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- returns dynamically typed JSON from the worker filesystem
@@ -143,6 +143,18 @@ export class DataProcessorService {
   }
 
   /**
+   * Delete uploaded input files (and their derived result files) from the
+   * worker's virtual FS, except those listed in `keep`. The caller passes every
+   * file name still referenced by the current state and the undo/redo history.
+   */
+  async pruneFiles(keep: string[]): Promise<void> {
+    await this.sendRequestUntil<WorkerReply & { type: 'filesPruned' }>('filesPruned', {
+      type: 'pruneFiles',
+      keep,
+    });
+  }
+
+  /**
    * Observable for processing progress updates
    */
   get processingProgress(): Observable<{ step: string; progress: number; message: string }> {
@@ -197,7 +209,11 @@ export class DataProcessorService {
   }
 
   /**
-   * Utility to wait for a specific message type (optionally filtered)
+   * Send a request and wait for its reply of the given type (optionally filtered).
+   * Replies are matched by a per-request id that the worker echoes back, so
+   * concurrent requests of the same reply type (e.g. two processWithConfig runs,
+   * which both answer with 'processed') never resolve or reject with each other's
+   * replies.
    */
   private sendRequestUntil<T extends WorkerReply>(
     type: T['type'],
@@ -206,6 +222,7 @@ export class DataProcessorService {
     matchFn: (msg: T) => boolean = () => true,
     timeoutMs = 60000
   ): Promise<T> {
+    const requestId = ++this.nextRequestId;
     return new Promise<T>((resolve, reject) => {
       const timer = setTimeout(() => {
         sub.unsubscribe();
@@ -213,6 +230,9 @@ export class DataProcessorService {
       }, timeoutMs);
 
       const sub = this.message$.subscribe(msg => {
+        if (msg.requestId !== requestId) {
+          return;
+        }
         if (msg.type === 'error') {
           clearTimeout(timer);
           sub.unsubscribe();
@@ -227,7 +247,7 @@ export class DataProcessorService {
         }
       });
 
-      this.worker.postMessage(message);
+      this.worker.postMessage({ ...message, requestId });
     });
   }
 }

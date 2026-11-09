@@ -1,6 +1,6 @@
 <div class="issue-card" [class.blocking]="issue.severity === 'blocking'" [class.warning]="issue.severity === 'warning'">
   <div class="issue-head">
-    <span class="severity-icon material-icons">
+    <span class="severity-icon material-icons" aria-hidden="true">
       {{ issue.severity === 'blocking' ? 'error' : 'warning' }}
     </span>
     @if (issue.code) {
@@ -22,19 +22,24 @@
   </div>
 
   @if (issue.raw) {
-    <button type="button" class="technical-toggle" (click)="toggleTechnical()">
-      <span class="material-icons">{{ technicalOpen ? 'expand_less' : 'expand_more' }}</span>
+    <button
+      type="button"
+      class="technical-toggle"
+      [attr.aria-expanded]="technicalOpen"
+      [attr.aria-controls]="detailsId"
+      (click)="toggleTechnical()"
+    >
+      <span class="material-icons" aria-hidden="true">{{ technicalOpen ? 'expand_less' : 'expand_more' }}</span>
       {{ technicalOpen ? 'Hide technical details' : 'Technical details' }}
     </button>
-    @if (technicalOpen) {
-      <pre class="technical-detail">{{ issue.raw }}</pre>
-    }
+    <!-- Always rendered (hidden while collapsed) so aria-controls always resolves. -->
+    <pre class="technical-detail" [id]="detailsId" [hidden]="!technicalOpen">{{ issue.raw }}</pre>
   }
 
   <div class="issue-actions">
     <button type="button" class="btn-fix" (click)="fix.emit(issue)">
-      Fix in Schritt {{ stepNumber }} · {{ stepName }}
-      <span class="material-icons">arrow_forward</span>
+      Fix in step {{ stepNumber }} · {{ stepName }}
+      <span class="material-icons" aria-hidden="true">arrow_forward</span>
     </button>
     @if (issue.dismissable) {
       <button type="button" class="btn-dismiss" (click)="dismiss.emit(issue)">Dismiss</button>

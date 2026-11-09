@@ -54,6 +54,7 @@ export class DatasetCacheService {
         glyph = new GlyphObject(idStr);
         glyph.features = feature.features;
         glyph.values = feature.values;
+        glyph.metadata = feature.metadata;
         glyph.defaultcontext = feature.defaultcontext ? parseInt(feature.defaultcontext) : 1;
         glyph.positions = {};
 

@@ -1,4 +1,5 @@
 import { GlyphObject } from '../../glyph/glyph-object';
+import { StringStringMap } from '../interfaces/glyph-feature';
 import { ItemFilter } from './item-filter';
 
 export class TextFilter extends ItemFilter {
@@ -21,10 +22,14 @@ export class TextFilter extends ItemFilter {
     return '';
   }
 
+  /** Matches the item's feature values and its metadata (tooltip-only columns). */
   public override inFilter(item: GlyphObject): boolean {
-    if (!item.values) return false;
+    return this.matchesAny(item.values) || this.matchesAny(item.metadata);
+  }
 
-    return Object.values(item.values).some(val => {
+  private matchesAny(values: StringStringMap | undefined): boolean {
+    if (!values) return false;
+    return Object.values(values).some(val => {
       const valStr = String(val).toLowerCase();
       return this._acceptableStrings.some(substr => valStr.includes(substr));
     });
