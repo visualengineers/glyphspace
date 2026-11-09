@@ -625,3 +625,38 @@ def test_metadata_stays_aligned_with_its_rows_after_drops():
     for row in dataset['features']:
         i = int(row['id'])
         assert row['metadata'] == {'1': '' if i % 5 == 0 else f'note {i}'}
+
+
+# --- Item ids (issue #92, item 3) ---------------------------------------------------
+
+@pytest.mark.parametrize('name', ['ID', 'id', 'Id', ' iD '])
+def test_an_id_column_in_any_case_gives_the_item_ids(name):
+    frame = pd.DataFrame({'x': [1.0, 2.0, 3.0], name: ['w1', 'w2', 'w3']})
+    columns = [column(name, dataType='id', role='metadata'), column('x')]
+
+    dataset = run(write_csv(frame), columns)
+
+    assert ids(dataset) == ['w1', 'w2', 'w3']
+    assert dataset['schema']['metadata'] == {}
+
+
+def test_without_an_id_column_the_row_index_is_the_id():
+    dataset = run(write_csv(pd.DataFrame({'x': [1.0, 2.0]})), [column('x')])
+
+    assert ids(dataset) == ['0', '1']
+
+
+def test_duplicates_are_judged_on_the_renamed_id_column_too():
+    frame = pd.DataFrame({'id': ['a', 'a', 'b'], 'x': [1.0, 1.0, 2.0]})
+
+    dataset = run(write_csv(frame), [column('id', dataType='id', role='metadata'), column('x')],
+                  cleaning={'removeDuplicates': True})
+
+    assert ids(dataset) == ['a', 'b']
+
+
+@pytest.mark.parametrize('name, expected', [('id', 'id'), ('Id', 'id'), ('ID ', 'id'), ('idx', None)])
+def test_the_wizard_detects_the_id_column_by_the_same_rule(name, expected):
+    detected = pp.detect_data_type(pd.Series(['a', 'b'], name=name))
+
+    assert (detected == 'id') == (expected == 'id')

@@ -27,7 +27,7 @@ from sklearn.preprocessing import StandardScaler, MinMaxScaler, RobustScaler, La
 
 # Shared with Step 3's outlier count. The worker writes preprocessing_processor.py
 # to the Pyodide FS when the file is profiled, which precedes every processing run.
-from preprocessing_processor import find_outliers
+from preprocessing_processor import find_outliers, is_id_column
 
 # NOTE: Removed PCA, IncrementalPCA, TSNE imports - now handled by DruidJS in JavaScript
 # All dimensionality reduction is done in the browser for better UX
@@ -77,14 +77,7 @@ def process_with_config(file_name, config_json, output_file=None):
         # a generated ID is unique per row and would hide every duplicate.
         csv_columns = list(df.columns)
 
-        # Add ID column if missing
-        if 'ID' not in df.columns:
-            df.insert(0, 'ID', df.index.astype(str))
-        else:
-            # Ensure ID is first column
-            cols = list(df.columns)
-            cols.insert(0, cols.pop(cols.index('ID')))
-            df = df[cols]
+        df, csv_columns = _use_id_column(df, csv_columns)
 
         report_progress('Data loaded', 10, f'{len(df)} rows, {len(df.columns)} columns')
 
@@ -218,6 +211,23 @@ def _fill_with(column: pd.Series, value) -> pd.Series:
         # Filling an object column of booleans would downcast it (deprecated in pandas 2).
         return column.astype('boolean').fillna(bool(value))
     return column.fillna(value)
+
+
+def _use_id_column(df: pd.DataFrame, csv_columns: list) -> tuple[pd.DataFrame, list]:
+    """Make the file's id column (named "id" in any case) the first column "ID".
+
+    Without one, the row index becomes the id. Returns the frame and the file's
+    column names with the id column renamed as well.
+    """
+    id_col = 'ID' if 'ID' in df.columns else next((col for col in df.columns if is_id_column(col)), None)
+    if id_col is None:
+        df.insert(0, 'ID', df.index.astype(str))
+        return df, csv_columns
+
+    cols = list(df.columns)
+    cols.insert(0, cols.pop(cols.index(id_col)))
+    df = df[cols].rename(columns={id_col: 'ID'})
+    return df, ['ID' if col == id_col else col for col in csv_columns]
 
 
 def _typed_fill_value(column: pd.Series, value):
@@ -516,24 +526,18 @@ def _boolean_categories(values: pd.Series, codes: pd.Series) -> list[str]:
 
 def compute_projections(df, config):
     """
-    Compute dimensionality reduction projections with adaptive parameters
+    Export the features for the projections, which run in the browser (DruidJS).
 
-    Adaptive Optimizations:
-    - IncrementalPCA: Used for datasets > 10,000 rows (memory efficient)
-    - t-SNE Perplexity: Auto-adjusted - min(user_config, n_samples/3, 50)
-    - t-SNE Iterations: Scaled down for larger datasets (25-100% of config)
-    - t-SNE Hard Limit: 2,000 rows maximum (automatically skipped beyond)
-
-    Progress Reporting:
-    - Each method reports at 5-10% increments (55%, 60%, 65%, 75%)
-    - Clear messages show dataset size and adaptive parameters used
+    Writes the ID and the feature columns marked for projection (all features
+    when none is marked) to processed_features.csv in the working directory;
+    the worker hands that file to the projection code.
 
     Args:
         df: Processed DataFrame with encoded/scaled features
-        config: Configuration dict with 'projections' key
+        config: Configuration dict with 'columns' (includeInProjection per column)
 
     Returns:
-        List of projection dicts: [{'name': str, 'data': [...]}]
+        An empty list: no projection is computed here.
     """
     proj_config = config.get('projections', {})
     column_configs = {col['name']: col for col in config.get('columns', [])}

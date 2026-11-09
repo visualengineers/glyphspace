@@ -94,6 +94,13 @@ describe('classifyProcessingError', () => {
       step: 'features',
       anchorId: 'wizard-anchor-features',
     },
+    {
+      name: 'K8 — fill value of a true/false column that is neither',
+      raw: "Column 'organic': the fill value 'maybe' is not true or false. Enter true or false or choose another missing-value strategy.",
+      code: 'K8',
+      step: 'features',
+      anchorId: 'wizard-anchor-features',
+    },
   ];
 
   cases.forEach(c => {

@@ -81,9 +81,17 @@ def _top_values(series, n=TOP_VALUES_LIMIT):
     ]
 
 
+def is_id_column(name) -> bool:
+    """Whether a column holds the item ids: it is named "id" in any case.
+
+    The same rule as the CLI's add_id_column_if_missing (tools/dataset_common.py).
+    """
+    return str(name).strip().lower() == 'id'
+
+
 def detect_data_type(series):
     """Detect the data type of a pandas Series"""
-    if series.name and str(series.name).lower() == 'id':
+    if series.name is not None and is_id_column(series.name):
         return 'id'
 
     # Check for coordinate columns by name (before numeric check, since coordinates are numeric)
@@ -225,7 +233,6 @@ def profile_column(series):
 def profile_data(file_name):
     """Profile a CSV file and return statistics"""
     try:
-        # Note: Parquet files are converted to CSV in the worker before calling this function
         df = pd.read_csv(file_name)
 
         # Calculate quality score
