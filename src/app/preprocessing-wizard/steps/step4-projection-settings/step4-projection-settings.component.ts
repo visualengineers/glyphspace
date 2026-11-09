@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PreprocessingService } from '../../services/preprocessing.service';
 import { WizardStep, WIZARD_STEP } from '../../shared/wizard-step';
-import { ColumnConfig, ProjectionConfig } from '../../models/column-config';
+import { ColumnConfig, ProjectionConfig, isFeatureColumn } from '../../models/column-config';
 import { ColumnStatistics } from '../../models/column-statistics';
 import { DEFAULT_PROJECTION_CONFIG } from '../../models/preprocessing-state';
 import {
@@ -102,9 +102,10 @@ export class Step4ProjectionSettingsComponent implements OnInit, WizardStep {
   ngOnInit(): void {
     const state = this.preprocessingService.currentState;
     this.projectionConfig = { ...state.projectionConfig };
+    // Metadata columns never reach the projection, so only feature columns are listed.
     this.projectionColumns = (state.dataProfile?.columns ?? []).flatMap(column => {
       const config = state.columnConfigs.get(column.name);
-      return config?.enabled ? [{ column, config }] : [];
+      return config && isFeatureColumn(config) ? [{ column, config }] : [];
     });
   }
 

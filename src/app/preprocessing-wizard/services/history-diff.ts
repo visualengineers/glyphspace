@@ -73,6 +73,11 @@ export const SETTING_META: Readonly<Record<string, SettingMeta>> = {
   datasetName: { label: 'Dataset name', step: 'upload', anchorId: null },
   // Column selection
   'columnConfigs.enabled': { label: 'Column selection', step: 'columns', anchorId: 'wizard-anchor-columns' },
+  'columnConfigs.role': {
+    label: 'Column use (feature or metadata)',
+    step: 'columns',
+    anchorId: 'wizard-anchor-columns',
+  },
   // Data configuration (per-column features + cleaning)
   'columnConfigs.encodingMethod': { label: 'Encoding', step: 'features', anchorId: 'wizard-anchor-features' },
   'columnConfigs.scalingMethod': { label: 'Scaling', step: 'features', anchorId: 'wizard-anchor-features' },
@@ -109,6 +114,7 @@ export const SETTING_META: Readonly<Record<string, SettingMeta>> = {
 /** Column-config fields compared by the diff, roughly in wizard order. */
 const DIFFED_COLUMN_FIELDS: readonly (keyof ColumnConfig)[] = [
   'enabled',
+  'role',
   'isColorFeature',
   'targetType',
   'encodingMethod',

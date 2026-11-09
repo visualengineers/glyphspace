@@ -7,8 +7,8 @@ import {
   createInitialState,
 } from '../models/preprocessing-state';
 import { DataProfile, ColumnStatistics } from '../models/column-statistics';
-import { ColumnConfig, CleaningConfig, ProjectionConfig } from '../models/column-config';
-import { DataType, OutlierMethod } from '../models/data-type.enum';
+import { ColumnConfig, CleaningConfig, ProjectionConfig, isFeatureColumn } from '../models/column-config';
+import { ColumnRole, DataType, OutlierMethod } from '../models/data-type.enum';
 import { DataProcessorService } from '../../services/data-processor';
 import { DataLoaderService } from '../../services/data-loader.service';
 import { LAST_STEP_INDEX, WizardStepId, stepIdAt, stepIndex } from '../shared/constants/step-info';
@@ -324,6 +324,18 @@ export class PreprocessingService {
   }
 
   /**
+   * Use a column as a feature or as metadata (tooltip and search only). One undo
+   * entry; a column that becomes metadata also leaves the glyph and color mapping.
+   */
+  public setColumnRole(columnName: string, role: ColumnRole): void {
+    const config = this.currentState.columnConfigs.get(columnName);
+    if (!config || config.role === role) return;
+    this.pushHistory(role === ColumnRole.Metadata ? 'Column used as metadata' : 'Column used as feature');
+    this.applyColumnConfig(columnName, { role });
+    this.validateDependentReferences();
+  }
+
+  /**
    * Set the enabled state for a specific set of columns in one update. Used by
    * Step 2 range-select (shift-click) and "select all filtered".
    */
@@ -355,29 +367,30 @@ export class PreprocessingService {
   }
 
   /**
-   * A4/cross-field: after any change to which columns are enabled, remove references
-   * that would otherwise dangle on now-disabled columns. Concretely: a disabled
-   * column can no longer be the color feature, and glyph/tooltip mappings drop
-   * features whose underlying column is disabled. If the color feature was cleared,
-   * the color scale falls back to the numeric default so the review/glyph step UI does
-   * not keep showing a scale for a column that is gone.
+   * A4/cross-field: after any change to which columns are features (enabled, not
+   * metadata), remove references that would otherwise dangle. Concretely: a
+   * disabled or metadata column can no longer be the color feature, and
+   * glyph/tooltip mappings drop features whose underlying column is no feature
+   * any more. If the color feature was cleared, the color scale falls back to the
+   * numeric default so the review/glyph step UI does not keep showing a scale for
+   * a column that is gone.
    *
-   * Runs after the enable change (and after pushHistory captured the pre-change
-   * snapshot), so a single undo reverts both the enable change and this cleanup as
-   * one atomic action, while the redo snapshot holds the already-cleaned state.
+   * Runs after the change (and after pushHistory captured the pre-change
+   * snapshot), so a single undo reverts both the change and this cleanup as one
+   * atomic action, while the redo snapshot holds the already-cleaned state.
    */
   private validateDependentReferences(): void {
-    // Drop color-feature flag from disabled columns.
+    // Drop the color-feature flag from columns that are no feature any more.
     let colorFeatureCleared = false;
     const configs = this.mapColumnConfigs(config => {
-      if (config.enabled || !config.isColorFeature) return config;
+      if (isFeatureColumn(config) || !config.isColorFeature) return config;
       colorFeatureCleared = true;
       return { ...config, isColorFeature: false };
     });
 
-    // Glyph/tooltip mappings may only reference features of still-enabled columns.
-    // predictEncodedFeatureNames() already restricts itself to enabled columns and
-    // handles one-hot expansion, so it is the source of truth for valid names.
+    // Glyph/tooltip mappings may only reference features of feature columns.
+    // predictEncodedFeatureNames() already restricts itself to those and handles
+    // one-hot expansion, so it is the source of truth for valid names.
     const validFeatures = new Set(predictEncodedFeatureNames(this.currentState));
     const glyphFeatures = this.currentState.glyphFeatures.filter(f => validFeatures.has(f));
     const tooltipFeatures = this.currentState.tooltipFeatures.filter(f => validFeatures.has(f));

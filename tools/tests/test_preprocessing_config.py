@@ -55,8 +55,8 @@ def pandas_mode(request, tmp_path, monkeypatch):
 def column(name: str, **overrides) -> dict:
     """A column config as buildProcessingConfig sends it, with the wizard's defaults."""
     defaults = {
-        'name': name, 'enabled': True, 'dataType': 'numeric', 'encoding': 'none', 'scaling': 'none',
-        'includeInProjection': True, 'isColorFeature': False, 'missingValueStrategy': 'keep',
+        'name': name, 'enabled': True, 'role': 'feature', 'dataType': 'numeric', 'encoding': 'none',
+        'scaling': 'none', 'includeInProjection': True, 'isColorFeature': False, 'missingValueStrategy': 'keep',
         'outlierMethod': 'iqr_1.5', 'outlierStrategy': 'keep',
     }
     return {**defaults, **overrides}
@@ -519,3 +519,109 @@ def test_a_clear_error_when_every_row_is_removed():
 
     with pytest.raises(Exception, match='No rows are left after cleaning'):
         run(write_csv(frame), [column('a', missingValueStrategy='remove_rows'), column('b')])
+
+
+# --- Metadata columns: tooltip and search only, never encoded -----------------------
+
+
+def metadata_values(dataset: dict) -> list[dict]:
+    return [row['metadata'] for row in dataset['features']]
+
+
+@pytest.mark.parametrize('role', ts_enum('ColumnRole'))
+def test_every_wizard_column_role_runs(role):
+    frame = pd.DataFrame({'x': [1.0, 2.0, 3.0], 't': ['a', 'b', 'c']})
+
+    dataset = run(write_csv(frame), [column('x'), column('t', dataType='text', role=role)])
+
+    feature_columns = {label.split('_')[0] for label in dataset['schema']['label'].values()}
+    assert ('t' in feature_columns) == (role == 'feature')
+    assert ('t' in dataset['schema']['metadata'].values()) == (role == 'metadata')
+
+
+def test_a_column_config_without_a_role_is_a_feature():
+    tag = column('tag', dataType='categorical', encoding='label')
+    del tag['role']  # wizard states saved before the role existed
+
+    dataset = run(write_csv(pd.DataFrame({'x': [1.0, 2.0], 'tag': ['a', 'b']})), [column('x'), tag])
+
+    assert list(dataset['schema']['label'].values()) == ['x', 'tag']
+    assert dataset['schema']['metadata'] == {}
+
+
+def test_an_unknown_column_role_is_rejected():
+    frame = pd.DataFrame({'x': [1.0, 2.0], 't': ['a', 'b']})
+
+    with pytest.raises(Exception, match="Unknown column role 'tooltip'"):
+        run(write_csv(frame), [column('x'), column('t', role='tooltip')])
+
+
+def test_a_near_unique_text_column_as_metadata_is_kept_out_of_the_features():
+    # PR #88: a free-text column (cheese "flavor") excluded from the projection was
+    # still one-hot encoded and failed with K7. As metadata it is only carried along.
+    rows = ppc.MAX_ONEHOT_UNIQUE + 1
+    frame = pd.DataFrame({'x': [float(i) for i in range(rows)], 'flavor': [f'taste {i}' for i in range(rows)]})
+    csv = write_csv(frame)
+
+    dataset = run(csv, [column('x'), column('flavor', dataType='text', role='metadata')])
+
+    assert list(dataset['schema']['label'].values()) == ['x']
+    assert dataset['schema']['metadata'] == {'1': 'flavor'}
+    assert metadata_values(dataset) == [{'1': f'taste {i}'} for i in range(rows)]
+    assert all(set(row['values']) == {'1'} for row in dataset['features'])
+    assert list(pd.read_csv('processed_features.csv').columns) == ['ID', 'x']
+    # As a feature the same column is one-hot encoded, so the K7 guard still applies.
+    with pytest.raises(Exception, match='too many distinct values to one-hot encode'):
+        run(csv, [column('x'), column('flavor', dataType='text', includeInProjection=False)])
+
+
+def test_only_selected_metadata_columns_are_carried_and_the_id_is_not_repeated():
+    frame = pd.DataFrame({'ID': ['a', 'b'], 'x': [1.0, 2.0], 'name': ['Brie', 'Gouda'], 'note': ['soft', 'hard']})
+    columns = [column('ID', dataType='id', role='metadata'), column('x'),
+               column('name', dataType='text', role='metadata'),
+               column('note', dataType='text', role='metadata', enabled=False)]
+
+    dataset = run(write_csv(frame), columns)
+
+    assert dataset['schema']['metadata'] == {'1': 'name'}
+    assert metadata_values(dataset) == [{'1': 'Brie'}, {'1': 'Gouda'}]
+
+
+def test_a_dataset_without_metadata_columns_has_an_empty_metadata_schema():
+    dataset = run(write_csv(pd.DataFrame({'x': [1.0, 2.0]})), [column('x')])
+
+    assert dataset['schema']['metadata'] == {}
+    assert all('metadata' not in row for row in dataset['features'])
+
+
+@pytest.mark.parametrize('leftover', [
+    {'missingValueStrategy': 'remove_rows'},
+    {'missingValueStrategy': 'fill_value', 'missingValueFillValue': 'not a number'},
+    {'outlierStrategy': 'remove'},
+    {'outlierStrategy': 'cap'},
+])
+def test_metadata_ignores_cleaning_settings_left_from_when_it_was_a_feature(leftover):
+    n = [float(i) for i in range(20)]
+    n[1], n[19] = np.nan, 1000.0  # a missing value and an outlier
+    frame = pd.DataFrame({'x': [float(i) for i in range(20)], 'n': n})
+
+    dataset = run(write_csv(frame), [column('x'), column('n', role='metadata', **leftover)])
+
+    assert ids(dataset) == [str(i) for i in range(20)]
+    assert metadata_values(dataset)[:3] == [{'1': '0.0'}, {'1': ''}, {'1': '2.0'}]
+    assert metadata_values(dataset)[19] == {'1': '1000.0'}
+
+
+def test_metadata_stays_aligned_with_its_rows_after_drops():
+    frame = outlier_frame()
+    frame['m'] = [np.nan if i % 7 == 0 else i for i in range(200)]
+    frame['note'] = [None if i % 5 == 0 else f'note {i}' for i in range(200)]
+    columns = [column('x', outlierStrategy='remove'), column('y'), column('m', missingValueStrategy='remove_rows'),
+               column('note', dataType='text', role='metadata')]
+
+    dataset = run(write_csv(frame), columns)
+
+    assert 150 < len(dataset['features']) < 200
+    for row in dataset['features']:
+        i = int(row['id'])
+        assert row['metadata'] == {'1': '' if i % 5 == 0 else f'note {i}'}

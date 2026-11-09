@@ -12,6 +12,11 @@ Processing order (see apply_cleaning and apply_feature_engineering):
   6. features are scaled; missing values still left (strategy 'keep') are ignored
      by the scaling and become 0 in the scaled features.
 The tooltip values are the original values: "" where the original is missing.
+
+Columns with the role 'metadata' are neither cleaned nor encoded: they reach the
+dataset only as their original values (schema 'metadata' plus each item's
+'metadata'), which the dashboard shows in the tooltip and searches. Only
+'feature' columns (the default) become features.
 """
 
 import json
@@ -36,6 +41,12 @@ MISSING_VALUE_TEXT = ''
 HISTOGRAM_BINS = 20
 # Category labels of a boolean column's codes 0.0 and 1.0 when a code does not occur.
 BOOLEAN_LABELS = ('False', 'True')
+# What a column becomes (the wizard's ColumnRole): an encoded feature, or metadata
+# kept as its original values for the tooltip and the search.
+ROLE_FEATURE = 'feature'
+ROLE_METADATA = 'metadata'
+# A one-hot encoded column with more distinct values would exhaust the browser's memory.
+MAX_ONEHOT_UNIQUE = 500
 
 # Progress callback - will be set by worker
 progress_callback = None
@@ -140,6 +151,8 @@ def apply_cleaning(df: pd.DataFrame, config: dict, duplicate_subset: list | None
     Missing values are filled and outliers capped per column; then the rows of
     'remove_rows' missing values and 'remove' outliers (enabled columns only)
     are dropped, followed by the legacy cleaning.removeMissing and by duplicates.
+    Metadata columns are left as they are: they are shown, not encoded, so a
+    strategy left over from when they were features has no effect.
     The row index is kept, so df.loc[result.index] are the surviving original rows.
 
     duplicate_subset: the columns that make a row a duplicate (the file's own
@@ -154,6 +167,8 @@ def apply_cleaning(df: pd.DataFrame, config: dict, duplicate_subset: list | None
         if col == 'ID':
             continue
         col_config = column_configs.get(col, {})
+        if _column_role(col_config) == ROLE_METADATA:
+            continue
         before = df_clean[col]
         column = _fill_missing(before, col_config)
         if col_config.get('enabled', True):
@@ -271,6 +286,29 @@ def _drop_duplicates(df_original: pd.DataFrame, df_clean: pd.DataFrame, subset: 
     return df_clean.loc[~duplicated]
 
 
+def _column_role(col_config: dict) -> str:
+    """The column's role; configs without one (older wizard states) are features."""
+    role = col_config.get('role', ROLE_FEATURE)
+    if role not in (ROLE_FEATURE, ROLE_METADATA):
+        raise ValueError(f"Unknown column role '{role}' for column '{col_config.get('name')}'")
+    return role
+
+
+def _is_feature_column(col_config: dict) -> bool:
+    """A selected column that is encoded into features."""
+    return col_config.get('enabled', True) and _column_role(col_config) == ROLE_FEATURE
+
+
+def _metadata_columns(df: pd.DataFrame, column_configs: dict) -> list:
+    """The selected metadata columns of df, in file order (the ID is the item's id already)."""
+    return [
+        col for col in df.columns
+        if col != 'ID'
+        and column_configs.get(col, {}).get('enabled', True)
+        and _column_role(column_configs.get(col, {})) == ROLE_METADATA
+    ]
+
+
 def _resolve_base_col(col, column_configs):
     """Resolve a feature column name to its base column config.
     Tries exact match first, then prefix match for one-hot encoded columns (e.g. city_NYC → city)."""
@@ -300,10 +338,9 @@ def apply_feature_engineering(df, config):
     """
     column_configs = {col['name']: col for col in config.get('columns', [])}
 
-    # Separate ID and feature columns
+    # Separate ID and feature columns; metadata columns are never encoded.
     id_col = df['ID']
-    feature_cols = [col for col in df.columns if col != 'ID']
-    enabled_cols = [col for col in feature_cols if column_configs.get(col, {}).get('enabled', True)]
+    enabled_cols = [col for col in df.columns if col != 'ID' and _is_feature_column(column_configs.get(col, {}))]
 
     # Guard against the one-hot explosion (wizard error class K7): a text column
     # that is near-unique (an ID, title, name or free-text field) would expand
@@ -311,7 +348,6 @@ def apply_feature_engineering(df, config):
     # (Pyodide) memory. Detect these up front and fail fast with a clear,
     # actionable message naming every offending column, instead of an opaque
     # numpy MemoryError deep inside pandas.concat.
-    MAX_ONEHOT_UNIQUE = 500
     onehot_offenders = []
     for col in enabled_cols:
         col_config = column_configs.get(col, {})
@@ -332,7 +368,7 @@ def apply_feature_engineering(df, config):
         raise Exception(
             f"These columns have too many distinct values to one-hot encode: {listed}. "
             f"Each would expand into that many feature columns, which exceeds the in-browser memory. "
-            f"Deselect them in the column step, or switch their encoding to label."
+            f"Use them as metadata in the column step (tooltip and search only), or switch their encoding to label."
         )
 
     # PHASE 1: Encoding - collect all encoded columns in a list
@@ -572,6 +608,11 @@ def _value_histogram(values: np.ndarray, value_range: tuple[float, float]) -> di
     return {str(j): float(count) for j, count in enumerate(counts)}
 
 
+def _original_text(value) -> str:
+    """An original value as the dashboard shows it; MISSING_VALUE_TEXT when missing."""
+    return str(value) if pd.notna(value) else MISSING_VALUE_TEXT
+
+
 def build_dataset_collection(df_original, df_processed, feature_names, feature_categories, projections, config,
                              df_encoded=None):
     """Build DatasetCollection format from processed data with optimized performance
@@ -621,6 +662,11 @@ def build_dataset_collection(df_original, df_processed, feature_names, feature_c
         else:
             use_cache.append(False)
 
+    # Metadata: the original values of the metadata columns, keyed like the
+    # features ('1', '2', ...) and named by schema['metadata'].
+    metadata_names = _metadata_columns(df_original, column_configs)
+    metadata_arrays = [df_original[name].values for name in metadata_names]
+
     # Build features list with optimized vectorized lookups and progress reporting
     features_list = []
     n_rows = len(df_processed)
@@ -640,18 +686,22 @@ def build_dataset_collection(df_original, df_processed, feature_names, feature_c
         for i in range(n_features):
             if use_cache[i]:
                 # Fast O(1) numpy array access - direct column from original data
-                orig_val = original_values_cache[base_col_list[i]][idx]
-                value_dict[str(i + 1)] = str(orig_val) if pd.notna(orig_val) else MISSING_VALUE_TEXT
+                value_dict[str(i + 1)] = _original_text(original_values_cache[base_col_list[i]][idx])
             else:
                 # Fallback for derived columns
                 value_dict[str(i + 1)] = str(feature_values[idx, i])
 
-        features_list.append({
+        item = {
             'id': row_id,
             'defaultcontext': '1',
             'features': {'1': feature_dict},
             'values': value_dict
-        })
+        }
+        if metadata_names:
+            item['metadata'] = {
+                str(j + 1): _original_text(values[idx]) for j, values in enumerate(metadata_arrays)
+            }
+        features_list.append(item)
 
         # Progress reporting every FEATURE_BUILD_CHUNK_SIZE rows for better UX
         if (idx + 1) % FEATURE_BUILD_CHUNK_SIZE == 0:
@@ -759,6 +809,7 @@ def build_dataset_collection(df_original, df_processed, feature_names, feature_c
         'glyph': glyph_feature_ids,  # User-defined or fallback to first 5
         'label': improved_labels,
         'tooltip': tooltip_features,  # User-defined or default
+        'metadata': {str(j + 1): name for j, name in enumerate(metadata_names)},  # tooltip and search only
         'colorRange': color_range_boolean,  # Auto-detected color scale mode
         'colorScaleId': color_scale_id,  # Specific color scale ID selected by user
         'types': feature_types,  # NEW: Original data types for each feature

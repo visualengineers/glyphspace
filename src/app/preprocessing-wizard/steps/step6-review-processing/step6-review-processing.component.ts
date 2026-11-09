@@ -10,7 +10,7 @@ import {
   ProjectionService,
 } from '../../../services/projection.service';
 import { ToastService } from '../../../services/toast.service';
-import { ColumnConfig, ProjectionConfig } from '../../models/column-config';
+import { ColumnConfig, ProjectionConfig, isFeatureColumn, isMetadataColumn } from '../../models/column-config';
 import { DEFAULT_PROJECTION_CONFIG } from '../../models/preprocessing-state';
 import { DataType, getEncodingLabel as encLabelFn, getScalingLabel as scaleLabelFn } from '../../models/data-type.enum';
 import { WizardStepId, getStepInfo, stepNumber } from '../../shared/constants/step-info';
@@ -97,7 +97,9 @@ export class Step6ReviewProcessingComponent implements OnInit, OnDestroy {
   // Review/Summary data
   totalColumns = 0;
   enabledColumns = 0;
+  metadataColumns = 0;
   projectionColumns = 0;
+  readonly isMetadataColumn = isMetadataColumn;
   enabledMethods: string[] = [];
   columnConfigs: ColumnConfig[] = [];
   colorFeature: string | null = null;
@@ -223,7 +225,8 @@ export class Step6ReviewProcessingComponent implements OnInit, OnDestroy {
     this.totalColumns = state.dataProfile?.columns.length || 0;
     this.columnConfigs = Array.from(state.columnConfigs.values());
     this.enabledColumns = this.columnConfigs.filter(c => c.enabled).length;
-    this.projectionColumns = this.columnConfigs.filter(c => c.enabled && c.includeInProjection).length;
+    this.metadataColumns = this.columnConfigs.filter(isMetadataColumn).length;
+    this.projectionColumns = this.columnConfigs.filter(c => isFeatureColumn(c) && c.includeInProjection).length;
 
     // FastMap is always the primary projection
     this.enabledMethods = ['FastMap (Primary)', ...enabledBackgroundMethodNames(this.projectionConfig)];

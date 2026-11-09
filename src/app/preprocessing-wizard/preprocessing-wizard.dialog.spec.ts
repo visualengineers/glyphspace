@@ -6,6 +6,7 @@ import { PreprocessingState } from './models/preprocessing-state';
 import { ColumnConfig } from './models/column-config';
 import { ColumnStatistics, DataProfile } from './models/column-statistics';
 import {
+  ColumnRole,
   DataType,
   EncodingMethod,
   ScalingMethod,
@@ -78,6 +79,7 @@ describe('PreprocessingWizardComponent – dialog and focus (rendered)', () => {
       name: 'alpha',
       originalType: DataType.Numeric,
       targetType: DataType.Numeric,
+      role: ColumnRole.Feature,
       encodingMethod: EncodingMethod.Normalize,
       scalingMethod: ScalingMethod.MinMax,
       includeInProjection: true,

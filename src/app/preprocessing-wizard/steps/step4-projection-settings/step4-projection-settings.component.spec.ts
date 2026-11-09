@@ -8,6 +8,7 @@ import { DEFAULT_PROJECTION_CONFIG, PreprocessingState } from '../../models/prep
 import { ColumnConfig, ProjectionConfig } from '../../models/column-config';
 import { ColumnStatistics, DataProfile } from '../../models/column-statistics';
 import {
+  ColumnRole,
   DataType,
   EncodingMethod,
   ScalingMethod,
@@ -22,6 +23,7 @@ function makeConfig(name: string, overrides: Partial<ColumnConfig> = {}): Column
     name,
     originalType: DataType.Numeric,
     targetType: DataType.Numeric,
+    role: ColumnRole.Feature,
     encodingMethod: EncodingMethod.Normalize,
     scalingMethod: ScalingMethod.MinMax,
     includeInProjection: true,
@@ -136,6 +138,18 @@ describe('Step4ProjectionSettingsComponent – projection columns', () => {
     component.ngOnInit();
 
     expect(component.projectionColumns.map(entry => entry.column.name)).toEqual(['x']);
+  });
+
+  it('does not list metadata columns: they never reach the projection', () => {
+    const configs = new Map<string, ColumnConfig>([
+      ['x', makeConfig('x')],
+      ['flavor', makeConfig('flavor', { role: ColumnRole.Metadata, includeInProjection: true })],
+    ]);
+    setState(service, { dataProfile: makeProfile(['x', 'flavor']), columnConfigs: configs });
+    component.ngOnInit();
+
+    expect(component.projectionColumns.map(entry => entry.column.name)).toEqual(['x']);
+    expect(component.getProjectionCount()).toBe(1);
   });
 });
 

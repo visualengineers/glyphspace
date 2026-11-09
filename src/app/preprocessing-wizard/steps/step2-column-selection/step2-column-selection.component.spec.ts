@@ -5,7 +5,7 @@ import { PreprocessingService } from '../../services/preprocessing.service';
 import { ColumnStatistics, DataProfile } from '../../models/column-statistics';
 import { ColumnConfig } from '../../models/column-config';
 import { PreprocessingState } from '../../models/preprocessing-state';
-import { DataType } from '../../models/data-type.enum';
+import { ColumnRole, DataType } from '../../models/data-type.enum';
 import { createTestPreprocessingService } from '../../testing/preprocessing-test-helpers';
 
 /**
@@ -80,6 +80,7 @@ describe('Step2ColumnSelectionComponent – accessibility (rendered)', () => {
   let fixture: ComponentFixture<Step2ColumnSelectionComponent>;
   let el: HTMLElement;
   let outside: HTMLButtonElement;
+  let service: PreprocessingService;
 
   function column(name: string): ColumnStatistics {
     return { name, dataType: DataType.Numeric, count: 10, missingCount: 0, missingPercentage: 0, uniqueCount: 10 };
@@ -99,7 +100,7 @@ describe('Step2ColumnSelectionComponent – accessibility (rendered)', () => {
 
   beforeEach(async () => {
     localStorage.clear();
-    const service = createTestPreprocessingService();
+    service = createTestPreprocessingService();
     const columns = [column('alcohol'), column('pH')];
     const dataProfile = {
       fileName: 'wine.csv',
@@ -159,6 +160,46 @@ describe('Step2ColumnSelectionComponent – accessibility (rendered)', () => {
     clear.click();
     expect(fixture.componentInstance.searchTerm).toBe('');
     expect(document.activeElement).toBe(search);
+  });
+
+  it('offers "Use as" Feature or Metadata per column, named after the column', () => {
+    const selects = Array.from(el.querySelectorAll<HTMLSelectElement>('tbody select.role-select'));
+
+    expect(selects.map(select => select.getAttribute('aria-label'))).toEqual(['Use alcohol as', 'Use pH as']);
+    expect(Array.from(selects[0].options).map(option => option.textContent?.trim())).toEqual(['Feature', 'Metadata']);
+    expect(selects.map(select => select.value)).toEqual([ColumnRole.Feature, ColumnRole.Feature]);
+  });
+
+  it('uses a column as metadata when chosen, and counts it in the selection line', () => {
+    const select = query<HTMLSelectElement>('tbody select.role-select');
+    select.value = ColumnRole.Metadata;
+    select.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+
+    const config = service.currentState.columnConfigs.get('alcohol');
+    expect(config?.role).toBe(ColumnRole.Metadata);
+    expect(config?.enabled).toBe(true);
+    expect(query('.selection-count').textContent).toContain('1 as metadata');
+  });
+
+  it('disables "Use as" for a deselected column', () => {
+    fixture.componentInstance.toggleColumn('pH');
+    fixture.detectChanges();
+
+    const selects = Array.from(el.querySelectorAll<HTMLSelectElement>('tbody select.role-select'));
+    expect(selects.map(select => select.disabled)).toEqual([false, true]);
+  });
+
+  it('needs at least one feature column to continue: metadata alone cannot be projected', () => {
+    const step = fixture.componentInstance;
+    service.setColumnRole('alcohol', ColumnRole.Metadata);
+    expect(step.canProceed()).toBe(true);
+
+    service.setColumnRole('pH', ColumnRole.Metadata);
+    step.columnConfigs = service.currentState.columnConfigs;
+
+    expect(step.canProceed()).toBe(false);
+    expect(step.disabledHint).toContain('at least one column as a feature');
   });
 
   it('marks the table headers as column headers', () => {

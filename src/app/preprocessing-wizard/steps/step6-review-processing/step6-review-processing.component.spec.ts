@@ -19,6 +19,7 @@ import { WizardStepId } from '../../shared/constants/step-info';
 import { classifyProcessingError } from '../../shared/constants/wizard-error-classes';
 import { WizardAnnouncer } from '../../shared/wizard-announcer.service';
 import {
+  ColumnRole,
   DataType,
   EncodingMethod,
   ScalingMethod,
@@ -34,6 +35,7 @@ function makeConfig(name: string, isColorFeature = false): ColumnConfig {
     name,
     originalType: DataType.Numeric,
     targetType: DataType.Numeric,
+    role: ColumnRole.Feature,
     encodingMethod: EncodingMethod.Normalize,
     scalingMethod: ScalingMethod.MinMax,
     includeInProjection: true,

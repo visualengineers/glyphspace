@@ -17,6 +17,8 @@ The ordered step list is `WIZARD_STEPS` in `preprocessing-wizard/shared/constant
 
 Steps 1–5 implement `WizardStep` (`shared/wizard-step.ts`) so the shell renders one navigation bar. Glyph and colour settings (step 5) only set the dashboard's initial view; the dashboard's Encoding panel can change them later.
 
+**Feature or metadata columns.** Step 2 sets each column's `role` (`ColumnRole` in `models/data-type.enum.ts`): a **feature** is encoded and can feed the projection, glyphs, colour and the dashboard's filters; **metadata** keeps its original values and is only shown in the tooltip, searched by the text filter and exported, never encoded or projected. Text and ID columns, and text/categorical/ID columns whose values are ≥ 90 % unique, start as metadata (`DATA_TYPE_CONFIG[…].defaultRole`, `services/column-defaults.ts`). Steps 3–5 list feature columns only; use `isFeatureColumn` / `isMetadataColumn` (`models/column-config.ts`) instead of checking `enabled` alone. Making a column metadata drops it from the colour and glyph mapping (`PreprocessingService.setColumnRole`, one undo entry). Continuing past Step 2 needs at least one feature column.
+
 ## Shell (`preprocessing-wizard/preprocessing-wizard.component.ts`)
 
 - **Dialog:** the root is `role="dialog"` / `aria-modal="true"`, labelled by the h1 `#wizard-dialog-title`. Focus moves to it on open, Tab is wrapped inside (`shared/dialog-focus.ts`), Escape closes the wizard unless a popup or the Start-over `<dialog>` is open, and focus returns to the opener in the menubar. The wizard chunk is lazy-loaded with `@defer` from `menubar/menubar.component.html`.
@@ -29,7 +31,7 @@ Steps 1–5 implement `WizardStep` (`shared/wizard-step.ts`) so the shell render
 
 ## State and persistence
 
-`preprocessing-wizard/services/preprocessing.service.ts` owns `PreprocessingState` (`models/preprocessing-state.ts`). State is saved to localStorage by `services/wizard-storage.ts` with a format version (currently 2); older saves are migrated by step id (the old 5-step layout's review step 4 becomes 5), and projection settings that no longer exist (e.g. `trimapWeightAdj`) are dropped. Column defaults and the "smart defaults" live in `services/column-defaults.ts`; the config sent to Python is built in `services/processing-config.ts`.
+`preprocessing-wizard/services/preprocessing.service.ts` owns `PreprocessingState` (`models/preprocessing-state.ts`). State is saved to localStorage by `services/wizard-storage.ts` with a format version (currently 3); older saves are migrated by step id (the old 5-step layout's review step 4 becomes 5), columns saved without a `role` (before version 3) are restored as features, and projection settings that no longer exist (e.g. `trimapWeightAdj`) are dropped. Column defaults and the "smart defaults" live in `services/column-defaults.ts`; the config sent to Python is built in `services/processing-config.ts`.
 
 ## Undo / redo
 
@@ -51,7 +53,7 @@ Steps 1–5 implement `WizardStep` (`shared/wizard-step.ts`) so the shell render
 | K4 | A neighbour parameter is ≥ the number of rows | projection |
 | K5 | Glyph feature count outside 3–12 | appearance |
 | K6 | Time or memory limit | projection |
-| K7 | A text column has too many distinct values to one-hot encode | columns |
+| K7 | A feature column has too many distinct values to one-hot encode (fix: use it as metadata) | columns |
 | K8 | A fill value doesn't fit its numeric column | features |
 
 Unmatched errors fall back to a generic blocking issue. `detectPreflightIssues` warns before processing (K3, K4, K6). Failed background projections become dismissable warnings (`classifyBackgroundFailure`).
@@ -61,7 +63,8 @@ Unmatched errors fall back to a generic blocking issue. `detectPreflightIssues` 
 - **Worker:** `workers/pyodide.worker.ts` loads Pyodide from the jsDelivr CDN (`PYODIDE_VERSION`), installs pandas and scikit-learn, and writes the Python modules from `src/assets/` into its file system on demand. Requests carry a `requestId` and are handled one at a time.
 - **No Python built from data:** `workers/pyodide-calls.ts` only turns fixed module/function names into code; all arguments (file names, column names from the CSV header, the config) are passed as data in a throwaway namespace.
 - **File names:** `workers/pyodide-files.ts` rejects path separators, `.`/`..`, and importable suffixes (`.py`, `.pyc`, `.so`), and tracks the files the worker wrote for `pruneFiles`.
-- **Order of operations** (header of `src/assets/preprocessing_processor_config.py`): fill missing values → cap outliers (detected on the original values) → drop rows (`remove_rows` columns, outlier `remove`) → drop duplicates → encode (one-hot, label, normalize, standardize, dates, booleans) → scale. Outlier detection is shared with Step 3's count (`find_outliers` in `src/assets/preprocessing_processor.py`).
+- **Order of operations** (header of `src/assets/preprocessing_processor_config.py`): fill missing values → cap outliers (detected on the original values) → drop rows (`remove_rows` columns, outlier `remove`) → drop duplicates → encode (one-hot, label, normalize, standardize, dates, booleans) → scale. Outlier detection is shared with Step 3's count (`find_outliers` in `src/assets/preprocessing_processor.py`). Metadata columns skip all of it, including cleaning settings left over from when they were features.
+- **Dataset format for metadata:** `schema.metadata` maps a metadata id to its column name (like `schema.label` for features), and each item carries `metadata: { id: original value }` ("" when missing). Both are optional, so datasets from the CLI or from before metadata still load. The dashboard reads them in `canvas/tooltip/` (own group below the features), `shared/filter/text-filter.ts` and `services/data-export.service.ts`.
 - **Projections:** DruidJS (0.9: WASM kernels with a JS fallback; its worker pool is Node-only, so browsers get no nested workers) runs in `workers/projection.worker.ts` via `workers/druid-runner.ts`; only the primary FastMap runs on the main thread, loading DruidJS on first use. `services/projection.service.ts` runs each background method in its own worker and offers `cancel(method)`, `retry(method)`, `terminateAllWorkers()` and `detachAll()`. The primary Pyodide run can't be cancelled: terminating that worker would drop the loaded runtime and the uploaded file.
 - **Hidden methods:** methods in `HIDDEN_PROJECTION_METHODS` (`preprocessing-wizard/steps/step4-projection-settings/projection-methods.ts`) are not offered in Step 4 and never run, summarised or warned about, even if a saved config enables them. LLE is hidden until druidjs fixes it (see ROADMAP); TriMap has no parameters and runs with DruidJS's defaults.
 - **Local CSV import:** the CLI `tools/process.py` (with `tools/dataset_common.py`) writes the bundled datasets in `src/assets/data/`. It is not part of the app build; in the browser, CSV files are only imported through this wizard pipeline.

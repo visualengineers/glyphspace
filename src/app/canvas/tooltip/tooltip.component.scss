@@ -54,4 +54,13 @@
     font-style: italic;
     opacity: 0.7;
   }
+
+  // Metadata (no features): set off from the feature rows by a rule.
+  tbody.metadata tr:first-child {
+    th,
+    td {
+      padding-top: 0.4em;
+      border-top: 1px solid rgba(255, 255, 255, 0.3);
+    }
+  }
 }

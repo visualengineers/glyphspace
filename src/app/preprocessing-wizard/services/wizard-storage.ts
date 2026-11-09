@@ -1,5 +1,6 @@
 import { DEFAULT_CLEANING_CONFIG, DEFAULT_PROJECTION_CONFIG, PreprocessingState } from '../models/preprocessing-state';
 import { ColumnConfig, ProjectionConfig } from '../models/column-config';
+import { ColumnRole } from '../models/data-type.enum';
 import { LAST_STEP_INDEX, WizardStepId, stepIndex } from '../shared/constants/step-info';
 
 export const STORAGE_KEY = 'glyphspace_preprocessing_state';
@@ -10,8 +11,10 @@ export const STORAGE_KEY = 'glyphspace_preprocessing_state';
  *   2 features, 3 visualization (projection + glyphs + color), 4 review.
  * - 2: six steps — visualization split into projection and appearance, so
  *   review moved from index 4 to 5.
+ * - 3: column configs have a `role` (feature or metadata). Older saves had
+ *   features only, so their columns are restored as features.
  */
-export const STORAGE_VERSION = 2;
+export const STORAGE_VERSION = 3;
 
 /** Step ids of the version-1 layout, by their old index. */
 const V1_STEPS: readonly WizardStepId[] = ['upload', 'columns', 'features', 'projection', 'review'];
@@ -88,6 +91,21 @@ export function restoreProjectionConfig(saved: unknown): ProjectionConfig {
 }
 
 /**
+ * The saved column configs; a column without a valid role (saved before
+ * version 3) is a feature, which is what every column was back then.
+ */
+export function restoreColumnConfigs(saved: unknown): Map<string, ColumnConfig> {
+  const entries: [string, ColumnConfig][] = Array.isArray(saved) ? saved : [];
+  const roles: readonly string[] = Object.values(ColumnRole);
+  return new Map(
+    entries.map(([name, config]) => [
+      name,
+      roles.includes(config.role) ? config : { ...config, role: ColumnRole.Feature },
+    ])
+  );
+}
+
+/**
  * Parse a stored payload (any version) into a state update, migrating the step
  * index to the current layout. Returns null for an empty or non-object payload.
  * Throws on malformed JSON; the caller decides how to report that.
@@ -103,7 +121,7 @@ export function deserializeState(raw: string | null): Partial<PreprocessingState
     currentStep: migrateStoredStep(saved.currentStep, version),
     dataProfile: saved.dataProfile ?? null,
     rawFileName: saved.rawFileName ?? null,
-    columnConfigs: new Map(saved.columnConfigs ?? []),
+    columnConfigs: restoreColumnConfigs(saved.columnConfigs),
     cleaningConfig: { ...DEFAULT_CLEANING_CONFIG, ...saved.cleaningConfig },
     projectionConfig: restoreProjectionConfig(saved.projectionConfig),
     datasetName: saved.datasetName ?? '',

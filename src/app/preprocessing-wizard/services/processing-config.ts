@@ -1,5 +1,5 @@
 import { PreprocessingState } from '../models/preprocessing-state';
-import { CleaningConfig, ColumnConfig, ProjectionConfig } from '../models/column-config';
+import { CleaningConfig, ColumnConfig, ProjectionConfig, isFeatureColumn } from '../models/column-config';
 import { DataType, EncodingMethod } from '../models/data-type.enum';
 
 /** One column as the worker's processWithConfig expects it. */
@@ -7,6 +7,7 @@ export type ProcessingColumnConfig = Pick<
   ColumnConfig,
   | 'name'
   | 'enabled'
+  | 'role'
   | 'includeInProjection'
   | 'isColorFeature'
   | 'missingValueStrategy'
@@ -33,12 +34,13 @@ export interface ProcessingRequestConfig {
 }
 
 /**
- * Feature names the worker will produce after encoding: enabled, non-ID columns;
- * a one-hot column expands to `<column>_<value>` per top value of its profile.
+ * Feature names the worker will produce after encoding: feature (not metadata),
+ * non-ID columns; a one-hot column expands to `<column>_<value>` per top value of
+ * its profile.
  */
 export function predictEncodedFeatureNames(state: Pick<PreprocessingState, 'columnConfigs' | 'dataProfile'>): string[] {
   const enabledCols = Array.from(state.columnConfigs.values()).filter(
-    config => config.enabled && config.originalType !== DataType.ID
+    config => isFeatureColumn(config) && config.originalType !== DataType.ID
   );
 
   return enabledCols.flatMap(col => {
@@ -100,6 +102,7 @@ export function buildProcessingConfig(state: PreprocessingState): ProcessingRequ
     columns: Array.from(state.columnConfigs.values()).map(col => ({
       name: col.name,
       enabled: col.enabled,
+      role: col.role,
       dataType: col.targetType,
       encoding: col.encodingMethod,
       scaling: col.scalingMethod,

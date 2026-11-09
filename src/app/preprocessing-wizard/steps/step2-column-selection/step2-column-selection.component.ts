@@ -4,8 +4,14 @@ import { FormsModule } from '@angular/forms';
 import { PreprocessingService } from '../../services/preprocessing.service';
 import { MiniHistogramComponent } from '../../../shared/components/mini-histogram/mini-histogram.component';
 import { ColumnStatistics, HistogramData } from '../../models/column-statistics';
-import { ColumnConfig } from '../../models/column-config';
-import { DataType, getDataTypeColor, getDataTypeBgColor } from '../../models/data-type.enum';
+import { ColumnConfig, isFeatureColumn, isMetadataColumn } from '../../models/column-config';
+import {
+  ColumnRole,
+  DataType,
+  getColumnRoleLabel,
+  getDataTypeColor,
+  getDataTypeBgColor,
+} from '../../models/data-type.enum';
 import { HelpTooltipComponent } from '../../shared/help-tooltip/help-tooltip.component';
 import { HELP_TEXT } from '../../shared/constants/help-text';
 import { getStepInfo } from '../../shared/constants/step-info';
@@ -41,7 +47,13 @@ function isTextEntry(target: EventTarget | null): boolean {
 })
 export class Step2ColumnSelectionComponent implements OnInit, WizardStep {
   readonly primaryLabel = 'Continue to Configure Data & Features';
-  readonly disabledHint = 'Please select at least one column to continue';
+
+  /** Names what is missing when Continue is disabled. */
+  get disabledHint(): string {
+    return this.enabledCount === 0
+      ? 'Please select at least one column to continue'
+      : 'Use at least one column as a feature to continue — metadata alone cannot be projected';
+  }
 
   @ViewChild('searchInput') searchInput?: ElementRef<HTMLInputElement>;
 
@@ -55,6 +67,9 @@ export class Step2ColumnSelectionComponent implements OnInit, WizardStep {
 
   // Enum reference for the template's type-filter <select>.
   DataType = DataType;
+  // Options of the per-column "Use as" <select>.
+  readonly columnRoles: readonly ColumnRole[] = [ColumnRole.Feature, ColumnRole.Metadata];
+  readonly getColumnRoleLabel = getColumnRoleLabel;
 
   // Anchor column for shift-click range select. Stored by name (not by index) so
   // it stays valid when the search/type filter re-indexes the visible list.
@@ -115,12 +130,29 @@ export class Step2ColumnSelectionComponent implements OnInit, WizardStep {
     return this.columnConfigs.size - this.enabledCount;
   }
 
+  /** Selected columns that are used as metadata (tooltip and search only). */
+  get metadataCount(): number {
+    return Array.from(this.columnConfigs.values()).filter(isMetadataColumn).length;
+  }
+
   isColumnEnabled(columnName: string): boolean {
     return this.columnConfigs.get(columnName)?.enabled ?? false;
   }
 
   toggleColumn(columnName: string): void {
     this.preprocessingService.toggleColumnEnabled(columnName);
+    this.columnConfigs = this.preprocessingService.currentState.columnConfigs;
+  }
+
+  getColumnRole(columnName: string): ColumnRole {
+    return this.columnConfigs.get(columnName)?.role ?? ColumnRole.Feature;
+  }
+
+  onRoleChange(columnName: string, event: Event): void {
+    const value = (event.target as HTMLSelectElement).value;
+    const role = this.columnRoles.find(candidate => candidate === value);
+    if (!role) return;
+    this.preprocessingService.setColumnRole(columnName, role);
     this.columnConfigs = this.preprocessingService.currentState.columnConfigs;
   }
 
@@ -199,7 +231,7 @@ export class Step2ColumnSelectionComponent implements OnInit, WizardStep {
   }
 
   canProceed(): boolean {
-    return this.enabledCount > 0;
+    return Array.from(this.columnConfigs.values()).some(isFeatureColumn);
   }
 
   proceed(): void {
@@ -220,8 +252,8 @@ export class Step2ColumnSelectionComponent implements OnInit, WizardStep {
   }
 
   /**
-   * True when a column was auto-deselected by a smart default (mostly missing,
-   * constant, or nearly all-unique) and has not been re-enabled by the user.
+   * True when a column was auto-deselected by a smart default (mostly missing or
+   * constant) and has not been re-enabled by the user.
    */
   isAutoDeselected(columnName: string): boolean {
     const config = this.columnConfigs.get(columnName);

@@ -15,16 +15,25 @@ export class DataExportService {
     // 1. Collect feature keys + labels from schema.label
     // --------------------------------------------------
     const featureKeyToLabel = new Map<string, string>();
+    // Metadata columns (tooltip and search only) are exported after the features.
+    const metadataKeyToLabel = new Map<string, string>();
 
     schemaMap.forEach((schema: GlyphSchema) => {
       Object.entries(schema.label).forEach(([featureKey, label]) => {
         featureKeyToLabel.set(featureKey, label);
       });
+      Object.entries(schema.metadata ?? {}).forEach(([metadataKey, label]) => {
+        metadataKeyToLabel.set(metadataKey, label);
+      });
     });
 
     const orderedFeatureKeys = Array.from(featureKeyToLabel.keys());
-    // Safe: keys come from the same map, so get() always returns a value
-    const orderedLabels = orderedFeatureKeys.map(key => featureKeyToLabel.get(key) ?? key);
+    const orderedMetadataKeys = Array.from(metadataKeyToLabel.keys());
+    // Safe: keys come from the same maps, so get() always returns a value
+    const orderedLabels = [
+      ...orderedFeatureKeys.map(key => featureKeyToLabel.get(key) ?? key),
+      ...orderedMetadataKeys.map(key => metadataKeyToLabel.get(key) ?? key),
+    ];
 
     if (orderedFeatureKeys.length === 0) {
       console.warn('No features found in schema labels');
@@ -53,8 +62,13 @@ export class DataExportService {
     // --------------------------------------------------
     activeGlyphs.forEach(glyph => {
       const rawValues = glyph.values || {};
+      const metadata = glyph.metadata || {};
 
-      const row = [this.escapeCSV(glyph.id), ...orderedFeatureKeys.map(key => this.escapeCSV(rawValues[key] ?? ''))];
+      const row = [
+        this.escapeCSV(glyph.id),
+        ...orderedFeatureKeys.map(key => this.escapeCSV(rawValues[key] ?? '')),
+        ...orderedMetadataKeys.map(key => this.escapeCSV(metadata[key] ?? '')),
+      ];
 
       rows.push(row.join(','));
     });

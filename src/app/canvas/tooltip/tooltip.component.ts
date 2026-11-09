@@ -14,6 +14,8 @@ export interface TooltipRow {
 export interface TooltipInfo {
   id: string;
   rows: TooltipRow[];
+  // The item's metadata columns (not features), listed after the features.
+  metadataRows: TooltipRow[];
 }
 
 // '' is what the processors write for a missing value; 'nan' is what older CLI output contains.
@@ -165,6 +167,10 @@ export class TooltipComponent implements OnInit, OnDestroy {
     if (glyph === null) {
       return null;
     }
-    return { id: glyph.id, rows: buildTooltipRows(glyph.values ?? {}, this.config.featureLabels) };
+    return {
+      id: glyph.id,
+      rows: buildTooltipRows(glyph.values ?? {}, this.config.featureLabels),
+      metadataRows: buildTooltipRows(glyph.metadata ?? {}, this.config.metadataLabels),
+    };
   }
 }

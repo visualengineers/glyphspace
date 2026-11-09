@@ -10,6 +10,7 @@ import { PreprocessingState } from '../../models/preprocessing-state';
 import { ColumnConfig } from '../../models/column-config';
 import { ColumnStatistics, DataProfile } from '../../models/column-statistics';
 import {
+  ColumnRole,
   DataType,
   EncodingMethod,
   ScalingMethod,
@@ -25,6 +26,7 @@ function makeConfig(name: string, isColorFeature = false): ColumnConfig {
     name,
     originalType: DataType.Numeric,
     targetType: DataType.Numeric,
+    role: ColumnRole.Feature,
     encodingMethod: EncodingMethod.Normalize,
     scalingMethod: ScalingMethod.MinMax,
     includeInProjection: true,

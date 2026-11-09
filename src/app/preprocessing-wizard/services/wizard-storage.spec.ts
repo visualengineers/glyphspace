@@ -3,11 +3,13 @@ import {
   STORAGE_VERSION,
   deserializeState,
   migrateStoredStep,
+  restoreColumnConfigs,
   restoreProjectionConfig,
   serializeState,
 } from './wizard-storage';
 import { PreprocessingService } from './preprocessing.service';
 import { DEFAULT_PROJECTION_CONFIG, PreprocessingState } from '../models/preprocessing-state';
+import { ColumnRole } from '../models/data-type.enum';
 import { stepIndex } from '../shared/constants/step-info';
 import { createTestPreprocessingService } from '../testing/preprocessing-test-helpers';
 
@@ -108,6 +110,31 @@ describe('wizard storage – (de)serialization', () => {
   it('uses the default projection config when the saved one is not an object', () => {
     expect(restoreProjectionConfig(null)).toEqual(DEFAULT_PROJECTION_CONFIG);
     expect(restoreProjectionConfig('x')).toEqual(DEFAULT_PROJECTION_CONFIG);
+  });
+
+  it('restores columns saved before the role existed as features, and keeps saved roles', () => {
+    const restored = deserializeState(
+      JSON.stringify({
+        version: 2,
+        columnConfigs: [
+          ['flavor', { name: 'flavor', enabled: true, includeInProjection: false }],
+          ['name', { name: 'name', enabled: true, role: ColumnRole.Metadata }],
+          ['odd', { name: 'odd', enabled: true, role: 'tooltip' }],
+        ],
+      })
+    );
+
+    const roles = Array.from(restored?.columnConfigs ?? [], ([name, config]) => [name, config.role]);
+    expect(roles).toEqual([
+      ['flavor', ColumnRole.Feature],
+      ['name', ColumnRole.Metadata],
+      ['odd', ColumnRole.Feature],
+    ]);
+  });
+
+  it('restores no column configs from a payload without any', () => {
+    expect(restoreColumnConfigs(undefined).size).toBe(0);
+    expect(restoreColumnConfigs('x').size).toBe(0);
   });
 });
 

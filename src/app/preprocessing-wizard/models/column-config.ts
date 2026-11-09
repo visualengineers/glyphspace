@@ -1,4 +1,5 @@
 import {
+  ColumnRole,
   DataType,
   EncodingMethod,
   ScalingMethod,
@@ -12,7 +13,10 @@ export interface ColumnConfig {
   originalType: DataType;
   targetType: DataType;
 
-  // Feature processing
+  // Feature or metadata (tooltip and search only); see ColumnRole.
+  role: ColumnRole;
+
+  // Feature processing (ignored for metadata columns)
   encodingMethod: EncodingMethod;
   scalingMethod: ScalingMethod;
   includeInProjection: boolean;
@@ -30,6 +34,16 @@ export interface ColumnConfig {
   enabled: boolean;
   hasIssues: boolean;
   issueDescription?: string;
+}
+
+/** A selected column that is encoded into features (projection, glyphs, color, filters). */
+export function isFeatureColumn(config: Pick<ColumnConfig, 'enabled' | 'role'>): boolean {
+  return config.enabled && config.role !== ColumnRole.Metadata;
+}
+
+/** A selected column that is only carried along for the tooltip and the text search. */
+export function isMetadataColumn(config: Pick<ColumnConfig, 'enabled' | 'role'>): boolean {
+  return config.enabled && config.role === ColumnRole.Metadata;
 }
 
 export interface CleaningConfig {

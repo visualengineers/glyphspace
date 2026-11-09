@@ -4,6 +4,7 @@ import { ColumnConfig, ProjectionConfig } from '../models/column-config';
 import { DataProfile } from '../models/column-statistics';
 import { DatasetCollection } from '../../shared/interfaces/dataset-collection';
 import {
+  ColumnRole,
   DataType,
   EncodingMethod,
   MissingValueStrategy,
@@ -18,6 +19,7 @@ describe('stepSummaries', () => {
       name,
       originalType: DataType.Numeric,
       targetType: DataType.Numeric,
+      role: ColumnRole.Feature,
       encodingMethod: EncodingMethod.Normalize,
       scalingMethod: ScalingMethod.MinMax,
       includeInProjection: true,
@@ -99,6 +101,18 @@ describe('stepSummaries', () => {
     const s = stepSummaries(state({ columnConfigs: configs(list) }));
     expect(s.columns).toBe('2 of 3 columns');
     expect(s.features).toBe('2 columns configured');
+  });
+
+  it('counts metadata columns as selected but not as configured or projected features', () => {
+    const list = [
+      column('a'),
+      column('flavor', { role: ColumnRole.Metadata, includeInProjection: true }),
+      column('c', { enabled: false, role: ColumnRole.Metadata }),
+    ];
+    const s = stepSummaries(state({ projectionConfig: NO_BACKGROUND_METHODS, columnConfigs: configs(list) }));
+    expect(s.columns).toBe('2 of 3 columns · 1 metadata');
+    expect(s.features).toBe('1 column configured');
+    expect(s.projection).toBe('FastMap only · 1 column');
   });
 
   it('lists up to two background methods, folds the rest into +N and counts projected columns', () => {

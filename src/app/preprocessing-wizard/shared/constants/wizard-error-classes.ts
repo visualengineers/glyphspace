@@ -14,7 +14,7 @@
  */
 
 import { PreprocessingState } from '../../models/preprocessing-state';
-import { ProjectionConfig } from '../../models/column-config';
+import { ProjectionConfig, isFeatureColumn } from '../../models/column-config';
 import {
   ProjectionMethodKey,
   isProjectionMethodActive,
@@ -104,7 +104,7 @@ const CLASS_TEMPLATES: Record<string, Omit<WizardIssue, 'raw'>> = {
     severity: 'blocking',
     title: 'A column has too many distinct values to encode',
     why: 'A selected text column has almost as many different values as there are rows (typical of an ID, title, name or free-text field). Encoding it would expand the data into thousands of columns — more than the in-browser engine can hold in memory.',
-    fix: `Deselect that column in ${stepLabel('columns')}, or set its encoding to Label in ${stepLabel('features')}.`,
+    fix: `Use that column as Metadata in ${stepLabel('columns')} — it then stays in the tooltip and the search without being encoded — or set its encoding to Label in ${stepLabel('features')}.`,
     step: 'columns',
     anchorId: 'wizard-anchor-columns',
   },
@@ -169,7 +169,7 @@ export function classifyProcessingError(raw: string): WizardIssue {
       severity: 'blocking',
       title: "We couldn't finish processing your data",
       why: 'Something in the current combination of columns, cleaning rules and methods stopped the projection from finishing. This is almost always a settings issue, not a problem with your data — and your upload and settings are still here.',
-      fix: `Start processing again. If it keeps failing, deselect any text-heavy or mostly-empty columns in Step ${stepNumber('columns')}, then turn off the more advanced methods (t-SNE, UMAP, Sammon) in Step ${stepNumber('projection')} and try once more.`,
+      fix: `Start processing again. If it keeps failing, use text-heavy columns as Metadata and deselect mostly-empty columns in Step ${stepNumber('columns')}, then turn off the more advanced methods (t-SNE, UMAP, Sammon) in Step ${stepNumber('projection')} and try once more.`,
       step: 'projection',
       anchorId: 'wizard-anchor-methods',
     };
@@ -211,7 +211,7 @@ export function detectPreflightIssues(state: PreprocessingState): WizardIssue[] 
   // K3 — constant / mostly-empty columns that are still selected for the projection.
   const badColumns: string[] = [];
   state.columnConfigs.forEach(config => {
-    if (!config.enabled || !config.includeInProjection) return;
+    if (!isFeatureColumn(config) || !config.includeInProjection) return;
     const col = profile.columns.find(c => c.name === config.name);
     if (!col) return;
     if (col.uniqueCount === 1 || col.missingPercentage > 50) {

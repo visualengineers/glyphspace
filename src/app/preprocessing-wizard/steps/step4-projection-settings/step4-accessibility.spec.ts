@@ -8,6 +8,7 @@ import { DEFAULT_PROJECTION_CONFIG, PreprocessingState } from '../../models/prep
 import { ColumnConfig } from '../../models/column-config';
 import { ColumnStatistics, DataProfile } from '../../models/column-statistics';
 import {
+  ColumnRole,
   DataType,
   EncodingMethod,
   MissingValueStrategy,
@@ -24,6 +25,7 @@ function makeConfig(name: string): ColumnConfig {
     name,
     originalType: DataType.Numeric,
     targetType: DataType.Numeric,
+    role: ColumnRole.Feature,
     encodingMethod: EncodingMethod.Normalize,
     scalingMethod: ScalingMethod.MinMax,
     includeInProjection: true,

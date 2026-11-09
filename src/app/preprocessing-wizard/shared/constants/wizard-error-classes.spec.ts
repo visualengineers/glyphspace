@@ -9,6 +9,7 @@ import { PreprocessingState } from '../../models/preprocessing-state';
 import { ColumnConfig } from '../../models/column-config';
 import { ColumnStatistics, DataProfile } from '../../models/column-statistics';
 import {
+  ColumnRole,
   DataType,
   EncodingMethod,
   ScalingMethod,
@@ -129,6 +130,14 @@ describe('classifyProcessingError', () => {
     expectActionable(issue, raw);
   });
 
+  it('K7 suggests using the column as metadata, which keeps it in the tooltip', () => {
+    const fix = classifyProcessingError(
+      "too many distinct values to one-hot encode: 'flavor' (627 distinct values)"
+    ).fix;
+    expect(fix).toContain('as Metadata in Step 2 (Select Columns)');
+    expect(fix).toContain('tooltip');
+  });
+
   it('K7 lists every offending column when several are near-unique', () => {
     const raw =
       'These columns have too many distinct values to one-hot encode: ' +
@@ -237,6 +246,7 @@ function makeColumnConfig(overrides: Partial<ColumnConfig>): ColumnConfig {
     name: 'col',
     originalType: DataType.Numeric,
     targetType: DataType.Numeric,
+    role: ColumnRole.Feature,
     encodingMethod: EncodingMethod.None,
     scalingMethod: ScalingMethod.None,
     includeInProjection: true,
@@ -329,6 +339,15 @@ describe('detectPreflightIssues', () => {
       totalRows: 100,
       columns: [makeColumnStats({ name: 'const', uniqueCount: 1 })],
       configs: [makeColumnConfig({ name: 'const', includeInProjection: false })],
+    });
+    expect(detectPreflightIssues(state).some(i => i.code === 'K3')).toBe(false);
+  });
+
+  it('ignores bad columns that are used as metadata (never projected)', () => {
+    const state = makeState({
+      totalRows: 100,
+      columns: [makeColumnStats({ name: 'const', uniqueCount: 1 })],
+      configs: [makeColumnConfig({ name: 'const', role: ColumnRole.Metadata })],
     });
     expect(detectPreflightIssues(state).some(i => i.code === 'K3')).toBe(false);
   });

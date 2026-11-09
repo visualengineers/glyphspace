@@ -2,7 +2,7 @@ import { Component, OnInit, forwardRef, ViewChild, ElementRef, HostListener } fr
 import { FormsModule } from '@angular/forms';
 import { PreprocessingService } from '../../services/preprocessing.service';
 import { WizardStep, WIZARD_STEP } from '../../shared/wizard-step';
-import { ColumnConfig, CleaningConfig } from '../../models/column-config';
+import { ColumnConfig, CleaningConfig, isFeatureColumn } from '../../models/column-config';
 import { ColumnStatistics } from '../../models/column-statistics';
 import {
   DataType,
@@ -171,13 +171,13 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit, WizardStep {
 
     this.totalRows = state.dataProfile.totalRows;
 
-    // Get enabled columns with their configurations
-    this.columns = state.dataProfile.columns
-      .filter(col => state.columnConfigs.get(col.name)?.enabled)
-      .map(col => {
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- guaranteed by the .filter() which checks columnConfigs.get(col.name)?.enabled
-        const config = state.columnConfigs.get(col.name)!;
-        return {
+    // Feature columns with their configurations; metadata columns are not encoded,
+    // so there is nothing to configure for them.
+    this.columns = state.dataProfile.columns.flatMap(col => {
+      const config = state.columnConfigs.get(col.name);
+      if (!config || !isFeatureColumn(config)) return [];
+      return [
+        {
           // Clone the config so each row owns an independent object. Sharing the
           // service-map reference here let a single-column edit appear to leak into
           // other rows; every change is still written back via updateColumnConfig.
@@ -185,8 +185,9 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit, WizardStep {
           config: { ...config },
           outlierCount: config.outlierCount,
           isLoadingOutliers: false,
-        };
-      });
+        },
+      ];
+    });
 
     // Load outlier counts for numeric columns
     this.loadOutlierCounts();

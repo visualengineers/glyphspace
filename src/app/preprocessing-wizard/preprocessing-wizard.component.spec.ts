@@ -13,6 +13,7 @@ import { WizardAnnouncer } from './shared/wizard-announcer.service';
 import { DatasetCollection } from '../shared/interfaces/dataset-collection';
 import { createTestPreprocessingService } from './testing/preprocessing-test-helpers';
 import {
+  ColumnRole,
   DataType,
   EncodingMethod,
   ScalingMethod,
@@ -52,6 +53,7 @@ describe('PreprocessingWizardComponent – undo/redo shell', () => {
       name,
       originalType: DataType.Numeric,
       targetType: DataType.Numeric,
+      role: ColumnRole.Feature,
       encodingMethod: EncodingMethod.Normalize,
       scalingMethod: ScalingMethod.MinMax,
       includeInProjection: true,

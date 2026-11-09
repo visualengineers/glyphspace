@@ -4,6 +4,7 @@ import { PreprocessingService } from '../../services/preprocessing.service';
 import { WizardStep, WIZARD_STEP } from '../../shared/wizard-step';
 import { WizardAnnouncer } from '../../shared/wizard-announcer.service';
 import { ColumnStatistics } from '../../models/column-statistics';
+import { isFeatureColumn } from '../../models/column-config';
 import { DataType } from '../../models/data-type.enum';
 import { HelpTooltipComponent } from '../../shared/help-tooltip/help-tooltip.component';
 import { HELP_TEXT } from '../../shared/constants/help-text';
@@ -86,7 +87,11 @@ export class Step5GlyphColorSettingsComponent implements OnInit, WizardStep {
 
   ngOnInit(): void {
     const state = this.preprocessingService.currentState;
-    this.columns = (state.dataProfile?.columns ?? []).filter(col => state.columnConfigs.get(col.name)?.enabled);
+    // Glyphs and color are drawn from features; metadata columns are not encoded.
+    this.columns = (state.dataProfile?.columns ?? []).filter(col => {
+      const config = state.columnConfigs.get(col.name);
+      return !!config && isFeatureColumn(config);
+    });
 
     this.initColorFeature();
     this.groupedColorScales = buildGroupedColorScales();

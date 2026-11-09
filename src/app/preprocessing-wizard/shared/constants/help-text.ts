@@ -340,6 +340,7 @@ export const HELP_TEXT = {
   // Table Column Headers
   tableHeaders: {
     type: 'Data type detected automatically based on column values.<br/><br/><strong>Numeric:</strong> Numbers<br/><strong>Categorical:</strong> Limited distinct values<br/><strong>Text:</strong> Free-form text',
+    role: 'What the column becomes in the visualization.<br/><br/><strong>Feature:</strong> Encoded into numbers. Can feed the projection, the glyphs, the color and the filters.<br/><strong>Metadata:</strong> Kept as its original values. Shown in the tooltip and found by the search, but never encoded or projected.<br/><br/>Text, ID and nearly-unique columns (names, titles, free text) start as metadata.',
     missing:
       'Percentage of rows with no value in this column.<br/><br/><strong>&gt;50% missing</strong> may indicate poor data quality and could cause issues.',
     unique:

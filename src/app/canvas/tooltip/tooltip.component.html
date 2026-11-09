@@ -9,11 +9,24 @@
     <div class="tooltip-body">
       <b>Item: {{ info.id }}</b>
       <table>
-        @for (row of info.rows; track row.key) {
-          <tr>
-            <th scope="row">{{ row.label }}</th>
-            <td [class.missing]="row.value === null">{{ row.value ?? 'missing' }}</td>
-          </tr>
+        <tbody>
+          @for (row of info.rows; track row.key) {
+            <tr>
+              <th scope="row">{{ row.label }}</th>
+              <td [class.missing]="row.value === null">{{ row.value ?? 'missing' }}</td>
+            </tr>
+          }
+        </tbody>
+        <!-- Metadata columns: shown and searchable, but no features -->
+        @if (info.metadataRows.length > 0) {
+          <tbody class="metadata">
+            @for (row of info.metadataRows; track row.key) {
+              <tr>
+                <th scope="row">{{ row.label }}</th>
+                <td [class.missing]="row.value === null">{{ row.value ?? 'missing' }}</td>
+              </tr>
+            }
+          </tbody>
         }
       </table>
     </div>

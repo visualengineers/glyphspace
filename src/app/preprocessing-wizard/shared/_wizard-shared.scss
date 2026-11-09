@@ -245,7 +245,8 @@ $severity-tones: (
     color: v.$text-muted;
   }
 
-  &.status-running {
+  &.status-running,
+  &.status-metadata {
     @include severity-badge(info);
   }
 

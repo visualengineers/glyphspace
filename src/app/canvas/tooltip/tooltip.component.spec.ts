@@ -38,6 +38,7 @@ describe('TooltipComponent', () => {
     fixture.componentInstance.tooltipInfo = {
       id: payload,
       rows: [{ key: '1', label: payload, value: payload }],
+      metadataRows: [{ key: '1', label: payload, value: payload }],
     };
     fixture.componentInstance.tooltipVisible = true;
     fixture.detectChanges();
@@ -47,12 +48,47 @@ describe('TooltipComponent', () => {
   });
 
   it('shows "missing" instead of a value for missing entries', () => {
-    fixture.componentInstance.tooltipInfo = { id: 'a', rows: [{ key: '1', label: 'sugar', value: null }] };
+    fixture.componentInstance.tooltipInfo = {
+      id: 'a',
+      rows: [{ key: '1', label: 'sugar', value: null }],
+      metadataRows: [],
+    };
     fixture.componentInstance.tooltipVisible = true;
     fixture.detectChanges();
 
     const cell = host.querySelector('td');
     expect(cell?.textContent?.trim()).toBe('missing');
     expect(cell?.classList).toContain('missing');
+  });
+
+  it('lists the metadata columns after the features, in their own group', () => {
+    fixture.componentInstance.tooltipInfo = {
+      id: 'brie',
+      rows: [{ key: '1', label: 'fat', value: '45' }],
+      metadataRows: [
+        { key: '1', label: 'flavor', value: 'buttery, nutty' },
+        { key: '2', label: 'producer', value: null },
+      ],
+    };
+    fixture.componentInstance.tooltipVisible = true;
+    fixture.detectChanges();
+
+    const groups = Array.from(host.querySelectorAll('tbody'));
+    expect(groups.length).toBe(2);
+    expect(groups[1].classList).toContain('metadata');
+    const metadata = Array.from(groups[1].querySelectorAll('tr')).map(row => row.textContent?.trim());
+    expect(metadata).toEqual(['flavorbuttery, nutty', 'producermissing']);
+  });
+
+  it('has no metadata group when the item has no metadata', () => {
+    fixture.componentInstance.tooltipInfo = {
+      id: 'a',
+      rows: [{ key: '1', label: 'fat', value: '45' }],
+      metadataRows: [],
+    };
+    fixture.componentInstance.tooltipVisible = true;
+    fixture.detectChanges();
+
+    expect(host.querySelector('tbody.metadata')).toBeNull();
   });
 });

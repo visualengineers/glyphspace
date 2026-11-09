@@ -2,6 +2,7 @@ import { colorScaleForFeature, createDefaultColumnConfig } from './column-defaul
 import { ColumnStatistics } from '../models/column-statistics';
 import { ColumnConfig } from '../models/column-config';
 import {
+  ColumnRole,
   DataType,
   EncodingMethod,
   MissingValueStrategy,
@@ -13,9 +14,9 @@ import {
 /**
  * A2-Nachtrag – smart defaults for the initial column selection.
  *
- * Pins the auto-deselect heuristic: mostly-missing / constant columns, and the
- * high-cardinality rule for text/categorical/ID columns whose values are nearly
- * all unique.
+ * Pins the auto-deselect heuristic (mostly-missing / constant columns) and the
+ * role defaults: text and ID columns, and categorical columns whose values are
+ * nearly all unique, start as metadata (tooltip and search) instead of features.
  */
 describe('createDefaultColumnConfig – smart-default column selection', () => {
   function col(overrides: Partial<ColumnStatistics>): ColumnStatistics {
@@ -32,33 +33,46 @@ describe('createDefaultColumnConfig – smart-default column selection', () => {
 
   const defaultConfig = createDefaultColumnConfig;
 
-  it('deselects a nearly all-unique text column (likely ID/free text)', () => {
+  it('keeps a nearly all-unique text column selected, as metadata (likely ID/free text)', () => {
     const config = defaultConfig(col({ dataType: DataType.Text, count: 100, uniqueCount: 100 }));
-    expect(config.enabled).toBe(false);
+    expect(config.enabled).toBe(true);
+    expect(config.role).toBe(ColumnRole.Metadata);
     expect(config.hasIssues).toBe(false); // high cardinality is not a data-quality issue
-    expect(config.issueDescription).toContain('unique');
+    expect(config.issueDescription).toBeUndefined();
   });
 
-  it('deselects a high-cardinality categorical column at the 90% threshold', () => {
-    const config = defaultConfig(col({ dataType: DataType.Categorical, count: 100, uniqueCount: 95 }));
-    expect(config.enabled).toBe(false);
+  it('makes a high-cardinality categorical column metadata at the 90% threshold', () => {
+    expect(defaultConfig(col({ dataType: DataType.Categorical, count: 100, uniqueCount: 90 })).role).toBe(
+      ColumnRole.Metadata
+    );
+    expect(defaultConfig(col({ dataType: DataType.Categorical, count: 100, uniqueCount: 89 })).role).toBe(
+      ColumnRole.Feature
+    );
   });
 
-  it('keeps a low-cardinality categorical column', () => {
+  it('keeps a low-cardinality categorical column as a feature', () => {
     const config = defaultConfig(col({ dataType: DataType.Categorical, count: 100, uniqueCount: 5 }));
     expect(config.enabled).toBe(true);
+    expect(config.role).toBe(ColumnRole.Feature);
     expect(config.issueDescription).toBeUndefined();
+  });
+
+  it('starts every text and ID column as metadata', () => {
+    expect(defaultConfig(col({ dataType: DataType.Text, uniqueCount: 5 })).role).toBe(ColumnRole.Metadata);
+    expect(defaultConfig(col({ dataType: DataType.ID, uniqueCount: 5 })).role).toBe(ColumnRole.Metadata);
   });
 
   it('does not treat a near-unique numeric column as high cardinality', () => {
     const config = defaultConfig(col({ dataType: DataType.Numeric, count: 100, uniqueCount: 100 }));
     expect(config.enabled).toBe(true);
+    expect(config.role).toBe(ColumnRole.Feature);
     expect(config.issueDescription).toBeUndefined();
   });
 
   it('ignores high uniqueness on tiny datasets (below the min-row guard)', () => {
-    const config = defaultConfig(col({ dataType: DataType.Text, count: 15, uniqueCount: 15 }));
+    const config = defaultConfig(col({ dataType: DataType.Categorical, count: 15, uniqueCount: 15 }));
     expect(config.enabled).toBe(true);
+    expect(config.role).toBe(ColumnRole.Feature);
   });
 
   it('deselects a mostly-empty column and flags it as a quality issue', () => {
@@ -81,6 +95,7 @@ describe('colorScaleForFeature – color mode follows the column type', () => {
       name: 'c',
       originalType,
       targetType,
+      role: ColumnRole.Feature,
       encodingMethod: EncodingMethod.Normalize,
       scalingMethod: ScalingMethod.MinMax,
       includeInProjection: true,

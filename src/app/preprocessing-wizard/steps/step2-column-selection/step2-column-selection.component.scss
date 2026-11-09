@@ -78,7 +78,7 @@
   table-layout: fixed;
   // Keep the stat columns readable; the container scrolls horizontally if the
   // work area is narrower than this.
-  min-width: 860px;
+  min-width: 990px;
 
   // A14 column grouping: the left band (select-all + name + missing) sums to the
   // shared rail width (44 + 210 + 66 = 320px); the stat columns sit to its right
@@ -109,6 +109,10 @@
 
     &.col-type {
       width: 110px;
+    }
+
+    &.col-role {
+      width: 130px;
     }
 
     &.col-count {
@@ -166,6 +170,17 @@
         }
       }
     }
+  }
+}
+
+// "Use as" (feature / metadata), compact enough for the fixed row height.
+.role-select {
+  @include wizard.select;
+  width: 100%;
+  padding: 4px 24px 4px 8px;
+
+  &:disabled {
+    cursor: not-allowed;
   }
 }
 

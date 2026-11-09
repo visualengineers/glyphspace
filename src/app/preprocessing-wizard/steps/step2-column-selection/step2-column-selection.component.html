@@ -4,7 +4,8 @@
     <div class="info-box">
       <span class="material-icons" aria-hidden="true">info</span>
       <div>
-        <strong>Tip:</strong> Columns that are nearly all unique (IDs, titles, free text) or mostly empty are
+        <strong>Tip:</strong> Text, ID and nearly-unique columns (names, titles, free text) start as <em>Metadata</em>:
+        they appear in the tooltip and the search but are not encoded. Mostly empty or constant columns are
         <em>deselected automatically</em> — re-enable any of them if you need it. You can search by column name or type
         (e.g., "numeric").
       </div>
@@ -48,7 +49,12 @@
       </select>
 
       <div class="selection-controls">
-        <span class="selection-count">{{ enabledCount }} of {{ columns.length }} selected</span>
+        <span class="selection-count"
+          >{{ enabledCount }} of {{ columns.length }} selected
+          @if (metadataCount > 0) {
+            · {{ metadataCount }} as metadata
+          }
+        </span>
         <!-- Visible helper text (was only a checkbox title), kept in this row so the table does not move. -->
         <span class="selection-tip">Tip: Shift-click to select a range</span>
       </div>
@@ -94,6 +100,16 @@
                   <app-help-tooltip
                     topic="Data type"
                     [helpText]="HELP_TEXT.tableHeaders.type"
+                    position="bottom"
+                  ></app-help-tooltip>
+                </span>
+              </th>
+              <th class="col-role" scope="col">
+                <span class="header-with-tooltip">
+                  Use as
+                  <app-help-tooltip
+                    topic="Feature or metadata"
+                    [helpText]="HELP_TEXT.tableHeaders.role"
                     position="bottom"
                   ></app-help-tooltip>
                 </span>
@@ -173,6 +189,22 @@
                 <!-- Data Type -->
                 <td class="col-type">
                   <app-data-type-badge [dataType]="column.dataType"></app-data-type-badge>
+                </td>
+
+                <!-- Use as: feature or metadata (tooltip and search only) -->
+                <td class="col-role">
+                  <select
+                    class="role-select"
+                    [disabled]="!isColumnEnabled(column.name)"
+                    (change)="onRoleChange(column.name, $event)"
+                    [attr.aria-label]="'Use ' + column.name + ' as'"
+                  >
+                    @for (role of columnRoles; track role) {
+                      <option [value]="role" [selected]="role === getColumnRole(column.name)">
+                        {{ getColumnRoleLabel(role) }}
+                      </option>
+                    }
+                  </select>
                 </td>
 
                 <!-- Count -->

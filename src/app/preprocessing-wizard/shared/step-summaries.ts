@@ -1,5 +1,5 @@
 import { PreprocessingState } from '../models/preprocessing-state';
-import { ColumnConfig, ProjectionConfig } from '../models/column-config';
+import { ColumnConfig, ProjectionConfig, isFeatureColumn, isMetadataColumn } from '../models/column-config';
 import { PROJECTION_METHODS } from '../steps/step4-projection-settings/projection-methods';
 import { WizardStepId } from './constants/step-info';
 
@@ -28,12 +28,16 @@ function uploadSummary(state: PreprocessingState): string {
   return joinParts([fileName, rows]);
 }
 
-function columnsSummary(configs: readonly ColumnConfig[], enabled: readonly ColumnConfig[]): string {
-  return configs.length > 0 ? `${enabled.length} of ${countOf(configs.length, 'column')}` : '';
+/** "11 of 12 columns", plus " · 2 metadata" when some selected columns are metadata. */
+function columnsSummary(configs: readonly ColumnConfig[]): string {
+  if (configs.length === 0) return '';
+  const selected = configs.filter(config => config.enabled).length;
+  const metadata = configs.filter(isMetadataColumn).length;
+  return joinParts([`${selected} of ${countOf(configs.length, 'column')}`, metadata > 0 ? `${metadata} metadata` : '']);
 }
 
-function featuresSummary(enabled: readonly ColumnConfig[]): string {
-  return enabled.length > 0 ? `${countOf(enabled.length, 'column')} configured` : '';
+function featuresSummary(features: readonly ColumnConfig[]): string {
+  return features.length > 0 ? `${countOf(features.length, 'column')} configured` : '';
 }
 
 /** "PCA, UMAP +2 · 11 columns"; FastMap always runs, so no background method reads "FastMap only". */
@@ -60,13 +64,14 @@ function appearanceSummary(state: PreprocessingState, enabled: readonly ColumnCo
  */
 export function stepSummaries(state: PreprocessingState): StepSummaries {
   const configs = Array.from(state.columnConfigs.values());
-  const enabled = configs.filter(config => config.enabled);
+  // Steps 3–5 only deal with feature columns; metadata needs no configuration.
+  const features = configs.filter(isFeatureColumn);
   return {
     upload: uploadSummary(state),
-    columns: columnsSummary(configs, enabled),
-    features: featuresSummary(enabled),
-    projection: enabled.length > 0 ? projectionSummary(state.projectionConfig, enabled) : '',
-    appearance: appearanceSummary(state, enabled),
+    columns: columnsSummary(configs),
+    features: featuresSummary(features),
+    projection: features.length > 0 ? projectionSummary(state.projectionConfig, features) : '',
+    appearance: appearanceSummary(state, features),
     review: state.processedDataset ? 'Processed' : '',
   };
 }

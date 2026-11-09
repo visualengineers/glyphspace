@@ -153,6 +153,7 @@ export class DataLoaderService {
           defaultcontext: String(glyph.defaultcontext),
           features: glyph.features,
           values: glyph.values ?? {},
+          ...(glyph.metadata ? { metadata: glyph.metadata } : {}),
         });
 
         if (glyph.positions[timestamp]) {

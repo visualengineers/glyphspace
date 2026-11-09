@@ -20,6 +20,9 @@
             <div class="card-content">
               <h3 class="card-label" id="review-card-columns">Columns Selected</h3>
               <span class="card-value">{{ enabledColumns }} / {{ totalColumns }}</span>
+              @if (metadataColumns > 0) {
+                <p class="card-note">{{ metadataColumns }} as metadata — tooltip and search only</p>
+              }
             </div>
             <button
               type="button"
@@ -153,7 +156,23 @@
             </thead>
             <tbody>
               @for (config of columnConfigs; track config.name) {
-                @if (config.enabled) {
+                @if (isMetadataColumn(config)) {
+                  <!-- Metadata: carried along as original values, never encoded or projected -->
+                  <tr class="metadata-row">
+                    <td>
+                      <span class="column-name-text">{{ config.name }}</span>
+                    </td>
+                    <td>
+                      <app-data-type-badge [dataType]="config.targetType"></app-data-type-badge>
+                    </td>
+                    <td colspan="3">
+                      <span class="status-badge status-metadata">
+                        <span class="material-icons" aria-hidden="true">label</span>
+                        Metadata — tooltip and search only
+                      </span>
+                    </td>
+                  </tr>
+                } @else if (config.enabled) {
                   <tr>
                     <td>
                       <span class="column-name-text">{{ config.name }}</span>

@@ -4,8 +4,10 @@ import { createTestPreprocessingService } from '../testing/preprocessing-test-he
 import { HistoryStatus, PreprocessingState } from '../models/preprocessing-state';
 import { ColumnConfig } from '../models/column-config';
 import { DataProfile, ColumnStatistics } from '../models/column-statistics';
+import { buildProcessingConfig } from './processing-config';
 import { WizardStepId, stepIndex } from '../shared/constants/step-info';
 import {
+  ColumnRole,
   DataType,
   EncodingMethod,
   ScalingMethod,
@@ -44,6 +46,7 @@ describe('PreprocessingService – Undo/Redo history', () => {
       name,
       originalType: DataType.Numeric,
       targetType: DataType.Numeric,
+      role: ColumnRole.Feature,
       encodingMethod: EncodingMethod.Normalize,
       scalingMethod: ScalingMethod.MinMax,
       includeInProjection: true,
@@ -256,6 +259,56 @@ describe('PreprocessingService – Undo/Redo history', () => {
     });
   });
 
+  describe('setColumnRole – feature or metadata', () => {
+    function seedColorAndGlyphs(): void {
+      const configs = new Map(service.currentState.columnConfigs);
+      configs.set('alpha', makeConfig('alpha', { isColorFeature: true }));
+      (service as unknown as { updateState(u: Partial<PreprocessingState>): void }).updateState({
+        columnConfigs: configs,
+        colorScaleId: 2,
+        glyphFeatures: ['alpha', 'beta', 'gamma'],
+      });
+    }
+
+    const alpha = (): ColumnConfig | undefined => service.currentState.columnConfigs.get('alpha');
+
+    it('takes a column that becomes metadata out of the color and glyph mapping, undone in one step', () => {
+      seedColorAndGlyphs();
+
+      service.setColumnRole('alpha', ColumnRole.Metadata);
+
+      expect(alpha()?.role).toBe(ColumnRole.Metadata);
+      expect(alpha()?.enabled).toBe(true); // still selected: tooltip and search
+      expect(alpha()?.isColorFeature).toBe(false);
+      expect(service.currentState.colorScaleId).toBe(0);
+      expect(service.currentState.glyphFeatures).toEqual(['beta', 'gamma']);
+      expect(service.getPreviewFeatureNames()).toEqual(['beta', 'gamma']);
+      expect(latestHistory().undoLabel).toBe('Column used as metadata');
+
+      service.undo();
+      expect(alpha()?.role).toBe(ColumnRole.Feature);
+      expect(alpha()?.isColorFeature).toBe(true);
+      expect(service.currentState.glyphFeatures).toEqual(['alpha', 'beta', 'gamma']);
+    });
+
+    it('records nothing when the role does not change', () => {
+      service.setColumnRole('alpha', ColumnRole.Feature);
+
+      expect(latestHistory().canUndo).toBe(false);
+    });
+
+    it('sends the role to the worker', () => {
+      service.setColumnRole('beta', ColumnRole.Metadata);
+
+      const columns = buildProcessingConfig(service.currentState).columns;
+      expect(columns.map(c => [c.name, c.role])).toEqual([
+        ['alpha', ColumnRole.Feature],
+        ['beta', ColumnRole.Metadata],
+        ['gamma', ColumnRole.Feature],
+      ]);
+    });
+  });
+
   describe('resetState', () => {
     it('clears both history stacks', () => {
       service.pushHistory('Action A');
@@ -317,6 +370,13 @@ describe('PreprocessingService – Undo/Redo history', () => {
         name: 'columnConfigs.enabled',
         mutate: () => mutateColumn('enabled', false),
         label: 'Column selection',
+        step: 'columns',
+        anchor: 'wizard-anchor-columns',
+      },
+      {
+        name: 'columnConfigs.role',
+        mutate: () => mutateColumn('role', ColumnRole.Metadata),
+        label: 'Column use (feature or metadata)',
         step: 'columns',
         anchor: 'wizard-anchor-columns',
       },
