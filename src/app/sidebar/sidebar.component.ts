@@ -17,7 +17,8 @@ import { DataLoaderService } from '../services/data-loader.service';
 import { GlyphObject } from '../glyph/glyph-object';
 import { GlyphConfiguration } from '../glyph/glyph-configuration';
 import { MAX_GLYPH_AXES } from '../glyph/glyph-axes';
-import { hasFeatureAxes } from '../shared/enum/glyph-type';
+import { GlyphType, hasFeatureAxes } from '../shared/enum/glyph-type';
+import { ThumbnailService } from '../services/thumbnail.service';
 import { FeaturesData } from '../shared/interfaces/glyph-meta';
 import { GlyphSchema } from '../shared/interfaces/glyph-schema';
 import { COLOR_SCALES, scaleTypeForFeature } from '../shared/interfaces/color-scale';
@@ -65,6 +66,8 @@ export class SidebarComponent implements OnInit, OnDestroy {
 
   // --- Glyph ---
   glyphConfig: GlyphConfiguration;
+  /** Whether the loaded dataset has item images, which the Image glyph type needs. */
+  imagesAvailable = true;
   /** Snapshot of the glyph axes, renewed on every configuration change. */
   axes: string[] = [];
   legendLengths: number[] = [];
@@ -75,6 +78,7 @@ export class SidebarComponent implements OnInit, OnDestroy {
   private subs = new Subscription();
   private ngZone = inject(NgZone);
   private injector = inject(Injector);
+  private thumbnails = inject(ThumbnailService);
 
   constructor(
     public config: ConfigService,
@@ -95,9 +99,11 @@ export class SidebarComponent implements OnInit, OnDestroy {
         const metaData = await this.dataLoader.getMetaData();
         const schema = await this.dataLoader.getSchema();
         const glyphData = await this.dataLoader.getGlyphData();
+        const images = await this.thumbnails.hasImages(data);
 
         this.ngZone.run(() => {
           this.applyDataset(metaData?.features ?? {}, schema);
+          this.applyImageAvailability(images);
           this.legendGlyph = this.representativeGlyph(glyphData ?? []);
           this.updateGlyphView();
         });
@@ -132,6 +138,15 @@ export class SidebarComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.subs.unsubscribe();
+  }
+
+  /** Without item images the Image glyph type has nothing to show; such a dataset opens with stars. */
+  private applyImageAvailability(available: boolean): void {
+    this.imagesAvailable = available;
+    if (!available && this.glyphConfig.glyphType === GlyphType.Thumb) {
+      this.glyphConfig.glyphType = GlyphType.Star;
+      this.config.updateConfiguration();
+    }
   }
 
   // --- Collapse ---

@@ -68,4 +68,4 @@ It prints its usage line and then rebuilds the dataset list. Do the same after a
 
 ### Thumbnails
 
-For the **Image** glyph type, put one JPG image per item into `src/assets/thumbnails/<dataset name>/`, named after the item's ID, e.g. `src/assets/thumbnails/mydata/42.jpg`. The bundled `wineqr` dataset is an example. Items without an image show a grey placeholder. For a dataset imported with the wizard, add the images as a ZIP file in Step 1 instead (see [Importing data](importing-data.md#step-1-upload-data)).
+For the **Image** glyph type, put one JPG image per item into `src/assets/thumbnails/<dataset name>/`, named after the item's ID, e.g. `src/assets/thumbnails/mydata/42.jpg`. The bundled `wineqr` dataset is an example. Then run `python tools/process.py` without arguments, so the dataset list notes that the dataset has images; until then the **Image** button stays off for it. Items without an image show a grey placeholder. For a dataset imported with the wizard, add the images as a ZIP file in Step 1 instead (see [Importing data](importing-data.md#step-1-upload-data)).

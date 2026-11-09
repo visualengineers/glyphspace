@@ -27,6 +27,7 @@ describe('ThumbnailService', () => {
   let requestThumb: ReturnType<typeof vi.fn>;
   let stored: Map<string, Blob>;
   let sources: Record<string, string>;
+  let withImages: Set<string>;
   let service: ThumbnailService;
 
   beforeEach(() => {
@@ -34,6 +35,7 @@ describe('ThumbnailService', () => {
     requestThumb = vi.fn().mockReturnValue(of(bitmap));
     stored = new Map();
     sources = { wine: 'wasm' };
+    withImages = new Set();
     service = new ThumbnailService(
       { unzip, requestThumb } as unknown as DataProcessorService,
       {
@@ -41,7 +43,8 @@ describe('ThumbnailService', () => {
         getThumbnailArchive: async (name: string) => stored.get(name),
       } as unknown as DatasetStorageService,
       {
-        getCollectionEntry: (name: string) => (sources[name] ? { source: sources[name] } : undefined),
+        getCollectionEntry: (name: string) =>
+          sources[name] ? { source: sources[name], images: withImages.has(name) || undefined } : undefined,
       } as unknown as DatasetCollectionService
     );
   });
@@ -72,6 +75,31 @@ describe('ThumbnailService', () => {
 
   it('has no pictures for a processed dataset without an archive', async () => {
     expect(await first('wine', '1')).toBeNull();
+    expect(unzip).not.toHaveBeenCalled();
+  });
+
+  it('knows from the dataset list whether a bundled dataset has pictures', async () => {
+    sources['bundled'] = 'local';
+    sources['plain'] = 'local';
+    withImages.add('bundled');
+
+    expect(await service.hasImages('bundled')).toBe(true);
+    expect(await service.hasImages('plain')).toBe(false);
+    expect(await service.hasImages('unknown')).toBe(false);
+  });
+
+  it('has pictures for a processed dataset with an archive', async () => {
+    expect(await service.hasImages('wine')).toBe(false);
+
+    await service.attachArchive('wine', new Blob(['zip']));
+
+    expect(await service.hasImages('wine')).toBe(true);
+  });
+
+  it('finds a stored archive of a processed dataset without unpacking it', async () => {
+    stored.set('wine', new Blob(['zip']));
+
+    expect(await service.hasImages('wine')).toBe(true);
     expect(unzip).not.toHaveBeenCalled();
   });
 
