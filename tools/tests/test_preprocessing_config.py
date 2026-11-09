@@ -660,3 +660,24 @@ def test_the_wizard_detects_the_id_column_by_the_same_rule(name, expected):
     detected = pp.detect_data_type(pd.Series(['a', 'b'], name=name))
 
     assert (detected == 'id') == (expected == 'id')
+
+
+# --- Glyph features: 3 to 8, as in the dashboard ------------------------------------
+
+def run_with_glyph_features(count: int) -> list[str]:
+    """The schema's glyph feature names when `count` of 10 features are chosen."""
+    names = [f'f{i}' for i in range(10)]
+    frame = pd.DataFrame({name: [1.0, 2.0, float(i)] for i, name in enumerate(names)})
+    config = {'columns': [column(name) for name in names], 'cleaning': {'removeDuplicates': False},
+              'datasetName': 'test', 'timestamp': '1', 'glyphFeatures': names[:count]}
+    collection = json.loads(ppc.process_with_config(write_csv(frame), json.dumps(config)))
+    schema = collection['datasets'][collection['selectedDataset']]['schema']
+    return [schema['label'][key] for key in schema['glyph']]
+
+
+def test_up_to_eight_chosen_glyph_features_are_kept_in_order():
+    assert run_with_glyph_features(8) == [f'f{i}' for i in range(8)]
+
+
+def test_more_than_eight_glyph_features_are_not_taken():
+    assert len(run_with_glyph_features(9)) <= ppc.MAX_GLYPH_FEATURES

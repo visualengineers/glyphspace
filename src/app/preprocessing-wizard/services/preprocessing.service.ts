@@ -22,6 +22,7 @@ import {
 } from './processing-config';
 import { STORAGE_KEY, deserializeState, serializeState } from './wizard-storage';
 import { WizardFileStore } from './wizard-file-store';
+import { MAX_GLYPH_AXES, MIN_GLYPH_AXES } from '../../glyph/glyph-axes';
 
 export type { UndoRedoInfo } from './history-diff';
 
@@ -379,9 +380,8 @@ export class PreprocessingService {
 
   // Glyph feature mapping
   public setGlyphFeatures(features: string[]): void {
-    // Validate 3-12 features
-    if (features.length < 3 || features.length > 12) {
-      throw new Error('3-12 glyph features required');
+    if (features.length < MIN_GLYPH_AXES || features.length > MAX_GLYPH_AXES) {
+      throw new Error(`A glyph needs ${MIN_GLYPH_AXES}–${MAX_GLYPH_AXES} glyph features`);
     }
     // Store a copy, never the caller's array. The glyph step edits its local selection
     // array in place (splice/push); if we kept that reference, later in-place edits

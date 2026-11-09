@@ -68,7 +68,7 @@ describe('classifyProcessingError', () => {
     },
     {
       name: 'K5 — glyph feature count out of range',
-      raw: 'A glyph needs 3-12 glyph features',
+      raw: 'A glyph needs 3–8 glyph features',
       code: 'K5',
       step: 'appearance',
       anchorId: 'wizard-anchor-glyph',
@@ -207,7 +207,7 @@ describe('classifyProcessingError', () => {
 
   it('names the step number and title of the new layout in the fix text', () => {
     expect(classifyProcessingError('n_neighbors must be greater than 1').fix).toContain('Step 4 (Projection)');
-    expect(classifyProcessingError('A glyph needs 3-12 glyph features').fix).toContain('Step 5 (Glyphs & Color)');
+    expect(classifyProcessingError('A glyph needs 3–8 glyph features').fix).toContain('Step 5 (Glyphs & Color)');
     expect(classifyProcessingError('could not convert string to float').fix).toContain(
       'Step 3 (Configure Data & Features)'
     );

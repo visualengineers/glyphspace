@@ -20,6 +20,7 @@ import {
   isProjectionMethodActive,
 } from '../../steps/step4-projection-settings/projection-methods';
 import { WizardStepId, stepLabel, stepNumber } from './step-info';
+import { MAX_GLYPH_AXES, MIN_GLYPH_AXES } from '../../../glyph/glyph-axes';
 
 export type IssueSeverity = 'blocking' | 'warning';
 
@@ -85,8 +86,8 @@ const CLASS_TEMPLATES: Record<string, Omit<WizardIssue, 'raw'>> = {
     code: 'K5',
     severity: 'blocking',
     title: 'The number of glyph features is out of range',
-    why: 'A glyph needs between 3 and 12 features; the current selection is outside that range.',
-    fix: `Adjust the selection to 3–12 features in ${stepLabel('appearance')}.`,
+    why: `A glyph needs between ${MIN_GLYPH_AXES} and ${MAX_GLYPH_AXES} features; the current selection is outside that range.`,
+    fix: `Adjust the selection to ${MIN_GLYPH_AXES}–${MAX_GLYPH_AXES} features in ${stepLabel('appearance')}.`,
     step: 'appearance',
     anchorId: 'wizard-anchor-glyph',
   },
@@ -159,7 +160,7 @@ export function classifyProcessingError(raw: string): WizardIssue {
     issue = template('K2');
   } else if (/neighbor|n_neighbors|perplexity|k must|greater than|exceeds|out of range|sample/.test(msg)) {
     issue = template('K4');
-  } else if (/glyph feature|3-12|3 to 12/.test(msg)) {
+  } else if (/glyph feature/.test(msg)) {
     issue = template('K5');
   } else if (/constant|zero variance|no variance|all missing|singular|division by zero/.test(msg)) {
     issue = template('K3');
