@@ -1,5 +1,6 @@
 import { Injectable, NgZone } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
+import { csvParseRows } from 'd3';
 import { DruidModule, druidSpecFor, runDruidProjection } from '../workers/druid-runner';
 import {
   ProjectionComputeConfig,
@@ -341,27 +342,26 @@ export class ProjectionService {
   /**
    * Parse CSV features exported from Python
    * Format: ID,feature1,feature2,...
+   * pandas quotes fields that contain a comma (e.g. such an ID), so the rows are
+   * read with a CSV parser, not split on commas.
    */
   parseCSVFeatures(csvText: string): { features: number[][]; ids: (string | number)[] } {
     try {
-      const lines = csvText.trim().split('\n');
+      const rows = csvParseRows(csvText.trim());
 
-      if (lines.length < 2) {
+      if (rows.length < 2) {
         throw new Error('CSV file is empty or has no data rows');
       }
-
-      // Skip header line
-      const dataLines = lines.slice(1);
 
       const ids: (string | number)[] = [];
       const features: number[][] = [];
 
-      for (const line of dataLines) {
-        if (!line.trim()) continue; // Skip empty lines
+      // Skip header row
+      for (const values of rows.slice(1)) {
+        if (values.every(value => !value.trim())) continue; // Skip empty lines
 
-        const values = line.split(',');
         if (values.length < 2) {
-          console.warn('Skipping line with insufficient columns:', line);
+          console.warn('Skipping line with insufficient columns:', values.join(','));
           continue;
         }
 

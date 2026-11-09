@@ -34,7 +34,9 @@ export class FilterService {
     return this.activeGlyphData;
   }
 
+  /** Reset every filter and unregister it; its owner registers it again on its next use. */
   clearFilters(): void {
+    this.filters.forEach(filter => filter.clear());
     this.filters.splice(0, this.filters.length);
     this.refreshFilters();
   }

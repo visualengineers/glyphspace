@@ -301,3 +301,34 @@ describe('ProjectionService – primary FastMap on the main thread', () => {
     await expect(service.runFastMapSync(ragged, ['a', 'b'])).rejects.toThrowError(/^FastMap failed: /);
   });
 });
+
+describe('ProjectionService – parseCSVFeatures', () => {
+  let service: ProjectionService;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({});
+    service = TestBed.inject(ProjectionService);
+  });
+
+  it('reads the ids and feature rows', () => {
+    const result = service.parseCSVFeatures('ID,a,b\n1,0.5,0.25\nx7,1,0\n');
+
+    expect(result.ids).toEqual([1, 'x7']);
+    expect(result.features).toEqual([
+      [0.5, 0.25],
+      [1, 0],
+    ]);
+  });
+
+  // pandas quotes a field that contains a comma; splitting on commas shifted the columns.
+  it('keeps a quoted id with a comma in one field', () => {
+    const result = service.parseCSVFeatures('ID,a\r\n"Smith, John",0.5\r\n"say ""hi""",1\r\n');
+
+    expect(result.ids).toEqual(['Smith, John', 'say "hi"']);
+    expect(result.features).toEqual([[0.5], [1]]);
+  });
+
+  it('rejects a file without data rows', () => {
+    expect(() => service.parseCSVFeatures('ID,a\n')).toThrow(/no data rows/);
+  });
+});

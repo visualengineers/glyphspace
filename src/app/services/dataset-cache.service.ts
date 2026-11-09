@@ -45,25 +45,30 @@ export class DatasetCacheService {
 
     const glyphMap = this.getOrCreateSubMap(this.glyphCache, name);
 
+    // Building a timestamp again (e.g. reprocessing a dataset under the same name)
+    // replaces it: items only it had are dropped, the others take the new values.
+    for (const [id, glyph] of glyphMap) {
+      delete glyph.positions[timestamp];
+      if (Object.keys(glyph.positions).length === 0) glyphMap.delete(id);
+    }
+
     for (const feature of features) {
       const idStr = String(feature.id);
 
       let glyph = glyphMap.get(idStr);
-
       if (!glyph) {
         glyph = new GlyphObject(idStr);
-        glyph.features = feature.features;
-        glyph.values = feature.values;
-        glyph.metadata = feature.metadata;
-        glyph.defaultcontext = feature.defaultcontext ? parseInt(feature.defaultcontext) : 1;
         glyph.positions = {};
-
         glyphMap.set(idStr, glyph);
       }
 
-      if (!glyph.positions[timestamp]) {
-        glyph.positions[timestamp] = {};
-      }
+      glyph.features = feature.features;
+      glyph.values = feature.values;
+      glyph.metadata = feature.metadata;
+      glyph.defaultcontext = feature.defaultcontext ? parseInt(feature.defaultcontext) : 1;
+      // Meshes drawn from the previous values must not be reused.
+      glyph.renderCache.clear();
+      glyph.positions[timestamp] = {};
     }
 
     for (const [algorithm, entries] of positions) {
