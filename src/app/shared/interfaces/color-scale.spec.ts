@@ -1,4 +1,11 @@
-import { COLOR_SCALES, getCategoricalColors, paletteColor } from './color-scale';
+import {
+  COLOR_SCALES,
+  defaultColorScaleId,
+  getCategoricalColors,
+  getColorScaleById,
+  paletteColor,
+  resolveColorScaleId,
+} from './color-scale';
 
 const categorical = COLOR_SCALES.filter(scale => scale.type === 'categorical');
 
@@ -30,6 +37,25 @@ describe('categorical color scales', () => {
 
   it('keeps unique ids', () => {
     expect(new Set(COLOR_SCALES.map(scale => scale.id)).size).toBe(COLOR_SCALES.length);
+  });
+
+  // Stored ids of removed scales must not point at another scale by accident.
+  it('never reuses the ids of the removed Observable10 (4) and Tableau20 (5)', () => {
+    expect(COLOR_SCALES.map(scale => scale.id)).not.toContain(4);
+    expect(COLOR_SCALES.map(scale => scale.id)).not.toContain(5);
+  });
+
+  it('reads the removed palettes as their replacements', () => {
+    expect(resolveColorScaleId(4)).toBe(6);
+    expect(resolveColorScaleId(5)).toBe(7);
+    expect(getColorScaleById(4).name).toBe('Glasbey');
+    expect(getColorScaleById(5).name).toBe('Tableau 10');
+    expect(resolveColorScaleId(2)).toBe(2);
+  });
+
+  it('defaults to the first scale of a type', () => {
+    expect(defaultColorScaleId('numeric')).toBe(0);
+    expect(defaultColorScaleId('categorical')).toBe(6);
   });
 });
 

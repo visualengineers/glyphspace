@@ -3,6 +3,7 @@ import { ConfigService } from './config.service';
 import { GlyphObject } from '../glyph/glyph-object';
 import { GlyphMeta } from '../shared/interfaces/glyph-meta';
 import { GlyphSchema } from '../shared/interfaces/glyph-schema';
+import { defaultColorScaleId } from '../shared/interfaces/color-scale';
 
 @Injectable({ providedIn: 'root' })
 export class SchemaConfigSyncService {
@@ -19,7 +20,7 @@ export class SchemaConfigSyncService {
     if (schema.colorScaleId !== undefined) {
       this.config.colorRange = schema.colorScaleId;
     } else if (schema.colorRange !== undefined) {
-      this.config.colorRange = schema.colorRange ? 0 : 4;
+      this.config.colorRange = defaultColorScaleId(schema.colorRange ? 'numeric' : 'categorical');
     }
 
     if (schema.types) {

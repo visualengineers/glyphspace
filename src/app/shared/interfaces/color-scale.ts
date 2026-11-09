@@ -64,7 +64,7 @@ export const COLOR_SCALES: ColorScale[] = [
   // and no grey, which marks filtered-out items. Categories take the colors in
   // order (see paletteColor), so the first colors are the most distinct.
   {
-    id: 4,
+    id: 6,
     name: 'Glasbey',
     type: 'categorical',
     group: 'Categorical color scales',
@@ -85,7 +85,7 @@ export const COLOR_SCALES: ColorScale[] = [
     ]),
   },
   {
-    id: 5,
+    id: 7,
     name: 'Tableau 10',
     type: 'categorical',
     group: 'Categorical color scales',
@@ -104,7 +104,7 @@ export const COLOR_SCALES: ColorScale[] = [
     ]),
   },
   {
-    id: 6,
+    id: 8,
     name: 'Colorblind',
     type: 'categorical',
     group: 'Categorical color scales',
@@ -135,9 +135,28 @@ export function scaleTypeForFeature(
   return categoryCount || featureType === 'categorical' ? 'categorical' : 'numeric';
 }
 
+/**
+ * Removed scales and the scale that replaces each. Scale ids are stored in
+ * dataset schemas and in the wizard state, so an id is never reused: a stored
+ * retired id is read as its replacement. Observable10 (4) and Tableau20 (5)
+ * contained grey, which marks filtered-out items (#89).
+ */
+const RETIRED_SCALE_IDS: Readonly<Record<number, number>> = { 4: 6, 5: 7 };
+
+/** The id to use for a stored scale id: its replacement if the scale was removed. */
+export function resolveColorScaleId(id: number): number {
+  return RETIRED_SCALE_IDS[id] ?? id;
+}
+
 /** Look up a color scale by id, falling back to the first (default) scale for unknown ids. */
 export function getColorScaleById(id: number): ColorScale {
-  return COLOR_SCALES.find(scale => scale.id === id) ?? COLOR_SCALES[0];
+  const resolved = resolveColorScaleId(id);
+  return COLOR_SCALES.find(scale => scale.id === resolved) ?? COLOR_SCALES[0];
+}
+
+/** Id of the first (default) scale of a type. */
+export function defaultColorScaleId(type: ColorScaleType): number {
+  return (COLOR_SCALES.find(scale => scale.type === type) ?? COLOR_SCALES[0]).id;
 }
 
 export function getContinuousGradient(scale: ColorScale, steps = 10): string {

@@ -68,13 +68,19 @@ describe('wizard storage – (de)serialization', () => {
     const state = {
       ...createTestPreprocessingService().currentState,
       colorScaleMode: 'categorical',
-      colorScaleId: 4,
+      colorScaleId: 7,
     } satisfies PreprocessingState;
 
     const restored = deserializeState(JSON.stringify(serializeState(state)));
 
     expect(restored?.colorScaleMode).toBe('categorical');
-    expect(restored?.colorScaleId).toBe(4);
+    expect(restored?.colorScaleId).toBe(7);
+  });
+
+  // #89 replaced Observable10 (4) and Tableau20 (5) by palettes without grey.
+  it('restores a retired color scale as its replacement', () => {
+    const restored = deserializeState(JSON.stringify({ colorScaleMode: 'categorical', colorScaleId: 4 }));
+    expect(restored?.colorScaleId).toBe(6);
   });
 
   it('ignores an invalid saved color scale', () => {

@@ -6,7 +6,7 @@ import * as d3 from 'd3';
 import { Features } from '../shared/interfaces/glyph-feature';
 import { hexToRgb } from '../shared/helpers/d3-helper';
 import { GlyphConfiguration } from '../glyph/glyph-configuration';
-import { COLOR_SCALES, ColorScale } from '../shared/interfaces/color-scale';
+import { COLOR_SCALES, ColorScale, resolveColorScaleId } from '../shared/interfaces/color-scale';
 import { featureColor } from '../shared/helpers/color-helper';
 import { canAddGlyphAxis, canRemoveGlyphAxis } from '../glyph/glyph-axes';
 
@@ -154,7 +154,7 @@ export class ConfigService {
   }
 
   set colorRange(id: number) {
-    this._selectedColorScale = id;
+    this._selectedColorScale = resolveColorScaleId(id);
   }
 
   get activeFeatures() {

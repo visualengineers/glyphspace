@@ -2,6 +2,7 @@ import { DEFAULT_CLEANING_CONFIG, DEFAULT_PROJECTION_CONFIG, PreprocessingState 
 import { ColumnConfig, ProjectionConfig } from '../models/column-config';
 import { ColumnRole } from '../models/data-type.enum';
 import { LAST_STEP_INDEX, WizardStepId, stepIndex } from '../shared/constants/step-info';
+import { resolveColorScaleId } from '../../shared/interfaces/color-scale';
 
 export const STORAGE_KEY = 'glyphspace_preprocessing_state';
 
@@ -133,6 +134,8 @@ export function deserializeState(raw: string | null): Partial<PreprocessingState
     tooltipFeatures: saved.tooltipFeatures ?? [],
     colorScaleMode: saved.colorScaleMode === 'categorical' ? 'categorical' : 'continuous',
     colorScaleId:
-      typeof saved.colorScaleId === 'number' && Number.isInteger(saved.colorScaleId) ? saved.colorScaleId : 0,
+      typeof saved.colorScaleId === 'number' && Number.isInteger(saved.colorScaleId)
+        ? resolveColorScaleId(saved.colorScaleId)
+        : 0,
   };
 }
