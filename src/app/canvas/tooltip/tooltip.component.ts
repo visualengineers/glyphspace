@@ -149,13 +149,31 @@ export class TooltipComponent implements OnInit, OnDestroy {
     this.hideTooltip();
   }
 
+  /** Show the tooltip of `object` right away at (x, y) and keep it open. */
+  showFixed(x: number, y: number, object: THREE.Object3D): void {
+    clearTimeout(this.hoverTimeout);
+    this.showTooltip(x, y, this.getObjectInfo(object));
+    if (this.tooltipVisible) this.setFixed(true);
+  }
+
+  /** Close a fixed tooltip. */
+  release(): void {
+    this.setFixed(false);
+    this.hideTooltip();
+  }
+
+  /** Id of the item whose tooltip is fixed, if any. */
+  get fixedItemId(): string | null {
+    return this.tooltipFixed ? (this.tooltipInfo?.id ?? null) : null;
+  }
+
   toggleFixation(doToggle = true) {
-    this.tooltipFixed = !this.tooltipFixed && doToggle;
-    if (this.tooltipFixed) {
-      this.tooltipRef.nativeElement.classList.add('fixed');
-    } else {
-      this.tooltipRef.nativeElement.classList.remove('fixed');
-    }
+    this.setFixed(!this.tooltipFixed && doToggle);
+  }
+
+  private setFixed(fixed: boolean): void {
+    this.tooltipFixed = fixed;
+    this.tooltipRef.nativeElement.classList.toggle('fixed', fixed);
   }
 
   isFixed(): boolean {

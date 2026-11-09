@@ -2,6 +2,7 @@ import { DEFAULT_CLEANING_CONFIG, DEFAULT_PROJECTION_CONFIG, PreprocessingState 
 import { ColumnConfig, ProjectionConfig } from '../models/column-config';
 import { ColumnRole } from '../models/data-type.enum';
 import { LAST_STEP_INDEX, WizardStepId, stepIndex } from '../shared/constants/step-info';
+import { resolveColorScaleId } from '../../shared/interfaces/color-scale';
 
 export const STORAGE_KEY = 'glyphspace_preprocessing_state';
 
@@ -25,6 +26,7 @@ type PersistedState = Pick<
   | 'currentStep'
   | 'dataProfile'
   | 'rawFileName'
+  | 'thumbnailArchiveName'
   | 'cleaningConfig'
   | 'projectionConfig'
   | 'datasetName'
@@ -63,6 +65,7 @@ export function serializeState(state: PreprocessingState): SerializedState {
     currentStep: state.currentStep,
     dataProfile: state.dataProfile,
     rawFileName: state.rawFileName,
+    thumbnailArchiveName: state.thumbnailArchiveName,
     columnConfigs: Array.from(state.columnConfigs.entries()),
     cleaningConfig: state.cleaningConfig,
     projectionConfig: state.projectionConfig,
@@ -121,6 +124,7 @@ export function deserializeState(raw: string | null): Partial<PreprocessingState
     currentStep: migrateStoredStep(saved.currentStep, version),
     dataProfile: saved.dataProfile ?? null,
     rawFileName: saved.rawFileName ?? null,
+    thumbnailArchiveName: typeof saved.thumbnailArchiveName === 'string' ? saved.thumbnailArchiveName : null,
     columnConfigs: restoreColumnConfigs(saved.columnConfigs),
     cleaningConfig: { ...DEFAULT_CLEANING_CONFIG, ...saved.cleaningConfig },
     projectionConfig: restoreProjectionConfig(saved.projectionConfig),
@@ -130,6 +134,8 @@ export function deserializeState(raw: string | null): Partial<PreprocessingState
     tooltipFeatures: saved.tooltipFeatures ?? [],
     colorScaleMode: saved.colorScaleMode === 'categorical' ? 'categorical' : 'continuous',
     colorScaleId:
-      typeof saved.colorScaleId === 'number' && Number.isInteger(saved.colorScaleId) ? saved.colorScaleId : 0,
+      typeof saved.colorScaleId === 'number' && Number.isInteger(saved.colorScaleId)
+        ? resolveColorScaleId(saved.colorScaleId)
+        : 0,
   };
 }

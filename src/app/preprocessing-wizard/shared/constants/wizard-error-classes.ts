@@ -1,7 +1,7 @@
 /**
  * Wizard error classes (A3).
  *
- * The six user-relevant failure classes are derivable from the code, but today
+ * The eight user-relevant failure classes (K1–K8) are derivable from the code, but
  * the raw message that reaches the UI rarely makes the class obvious. This
  * module turns raw error strings — and pre-flight state signals — into
  * structured issues that name the likely cause (WHY), the concrete action
@@ -20,6 +20,7 @@ import {
   isProjectionMethodActive,
 } from '../../steps/step4-projection-settings/projection-methods';
 import { WizardStepId, stepLabel, stepNumber } from './step-info';
+import { MAX_GLYPH_AXES, MIN_GLYPH_AXES } from '../../../glyph/glyph-axes';
 
 export type IssueSeverity = 'blocking' | 'warning';
 
@@ -85,8 +86,8 @@ const CLASS_TEMPLATES: Record<string, Omit<WizardIssue, 'raw'>> = {
     code: 'K5',
     severity: 'blocking',
     title: 'The number of glyph features is out of range',
-    why: 'A glyph needs between 3 and 12 features; the current selection is outside that range.',
-    fix: `Adjust the selection to 3–12 features in ${stepLabel('appearance')}.`,
+    why: `A glyph needs between ${MIN_GLYPH_AXES} and ${MAX_GLYPH_AXES} features; the current selection is outside that range.`,
+    fix: `Adjust the selection to ${MIN_GLYPH_AXES}–${MAX_GLYPH_AXES} features in ${stepLabel('appearance')}.`,
     step: 'appearance',
     anchorId: 'wizard-anchor-glyph',
   },
@@ -112,8 +113,8 @@ const CLASS_TEMPLATES: Record<string, Omit<WizardIssue, 'raw'>> = {
     code: 'K8',
     severity: 'blocking',
     title: 'A fill value does not match its column',
-    why: 'The value entered to fill missing entries is not a number, but the column is numeric.',
-    fix: `Enter a number as the fill value, or pick another missing-value strategy in ${stepLabel('features')}.`,
+    why: 'The value entered to fill missing entries does not fit the column: a numeric column needs a number, a true/false column needs true or false.',
+    fix: `Enter a fill value that fits the column, or pick another missing-value strategy in ${stepLabel('features')}.`,
     step: 'features',
     anchorId: 'wizard-anchor-features',
   },
@@ -150,7 +151,7 @@ export function classifyProcessingError(raw: string): WizardIssue {
     }
   } else if (/timed out|timeout|out of memory|memory|aborted/.test(msg)) {
     issue = template('K6');
-  } else if (/the fill value .* is not a number/.test(msg)) {
+  } else if (/the fill value .* is not (a number|true or false)/.test(msg)) {
     // Before K1, whose "not a number" pattern would otherwise claim it.
     issue = template('K8');
   } else if (/invalid numeric value|could not convert|non-?numeric|not a number|isnan|convert string/.test(msg)) {
@@ -159,7 +160,7 @@ export function classifyProcessingError(raw: string): WizardIssue {
     issue = template('K2');
   } else if (/neighbor|n_neighbors|perplexity|k must|greater than|exceeds|out of range|sample/.test(msg)) {
     issue = template('K4');
-  } else if (/glyph feature|3-12|3 to 12/.test(msg)) {
+  } else if (/glyph feature/.test(msg)) {
     issue = template('K5');
   } else if (/constant|zero variance|no variance|all missing|singular|division by zero/.test(msg)) {
     issue = template('K3');

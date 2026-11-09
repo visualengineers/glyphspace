@@ -72,12 +72,15 @@
         </h3>
         <ul>
           <li><strong>First row</strong> should contain column headers</li>
-          <li><strong>ID column</strong> (optional): Unique identifier for each row</li>
           <li>
-            <strong>Pre-computed coordinates</strong> (optional): "&lt;name&gt;-x" and "&lt;name&gt;-y" pairs (e.g.,
-            "pca-x", "pca-y")
+            <strong>ID column</strong> (optional): a column named "id" (in any case) identifies each row; without one,
+            the rows are numbered
           </li>
-          <li><strong>Geographic data</strong> (optional): "latitude" and "longitude" columns</li>
+          <li>
+            <strong>Positions</strong> are computed in the next steps. Pre-computed coordinates (e.g. "pca-x" and
+            "pca-y", or latitude and longitude) are read as ordinary features here; only the command-line import
+            (tools/process.py) uses them as positions.
+          </li>
           <li><strong>File too large?</strong> Try filtering rows in Excel or reducing columns before upload</li>
         </ul>
       </div>
@@ -93,6 +96,14 @@
             <button type="button" class="btn-secondary" (click)="chooseDifferentFile()">Upload Different File</button>
           </div>
         </div>
+
+        @if (uploadMissing) {
+          <p class="upload-missing" role="alert">
+            <span class="material-icons" aria-hidden="true">warning</span>
+            "{{ rawFileName }}" is no longer loaded after the page reload. Upload it again; as long as it has the same
+            columns, your settings are kept.
+          </p>
+        }
 
         <div class="profile-stats">
           <div class="stat-card">
@@ -150,6 +161,37 @@
                 <div class="stat-value">{{ profile.duplicateCount }}</div>
               </div>
             </div>
+          }
+        </div>
+
+        <div class="profile-section image-archive">
+          <h4>Item images (optional)</h4>
+          <p class="image-archive-hint">
+            For the Image glyph type: a ZIP file with one picture per item, named after the item's id (e.g. 17.jpg).
+            JPG, PNG and WebP pictures are used.
+          </p>
+          <div class="image-archive-row">
+            <input
+              #archiveInput
+              type="file"
+              accept=".zip,application/zip"
+              hidden
+              aria-hidden="true"
+              tabindex="-1"
+              (change)="onArchiveSelected($event)"
+            />
+            <button type="button" class="btn-secondary" (click)="archiveInput.click()">
+              {{ archiveName ? 'Choose Another ZIP' : 'Choose ZIP File' }}
+            </button>
+            @if (archiveName) {
+              <span class="archive-name">
+                <span class="material-icons" aria-hidden="true">folder_zip</span>{{ archiveName }}
+              </span>
+              <button type="button" class="btn-text" (click)="removeArchive()">Remove</button>
+            }
+          </div>
+          @if (archiveError) {
+            <p class="archive-error" role="alert">{{ archiveError }}</p>
           }
         </div>
 

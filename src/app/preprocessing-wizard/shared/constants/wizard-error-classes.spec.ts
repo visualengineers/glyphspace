@@ -68,7 +68,7 @@ describe('classifyProcessingError', () => {
     },
     {
       name: 'K5 — glyph feature count out of range',
-      raw: 'A glyph needs 3-12 glyph features',
+      raw: 'A glyph needs 3–8 glyph features',
       code: 'K5',
       step: 'appearance',
       anchorId: 'wizard-anchor-glyph',
@@ -90,6 +90,13 @@ describe('classifyProcessingError', () => {
     {
       name: 'K8 — fill value that does not fit its column (wins over K1)',
       raw: "Column 'score': the fill value 'abc' is not a number. Enter a number or choose another missing-value strategy.",
+      code: 'K8',
+      step: 'features',
+      anchorId: 'wizard-anchor-features',
+    },
+    {
+      name: 'K8 — fill value of a true/false column that is neither',
+      raw: "Column 'organic': the fill value 'maybe' is not true or false. Enter true or false or choose another missing-value strategy.",
       code: 'K8',
       step: 'features',
       anchorId: 'wizard-anchor-features',
@@ -200,7 +207,7 @@ describe('classifyProcessingError', () => {
 
   it('names the step number and title of the new layout in the fix text', () => {
     expect(classifyProcessingError('n_neighbors must be greater than 1').fix).toContain('Step 4 (Projection)');
-    expect(classifyProcessingError('A glyph needs 3-12 glyph features').fix).toContain('Step 5 (Glyphs & Color)');
+    expect(classifyProcessingError('A glyph needs 3–8 glyph features').fix).toContain('Step 5 (Glyphs & Color)');
     expect(classifyProcessingError('could not convert string to float').fix).toContain(
       'Step 3 (Configure Data & Features)'
     );

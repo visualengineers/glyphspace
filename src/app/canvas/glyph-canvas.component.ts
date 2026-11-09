@@ -42,8 +42,11 @@ import {
   CLICK_TIME_THRESHOLD_MS,
   CLICK_DISTANCE_THRESHOLD,
 } from '../shared/constants/canvas-constants';
-import { DataProcessorService } from '../services/data-processor';
+import { ThumbnailService } from '../services/thumbnail.service';
 import { buildGlyphRenderConfig, GlyphRenderConfig } from '../glyph/glyph-render-config';
+import { GlyphConfiguration } from '../glyph/glyph-configuration';
+import { typicalGlyphReach } from '../glyph/glyph-reach';
+import { hasFeatureAxes } from '../shared/enum/glyph-type';
 
 @Component({
   selector: 'glyph-canvas',
@@ -100,13 +103,10 @@ export class GlyphCanvasComponent implements AfterViewInit, OnDestroy, OnChanges
 
   // Overlay controls
   canvasActivated = false;
-  showSettings = false;
   timestamps: string[] = [];
   algorithms: string[] = [];
-  contexts: string[] = [];
   selectedTimestamp = '';
   selectedAlgorithm = '';
-  selectedContext = '';
 
   constructor(
     private ngZone: NgZone,
@@ -114,7 +114,7 @@ export class GlyphCanvasComponent implements AfterViewInit, OnDestroy, OnChanges
     private logger: LoggerService,
     private config: ConfigService,
     private dataLoader: DataLoaderService,
-    private dataProcessor: DataProcessorService,
+    private thumbnails: ThumbnailService,
     private filterService: FilterService,
     public cameraSvc: CanvasCameraService,
     public rendererSvc: CanvasRendererService,
@@ -122,7 +122,7 @@ export class GlyphCanvasComponent implements AfterViewInit, OnDestroy, OnChanges
   ) {}
 
   private buildRenderConfig(): GlyphRenderConfig {
-    return buildGlyphRenderConfig(this.config, this.dataProcessor);
+    return buildGlyphRenderConfig(this.config, this.thumbnails);
   }
 
   //#region Life Cycle methods
@@ -179,11 +179,11 @@ export class GlyphCanvasComponent implements AfterViewInit, OnDestroy, OnChanges
         this.ngZone.run(() => {
           this.timestamps = this.dataLoader.getTimestamps(loadedData);
           this.algorithms = this.dataLoader.getPositions(loadedData);
-          this.contexts = this.dataLoader.getContexts(loadedData);
 
           this.selectedTimestamp = this.timestamps[0];
           this.selectedAlgorithm = this.algorithms[0];
-          this.selectedContext = this.contexts[0];
+          // Glyph radii depend on the dataset (see applyGlyphSizes); positions need the selection above.
+          this.applyGlyphSizes(this.config.getConfiguration());
 
           this.rendererSvc.glyphGroup.clear();
 
@@ -294,7 +294,8 @@ export class GlyphCanvasComponent implements AfterViewInit, OnDestroy, OnChanges
       })
     );
     this.configSub.add(
-      this.config.glyphConfigSubject$.subscribe(() => {
+      this.config.glyphConfigSubject$.subscribe(glyphConfig => {
+        this.applyGlyphSizes(glyphConfig);
         if (this.magicLenseStatus)
           this.magicLensComponent.renderMagicLensGlyphs(this.selectedTimestamp, this.selectedAlgorithm);
         // Force render all glyphs when config changes - glyph geometry needs to be
@@ -337,6 +338,26 @@ export class GlyphCanvasComponent implements AfterViewInit, OnDestroy, OnChanges
     });
 
     this.resizeObserver.observe(container);
+  }
+
+  /**
+   * Take over the item size. Glyphs get a radius that makes a typical glyph of
+   * this dataset look about as large as its point; images fill their radius.
+   * Hit testing and collision avoidance depend on the radius.
+   */
+  private applyGlyphSizes(glyphConfig: GlyphConfiguration): void {
+    const sizeInfo = this.rendererSvc.sizeInfo;
+    const reach = hasFeatureAxes(glyphConfig.glyphType)
+      ? typicalGlyphReach(
+          this.glyphData,
+          this.config.activeFeatures,
+          this.config.featureMaxValues,
+          glyphConfig.scaleLinear
+        )
+      : 1;
+    if (!sizeInfo.setSizes(glyphConfig.itemSize, reach)) return;
+    this.simulation?.force('collide', forceCollide(sizeInfo.getRadius(ZoomLevel.high)));
+    this.rendererSvc.rebuildSpatialGrid(this.glyphData, this.id, this.selectedTimestamp, this.selectedAlgorithm);
   }
 
   private initSimulation() {
@@ -475,10 +496,6 @@ export class GlyphCanvasComponent implements AfterViewInit, OnDestroy, OnChanges
     this.rendererSvc.requestRender(RenderTask.FitAnimation);
   }
 
-  toggleSettings(): void {
-    this.showSettings = !this.showSettings;
-  }
-
   onAnimationSpeedChanged(speed: number) {
     this.animationSpeed = speed;
   }
@@ -491,10 +508,9 @@ export class GlyphCanvasComponent implements AfterViewInit, OnDestroy, OnChanges
     }
   }
 
-  onSettingsChange(payload: { timestamp: string; algorithm: string; context: string }): void {
+  onSettingsChange(payload: { timestamp: string; algorithm: string }): void {
     this.selectedTimestamp = payload.timestamp;
     this.selectedAlgorithm = payload.algorithm;
-    this.selectedContext = payload.context;
 
     this.rendererSvc.positionBounds = undefined;
     this.rendererSvc.updatePositionBounds(this.glyphData, this.selectedTimestamp, this.selectedAlgorithm);
@@ -569,7 +585,6 @@ export class GlyphCanvasComponent implements AfterViewInit, OnDestroy, OnChanges
     const newLevel = this.cameraSvc.calculateZoomLevel(newZoom);
     if (oldLevel !== newLevel) {
       this.rendererSvc.sizeInfo.currentZoomLevel = newLevel;
-      this.rendererSvc.sizeInfo.update(this.canvasWidth, this.canvasHeight);
       // Rebuild spatial grid with new radius for correct hit testing
       this.rendererSvc.rebuildSpatialGrid(this.glyphData, this.id, this.selectedTimestamp, this.selectedAlgorithm);
       // Force render all glyphs when zoom level changes
@@ -735,7 +750,6 @@ export class GlyphCanvasComponent implements AfterViewInit, OnDestroy, OnChanges
     ['c', () => this.toggleCollisionAvoidance()],
     ['f', () => this.fitToView()],
     ['a', () => this.toggleAggregation()],
-    ['d', () => this.toggleSettings()],
     [
       'n',
       () => {
@@ -828,9 +842,7 @@ export class GlyphCanvasComponent implements AfterViewInit, OnDestroy, OnChanges
     }
 
     if (isClick && !this.selectionSvc.selectionMode) {
-      if (this.currentHoveredObject != null) {
-        this.tooltipComponent.toggleFixation();
-      }
+      this.fixTooltipAt(event);
       return;
     }
 
@@ -871,6 +883,29 @@ export class GlyphCanvasComponent implements AfterViewInit, OnDestroy, OnChanges
         );
       }
     }
+  }
+
+  /**
+   * A click shows and fixes the tooltip of the item under the pointer. The hover
+   * state can lag behind a quick click (hit tests are throttled, the hover popup
+   * is delayed), so the clicked item is looked up at the click position.
+   * Clicking the item of the fixed tooltip again, or empty space, closes it.
+   */
+  private fixTooltipAt(event: MouseEvent): void {
+    const object = this.rendererSvc.optimizedHitTest(
+      event,
+      this.glyphData,
+      this.cameraSvc.camera,
+      this.selectedTimestamp,
+      this.selectedAlgorithm,
+      this.id
+    );
+    const glyph = object ? getGlyphFromObject(object) : null;
+    if (!object || !glyph || glyph.id === this.tooltipComponent.fixedItemId) {
+      this.tooltipComponent.release();
+      return;
+    }
+    this.tooltipComponent.showFixed(event.clientX, event.clientY, object);
   }
 
   @HostListener('mousemove', ['$event'])

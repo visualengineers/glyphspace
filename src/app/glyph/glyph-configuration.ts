@@ -1,4 +1,5 @@
 import { GlyphType } from '../shared/enum/glyph-type';
+import { ITEM_SIZE_PX } from './glyph-size-info';
 
 export interface GlyphOption {
   property: string;
@@ -13,12 +14,13 @@ export class GlyphConfiguration {
   private _useContour = true;
   private _radius = 0;
   private _scaleLinear = false;
+  private _itemSize: number = ITEM_SIZE_PX.default;
 
   private _glyphType: GlyphType = GlyphType.Star;
 
   private options: GlyphOption[] = [
-    { property: 'useCoordinateSystem', label: 'Coordinate System' },
-    { property: 'useBackground', label: 'Circle Background' },
+    { property: 'useCoordinateSystem', label: 'Coordinate system' },
+    { property: 'useBackground', label: 'Circle background' },
     { property: 'useContour', label: 'Contour' },
   ];
 
@@ -84,4 +86,17 @@ export class GlyphConfiguration {
   set scaleLinear(scaleLinear: boolean) {
     this._scaleLinear = scaleLinear;
   }
+
+  /** Size of an item in px at 100 % zoom (a point's diameter), within ITEM_SIZE_PX; glyphs follow it. */
+  get itemSize(): number {
+    return this._itemSize;
+  }
+  set itemSize(px: number) {
+    this._itemSize = clampSize(px, ITEM_SIZE_PX);
+  }
+}
+
+function clampSize(px: number, limits: { min: number; max: number; default: number }): number {
+  if (!Number.isFinite(px)) return limits.default;
+  return Math.min(limits.max, Math.max(limits.min, Math.round(px)));
 }

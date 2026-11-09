@@ -35,7 +35,9 @@ sequenceDiagram
 
 ## 1. Upload and profile (Step 1)
 
-`PreprocessingService.loadCSV` sends the file to the worker (`profileData`). The worker writes it into its file system under the file's own name, where it stays for every later request, and runs `profile_data` (`src/assets/preprocessing_processor.py`): per column the detected type, counts, missing values, statistics and a histogram, plus ten preview rows and the duplicate count. `adoptLoadedFile` turns each column profile into a default config (`preprocessing-wizard/services/column-defaults.ts`, rules in [CSV input](../specs/csv-input.md#wizard)), as one undoable action.
+`PreprocessingService.loadCSV` sends the file to the worker (`profileData`). The worker writes it into its file system under the file's own name, where it stays for every later request, and runs `profile_data` (`src/assets/preprocessing_processor.py`): per column the detected type, counts, missing values, statistics and a histogram, plus ten preview rows and the duplicate count. `adoptLoadedFile` turns each column profile into a default config (`preprocessing-wizard/services/column-defaults.ts`, rules in [CSV input](../specs/csv-input.md#wizard)), as one undoable action. The file is also kept in IndexedDB (`WizardFileStore`), and so is an item image ZIP chosen in Step 1 (`setThumbnailArchive`).
+
+After a page reload the worker's file system is empty. When `PreprocessingService` restores a state that names a file, `restoreUploadedFile` reads it from the file store and sends it to the worker again (`profileData`); requests that read the file (`detectOutliers`, `detectDuplicates`, processing) wait for this through `loadedFileName`. If that fails, for example because the file is not stored, the state gets `uploadMissing` and Step 1 asks for the file again. A re-uploaded file with the same columns keeps the restored settings (`adoptLoadedFile`, `sameColumns`). Details: [Wizard storage](../specs/wizard-storage.md#uploaded-files).
 
 ## 2. Live analysis (Step 3)
 
@@ -46,9 +48,10 @@ Step 3 asks the worker for outlier counts per column (`detectOutliers`) and the 
 `Step6ReviewProcessingComponent.startProcessing` runs the primary run inside `PreprocessingService.whileProcessing`, which keeps `isProcessing` up (and undo/redo disabled) until FastMap is done:
 
 1. `PreprocessingService.processData` builds the config (`buildProcessingConfig`) and sends `processWithConfig`. Python fills, caps, drops, encodes and scales ([order of operations](../specs/processing-config.md#order-of-operations)), writes `processed_features.csv` and returns the dataset without positions. Progress messages drive the progress bar up to 70 %.
-2. `getProcessedFeatures` fetches the CSV; `ProjectionService.parseCSVFeatures` turns it into a matrix and an id list.
+2. `getProcessedFeatures` fetches the CSV; `ProjectionService.parseCSVFeatures` reads it with a CSV parser (d3's `csvParseRows`, since pandas quotes ids that contain a comma) and turns it into a matrix and an id list.
 3. `ProjectionService.runFastMapSync` loads DruidJS (first use only) and runs FastMap on the main thread.
 4. `addProjectionPositions('fastmap', …)` stores the positions in the processed dataset (`storeProjectionPositions`).
+5. If an item image ZIP was chosen in Step 1, `Step6ReviewProcessingComponent.attachThumbnails` hands it to `DataLoaderService.attachThumbnails` under the dataset name, without waiting for it; a toast reports the number of images found ([Dashboard](dashboard.md#thumbnails)).
 
 A second click while a run is active is ignored; `processData` also returns the running promise instead of starting another.
 
@@ -70,7 +73,7 @@ Either way a toast reports the result. Failures are classified by `classifyBackg
 1. adds the dataset to the collection as source `wasm` (`DataLoaderService.addProcessedDatasetToCollection`) and loads it (`loadProcessedDataset`): the cache is built, the schema is applied to `ConfigService`, filters are cleared;
 2. saves it to IndexedDB (`saveDatasetToStorage`), so it survives a reload as source `indexeddb`;
 3. detaches running background jobs (`ProjectionService.detachAll`): they keep computing for the dashboard but can no longer be cancelled from the wizard;
-4. resets the wizard (`resetState`), which also clears the saved wizard state and prunes the worker's files.
+4. resets the wizard (`resetState`), which also clears the saved wizard state and prunes the worker's files and the file store.
 
 ## Errors
 

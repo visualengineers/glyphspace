@@ -27,4 +27,47 @@ describe('DatasetCacheService', () => {
     expect(glyphs?.get('brie')?.metadata).toEqual({ '1': 'buttery' });
     expect(glyphs?.get('gouda')?.metadata).toBeUndefined();
   });
+
+  describe('building a dataset again under the same name', () => {
+    const item = (id: string, value: number): GlyphFeature => ({
+      id,
+      defaultcontext: '1',
+      features: { '1': { '1': value } },
+      values: { '1': String(value) },
+    });
+    const positions = (...ids: string[]) => new Map([['pca', ids.map(id => ({ id, position: { x: 1, y: 2 } }))]]);
+
+    it('takes the new values of items it already had', () => {
+      const cache = new DatasetCacheService();
+      cache.buildDataSet('cheese', '1', schema, meta, [item('brie', 0.5)], positions('brie'));
+
+      const count = cache.buildDataSet('cheese', '1', schema, meta, [item('brie', 0.9)], positions('brie'));
+
+      const brie = cache.getGlyphMap('cheese')?.get('brie');
+      expect(count).toBe(1);
+      expect(brie?.features).toEqual({ '1': { '1': 0.9 } });
+      expect(brie?.values).toEqual({ '1': '0.9' });
+      expect(brie?.positions['1']['pca']).toEqual({ x: 1, y: 2 });
+    });
+
+    it('drops items the new data no longer has', () => {
+      const cache = new DatasetCacheService();
+      cache.buildDataSet('cheese', '1', schema, meta, [item('brie', 0.5), item('gouda', 0.2)], positions('brie'));
+
+      const count = cache.buildDataSet('cheese', '1', schema, meta, [item('brie', 0.9)], positions('brie'));
+
+      expect(count).toBe(1);
+      expect(cache.getGlyphMap('cheese')?.has('gouda')).toBe(false);
+    });
+
+    it('keeps the items of other timestamps', () => {
+      const cache = new DatasetCacheService();
+      cache.buildDataSet('cheese', '1', schema, meta, [item('brie', 0.5), item('gouda', 0.2)], positions('gouda'));
+
+      cache.buildDataSet('cheese', '2', schema, meta, [item('brie', 0.9)], positions('brie'));
+
+      const gouda = cache.getGlyphMap('cheese')?.get('gouda');
+      expect(gouda?.positions['1']['pca']).toEqual({ x: 1, y: 2 });
+    });
+  });
 });

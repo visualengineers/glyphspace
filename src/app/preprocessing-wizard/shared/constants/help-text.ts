@@ -280,11 +280,11 @@ export const HELP_TEXT = {
         <strong>Background Computation:</strong> While you explore with FastMap, other selected projections
         (PCA, IsoMap, MDS, t-SNE, UMAP, TriMap, etc.) compute in the background without blocking your workflow.<br/><br/>
 
-        <strong>Notifications:</strong> When each projection finishes, you'll see a notification with an
-        option to switch to that view. The projection is automatically added to the dropdown.<br/><br/>
+        <strong>Notifications:</strong> When a projection finishes, a short notification says it is ready,
+        and the projection is added to the position dropdown of every canvas.<br/><br/>
 
-        <strong>Progress Tracking:</strong> Check the projection status indicator in the top-right corner
-        of Glyphspace to see which projections are ready, computing, or pending.
+        <strong>Progress Tracking:</strong> Open a canvas's position settings (<strong>Pos</strong> in the
+        canvas's top bar) to see which projections are ready, computing, or pending.
       `,
     },
   },

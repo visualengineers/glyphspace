@@ -2,8 +2,8 @@
   #lensCanvas
   id="lens-canvas"
   [hidden]="!magicLensActive"
-  [width]="lensRadius"
-  [height]="lensRadius"
+  [width]="lensDiameter"
+  [height]="lensDiameter"
   style="
     position: absolute;
     border-radius: 50%;
@@ -16,7 +16,9 @@
 </canvas>
 <div
   class="lens-indicator"
-  [style.left.px]="relativePosition.x - 30"
-  [style.top.px]="relativePosition.y - 30"
+  [style.left.px]="relativePosition.x - indicatorRadius"
+  [style.top.px]="relativePosition.y - indicatorRadius"
+  [style.width.px]="indicatorRadius * 2"
+  [style.height.px]="indicatorRadius * 2"
   [hidden]="!magicLensActive"
 ></div>

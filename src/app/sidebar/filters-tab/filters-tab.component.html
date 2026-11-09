@@ -1,0 +1,77 @@
+<div class="search">
+  <input
+    #searchInput
+    type="text"
+    aria-label="Text search in features"
+    placeholder="Text search in features…"
+    [(ngModel)]="searchTerm"
+    (keydown.enter)="onSearchEnter()"
+    (focus)="inputFocused = true"
+    (blur)="onBlur()"
+  />
+  @if (searchTerms.length > 0 || searchTerm) {
+    <button type="button" class="clear-search" aria-label="Clear the text search" (click)="clearSearch(searchInput)">
+      <span class="material-icons" aria-hidden="true">close</span>
+    </button>
+  }
+  @if (inputFocused && searchTerms.length > 0) {
+    <ul class="search-terms">
+      @for (term of searchTerms; track term) {
+        <li>
+          <span>{{ term }}</span>
+          <button
+            type="button"
+            class="remove-term"
+            [attr.aria-label]="'Remove search term ' + term"
+            (click)="removeTerm(term)"
+          >
+            <span class="material-icons" aria-hidden="true">close</span>
+          </button>
+        </li>
+      }
+    </ul>
+  }
+</div>
+
+@for (featureId of featureIds; track featureId) {
+  @let index = axisIndex(featureId);
+  <section class="filter-card" [attr.aria-label]="name(featureId)">
+    <div class="card-header">
+      <span class="card-title" [title]="name(featureId)">{{ name(featureId) }}</span>
+      <span class="card-tags">
+        @if (showGlyphIcons) {
+          <button
+            type="button"
+            class="glyph-toggle"
+            [class.in-glyph]="index >= 0"
+            [attr.aria-pressed]="index >= 0"
+            [attr.aria-disabled]="!canToggle(featureId)"
+            [attr.aria-label]="iconLabel(featureId)"
+            [title]="iconLabel(featureId)"
+            (click)="toggleAxis(featureId)"
+          >
+            <app-glyph-icon [type]="glyphType" [outline]="index < 0" />
+            @if (index >= 0) {
+              <span class="axis-number">{{ index + 1 }}</span>
+            }
+          </button>
+        }
+        <span class="type-tag">{{ types[featureId] || features[featureId].type }}</span>
+      </span>
+    </div>
+    <app-histogram
+      [configuration]="config"
+      [dataProvider]="filterService"
+      [histogramData]="features[featureId].histogram"
+      [categories]="features[featureId].categories"
+      [featureMin]="features[featureId].min"
+      [featureMax]="features[featureId].max"
+      [originalMin]="features[featureId].originalMin"
+      [originalMax]="features[featureId].originalMax"
+      [label]="name(featureId)"
+      [type]="types[featureId] || ''"
+      [property]="featureId"
+    >
+    </app-histogram>
+  </section>
+}

@@ -64,12 +64,12 @@ export class CanvasRendererService {
     container.appendChild(this.renderer.domElement);
 
     this.renderer.setSize(width, height, false);
-    this.sizeInfo.update(width, height);
+    this.sizeInfo.update();
   }
 
   updateRendererSize(width: number, height: number): void {
     this.renderer.setSize(width, height, false);
-    this.sizeInfo.update(width, height);
+    this.sizeInfo.update();
   }
 
   requestRender(task: RenderTask): void {

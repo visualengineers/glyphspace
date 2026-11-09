@@ -194,7 +194,7 @@ describe('Step6ReviewProcessingComponent – summary and deep links', () => {
 
   it('"Fix in step N" jumps to the issue step by id and names it in the toast', () => {
     const fixture = TestBed.createComponent(Step6ReviewProcessingComponent);
-    const issue = classifyProcessingError('A glyph needs 3-12 glyph features');
+    const issue = classifyProcessingError('A glyph needs 3–8 glyph features');
 
     fixture.componentInstance.fixInStep(issue);
 

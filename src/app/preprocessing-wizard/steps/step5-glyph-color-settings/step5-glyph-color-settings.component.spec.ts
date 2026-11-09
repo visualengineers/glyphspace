@@ -457,8 +457,8 @@ describe('Step5GlyphColorSettingsComponent – prefill and canProceed', () => {
   [
     { count: 2, allowed: false },
     { count: 3, allowed: true },
-    { count: 12, allowed: true },
-    { count: 13, allowed: false },
+    { count: 8, allowed: true },
+    { count: 9, allowed: false },
   ].forEach(({ count, allowed }) => {
     it(`${allowed ? 'allows' : 'blocks'} continuing with ${count} glyph features`, () => {
       component.selectedGlyphFeatures = Array.from({ length: count }, (_, i) => `f${i}`);
@@ -467,7 +467,7 @@ describe('Step5GlyphColorSettingsComponent – prefill and canProceed', () => {
   });
 
   it('explains the glyph rule when Continue is disabled', () => {
-    expect(component.disabledHint).toBe('Select 3–12 glyph features to continue.');
+    expect(component.disabledHint).toBe('Select 3–8 glyph features to continue.');
   });
 
   it('proceeds to the review step', () => {
@@ -546,14 +546,14 @@ describe('Step5GlyphColorSettingsComponent – moving features without dragging'
   });
 
   it('explains instead of silently ignoring an add beyond the maximum', () => {
-    const twelve = Array.from({ length: 12 }, (_, i) => `f${i}`);
-    service.setGlyphFeatures(twelve);
-    component.selectedGlyphFeatures = [...twelve];
+    const eight = Array.from({ length: 8 }, (_, i) => `f${i}`);
+    service.setGlyphFeatures(eight);
+    component.selectedGlyphFeatures = [...eight];
 
     component.addAvailableFeature('extra', 0);
 
-    expect(component.selectedGlyphFeatures).toEqual(twelve);
-    expect(toast.warning).toHaveBeenCalledWith('A glyph takes at most 12 features. Remove one first.');
+    expect(component.selectedGlyphFeatures).toEqual(eight);
+    expect(toast.warning).toHaveBeenCalledWith('A glyph takes at most 8 features. Remove one first.');
   });
 
   it('announces a removed feature, but not a removal blocked at the minimum', () => {
@@ -683,7 +683,7 @@ describe('Step5GlyphColorSettingsComponent – template', () => {
     const pressed = Array.from(render().querySelectorAll('.glyph-type-tabs button')).map(b =>
       b.getAttribute('aria-pressed')
     );
-    expect(pressed).toEqual(['true', 'false', 'false']);
+    expect(pressed).toEqual(['true', 'false']);
   });
 
   it('tells the user these settings can be changed later in the dashboard', () => {

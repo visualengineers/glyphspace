@@ -1,5 +1,6 @@
 import { ColumnStatistics } from '../models/column-statistics';
 import { ColumnConfig } from '../models/column-config';
+import { defaultColorScaleId, getColorScaleById, resolveColorScaleId } from '../../shared/interfaces/color-scale';
 import {
   ColumnRole,
   DataType,
@@ -75,9 +76,6 @@ export interface ColorScaleChoice {
   colorScaleId: number;
 }
 
-/** Scale ids 0-3 are numeric (continuous) scales, 4 and up categorical ones. */
-const FIRST_CATEGORICAL_SCALE_ID = 4;
-
 /**
  * Color mode matching the color column's type: categorical/text columns get a
  * categorical scale, everything else a continuous one. The current scale is kept
@@ -87,9 +85,9 @@ export function colorScaleForFeature(config: ColumnConfig | undefined, currentSc
   const categoricalTypes = [DataType.Categorical, DataType.Text];
   const isCategorical =
     !!config && (categoricalTypes.includes(config.originalType) || categoricalTypes.includes(config.targetType));
-  const currentIsCategorical = currentScaleId >= FIRST_CATEGORICAL_SCALE_ID;
-  const defaultScaleId = isCategorical ? FIRST_CATEGORICAL_SCALE_ID : 0;
-  const colorScaleId = isCategorical === currentIsCategorical ? currentScaleId : defaultScaleId;
+  const currentIsCategorical = getColorScaleById(currentScaleId).type === 'categorical';
+  const defaultScaleId = defaultColorScaleId(isCategorical ? 'categorical' : 'numeric');
+  const colorScaleId = isCategorical === currentIsCategorical ? resolveColorScaleId(currentScaleId) : defaultScaleId;
   return { colorScaleMode: isCategorical ? 'categorical' : 'continuous', colorScaleId };
 }
 

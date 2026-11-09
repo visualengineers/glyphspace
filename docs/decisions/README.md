@@ -15,6 +15,7 @@ Each architecture decision record (ADR) captures one decision: the situation, wh
 | [0007](0007-high-cardinality-columns-default-to-metadata.md) | Near-unique text columns start as metadata | Accepted (retroactive) | 2026-07 / 2026-11 |
 | [0008](0008-wizard-state-in-localstorage-datasets-in-indexeddb.md) | Keep wizard state in localStorage and processed datasets in IndexedDB | Accepted (retroactive) | 2025-12 / 2026-06 |
 | [0009](0009-unit-tests-in-real-chromium-with-vitest.md) | Run unit tests with Vitest in a real Chromium | Accepted (retroactive) | 2026-09 |
+| [0010](0010-one-size-for-points-and-glyphs.md) | One size for points and glyphs, glyph radius from the dataset | Accepted | 2026-11-09 |
 
 "Retroactive" means the ADR was written after the fact, from the code, commit messages and the [wizard redesign spec](../specs/wizard-redesign.md). Where the reasons were not written down at the time, the ADR says so instead of guessing.
 

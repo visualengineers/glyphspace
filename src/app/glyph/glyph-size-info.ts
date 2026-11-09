@@ -1,9 +1,26 @@
 import { ZoomLevel } from '../shared/enum/zoom-level';
 
+/**
+ * Item size: diameter of a point in px at 100 % zoom (positions are scaled to
+ * the canvas, so world units are screen pixels there). Glyphs get a radius
+ * that makes a typical glyph cover about as much as its point.
+ */
+export const ITEM_SIZE_PX = { min: 2, max: 20, default: 6 } as const;
+
+/**
+ * How far a typical glyph reaches, in point radii. A glyph is mostly empty
+ * space between thin petals or spokes, so it has to reach beyond the point's
+ * radius to look about as large as the filled dot it replaces.
+ */
+export const GLYPH_REACH_IN_POINT_RADII = 2;
+
 export class GlyphSizeInfo {
   private radii = new Map<ZoomLevel, number>();
   private contourThicknesses = new Map<ZoomLevel, number>();
   private hitTolerances = new Map<ZoomLevel, number>();
+
+  private _itemSize: number = ITEM_SIZE_PX.default;
+  private _reach = 1;
 
   private _currentZoomLevel: ZoomLevel = ZoomLevel.low;
   private _currentRadius = 1;
@@ -11,20 +28,17 @@ export class GlyphSizeInfo {
   private _currentHitTolerance = 0;
 
   constructor(
-    private baseRadius = 2,
     private baseContour = 0.3,
     private baseHitTolerance = 8
-  ) {}
+  ) {
+    this.update();
+  }
 
   clone(): GlyphSizeInfo {
-    const cloned = new GlyphSizeInfo(this.baseRadius, this.baseContour, this.baseHitTolerance);
+    const cloned = new GlyphSizeInfo(this.baseContour, this.baseHitTolerance);
+    cloned.setSizes(this._itemSize, this._reach);
 
-    // Clone maps
-    this.radii.forEach((value, key) => cloned.radii.set(key, value));
-    this.contourThicknesses.forEach((value, key) => cloned.contourThicknesses.set(key, value));
-    this.hitTolerances.forEach((value, key) => cloned.hitTolerances.set(key, value));
-
-    // Clone current values
+    // Keep overrides of the current values (e.g. an enlarged radius)
     cloned._currentZoomLevel = this._currentZoomLevel;
     cloned._currentRadius = this._currentRadius;
     cloned._currentContour = this._currentContour;
@@ -33,19 +47,18 @@ export class GlyphSizeInfo {
     return cloned;
   }
 
-  /** Update all size info based on canvas and screen properties */
-  update(canvasWidth: number, canvasHeight: number): void {
-    const baseDim = 900;
-    const minDim = Math.min(canvasWidth, canvasHeight);
+  /** Recompute all sizes, e.g. after the device pixel ratio changed. */
+  update(): void {
     const pixelRatio = window.devicePixelRatio || 1;
     const depthFactor = window.screen.pixelDepth / 24;
+    const scale = 1.25;
 
-    const scale = 1.25; // pixelRatio * depthFactor;
-    const base = (1 / (depthFactor / pixelRatio)) * (minDim / baseDim); // minDim * this.baseRatio;
-
-    this.radii.set(ZoomLevel.low, base * this.baseRadius);
-    this.radii.set(ZoomLevel.medium, base * this.baseRadius * scale);
-    this.radii.set(ZoomLevel.high, base * this.baseRadius * scale * 2);
+    // A glyph keeps its size across zoom levels; only how it is drawn changes.
+    const pointRadius = this._itemSize / 2;
+    const glyphRadius = (pointRadius * GLYPH_REACH_IN_POINT_RADII) / this._reach;
+    this.radii.set(ZoomLevel.low, pointRadius);
+    this.radii.set(ZoomLevel.medium, glyphRadius);
+    this.radii.set(ZoomLevel.high, glyphRadius);
 
     this.contourThicknesses.set(ZoomLevel.low, this.baseContour);
     this.contourThicknesses.set(ZoomLevel.medium, this.baseContour);
@@ -56,6 +69,26 @@ export class GlyphSizeInfo {
     this.hitTolerances.set(ZoomLevel.high, (this.baseHitTolerance * 16) / depthFactor / pixelRatio);
 
     this.updateInfo();
+  }
+
+  /**
+   * Take over the item size (px) and how far a typical glyph reaches as a
+   * fraction of its radius (see typicalGlyphReach). Returns whether anything changed.
+   */
+  setSizes(itemSize: number, reach: number): boolean {
+    if (itemSize === this._itemSize && reach === this._reach) return false;
+    this._itemSize = itemSize;
+    this._reach = reach > 0 ? reach : 1;
+    this.update();
+    return true;
+  }
+
+  get itemSize(): number {
+    return this._itemSize;
+  }
+
+  get reach(): number {
+    return this._reach;
   }
 
   private updateInfo() {
@@ -77,7 +110,7 @@ export class GlyphSizeInfo {
 
   // === Direct access by level ===
   getRadius(level: ZoomLevel): number {
-    return this.radii.get(level) ?? this.baseRadius;
+    return this.radii.get(level) ?? 1;
   }
 
   getContourThickness(level: ZoomLevel): number {

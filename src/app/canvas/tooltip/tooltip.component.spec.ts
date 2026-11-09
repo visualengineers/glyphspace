@@ -1,5 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
+import * as THREE from 'three';
+import { GlyphObject } from '../../glyph/glyph-object';
 import { TooltipComponent, buildTooltipRows } from './tooltip.component';
 import { ConfigService } from '../../services/config.service';
 
@@ -90,5 +92,57 @@ describe('TooltipComponent', () => {
     fixture.detectChanges();
 
     expect(host.querySelector('tbody.metadata')).toBeNull();
+  });
+
+  describe('fixed on click', () => {
+    function objectOf(id: string): THREE.Object3D {
+      const glyph = new GlyphObject(id);
+      glyph.values = { '1': id };
+      const object = new THREE.Object3D();
+      object.userData = { item: new WeakRef(glyph) };
+      return object;
+    }
+
+    beforeEach(() => {
+      fixture.componentInstance.container = host;
+      fixture.detectChanges();
+    });
+
+    it('shows and fixes the tooltip of the clicked item right away', () => {
+      const tooltip = fixture.componentInstance;
+      tooltip.scheduleHoverPopup(0, 0, objectOf('hovered'));
+
+      tooltip.showFixed(10, 10, objectOf('clicked'));
+
+      expect(tooltip.tooltipInfo?.id).toBe('clicked');
+      expect(tooltip.fixedItemId).toBe('clicked');
+      expect(tooltip.isFixed()).toBe(true);
+    });
+
+    it('does not let a pending hover popup replace the clicked item', async () => {
+      vi.useFakeTimers();
+      try {
+        const tooltip = fixture.componentInstance;
+        tooltip.scheduleHoverPopup(0, 0, objectOf('hovered'));
+        tooltip.showFixed(10, 10, objectOf('clicked'));
+
+        vi.advanceTimersByTime(1000);
+
+        expect(tooltip.tooltipInfo?.id).toBe('clicked');
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('closes a fixed tooltip on release', () => {
+      const tooltip = fixture.componentInstance;
+      tooltip.showFixed(10, 10, objectOf('clicked'));
+
+      tooltip.release();
+
+      expect(tooltip.isFixed()).toBe(false);
+      expect(tooltip.fixedItemId).toBeNull();
+      expect(tooltip.tooltipVisible).toBe(false);
+    });
   });
 });

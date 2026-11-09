@@ -158,6 +158,20 @@ export class Step6ReviewProcessingComponent implements OnInit, OnDestroy {
     private announcer: WizardAnnouncer
   ) {}
 
+  /** Give the new dataset the item images chosen in step 1 (Image glyph type). */
+  private async attachThumbnails(datasetName: string): Promise<void> {
+    const archive = await this.preprocessingService.thumbnailArchive();
+    if (!archive) return;
+    const count = await this.dataLoader.attachThumbnails(datasetName, archive);
+    this.ngZone.run(() => {
+      if (count > 0) {
+        this.toastService.success(`${count} item images added for the Image glyph type.`, 4000);
+      } else {
+        this.toastService.warning('The image ZIP contains no JPG, PNG or WebP pictures.');
+      }
+    });
+  }
+
   ngOnInit(): void {
     const state = this.preprocessingService.currentState;
 
@@ -390,6 +404,8 @@ export class Step6ReviewProcessingComponent implements OnInit, OnDestroy {
     this.updateProcessingUI('Loading dataset with FastMap...', 90);
 
     await this.preprocessingService.addProjectionPositions('fastmap', fastmapResult.positions);
+    // The dataset name is final now; background projections may show the dataset any moment.
+    void this.attachThumbnails(this.preprocessingService.currentState.datasetName);
 
     await this.ensureMinVisible(startedAt);
     this.ngZone.run(() => {

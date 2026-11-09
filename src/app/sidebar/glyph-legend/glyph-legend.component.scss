@@ -1,0 +1,221 @@
+@use '../../../styles/variables' as v;
+@use '../../../styles/mixins' as m;
+@use '../sidebar' as s;
+
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+// --- Drawing with labels ---
+.stage {
+  position: relative;
+}
+
+.glyph {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  overflow: visible;
+}
+
+// Reference grid: light and thin so it never competes with the data.
+.backdrop {
+  fill: #f3f5f7;
+}
+
+.disc {
+  fill: #eceff2;
+}
+
+.spokes {
+  fill: none;
+  stroke: #ccd2d8;
+  stroke-width: 0.75;
+}
+
+.star {
+  fill-opacity: 0.35;
+  stroke-width: 1.4;
+  stroke-linejoin: round;
+}
+
+.petal {
+  fill-opacity: 0.85;
+  stroke-width: 0.8;
+}
+
+.axis-label {
+  position: absolute;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: v.$sidebar-header-bg;
+
+  &.selected {
+    @include s.selected;
+    z-index: 2;
+  }
+}
+
+.axis-name {
+  @include s.plain-button;
+  @include m.text-truncate;
+  min-width: 0;
+  min-height: 26px;
+  padding: 0 6px;
+  border-radius: 6px;
+  font-size: v.$font-size-xs;
+  color: v.$sidebar-text-secondary;
+  text-align: left;
+
+  .selected & {
+    color: v.$sidebar-accent-strong;
+    font-weight: 600;
+  }
+}
+
+.axis-number {
+  font-weight: 700;
+}
+
+.axis-remove {
+  @include s.plain-button;
+  flex: none;
+  min-width: 26px;
+  min-height: 26px;
+  border-radius: 6px;
+  color: v.$sidebar-danger;
+  font-size: v.$font-size-lg;
+  line-height: 1;
+
+  &[aria-disabled='true'] {
+    color: v.$sidebar-disabled;
+    cursor: not-allowed;
+  }
+}
+
+// --- Add axis ---
+.axis-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.add-axis {
+  @include s.outline-button;
+  @include s.soft-disabled;
+  border-style: dashed;
+  border-color: v.$sidebar-accent;
+  color: v.$sidebar-accent-strong;
+}
+
+.hint {
+  @include s.hint;
+}
+
+.add-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid v.$sidebar-border-strong;
+  border-radius: 10px;
+  background: v.$white;
+}
+
+.search {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid v.$sidebar-border-strong;
+  border-radius: 8px;
+  background: v.$white;
+  color: v.$sidebar-text;
+  font: inherit;
+  font-size: v.$font-size-base;
+
+  &:focus-visible {
+    @include s.focus-ring;
+    outline-offset: 0;
+  }
+}
+
+.candidates {
+  max-height: 140px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+  @include m.styled-scrollbar-thin;
+}
+
+.candidate {
+  @include s.plain-button;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: 34px;
+  padding: 0 10px;
+  border-radius: 6px;
+  font-size: v.$font-size-base;
+  color: v.$sidebar-text;
+  text-align: left;
+
+  &:hover {
+    background: v.$sidebar-accent-tint;
+  }
+
+  &[aria-disabled='true'] {
+    color: v.$sidebar-disabled;
+    background: none;
+    cursor: not-allowed;
+  }
+}
+
+.candidate-name {
+  @include m.text-truncate;
+}
+
+.candidate-action {
+  flex: none;
+  font-size: v.$font-size-sm;
+  color: v.$sidebar-accent-strong;
+
+  [aria-disabled='true'] & {
+    color: v.$sidebar-disabled;
+  }
+}
+
+.empty {
+  padding: 8px 10px;
+  font-size: v.$font-size-sm;
+  color: v.$sidebar-muted;
+}
+
+// --- Image glyphs ---
+.not-applicable {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  min-height: 120px;
+  padding: 12px;
+  border: 1px dashed v.$sidebar-border-strong;
+  border-radius: 10px;
+  background: v.$white;
+  color: v.$sidebar-text;
+
+  p {
+    @include s.hint;
+  }
+}

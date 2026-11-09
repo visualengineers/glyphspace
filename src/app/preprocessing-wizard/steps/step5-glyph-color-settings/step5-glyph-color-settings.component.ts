@@ -12,9 +12,11 @@ import { ColorScale, buildGroupedColorScales, getColorScaleById } from '../../..
 import { ColorScaleSelectorComponent } from '../../../shared/components/color-scale-selector/color-scale-selector.component';
 import { ToastService } from '../../../services/toast.service';
 import { GlyphPreview, PREVIEW_CENTER, PREVIEW_RADIUS, buildGlyphPreview } from './glyph-preview-geometry';
+import { MAX_GLYPH_AXES, MIN_GLYPH_AXES } from '../../../glyph/glyph-axes';
 
-export const MIN_GLYPH_FEATURES = 3;
-export const MAX_GLYPH_FEATURES = 12;
+/** The dashboard's axis limits, so a processed dataset never has more axes than the sidebar allows. */
+export const MIN_GLYPH_FEATURES = MIN_GLYPH_AXES;
+export const MAX_GLYPH_FEATURES = MAX_GLYPH_AXES;
 /** How many top-scored features the smart suggestion picks. */
 const SUGGESTED_FEATURE_COUNT = 5;
 /** Upper bound of distinct values for a categorical column to make a legible default color. */
@@ -66,7 +68,7 @@ export class Step5GlyphColorSettingsComponent implements OnInit, WizardStep {
   readonly DataType = DataType;
 
   // Glyph preview
-  selectedGlyphType: 'star' | 'flower' | 'whisker' = 'star';
+  selectedGlyphType: 'star' | 'flower' = 'star';
   preview: GlyphPreview = buildGlyphPreview([]);
   readonly PREVIEW_RADIUS = PREVIEW_RADIUS;
   readonly PREVIEW_CENTER = PREVIEW_CENTER;

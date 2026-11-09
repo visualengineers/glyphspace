@@ -177,6 +177,60 @@
   gap: v.$space-4;
 }
 
+// Optional ZIP of item images for the Image glyph type.
+.image-archive {
+  display: flex;
+  flex-direction: column;
+  gap: v.$space-2;
+
+  .image-archive-hint {
+    margin: 0;
+    font-size: v.$font-size-base;
+    color: v.$text-muted;
+  }
+
+  .image-archive-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: v.$space-3;
+  }
+
+  .archive-name {
+    display: inline-flex;
+    align-items: center;
+    gap: v.$space-1;
+    font-size: v.$font-size-base;
+
+    .material-icons {
+      font-size: v.$icon-size-md;
+      color: v.$text-muted;
+    }
+  }
+
+  .btn-text {
+    @include wizard.btn-text;
+  }
+
+  .archive-error {
+    margin: 0;
+    font-size: v.$font-size-base;
+    color: v.$severity-error-text;
+  }
+}
+
+// The uploaded file was lost by a page reload (PreprocessingState.uploadMissing).
+.upload-missing {
+  @include wizard.severity-panel(warning, $bar: true, $tinted-text: true);
+  display: flex;
+  align-items: flex-start;
+  gap: v.$space-2;
+  margin: 0;
+  padding: v.$space-3;
+  border-radius: 6px;
+  font-size: v.$font-size-base;
+}
+
 .profile-header {
   display: flex;
   justify-content: space-between;

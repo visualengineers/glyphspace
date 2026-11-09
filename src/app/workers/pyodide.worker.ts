@@ -83,10 +83,10 @@ function writeInputFile(pyodide: WorkerPyodide, fileName: string, buffer: ArrayB
 
 async function handleUnzip(
   pyodide: WorkerPyodide,
-  { fileName, buffer }: RequestOf<'unzip'>,
+  { folder, buffer }: RequestOf<'unzip'>,
   reply: Reply
 ): Promise<void> {
-  const zipName = fileName.replace(/\.zip$/, '');
+  const zipName = folder;
   const zipPath = `${zipName}.zip`;
   assertSafeFileName(zipPath);
   pyodide.FS.writeFile(zipPath, new Uint8Array(buffer));

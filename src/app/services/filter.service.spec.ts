@@ -132,6 +132,18 @@ describe('FilterService', () => {
     });
   });
 
+  it('should reset the state of the filters it clears', () => {
+    // Owners keep their filter instance and register it again on their next use.
+    const filter = new TestFilter();
+    filter.add('1');
+    service.ensureFilter(filter);
+
+    service.clearFilters();
+    service.ensureFilter(filter);
+
+    expect(filter.empty()).toBe(true);
+  });
+
   it('should treat all-empty filters as no filtering', () => {
     const glyphMap = createGlyphMap(['1', '2']);
     service.setActiveGlyphData(glyphMap);

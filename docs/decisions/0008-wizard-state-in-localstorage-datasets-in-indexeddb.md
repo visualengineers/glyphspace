@@ -27,3 +27,7 @@ None are recorded.
 - Saving a dataset under an existing name replaces the stored one.
 - The wizard state format is versioned and migrated ([Wizard storage](../specs/wizard-storage.md)); the stored datasets are not, so their format must stay backwards compatible ([Dataset format](../specs/dataset-format.md#compatibility)).
 - Failures to save are logged and otherwise ignored, so a full or blocked storage means that nothing persists, without a message to the user.
+
+## Notes
+
+- **2026-11-09:** The consequence that the uploaded CSV is in neither store was addressed in #92. The wizard now keeps the uploaded CSV, and an optional ZIP of item images, in a third store, the IndexedDB database `glyphspace-wizard-files`, and writes the CSV back into the worker after a reload. A processed dataset's item images are kept in a new object store `thumbnails` of `glyphspace-datasets`. See [Wizard storage](../specs/wizard-storage.md#uploaded-files) and [Dataset format](../specs/dataset-format.md#stored-datasets-indexeddb).

@@ -78,11 +78,6 @@ export class DatasetCollectionService {
     return result;
   }
 
-  getContexts(_name: string, _time?: string): string[] {
-    // TODO: Get from schema ...
-    return [];
-  }
-
   removeDataset(datasetName: string): void {
     const updated = this.getCollection().filter(c => c.dataset !== datasetName);
     this.dataSetCollectionSubject.next(updated);

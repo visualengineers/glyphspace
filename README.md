@@ -8,7 +8,7 @@ Glyphspace is a complete rewrite of the [Glyphboard application](https://github.
 
 See the running demo on Github pages: [https://visual-engineers.org/glyphspace/](https://visual-engineers.org/glyphspace/).
 
-![GlyphSpace showing the wine quality dataset: on the left a canvas with all 1,599 wines as coloured points in a UMAP projection, on the right a second canvas zoomed in so that each wine is a star glyph of five features, and on the right edge the Encoding panel with the glyph axes and the colour scale.](docs/images/dashboard.png)
+![GlyphSpace showing the wine quality dataset: on the left a canvas with all 1,599 wines as coloured points in a UMAP projection, on the right a second canvas zoomed in so that each wine is a flower glyph of five features, and on the right edge the sidebar with the glyph legend, the number of matching items and the Filters tab with a histogram per feature.](docs/images/dashboard.png)
 
 ## Your own data
 

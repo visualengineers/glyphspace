@@ -1,0 +1,29 @@
+@use '../../../styles/variables' as v;
+
+:host {
+  display: inline-flex;
+}
+
+svg {
+  display: block;
+  overflow: visible;
+}
+
+.axes {
+  fill: none;
+  stroke: v.$sidebar-border-strong;
+  stroke-width: 0.8;
+}
+
+.shape {
+  fill: v.$sidebar-glyph-fill;
+  stroke: v.$sidebar-glyph-stroke;
+  stroke-width: 1.3;
+  stroke-linejoin: round;
+
+  &.outline {
+    fill: none;
+    stroke: v.$sidebar-glyph-outline;
+    stroke-dasharray: 2 2;
+  }
+}

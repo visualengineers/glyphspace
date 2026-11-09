@@ -111,7 +111,7 @@ describe('colorScaleForFeature – color mode follows the column type', () => {
   it('switches a numeric scale to the categorical default for a categorical column', () => {
     expect(colorScaleForFeature(column(DataType.Categorical), 2)).toEqual({
       colorScaleMode: 'categorical',
-      colorScaleId: 4,
+      colorScaleId: 6,
     });
   });
 
@@ -120,7 +120,7 @@ describe('colorScaleForFeature – color mode follows the column type', () => {
   });
 
   it('switches a categorical scale to the numeric default for a numeric column', () => {
-    expect(colorScaleForFeature(column(DataType.Numeric), 5)).toEqual({
+    expect(colorScaleForFeature(column(DataType.Numeric), 7)).toEqual({
       colorScaleMode: 'continuous',
       colorScaleId: 0,
     });
@@ -128,7 +128,11 @@ describe('colorScaleForFeature – color mode follows the column type', () => {
 
   it('keeps a scale that already matches the mode', () => {
     expect(colorScaleForFeature(column(DataType.Numeric), 3).colorScaleId).toBe(3);
-    expect(colorScaleForFeature(column(DataType.Categorical), 5).colorScaleId).toBe(5);
+    expect(colorScaleForFeature(column(DataType.Categorical), 7).colorScaleId).toBe(7);
+  });
+
+  it('reads a retired categorical scale as its replacement', () => {
+    expect(colorScaleForFeature(column(DataType.Categorical), 5).colorScaleId).toBe(7);
   });
 
   it('falls back to continuous without a column', () => {

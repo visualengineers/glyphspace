@@ -35,7 +35,7 @@ Three mode buttons appear in a canvas while the mouse moves over it (they hide a
 
 | Mode | Key | What the mouse does |
 |---|---|---|
-| **Navigation Mode** | **N** | Drag to pan. Hover shows a tooltip. Click an item to pin its tooltip; click again to release it. |
+| **Navigation Mode** | **N** | Drag to pan. Hover shows a tooltip. Click an item to show and pin its tooltip; click it again, or click empty space, to close it. |
 | **Magic Lens** | **L** | A round lens follows the cursor and shows the items under it as full-size glyphs. |
 | **Selection Mode** | **S** | Click or drag to select items. |
 
@@ -63,28 +63,27 @@ How an item is drawn depends on the zoom level:
 | Zoomed in | The selected glyph type |
 | Zoomed in further | A larger glyph of the selected type |
 
-The glyph type is chosen in the sidebar's **Style** panel:
+The size of the dots and glyphs is set with **Size** in the sidebar's **Encoding** tab. The glyph type is chosen there too, under **GLYPH TYPE**:
 
 | Glyph type | Button | Shape |
 |---|---|---|
-| Star | **Star Shape** | A radar chart: one axis per glyph feature; the outline connects the values. |
-| Flower | **Flower Shape** | One petal per glyph feature; petal length shows the value. |
-| Whisker | **Whisker Shape** | One spoke per glyph feature, radiating from the centre; its length shows the value. |
-| Thumbnail | **Thumbnails** | The item's image, for datasets that include images (e.g. `wineqr`). |
+| Star | **Star** | A radar chart: one axis per glyph feature; the outline connects the values. |
+| Flower | **Flower** | One petal per glyph feature; petal length shows the value. |
+| Image | **Image** | The item's image, for datasets that include images: `wineqr`, or a dataset imported with a ZIP of item images (see [Importing data](importing-data.md#step-1-upload-data)). |
 
-Which features a glyph shows is set under **GLYPH AXES** in the **Encoding** panel. The colour comes from the **COLOR ATTRIBUTE**. Items that don't match the current filters or selection are drawn in light grey and behind the others. At the highest zoom level, glyphs keep their colours either way.
+Which features a glyph shows, and in which order, is set in the glyph legend at the top of the sidebar ([Encoding and filters](encoding-and-filters.md#glyph-legend)). Axis 1 points up and the others follow clockwise. The colour comes from the feature chosen under **COLOR BY**. Items that don't match the current filters or selection are drawn in light grey and behind the others, at every zoom level.
 
-When you hover over an item, the same item is highlighted in the other canvases. Hovering also updates the glyph preview in the **Encoding** panel.
+When you hover over an item, the same item is highlighted in the other canvases. Hovering also shows the item in the glyph legend.
 
 ## Tooltip
 
 Hover over an item for a moment and a tooltip appears, titled **Item:** with the item's ID. It lists the original value of every feature; missing values show as **missing**. Metadata columns (text kept for reference, see [Importing data](importing-data.md#feature-or-metadata)) follow in a separate group below.
 
-Click the item to pin the tooltip, so you can move the mouse without losing it. Click again to release it.
+Click an item to show its tooltip right away and pin it, so you can move the mouse without losing it. Clicking another item shows that item's tooltip instead; clicking the same item again, or empty space, closes it.
 
 ## Magic lens
 
-Turn the lens on with the **Magic Lens** button or **L**. It shows the items near the cursor as glyphs, spread out so they don't overlap, even where the canvas is crowded or zoomed out. The same items are enlarged in the other canvases.
+Turn the lens on with the **Magic Lens** button or **L**. It shows the items near the cursor as large glyphs, in the same arrangement as on the canvas, spread out just enough not to overlap, even where the canvas is crowded or zoomed out. The fewer items, the larger they are drawn. The lens shows up to 30 items, those nearest the cursor; where more are under it, the ring around the cursor shrinks to the area the lens shows. The same items are enlarged in the other canvases.
 
 - **Click** to pin the lens in place (the canvas dims). Then hover over the glyphs inside the lens to see their tooltips.
 - **Click again** to release it.
@@ -98,7 +97,7 @@ In **Selection Mode** (**S**):
 - **Drag a rectangle** to select the items inside it. This replaces the current selection; hold **Shift** while you drag to add to it.
 - **Click empty space** to clear the selection.
 
-Selected items keep their colour; all others turn grey in every canvas. The selection is listed among the active filters in the sidebar header (**N selected**). The histograms in the **Filters** panel highlight the share of selected items in each bar.
+Selected items keep their colour; all others turn grey in every canvas. The selection is listed among the active filters under **FILTERS** in the sidebar (**N selected**). The histograms in the **Filters** tab highlight the share of selected items in each bar.
 
 ## Exporting
 

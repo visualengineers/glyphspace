@@ -21,6 +21,8 @@ import {
   storeProjectionPositions,
 } from './processing-config';
 import { STORAGE_KEY, deserializeState, serializeState } from './wizard-storage';
+import { WizardFileStore } from './wizard-file-store';
+import { MAX_GLYPH_AXES, MIN_GLYPH_AXES } from '../../glyph/glyph-axes';
 
 export type { UndoRedoInfo } from './history-diff';
 
@@ -78,6 +80,10 @@ export class PreprocessingService {
   // must survive any worker-file prune that runs meanwhile.
   private uploadsInFlight = new Set<string>();
 
+  // Settles once the file restored after a page reload is back in the worker
+  // (see restoreUploadedFile); requests that read the file wait for it.
+  private uploadRestored: Promise<void> = Promise.resolve();
+
   private historySubject = new BehaviorSubject<HistoryStatus>({
     canUndo: false,
     canRedo: false,
@@ -93,7 +99,8 @@ export class PreprocessingService {
 
   constructor(
     private dataProcessor: DataProcessorService,
-    private dataLoader: DataLoaderService
+    private dataLoader: DataLoaderService,
+    private fileStore: WizardFileStore
   ) {
     // Load saved state from localStorage if available
     this.loadStateFromStorage();
@@ -180,6 +187,8 @@ export class PreprocessingService {
       // Send the file to the worker for profiling; this also writes it into the Pyodide FS.
       const profile: DataProfile = await this.dataProcessor.profileData(fileName, await file.arrayBuffer());
       this.adoptLoadedFile(fileName, profile);
+      // Kept so a page reload can put the file back into the worker.
+      void this.fileStore.save(fileName, file);
       return profile;
     } catch (error: unknown) {
       this.updateState({ error: this.toErrorMessage(error, 'Failed to load data file') });
@@ -195,6 +204,13 @@ export class PreprocessingService {
 
   /** Install a freshly profiled file as one undoable "File loaded/replaced" action. */
   private adoptLoadedFile(fileName: string, profile: DataProfile): void {
+    if (this.currentState.uploadMissing && this.sameColumns(profile)) {
+      // The file lost by a page reload is back: keep the restored settings.
+      this.updateState({ dataProfile: profile, rawFileName: fileName, uploadMissing: false });
+      this.saveStateToStorage();
+      return;
+    }
+
     const columnConfigs = new Map<string, ColumnConfig>();
     profile.columns.forEach((col: ColumnStatistics) => {
       columnConfigs.set(col.name, createDefaultColumnConfig(col));
@@ -208,8 +224,75 @@ export class PreprocessingService {
     // A4: snapshot the prior data before it is replaced, so a re-upload is undoable.
     this.pushHistory(this.currentState.dataProfile !== null ? 'File replaced' : 'File loaded');
 
-    this.updateState({ dataProfile: profile, rawFileName: fileName, columnConfigs, datasetName, timestamp });
+    this.updateState({
+      dataProfile: profile,
+      rawFileName: fileName,
+      uploadMissing: false,
+      columnConfigs,
+      datasetName,
+      timestamp,
+    });
     this.saveStateToStorage();
+  }
+
+  /** Choose the ZIP archive of item images for the Image glyph type, or drop it with null. */
+  public async setThumbnailArchive(archive: File | null): Promise<void> {
+    if (archive) await this.fileStore.save(archive.name, archive);
+    this.updateState({ thumbnailArchiveName: archive?.name ?? null });
+    this.saveStateToStorage();
+    this.pruneWorkerFiles();
+  }
+
+  /** The chosen ZIP archive of item images, if any. */
+  public async thumbnailArchive(): Promise<Blob | undefined> {
+    const name = this.currentState.thumbnailArchiveName;
+    return name ? this.fileStore.load(name) : undefined;
+  }
+
+  /**
+   * Name of the uploaded file once it is in the worker: after a page reload,
+   * this waits until the file is restored. Throws when there is none.
+   */
+  private async loadedFileName(): Promise<string> {
+    await this.uploadRestored;
+    const { rawFileName, uploadMissing } = this.currentState;
+    if (!rawFileName) {
+      throw new Error('No data file loaded. Please upload a file first.');
+    }
+    if (uploadMissing) {
+      throw new Error('The data file is no longer loaded after the page reload. Please upload it again in step 1.');
+    }
+    return rawFileName;
+  }
+
+  /** Whether a profile has exactly the columns the current settings are for. */
+  private sameColumns(profile: DataProfile): boolean {
+    const names = profile.columns.map(column => column.name);
+    const configured = Array.from(this.currentState.columnConfigs.keys());
+    return names.length === configured.length && names.every(name => this.currentState.columnConfigs.has(name));
+  }
+
+  /**
+   * After a page reload the worker's file system is empty: put the uploaded file
+   * back from the file store. When it is gone, ask for it in the upload step;
+   * uploading the same file again keeps the restored settings.
+   */
+  private async restoreUploadedFile(fileName: string): Promise<void> {
+    const release = this.holdProcessing();
+    this.uploadsInFlight.add(fileName);
+    try {
+      const file = await this.fileStore.load(fileName);
+      if (!file) throw new Error(`"${fileName}" is not stored`);
+      await this.dataProcessor.profileData(fileName, await file.arrayBuffer());
+    } catch (error: unknown) {
+      console.warn('[PreprocessingService] The uploaded file could not be restored:', error);
+      if (this.currentState.rawFileName === fileName) {
+        this.updateState({ uploadMissing: true, currentStep: stepIndex('upload') });
+      }
+    } finally {
+      release();
+      this.uploadsInFlight.delete(fileName);
+    }
   }
 
   /**
@@ -297,9 +380,8 @@ export class PreprocessingService {
 
   // Glyph feature mapping
   public setGlyphFeatures(features: string[]): void {
-    // Validate 3-12 features
-    if (features.length < 3 || features.length > 12) {
-      throw new Error('3-12 glyph features required');
+    if (features.length < MIN_GLYPH_AXES || features.length > MAX_GLYPH_AXES) {
+      throw new Error(`A glyph needs ${MIN_GLYPH_AXES}–${MAX_GLYPH_AXES} glyph features`);
     }
     // Store a copy, never the caller's array. The glyph step edits its local selection
     // array in place (splice/push); if we kept that reference, later in-place edits
@@ -438,11 +520,8 @@ export class PreprocessingService {
     columnName: string,
     method: OutlierMethod
   ): Promise<{ outlierCount: number; outlierIndices: number[] }> {
-    if (!this.currentState.rawFileName) {
-      throw new Error('No data file loaded');
-    }
-
-    const result = await this.dataProcessor.detectOutliers(this.currentState.rawFileName, columnName, method);
+    const fileName = await this.loadedFileName();
+    const result = await this.dataProcessor.detectOutliers(fileName, columnName, method);
 
     return {
       outlierCount: result.outlier_count,
@@ -457,11 +536,8 @@ export class PreprocessingService {
     percentage: number;
     sampleDuplicates: Record<string, unknown>[];
   }> {
-    if (!this.currentState.rawFileName) {
-      throw new Error('No data file loaded');
-    }
-
-    const result = await this.dataProcessor.detectDuplicates(this.currentState.rawFileName, subsetColumns);
+    const fileName = await this.loadedFileName();
+    const result = await this.dataProcessor.detectDuplicates(fileName, subsetColumns);
 
     return {
       duplicateCount: result.duplicateCount,
@@ -490,7 +566,7 @@ export class PreprocessingService {
 
   private async runProcessing(): Promise<void> {
     // Validate that we have the necessary metadata
-    if (!this.currentState.rawFileName || !this.currentState.dataProfile) {
+    if (!this.currentState.dataProfile) {
       throw new Error('No data file loaded. Please upload a file first.');
     }
 
@@ -498,12 +574,15 @@ export class PreprocessingService {
     this.updateState({ processingProgress: 0, error: null });
 
     try {
+      // After a page reload the file may still be on its way back into the worker.
+      const fileName = await this.loadedFileName();
+
       // Build configuration object
       const config = buildProcessingConfig(this.currentState);
 
       // File is already in Pyodide FS from loadCSV() - no need to re-upload
       // Send to worker for processing (use rawFileName which is the actual CSV file in Pyodide FS)
-      const result = await this.dataProcessor.processWithConfig(this.currentState.rawFileName, config);
+      const result = await this.dataProcessor.processWithConfig(fileName, config);
 
       this.updateState({ processedDataset: result, processingProgress: 100 });
       this.saveStateToStorage();
@@ -624,7 +703,8 @@ export class PreprocessingService {
       ...this.redoStack.map(e => e.snapshot),
     ];
     const names = snapshots.map(s => s.rawFileName).filter((name): name is string => name !== null);
-    return Array.from(new Set([...names, ...this.uploadsInFlight]));
+    const archive = this.currentState.thumbnailArchiveName;
+    return Array.from(new Set([...names, ...(archive ? [archive] : []), ...this.uploadsInFlight]));
   }
 
   /**
@@ -641,6 +721,7 @@ export class PreprocessingService {
     } catch (error: unknown) {
       logFailure(error);
     }
+    this.fileStore.prune(keep).catch(logFailure);
   }
 
   /** Prune when dropped history entries were the last reference to an uploaded file. */
@@ -774,6 +855,7 @@ export class PreprocessingService {
       const restored = deserializeState(localStorage.getItem(STORAGE_KEY));
       if (restored) {
         this.updateState(restored);
+        if (restored.rawFileName) this.uploadRestored = this.restoreUploadedFile(restored.rawFileName);
       }
     } catch (error) {
       console.warn('Failed to load state from localStorage:', error);

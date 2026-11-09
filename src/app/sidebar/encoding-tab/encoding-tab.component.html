@@ -1,0 +1,70 @@
+<section class="group" aria-labelledby="encoding-glyph-type">
+  <h3 class="section-label" id="encoding-glyph-type">Glyph type</h3>
+  <div class="segmented" role="group" aria-labelledby="encoding-glyph-type">
+    @for (option of glyphTypes; track option.type) {
+      <button
+        type="button"
+        [class.active]="glyphConfig.glyphType === option.type"
+        [attr.aria-pressed]="glyphConfig.glyphType === option.type"
+        (click)="setGlyphType(option.type)"
+      >
+        {{ option.label }}
+      </button>
+    }
+  </div>
+</section>
+
+<section class="group" aria-labelledby="encoding-color-by">
+  <h3 class="section-label" id="encoding-color-by">Color by</h3>
+  <select
+    class="select"
+    aria-labelledby="encoding-color-by"
+    [ngModel]="colorFeature"
+    (ngModelChange)="selectColorFeature($event)"
+  >
+    @for (featureId of featureIds; track featureId) {
+      <option [value]="featureId">{{ colorOptionLabel(featureId) }}</option>
+    }
+  </select>
+  <span class="visually-hidden" id="encoding-color-scale">Color scale</span>
+  <app-color-scale-selector
+    ariaLabelledby="encoding-color-scale"
+    [groupedColorScales]="groupedColorScales"
+    [selectedScale]="selectedScale"
+    (scaleSelected)="selectColorScale($event)"
+  >
+  </app-color-scale-selector>
+  @if (selectedScale.type === 'categorical') {
+    <p class="hint">{{ paletteHint }}</p>
+  }
+</section>
+
+<section class="group" aria-labelledby="encoding-appearance">
+  <h3 class="section-label" id="encoding-appearance">Appearance</h3>
+  @for (option of glyphConfig.glyphOptions; track option.property) {
+    <label class="check">
+      <input type="checkbox" [checked]="isOptionEnabled(option.property)" (change)="toggleOption(option.property)" />
+      {{ option.label }}
+    </label>
+  }
+
+  <div class="slider">
+    <label for="encoding-size">Size</label>
+    <input
+      #itemSize
+      id="encoding-size"
+      type="range"
+      step="1"
+      [min]="sizeLimits.min"
+      [max]="sizeLimits.max"
+      [value]="glyphConfig.itemSize"
+      aria-describedby="encoding-size-hint"
+      (input)="setItemSize(itemSize.value)"
+    />
+    <output for="encoding-size">{{ glyphConfig.itemSize }} px</output>
+  </div>
+  <p class="hint" id="encoding-size-hint">
+    The size of a point at 100 % zoom. Glyphs follow it: a typical glyph of the dataset looks about as large as its
+    point.
+  </p>
+</section>

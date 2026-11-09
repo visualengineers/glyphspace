@@ -1,0 +1,46 @@
+@let filters = activeFilters;
+<button
+  #trigger
+  type="button"
+  class="trigger"
+  aria-haspopup="true"
+  [attr.aria-expanded]="open"
+  [attr.aria-controls]="popoverId"
+  (click)="toggle()"
+>
+  <span class="trigger-label">Filters</span>
+  <span class="count-badge">{{ filters.length }}</span>
+  <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false">
+    <path [attr.d]="open ? 'M6 15l6-6 6 6' : 'M6 9l6 6 6-6'" />
+  </svg>
+</button>
+
+@if (filterService.totalItems > 0) {
+  <span class="match-count" role="status" title="Items matching the active filters">
+    {{ filterService.filteredItems | number }} / {{ filterService.totalItems | number }}
+  </span>
+}
+
+@if (open) {
+  <div class="popover" role="group" aria-label="Active filters" [id]="popoverId">
+    <ul class="filter-list">
+      @for (filter of filters; track filter.key) {
+        <li class="filter-item">
+          <span class="filter-label" [title]="filter.label">{{ filter.label }}</span>
+          <button
+            type="button"
+            class="remove"
+            [attr.aria-label]="'Remove filter ' + filter.label"
+            title="Remove filter"
+            (click)="filter.remove()"
+          >
+            ×
+          </button>
+        </li>
+      } @empty {
+        <li class="empty">No filter active</li>
+      }
+    </ul>
+    <button type="button" class="clear-all" [disabled]="filters.length === 0" (click)="clearAll()">Clear all</button>
+  </div>
+}

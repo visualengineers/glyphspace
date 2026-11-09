@@ -14,7 +14,7 @@ Both start from a CSV file. The exact rules for the input are in the [CSV input 
 ## Getting the CSV ready
 
 - **One row per item, one column per attribute.** The first row holds the column names; values are separated by commas.
-- **An ID column** named `ID` identifies each row. It is optional: without one, rows are numbered from 0. The tooltip shows the ID, and thumbnail images are matched by it. Write it in capitals: the wizard only takes a column named exactly `ID`, while the command-line tool also accepts `id` or `Id`.
+- **An ID column** named `ID` identifies each row. It is optional: without one, rows are numbered from 0. The tooltip shows the ID, and item images are matched by it. Upper or lower case doesn't matter (`id` and `Id` work too), in the wizard and in the command-line tool alike.
 - **Numbers as plain numbers.** Columns that contain only numbers become numeric features.
 - **Categories as text.** Columns with a few repeating text values become categorical features.
 - **Free text is fine.** In the wizard, names, titles and descriptions become metadata: shown in the tooltip and found by the search, but not part of the projection.
@@ -54,7 +54,7 @@ It then:
 2. Writes the dataset files to `src/assets/data/`, named `mydata.<DDMMYYYY>.<type>.json`, with today's date: schema, features, statistics (`meta`) and positions for PCA, UMAP and t-SNE, plus a position file for coordinates and for each `-x`/`-y` pair, if present.
 3. Regenerates `src/default-dataset.ts` from all dataset files in `src/assets/data/`.
 
-The dataset appears in the **Data** menu as `mydata` (the file name without `.csv`) the next time the app is built or the dev server reloads. The tool label-encodes text columns and shows the first five features in the glyph; you can change the glyph features and the colour in the sidebar's **Encoding** panel.
+The dataset appears in the **Data** menu as `mydata` (the file name without `.csv`) the next time the app is built or the dev server reloads. The tool label-encodes text columns and shows the first five features in the glyph; you can change the glyph features and the colour in the sidebar ([Encoding and filters](encoding-and-filters.md)).
 
 ### Remove a dataset
 
@@ -68,4 +68,4 @@ It prints its usage line and then rebuilds the dataset list. Do the same after a
 
 ### Thumbnails
 
-For the **Thumbnails** glyph type, put one JPG image per item into `src/assets/thumbnails/<dataset name>/`, named after the item's ID, e.g. `src/assets/thumbnails/mydata/42.jpg`. The bundled `wineqr` dataset is an example. Items without an image show a grey placeholder.
+For the **Image** glyph type, put one JPG image per item into `src/assets/thumbnails/<dataset name>/`, named after the item's ID, e.g. `src/assets/thumbnails/mydata/42.jpg`. The bundled `wineqr` dataset is an example. Items without an image show a grey placeholder. For a dataset imported with the wizard, add the images as a ZIP file in Step 1 instead (see [Importing data](importing-data.md#step-1-upload-data)).

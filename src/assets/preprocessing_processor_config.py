@@ -27,7 +27,7 @@ from sklearn.preprocessing import StandardScaler, MinMaxScaler, RobustScaler, La
 
 # Shared with Step 3's outlier count. The worker writes preprocessing_processor.py
 # to the Pyodide FS when the file is profiled, which precedes every processing run.
-from preprocessing_processor import find_outliers
+from preprocessing_processor import find_outliers, is_id_column
 
 # NOTE: Removed PCA, IncrementalPCA, TSNE imports - now handled by DruidJS in JavaScript
 # All dimensionality reduction is done in the browser for better UX
@@ -47,6 +47,11 @@ ROLE_FEATURE = 'feature'
 ROLE_METADATA = 'metadata'
 # A one-hot encoded column with more distinct values would exhaust the browser's memory.
 MAX_ONEHOT_UNIQUE = 500
+
+# Number of glyph features (axes) a glyph takes; the same limits as the
+# dashboard (src/app/glyph/glyph-axes.ts) and the wizard's glyph step.
+MIN_GLYPH_FEATURES = 3
+MAX_GLYPH_FEATURES = 8
 
 # Progress callback - will be set by worker
 progress_callback = None
@@ -77,14 +82,7 @@ def process_with_config(file_name, config_json, output_file=None):
         # a generated ID is unique per row and would hide every duplicate.
         csv_columns = list(df.columns)
 
-        # Add ID column if missing
-        if 'ID' not in df.columns:
-            df.insert(0, 'ID', df.index.astype(str))
-        else:
-            # Ensure ID is first column
-            cols = list(df.columns)
-            cols.insert(0, cols.pop(cols.index('ID')))
-            df = df[cols]
+        df, csv_columns = _use_id_column(df, csv_columns)
 
         report_progress('Data loaded', 10, f'{len(df)} rows, {len(df.columns)} columns')
 
@@ -218,6 +216,23 @@ def _fill_with(column: pd.Series, value) -> pd.Series:
         # Filling an object column of booleans would downcast it (deprecated in pandas 2).
         return column.astype('boolean').fillna(bool(value))
     return column.fillna(value)
+
+
+def _use_id_column(df: pd.DataFrame, csv_columns: list) -> tuple[pd.DataFrame, list]:
+    """Make the file's id column (named "id" in any case) the first column "ID".
+
+    Without one, the row index becomes the id. Returns the frame and the file's
+    column names with the id column renamed as well.
+    """
+    id_col = 'ID' if 'ID' in df.columns else next((col for col in df.columns if is_id_column(col)), None)
+    if id_col is None:
+        df.insert(0, 'ID', df.index.astype(str))
+        return df, csv_columns
+
+    cols = list(df.columns)
+    cols.insert(0, cols.pop(cols.index(id_col)))
+    df = df[cols].rename(columns={id_col: 'ID'})
+    return df, ['ID' if col == id_col else col for col in csv_columns]
 
 
 def _typed_fill_value(column: pd.Series, value):
@@ -516,24 +531,18 @@ def _boolean_categories(values: pd.Series, codes: pd.Series) -> list[str]:
 
 def compute_projections(df, config):
     """
-    Compute dimensionality reduction projections with adaptive parameters
+    Export the features for the projections, which run in the browser (DruidJS).
 
-    Adaptive Optimizations:
-    - IncrementalPCA: Used for datasets > 10,000 rows (memory efficient)
-    - t-SNE Perplexity: Auto-adjusted - min(user_config, n_samples/3, 50)
-    - t-SNE Iterations: Scaled down for larger datasets (25-100% of config)
-    - t-SNE Hard Limit: 2,000 rows maximum (automatically skipped beyond)
-
-    Progress Reporting:
-    - Each method reports at 5-10% increments (55%, 60%, 65%, 75%)
-    - Clear messages show dataset size and adaptive parameters used
+    Writes the ID and the feature columns marked for projection (all features
+    when none is marked) to processed_features.csv in the working directory;
+    the worker hands that file to the projection code.
 
     Args:
         df: Processed DataFrame with encoded/scaled features
-        config: Configuration dict with 'projections' key
+        config: Configuration dict with 'columns' (includeInProjection per column)
 
     Returns:
-        List of projection dicts: [{'name': str, 'data': [...]}]
+        An empty list: no projection is computed here.
     """
     proj_config = config.get('projections', {})
     column_configs = {col['name']: col for col in config.get('columns', [])}
@@ -739,8 +748,8 @@ def build_dataset_collection(df_original, df_processed, feature_names, feature_c
     user_glyph_features = config.get('glyphFeatures', [])
     glyph_feature_ids = []
 
-    if user_glyph_features and 3 <= len(user_glyph_features) <= 12:
-        # Map user-selected feature names to feature IDs (supports 3-12 features)
+    if user_glyph_features and MIN_GLYPH_FEATURES <= len(user_glyph_features) <= MAX_GLYPH_FEATURES:
+        # Map user-selected feature names to feature IDs
         for feature_name in user_glyph_features:
             try:
                 # Find index in feature_names array (0-indexed)
@@ -750,12 +759,12 @@ def build_dataset_collection(df_original, df_processed, feature_names, feature_c
             except ValueError:
                 print(f'[WARNING] Glyph feature not found: {feature_name}')
 
-        # Only pad if we have fewer than minimum (3)
-        while len(glyph_feature_ids) < 3:
+        # Only pad if we have fewer than the minimum
+        while len(glyph_feature_ids) < MIN_GLYPH_FEATURES:
             glyph_feature_ids.append('1')  # Use first feature as fallback
 
-        # Ensure we don't exceed maximum (12)
-        glyph_feature_ids = glyph_feature_ids[:12]
+        # Ensure we don't exceed the maximum
+        glyph_feature_ids = glyph_feature_ids[:MAX_GLYPH_FEATURES]
     else:
         # Fallback: use first 5 features as default
         glyph_feature_ids = [str(i + 1) for i in range(min(5, len(feature_names)))]

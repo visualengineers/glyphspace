@@ -1,14 +1,15 @@
 import { Component, ElementRef, Input, ViewChild, AfterViewInit, OnDestroy } from '@angular/core';
-import { forceSimulation, forceCollide } from 'd3';
 import * as THREE from 'three';
 import { GlyphObject } from '../../glyph/glyph-object';
 import { ZoomLevel } from '../../shared/enum/zoom-level';
 import { getGlyphFromObject } from '../../shared/helpers/glyph-helper';
 import { hitTest, screenToWorld } from '../../shared/helpers/three-helper';
 import { ConfigService } from '../../services/config.service';
-import { DataProcessorService } from '../../services/data-processor';
+import { ThumbnailService } from '../../services/thumbnail.service';
 import { GlyphSizeInfo } from '../../glyph/glyph-size-info';
-import { buildGlyphRenderConfig } from '../../glyph/glyph-render-config';
+import { buildGlyphRenderConfig, GlyphRenderConfig } from '../../glyph/glyph-render-config';
+import { hasFeatureAxes } from '../../shared/enum/glyph-type';
+import { layoutLens } from './lens-layout';
 
 @Component({
   selector: 'app-magiclens',
@@ -31,21 +32,18 @@ export class MagiclensComponent implements AfterViewInit, OnDestroy {
   magicLensActive = false;
   isLensFixed = false;
   lensGlyphs: GlyphObject[] = [];
+  /** Canvas positions of the lens glyphs, in the same order; the lens keeps their arrangement. */
+  private lensPositions: { x: number; y: number }[] = [];
   private sizeInfo = new GlyphSizeInfo();
 
   // Lens geometry
-  readonly lensRadius = 250; // Lens canvas diameter in pixels
-  private readonly LENS_ZOOM_FACTOR = 12; // Magnification multiplier
+  readonly lensDiameter = 300; // Lens canvas size in pixels
+  private readonly LENS_PADDING_PX = 6; // Space between the glyphs and the lens border
   private readonly DETECTION_RADIUS_PX = 30; // Screen-space radius for glyph detection
+  private readonly MIN_INDICATOR_RADIUS_PX = 6;
   private readonly LENS_MOUSE_OFFSET_PX = 10; // Spacing between cursor and lens popup
-  private readonly CIRCULAR_LAYOUT_PADDING = 1.2; // Radius multiplier for 2-3 glyph layout
-
-  // Force simulation
-  private readonly MAX_SIMULATION_TICKS = 50;
-  private readonly BASE_SIMULATION_TICKS = 20;
-  private readonly TICKS_PER_GLYPH = 2;
-  private readonly BOUNDARY_CHECK_INTERVAL = 5;
-  private readonly SIMULATION_VELOCITY_DECAY = 0.3;
+  /** Radius of the ring around the cursor: the area whose items the lens shows. */
+  indicatorRadius = this.DETECTION_RADIUS_PX;
 
   // Adaptive performance
   private maxLensGlyphs = 30;
@@ -61,11 +59,16 @@ export class MagiclensComponent implements AfterViewInit, OnDestroy {
 
   constructor(
     private config: ConfigService,
-    private dataProcessor: DataProcessorService
+    private thumbnails: ThumbnailService
   ) {
     this.sizeInfo.currentZoomLevel = ZoomLevel.high;
-    this.sizeInfo.radius = this.sizeInfo.radius * this.LENS_ZOOM_FACTOR;
-    this.sizeInfo.hitTolerance = this.sizeInfo.radius;
+  }
+
+  /** Lens glyphs get the radius of the layout; the lens camera shows world units as px. */
+  private applyGlyphRadius(radius: number): void {
+    this.sizeInfo.currentZoomLevel = ZoomLevel.high;
+    this.sizeInfo.radius = radius;
+    this.sizeInfo.hitTolerance = radius;
   }
 
   ngAfterViewInit() {
@@ -77,15 +80,15 @@ export class MagiclensComponent implements AfterViewInit, OnDestroy {
         antialias: true,
       });
       this.lensRenderer.setClearColor(0xffffff, 1);
-      this.lensRenderer.setSize(this.lensRadius, this.lensRadius);
+      this.lensRenderer.setSize(this.lensDiameter, this.lensDiameter);
       this.lensScene.add(this.lensGlyphGroup);
 
       // Lens Camera is just a zoomed clone of main
       this.lensCamera = new THREE.OrthographicCamera(
-        -this.lensRadius / 2,
-        this.lensRadius / 2,
-        this.lensRadius / 2,
-        -this.lensRadius / 2,
+        -this.lensDiameter / 2,
+        this.lensDiameter / 2,
+        this.lensDiameter / 2,
+        -this.lensDiameter / 2,
         1,
         100
       );
@@ -129,6 +132,7 @@ export class MagiclensComponent implements AfterViewInit, OnDestroy {
       this.config.redrawGlyph(glyph);
     });
     this.lensGlyphs = [];
+    this.lensPositions = [];
   }
 
   updateMagicLens(
@@ -139,7 +143,6 @@ export class MagiclensComponent implements AfterViewInit, OnDestroy {
     if (!this.magicLensActive || !this.lensCamera) return false;
 
     this.updatePositions(lastMousePosition);
-    const newLensGlyphs: GlyphObject[] = [];
 
     // Convert screen position to world coordinates using shared helper
     const mouseEvent = { clientX: lastMousePosition.x, clientY: lastMousePosition.y } as MouseEvent;
@@ -149,7 +152,8 @@ export class MagiclensComponent implements AfterViewInit, OnDestroy {
     // This avoids converting every glyph to screen space
     const worldRadius = this.DETECTION_RADIUS_PX / camera.zoom;
 
-    // Check glyphs within world-space radius (O(n) but with cheaper distance calc)
+    // Glyphs within the world-space radius (O(n) but with cheaper distance calc)
+    const found: { glyph: GlyphObject; x: number; y: number; distSq: number }[] = [];
     this.glyphGroup.children.forEach(obj => {
       const dx = obj.position.x - mouseWorld.x;
       const dy = obj.position.y - mouseWorld.y;
@@ -157,11 +161,19 @@ export class MagiclensComponent implements AfterViewInit, OnDestroy {
 
       if (distSq < worldRadius * worldRadius) {
         const glyph = getGlyphFromObject(obj);
-        if (glyph != null) {
-          newLensGlyphs.push(glyph);
-        }
+        if (glyph != null) found.push({ glyph, x: obj.position.x, y: obj.position.y, distSq });
       }
     });
+
+    // The nearest ones, if there are more than the lens shows. The ring around
+    // the cursor then shrinks to the area they cover.
+    found.sort((a, b) => a.distSq - b.distSq);
+    const shown = found.slice(0, this.maxLensGlyphs);
+    this.indicatorRadius =
+      shown.length < found.length
+        ? Math.max(this.MIN_INDICATOR_RADIUS_PX, Math.sqrt(shown[shown.length - 1].distSq) * camera.zoom)
+        : this.DETECTION_RADIUS_PX;
+    const newLensGlyphs = shown.map(item => item.glyph);
 
     // Compare current lens glyphs to new ones
     const same =
@@ -172,6 +184,7 @@ export class MagiclensComponent implements AfterViewInit, OnDestroy {
     // Update
     this.clearLensGlyphs();
     this.lensGlyphs = newLensGlyphs;
+    this.lensPositions = shown.map(({ x, y }) => ({ x, y }));
 
     return true;
   }
@@ -181,93 +194,35 @@ export class MagiclensComponent implements AfterViewInit, OnDestroy {
     this.relativePosition.set(lastMousePosition.x - canvasRect.left, lastMousePosition.y - canvasRect.top);
   }
 
+  /**
+   * Draw the lens glyphs as large as they fit, in their arrangement on the
+   * canvas (see layoutLens).
+   */
   renderMagicLensGlyphs(timestamp: string, algorithm: string): void {
     const startTime = performance.now();
     this.lensGlyphGroup.clear();
 
-    // Adaptive limit based on previous performance
-    const glyphsToRender =
-      this.lensGlyphs.length > this.maxLensGlyphs ? this.lensGlyphs.slice(0, this.maxLensGlyphs) : this.lensGlyphs;
+    const renderConfig = buildGlyphRenderConfig(this.config, this.thumbnails);
+    const glyphs = this.lensGlyphs;
+    const layout = layoutLens(
+      glyphs.map((glyph, i) => ({ ...this.lensPositions[i], extent: glyphExtent(glyph, renderConfig) })),
+      this.lensDiameter / 2 - this.LENS_PADDING_PX
+    );
+    this.applyGlyphRadius(layout.radius);
 
-    // Build nodes array while creating glyphs
-    const nodes: { x: number; y: number; threeObj: THREE.Object3D }[] = [];
-
-    for (const glyph of glyphsToRender) {
-      const renderConfig = buildGlyphRenderConfig(this.config, this.dataProcessor);
+    glyphs.forEach((glyph, i) => {
       const mesh = glyph.renderGlyph(this.sizeInfo, timestamp, algorithm, this.parentId, false, renderConfig);
-      if (mesh != null) {
-        const wrapper = new THREE.Group();
-        wrapper.name = 'Wrapper';
-        wrapper.userData = { item: new WeakRef(glyph) };
-        wrapper.add(mesh);
-        mesh.position.set(0, 0, 0);
-        this.lensGlyphGroup.add(wrapper);
+      if (mesh == null) return;
+      const wrapper = new THREE.Group();
+      wrapper.name = 'Wrapper';
+      wrapper.userData = { item: new WeakRef(glyph) };
+      wrapper.add(mesh);
+      mesh.position.set(0, 0, 0);
+      wrapper.position.set(layout.positions[i].x, layout.positions[i].y, 0);
+      this.lensGlyphGroup.add(wrapper);
+    });
 
-        nodes.push({
-          x: (Math.random() - 0.5) * 2,
-          y: (Math.random() - 0.5) * 2,
-          threeObj: wrapper,
-        });
-      }
-    }
-
-    const count = nodes.length;
-
-    // Skip simulation for 0-1 glyphs
-    if (count <= 1) {
-      this.finalizeLensCamera(glyphsToRender, startTime);
-      return;
-    }
-
-    // For 2-3 glyphs, use simple circular positions (no simulation needed)
-    if (count <= 3) {
-      const angleStep = (2 * Math.PI) / count;
-      const radius = this.sizeInfo.radius * this.CIRCULAR_LAYOUT_PADDING;
-      nodes.forEach((node, i) => {
-        node.threeObj.position.x = Math.cos(angleStep * i) * radius;
-        node.threeObj.position.y = Math.sin(angleStep * i) * radius;
-      });
-      this.finalizeLensCamera(glyphsToRender, startTime);
-      return;
-    }
-
-    // Run force simulation for 4+ glyphs
-    this.runForceSimulation(nodes, count);
-    this.finalizeLensCamera(glyphsToRender, startTime);
-  }
-
-  private runForceSimulation(nodes: { x: number; y: number; threeObj: THREE.Object3D }[], count: number): void {
-    const maxRadius = this.lensRadius / 2 - this.sizeInfo.radius;
-    const maxRadiusSq = maxRadius * maxRadius;
-
-    const simulation = forceSimulation(nodes)
-      .force('collide', forceCollide().radius(this.sizeInfo.radius).strength(1))
-      .velocityDecay(this.SIMULATION_VELOCITY_DECAY)
-      .stop();
-
-    const totalTicks = Math.min(this.MAX_SIMULATION_TICKS, this.BASE_SIMULATION_TICKS + count * this.TICKS_PER_GLYPH);
-
-    for (let i = 0; i < totalTicks; i++) {
-      simulation.tick(1);
-      if (i % this.BOUNDARY_CHECK_INTERVAL === 0) this.enforceBoundary(nodes, maxRadius, maxRadiusSq);
-    }
-
-    // Final boundary enforcement and apply positions
-    this.enforceBoundary(nodes, maxRadius, maxRadiusSq);
-    for (const node of nodes) {
-      node.threeObj.position.set(node.x, node.y, 0);
-    }
-  }
-
-  private enforceBoundary(nodes: { x: number; y: number }[], maxRadius: number, maxRadiusSq: number): void {
-    for (const node of nodes) {
-      const distSq = node.x * node.x + node.y * node.y;
-      if (distSq > maxRadiusSq) {
-        const scale = maxRadius / Math.sqrt(distSq);
-        node.x *= scale;
-        node.y *= scale;
-      }
-    }
+    this.finalizeLensCamera(glyphs, startTime);
   }
 
   private finalizeLensCamera(renderedGlyphs: GlyphObject[], startTime: number): void {
@@ -350,4 +305,14 @@ export class MagiclensComponent implements AfterViewInit, OnDestroy {
   isFixed(): boolean {
     return this.isLensFixed;
   }
+}
+
+/**
+ * How far an item's glyph reaches, as a fraction of its radius: its longest
+ * axis, or the whole circle when a background, the axes or an image fill it.
+ */
+function glyphExtent(glyph: GlyphObject, config: GlyphRenderConfig): number {
+  if (!hasFeatureAxes(config.glyphType) || config.useBackground || config.useCoordinateSystem) return 1;
+  const lengths = glyph.axisLengths(config.activeFeatures, config.featureMaxValues, config.scaleLinear);
+  return lengths.length > 0 ? Math.max(...lengths) : 1;
 }

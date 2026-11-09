@@ -39,13 +39,13 @@ An object describing the features and the initial view.
 |---|---|---|---|
 | `label` | `{ featureId: string }` | yes | Display name of each feature. A one-hot encoded column becomes one feature per value, named `<column>_<value>`. |
 | `types` | `{ featureId: string }` | yes | Data type of each feature: `numeric` or `categorical` from the CLI; the wizard also writes `text`, `date`, `boolean`, `id`, `coordinate` or `unknown` (the column's type before encoding). |
-| `glyph` | `featureId[]` | yes | Features drawn as glyph rays, in order. The CLI takes the first 5; the wizard takes the user's 3–12 choices and falls back to the first 5. |
+| `glyph` | `featureId[]` | yes | Features drawn as glyph rays, in order. The CLI takes the first 5; the wizard takes the user's 3–8 choices (`MIN_GLYPH_FEATURES`/`MAX_GLYPH_FEATURES` in `src/assets/preprocessing_processor_config.py`) and falls back to the first 5. |
 | `color` | `featureId` | yes | Feature that colours the items initially. |
 | `tooltip` | `featureId[]` | yes | Features listed in the tooltip. Both producers list every feature. |
 | `variantcontext` | `{ contextId: { id, description } }` | yes | The contexts; always `{"1": …}`. |
 | `metadata` | `{ metadataId: string }` | no | Name of each metadata column (wizard only). Metadata is shown in the tooltip, searched by the text filter and exported, never encoded. |
-| `colorScaleId` | `number` | no | Initial colour scale, an `id` of `COLOR_SCALES` in `src/app/shared/interfaces/color-scale.ts` (wizard only). |
-| `colorRange` | `boolean` | no | Used only when `colorScaleId` is absent: `true` selects scale 0 (continuous), `false` scale 4 (categorical) (`SchemaConfigSyncService.applySchemaToConfig`). |
+| `colorScaleId` | `number` | no | Initial colour scale, an `id` of `COLOR_SCALES` in `src/app/shared/interfaces/color-scale.ts` (wizard only). The ids 4 and 5 of the removed Observable10 and Tableau20 are read as 6 (Glasbey) and 7 (Tableau 10). |
+| `colorRange` | `boolean` | no | Used only when `colorScaleId` is absent: `true` selects scale 0 (continuous), `false` the first categorical scale, 6 (Glasbey) (`SchemaConfigSyncService.applySchemaToConfig`). |
 
 ### feature
 
@@ -71,7 +71,7 @@ An object `{ "features": { featureId: FeatureStats } }` with statistics per feat
 | Field | Type | Required | Meaning |
 |---|---|---|---|
 | `histogram` | `{ bin: number }` | yes | Bins `"0"`, `"1"`, …. The CLI writes 20 bins of density for every feature. The wizard writes 20 bins for numeric features and one bin per category, with the share of items, for categorical, boolean and text features; rows with a missing value are not counted. |
-| `categories` | `string[]` | no | Wizard: category label per code, so `categories[code]` names the value encoded as `code`. CLI: the sorted distinct values of a low-cardinality column. Empty or absent for numeric and one-hot features; the dashboard treats a missing list as empty. |
+| `categories` | `string[]` | no | Wizard: category label per code, so `categories[code]` names the value encoded as `code`. CLI: the sorted distinct values of a low-cardinality column. Empty or absent for numeric and one-hot features; the dashboard treats a missing list as empty. Its length is the feature's number of categories, by which the categorical colour palettes colour the feature (`ConfigService.featureCategoryCounts`, `featureColor`). |
 | `min`, `max`, `median`, `variance`, `deviation` | `number` | yes | Statistics of the encoded feature: the CLI computes them on the normalised values, the wizard on the scaled values before the [0, 1] mapping. Variance and deviation are population values. |
 | `originalMin`, `originalMax` | `number` | no | Range in the original units, for readable labels (wizard only). Dates are in seconds since the epoch. |
 | `type` | `string` | no | Same as `schema.types` (wizard only). `FeatureStats` declares it required, but bundled CLI files don't contain it and the dashboard doesn't depend on it. |
@@ -119,8 +119,10 @@ The `time` of an item is the day the data was produced: `ddmmyyyy` for bundled C
 
 When the wizard hands a dataset to the dashboard, it is saved so it survives a reload (`DatasetStorageService`):
 
-- database `glyphspace-datasets`, version 1, object store `datasets`, key path `name`;
+- database `glyphspace-datasets`, version 2, object store `datasets`, key path `name`;
 - one record per dataset name; saving a dataset with the same name replaces it.
+
+Version 2 added the object store `thumbnails`: the ZIP archive of a dataset's item images (a `Blob`), keyed by the dataset name. If the user chose a ZIP in the wizard's Step 1, Step 6 saves it there right after FastMap (`ThumbnailService.attachArchive` → `DatasetStorageService.saveThumbnailArchive`), so before the dataset record, which is saved when the wizard hands the dataset to the dashboard. Deleting the dataset deletes its archive in the same transaction. The archive is stored as uploaded and unpacked in the Pyodide worker when the dashboard first needs an image of the dataset; see [CSV input](csv-input.md#id-column) for how files are matched to items.
 
 ```ts
 interface StoredDataset {

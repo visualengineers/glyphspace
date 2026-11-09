@@ -1,4 +1,5 @@
-import { normalizeFeatureValue } from './color-helper';
+import { categoryIndex, featureColor, normalizeFeatureValue } from './color-helper';
+import { getCategoricalColors, getColorScaleById } from '../interfaces/color-scale';
 
 describe('normalizeFeatureValue', () => {
   const CATEGORICAL = { feat1: 'categorical' };
@@ -16,5 +17,47 @@ describe('normalizeFeatureValue', () => {
 
   it.each(cases)('%s', (_name, value, featureId, featureTypes, featureMaxValues, expected) => {
     expect(normalizeFeatureValue(value, featureId, featureTypes, featureMaxValues)).toBe(expected);
+  });
+});
+
+describe('categoryIndex', () => {
+  it.each([
+    [0, 5, 0],
+    [0.25, 5, 1],
+    [1, 5, 4],
+    [0.5, 2, 1],
+    [1.2, 3, 2],
+    [-0.1, 3, 0],
+    [0.7, 1, 0],
+  ])('maps value %s of %s categories to index %s', (value, count, expected) => {
+    expect(categoryIndex(value, count)).toBe(expected);
+  });
+});
+
+describe('featureColor', () => {
+  const palette = getColorScaleById(4);
+  const colors = getCategoricalColors(palette);
+  const info = {
+    featureTypes: { cat: 'categorical', num: 'numeric' },
+    featureMaxValues: { cat: 1 },
+    featureCategoryCounts: { cat: 3 },
+  };
+
+  it('gives the categories of a categorical feature the first palette colors in order', () => {
+    expect([0, 0.5, 1].map(v => featureColor(palette, v, 'cat', info))).toEqual(colors.slice(0, 3));
+  });
+
+  it('starts over when there are more categories than colors', () => {
+    const many = { ...info, featureCategoryCounts: { cat: colors.length + 2 } };
+    expect(featureColor(palette, 1, 'cat', many)).toBe(colors[1]);
+  });
+
+  it('maps numeric features through the scale', () => {
+    expect(featureColor(palette, 0.99, 'num', info)).toBe(palette.scale(0.99));
+  });
+
+  it('interpolates categorical features under a numeric scale', () => {
+    const numeric = getColorScaleById(2);
+    expect(featureColor(numeric, 0.5, 'cat', info)).toBe(numeric.scale(0.5));
   });
 });

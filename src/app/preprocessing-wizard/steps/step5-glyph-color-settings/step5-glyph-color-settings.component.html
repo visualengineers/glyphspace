@@ -152,7 +152,8 @@
           <div class="validation-warning" role="status">
             <span class="material-icons" aria-hidden="true">warning</span>
             <span
-              >{{ MIN_GLYPH_FEATURES - selectedGlyphFeatures.length }} more needed (a glyph needs 3–12 features)</span
+              >{{ MIN_GLYPH_FEATURES - selectedGlyphFeatures.length }} more needed (a glyph needs
+              {{ MIN_GLYPH_FEATURES }}–{{ MAX_GLYPH_FEATURES }} features)</span
             >
           </div>
         }
@@ -255,8 +256,8 @@
                 [attr.cx]="PREVIEW_CENTER"
                 [attr.cy]="PREVIEW_CENTER"
                 [attr.r]="PREVIEW_RADIUS"
-                fill="#f0f0f0"
-                stroke="#ddd"
+                fill="#f3f3f3"
+                stroke="#e0e0e0"
                 stroke-width="0.5"
               />
 
@@ -266,7 +267,7 @@
                   [attr.y1]="PREVIEW_CENTER"
                   [attr.x2]="axis.x"
                   [attr.y2]="axis.y"
-                  stroke="#ccc"
+                  stroke="#d4d4d4"
                   stroke-width="0.5"
                 />
               }
@@ -282,35 +283,8 @@
               }
 
               @if (selectedGlyphType === 'flower') {
-                @for (petal of preview.petals; track $index) {
-                  <g
-                    [attr.transform]="
-                      'translate(' + PREVIEW_CENTER + ',' + PREVIEW_CENTER + ') rotate(' + petal.angleDeg + ')'
-                    "
-                  >
-                    <path [attr.d]="petal.path" fill="rgba(0, 188, 212, 0.45)" stroke="#00bcd4" stroke-width="1" />
-                  </g>
-                }
-              }
-
-              @if (selectedGlyphType === 'whisker') {
-                @for (bar of preview.bars; track $index) {
-                  <g
-                    [attr.transform]="
-                      'translate(' + PREVIEW_CENTER + ',' + PREVIEW_CENTER + ') rotate(' + bar.angleDeg + ')'
-                    "
-                  >
-                    <rect
-                      x="-3"
-                      [attr.y]="-bar.length"
-                      width="6"
-                      [attr.height]="bar.length"
-                      fill="rgba(0, 188, 212, 0.5)"
-                      stroke="#00bcd4"
-                      stroke-width="0.5"
-                      rx="1"
-                    />
-                  </g>
+                @for (petal of preview.petalPaths; track $index) {
+                  <path [attr.d]="petal" fill="rgba(0, 188, 212, 0.85)" stroke="#00bcd4" stroke-width="1" />
                 }
               }
 
@@ -351,14 +325,6 @@
             (click)="selectedGlyphType = 'flower'"
           >
             <span class="material-icons" aria-hidden="true">local_florist</span> Flower
-          </button>
-          <button
-            type="button"
-            [class.active]="selectedGlyphType === 'whisker'"
-            [attr.aria-pressed]="selectedGlyphType === 'whisker'"
-            (click)="selectedGlyphType = 'whisker'"
-          >
-            <span class="material-icons" aria-hidden="true">equalizer</span> Whisker
           </button>
         </div>
       </section>

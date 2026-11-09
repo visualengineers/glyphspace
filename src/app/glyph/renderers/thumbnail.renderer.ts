@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { GlyphSizeInfo } from '../glyph-size-info';
 import { GlyphRenderer, GlyphRenderContext } from './glyph-renderer';
-import { GlyphRenderConfig } from '../glyph-render-config';
+import { GlyphRenderConfig, ThumbnailImage } from '../glyph-render-config';
 import { createGrayPlaceholderTexture } from '../../shared/helpers/three-helper';
 
 /**
@@ -20,32 +20,15 @@ export class ThumbnailRenderer implements GlyphRenderer {
     const mat = new THREE.MeshBasicMaterial({ map: placeholderTexture, transparent: true });
     const mesh = new THREE.Mesh(geom, mat);
 
-    const file = `${this.renderConfig.loadedData}/${this.glyphId}.jpg`;
-
-    if (this.renderConfig.dataSource === 'wasm' && this.renderConfig.thumbnailResolver) {
-      this.renderConfig.thumbnailResolver.requestThumb(file).subscribe(bitmap => {
-        if (bitmap) {
-          this.applyThumbnailTexture(bitmap, mesh, mat, sizeInfo);
-        }
-      });
-    } else {
-      const image = new Image();
-      image.src = `assets/thumbnails/${this.renderConfig.loadedData}/${this.glyphId}.jpg`;
-      image.crossOrigin = 'anonymous';
-
-      image.onload = () => {
-        this.applyThumbnailTexture(image, mesh, mat, sizeInfo);
-      };
-
-      image.onerror = () => {
-        console.warn(`Failed to load thumbnail from local: ${image.src}`);
-      };
-    }
+    // Without an image the grey placeholder stays.
+    this.renderConfig.thumbnailResolver?.requestThumb(this.renderConfig.loadedData, this.glyphId).subscribe(image => {
+      if (image) this.applyThumbnailTexture(image, mesh, mat, sizeInfo);
+    });
     return mesh;
   }
 
   private applyThumbnailTexture(
-    image: HTMLImageElement | ImageBitmap,
+    image: ThumbnailImage,
     mesh: THREE.Mesh,
     mat: THREE.MeshBasicMaterial,
     sizeInfo: GlyphSizeInfo
