@@ -11,7 +11,7 @@ There are two test suites: the TypeScript unit tests (Vitest in a real Chromium,
 Specs sit next to the code as `*.spec.ts`. They run through the Angular builder `@angular/build:unit-test` with Vitest, in headless Chromium from Playwright, at a viewport of 1280×720 (`angular.json` → `test`).
 
 ```bash
-npx playwright install chromium            # once per machine
+npx playwright install chromium            # once per machine, and after a Playwright update
 npm test                                   # watch mode
 npm run test:ci                            # run once
 npx ng test --include=<path>               # one spec file or folder
@@ -24,7 +24,7 @@ Things to know:
 - **Layout is real.** Specs can measure elements. The wizard's step-layout specs use `mountInShellLayout` and `expectFillsStep` to check that each step's main box fills the available height ([Wizard](wizard.md#ui-helpers)).
 - **Spy objects:** `src/testing/create-spy-obj.ts` builds typed spy objects, in the style of Jasmine's `createSpyObj`.
 - **Wizard helpers:** `preprocessing-wizard/testing/preprocessing-test-helpers.ts` provides `createTestPreprocessingService()` and `createToastServiceSpy()`.
-- **Workers:** the worker logic is tested through its pure parts (`workers/druid-runner.spec.ts`, `workers/pyodide-calls.spec.ts`, `workers/pyodide-files.spec.ts`), plus a smoke test that starts the real projection worker with DruidJS (`workers/projection.worker.spec.ts`); `preprocessing-wizard/services/preprocessing.service.worker-files.spec.ts` covers file pruning.
+- **Workers:** the worker logic is tested through its pure parts (`workers/druid-runner.spec.ts`, `workers/pyodide-calls.spec.ts`, `workers/pyodide-files.spec.ts`), plus a smoke test that starts the real projection worker with DruidJS (`workers/projection.worker.spec.ts`); `preprocessing-wizard/services/preprocessing.service.worker-files.spec.ts` covers file pruning, `preprocessing.service.reload.spec.ts` next to it the restore of the uploaded file after a reload.
 
 Vitest artifacts such as failure screenshots land in `.vitest-attachments/`.
 

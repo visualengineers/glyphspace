@@ -30,3 +30,7 @@ None are recorded. The obvious ones are a server-side Python service, as in Glyp
 - Request data reaches a Python interpreter, which makes code injection a risk; [ADR 0004](0004-no-python-code-built-from-data.md) addresses it.
 - The CLI and the browser pipeline are separate Python code bases and differ in behaviour ([CSV input](../specs/csv-input.md)).
 - Projections were later moved out of Python ([ADR 0003](0003-druidjs-projections-in-web-workers.md)).
+
+## Notes
+
+- **2026-11-09:** The worker's file system is still emptied by a reload, but the uploaded file is no longer lost with it: since #92 the wizard keeps it in IndexedDB and writes it back into the worker after a reload ([Wizard storage](../specs/wizard-storage.md#uploaded-files)).

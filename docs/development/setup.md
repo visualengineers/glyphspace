@@ -20,6 +20,8 @@ npx playwright install chromium   # once per machine: the browser the unit tests
 npm start                         # dev server at http://localhost:4200/
 ```
 
+Each Playwright version uses its own Chromium build. When an update of `package-lock.json` brings a new Playwright version, run `npx playwright install chromium` again.
+
 The app loads the bundled datasets from `src/assets/data/` on start. At the same time the Pyodide worker starts downloading Pyodide, pandas and scikit-learn from the jsDelivr CDN in the background; the wizard needs them, so importing needs network access.
 
 ## Scripts

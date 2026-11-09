@@ -20,25 +20,25 @@ Two datasets ship with the app and appear in the **Data** menu:
 | `wineqr` | Wine Quality (red): physico-chemical measurements and a quality rating per wine, with a thumbnail image per item |
 | `nutrients` | Nutrient values of foods |
 
-One of them is loaded when the app starts. Datasets you import yourself appear in the same menu, marked **(uploaded)**.
+`wineqr` is shown when the app starts (`nutrients` if `wineqr` can't be loaded). Datasets you import yourself appear in the same menu, marked **(uploaded)**.
 
 ## The screen at a glance
 
-![The dashboard with the wine quality dataset: two canvases, the left one showing all items as points, the right one zoomed in to star glyphs, and the Encoding panel of the sidebar on the right.](../images/dashboard.png)
+![The dashboard with the wine quality dataset: two canvases, the left one showing all items as points, the right one zoomed in to flower glyphs, and the sidebar on the right with the glyph legend and the Filters tab.](../images/dashboard.png)
 
 | Area | What it holds |
 |---|---|
 | **Menu bar** (top) | **Data**: choose the dataset. **Upload**: open the import wizard. **Export**: download the visible items as CSV. **Screenshot**: save the canvases as PNG. **Canvas**: **Add** a canvas, **Fit all** canvases to their content. On narrow screens the controls fold into the menu button. |
 | **Canvas grid** (centre) | One to four canvases, each showing the dataset in a projection of its own. See [Dashboard](dashboard.md). |
-| **Sidebar** (right) | Three panels, opened from the icon strip: **Encoding** (glyph axes and colour), **Style** (glyph type and options) and **Filters** (search and histograms). The header shows how many items are visible. See [Encoding and filters](encoding-and-filters.md). |
+| **Sidebar** (right) | On top, the glyph legend (which features the glyph shows) and **FILTERS** (the active filters and how many items match them). Below, two tabs: **Filters** (search and histograms) and **Encoding** (glyph type, colour, sizes). The double chevron hides the sidebar. See [Encoding and filters](encoding-and-filters.md). |
 
 ## A first tour
 
 1. Hover over a point. After a moment a tooltip lists the item's values.
 2. Scroll to zoom in. Past a certain zoom level the points become glyphs.
 3. Drag to pan. Press **F** (with the mouse over the canvas) to fit everything back into view.
-4. Open **Filters** in the sidebar and drag across a histogram. Items outside that range turn grey.
-5. Open **Style** and switch between **Star Shape**, **Flower Shape** and **Whisker Shape**.
+4. In the sidebar's **Filters** tab, drag across a histogram. Items outside that range turn grey.
+5. Open the **Encoding** tab and switch between **Star** and **Flower** under **GLYPH TYPE**.
 
 ## Try the import with sample data
 

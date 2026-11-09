@@ -19,7 +19,7 @@ The ordered step list is `WIZARD_STEPS` in `preprocessing-wizard/shared/constant
 | 5 | `appearance` | Glyphs & Color |
 | 6 | `review` | Review & Process |
 
-Steps 1–5 implement `WizardStep` (`preprocessing-wizard/shared/wizard-step.ts`) so the shell renders one navigation bar. The glyph features and the colour mapping chosen in Step 5 only set the dashboard's initial view; the dashboard's Encoding panel can change them later. The glyph shape picked in Step 5 (`selectedGlyphType`) only changes the preview; it is not part of the dataset.
+Steps 1–5 implement `WizardStep` (`preprocessing-wizard/shared/wizard-step.ts`) so the shell renders one navigation bar. The glyph features and the colour mapping chosen in Step 5 only set the dashboard's initial view; the dashboard's sidebar can change them later. The glyph shape picked in Step 5 (`selectedGlyphType`, star or flower) only changes the preview; it is not part of the dataset. The preview draws its shapes with the dashboard's `glyph/glyph-geometry.ts`, so axis order and petal shape match the canvas.
 
 **Feature or metadata columns.** Step 2 sets each column's `role` (`ColumnRole` in `preprocessing-wizard/models/data-type.enum.ts`): a **feature** is encoded and can feed the projection, glyphs, colour and the dashboard's filters; **metadata** keeps its original values and is only shown in the tooltip, searched by the text filter and exported, never encoded or projected. Text and ID columns, and text/categorical/ID columns with more than 20 values of which ≥ 90 % are unique, start as metadata (`DATA_TYPE_CONFIG[…].defaultRole`, `preprocessing-wizard/services/column-defaults.ts`). Steps 3–5 list feature columns only; use `isFeatureColumn` / `isMetadataColumn` (`preprocessing-wizard/models/column-config.ts`) instead of checking `enabled` alone. Making a column metadata drops it from the colour and glyph mapping (`PreprocessingService.setColumnRole`, one undo entry). Continuing past Step 2 needs at least one feature column. Background: [ADR 0006](../decisions/0006-feature-and-metadata-column-roles.md), [ADR 0007](../decisions/0007-high-cardinality-columns-default-to-metadata.md).
 
@@ -35,7 +35,7 @@ Steps 1–5 implement `WizardStep` (`preprocessing-wizard/shared/wizard-step.ts`
 
 ## State and persistence
 
-`preprocessing-wizard/services/preprocessing.service.ts` owns `PreprocessingState` (`preprocessing-wizard/models/preprocessing-state.ts`). State is saved to localStorage by `preprocessing-wizard/services/wizard-storage.ts` with a format version (currently 3); older saves are migrated by step id (the old 5-step layout's review step 4 becomes 5), columns saved without a `role` (before version 3) are restored as features, and projection settings that no longer exist (e.g. `trimapWeightAdj`) are dropped. Column defaults and the "smart defaults" live in `preprocessing-wizard/services/column-defaults.ts`; the config sent to Python is built in `preprocessing-wizard/services/processing-config.ts`. The saved format and its migrations are specified in [Wizard storage](../specs/wizard-storage.md).
+`preprocessing-wizard/services/preprocessing.service.ts` owns `PreprocessingState` (`preprocessing-wizard/models/preprocessing-state.ts`). State is saved to localStorage by `preprocessing-wizard/services/wizard-storage.ts` with a format version (currently 3); older saves are migrated by step id (the old 5-step layout's review step 4 becomes 5), columns saved without a `role` (before version 3) are restored as features, and projection settings that no longer exist (e.g. `trimapWeightAdj`) are dropped. Column defaults and the "smart defaults" live in `preprocessing-wizard/services/column-defaults.ts`; the config sent to Python is built in `preprocessing-wizard/services/processing-config.ts`. The uploaded CSV and the optional item image ZIP are kept in IndexedDB by `preprocessing-wizard/services/wizard-file-store.ts`, so the wizard can put the CSV back into the worker after a reload ([Processing pipeline](processing-pipeline.md#1-upload-and-profile-step-1)). The saved format and its migrations are specified in [Wizard storage](../specs/wizard-storage.md).
 
 ## Undo / redo
 
@@ -43,7 +43,7 @@ Steps 1–5 implement `WizardStep` (`preprocessing-wizard/shared/wizard-step.ts`
 - `preprocessing-wizard/services/history-diff.ts` diffs snapshots and maps the changed field to a label, step id and anchor (`SETTING_META`) for the undo hint.
 - Toast "Undo" buttons call `undoIfLatest(id)`, so they only revert their own action.
 - While processing, undo/redo are no-ops (`holdProcessing()` / `whileProcessing(task)` keep `isProcessing` up until the whole primary run, FastMap included, finishes).
-- The worker keeps uploaded CSVs for reprocessing; the service calls `DataProcessorService.pruneFiles(keep)` with every file name still referenced by the state or the undo/redo stacks.
+- The worker keeps uploaded CSVs for reprocessing; the service calls `DataProcessorService.pruneFiles(keep)` with every file name still referenced by the state or the undo/redo stacks, plus the chosen image ZIP, and prunes the file store to the same names (`WizardFileStore.prune`).
 
 ## Errors
 
@@ -55,10 +55,10 @@ Steps 1–5 implement `WizardStep` (`preprocessing-wizard/shared/wizard-step.ts`
 | K2 | Cleaning removed every row | features |
 | K3 | A column is constant or almost empty | columns |
 | K4 | A neighbour parameter is ≥ the number of rows | projection |
-| K5 | Glyph feature count outside 3–12 | appearance |
+| K5 | Glyph feature count outside 3–8 | appearance |
 | K6 | Time or memory limit | projection |
 | K7 | A feature column has too many distinct values to one-hot encode (fix: use it as metadata) | columns |
-| K8 | A fill value doesn't fit its numeric column | features |
+| K8 | A fill value doesn't fit its column: not a number for a numeric column, or neither true nor false for a true/false column | features |
 
 Unmatched errors fall back to a generic blocking issue. `detectPreflightIssues` warns before processing (K3, K4, K6). Failed background projections become dismissable warnings (`classifyBackgroundFailure`). The same classes in plain language for users: [Troubleshooting](../user-guide/troubleshooting.md).
 

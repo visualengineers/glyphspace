@@ -25,9 +25,9 @@ GlyphSpace is a single-page Angular application with no backend and no router. E
 | `menubar/` | Dataset picker, deleting user datasets, Upload (opens the wizard), CSV download, PNG export, add canvas, fit all. |
 | `canvas/` | `GlyphCanvasComponent` and its per-canvas services (camera, renderer, selection), magic lens, tooltip, the navigation and settings overlays. |
 | `glyph/` | The data-item model (`GlyphObject`), per-canvas render cache, glyph configuration, size per zoom level, and the three.js glyph renderers. |
-| `sidebar/` | Encoding, Style and Filters panes, the feature histograms that act as filters. |
+| `sidebar/` | The glyph legend and filter summary on top, the Filters and Encoding tabs below, the feature histograms that act as filters. |
 | `preprocessing-wizard/` | The six-step CSV import wizard. See [wizard.md](wizard.md). |
-| `services/` | Root services: configuration, filtering, dataset loading, cache, collection and storage, CSV export, the Pyodide bridge (`DataProcessorService`), projections, toasts, logging. |
+| `services/` | Root services: configuration, filtering, dataset loading, cache, collection and storage, item images (`ThumbnailService`), CSV export, the Pyodide bridge (`DataProcessorService`), projections, toasts, logging. |
 | `shared/` | Enums, the dataset-format interfaces, filter classes, helpers, constants and shared components (colour scale selector, mini histogram, toast). |
 | `workers/` | `pyodide.worker.ts` (Python), `projection.worker.ts` (DruidJS), `druid-runner.ts` (DruidJS calls shared by the worker and the main thread), `pyodide-calls.ts` and `pyodide-files.ts` (safe Python calls and file names). |
 
@@ -64,9 +64,9 @@ flowchart LR
   CFG --> CAN
 ```
 
-**Bundled datasets.** The `DataLoaderService` constructor requests the schema, meta, feature and position files of every dataset in `DEFAULT_DATASETCOLLECTION` (`src/default-dataset.ts`) from `assets/data/`, and builds each into the cache. The first dataset to finish loading becomes the active one. It also reads every dataset saved in IndexedDB into the cache.
+**Bundled datasets.** The `DataLoaderService` constructor requests the schema, meta, feature and position files of every dataset in `DEFAULT_DATASETCOLLECTION` (`src/default-dataset.ts`) from `assets/data/`, and builds each into the cache. The first dataset in collection order that loads becomes the active one, whatever order the downloads finish in. It also reads every dataset saved in IndexedDB into the cache.
 
-**Imported datasets.** The wizard writes the uploaded CSV into the Pyodide file system, profiles it, and in Step 6 sends the configuration to Python (`DataProcessorService.processWithConfig`). Python returns the dataset (schema, meta, features) and writes the processed feature matrix to `processed_features.csv`. The wizard reads that file back, runs FastMap on the main thread as the primary projection, and starts the other selected methods in background workers. "Open in Glyphspace" hands the dataset to `DataLoaderService.loadProcessedDataset`, which builds it into the cache, and to `saveDatasetToStorage`, which saves it to IndexedDB. Background projections that finish later are added to the loaded dataset and saved again. The details are in [wizard.md](wizard.md) and [processing-pipeline.md](processing-pipeline.md); the file formats are in [specs/dataset-format.md](../specs/dataset-format.md).
+**Imported datasets.** The wizard writes the uploaded CSV into the Pyodide file system, profiles it, and in Step 6 sends the configuration to Python (`DataProcessorService.processWithConfig`). Python returns the dataset (schema, meta, features) and writes the processed feature matrix to `processed_features.csv`. The wizard reads that file back, runs FastMap on the main thread as the primary projection, and starts the other selected methods in background workers. "Open in Glyphspace" hands the dataset to `DataLoaderService.loadProcessedDataset`, which builds it into the cache, and to `saveDatasetToStorage`, which saves it to IndexedDB. Background projections that finish later are added to the loaded dataset and saved again. A ZIP of item images chosen in Step 1 is attached to the dataset after FastMap (`ThumbnailService.attachArchive`). The details are in [wizard.md](wizard.md) and [processing-pipeline.md](processing-pipeline.md); the file formats are in [specs/dataset-format.md](../specs/dataset-format.md).
 
 **From cache to screen.** `ConfigService.loadData(name)` emits the active dataset name. Every canvas then reads its `GlyphObject`s from the cache, scales the positions of the selected projection into canvas space and renders them. Filters and selections never remove items: `FilterService` marks them `passive`, and the canvases draw passive items in grey. See [dashboard.md](dashboard.md).
 
@@ -93,8 +93,9 @@ The `memory://` references are identifiers, not URLs: the data behind them is al
 | Per-canvas positions, meshes, visibility and clustering of every item | `GlyphObject.renderCache`, keyed by canvas id | Until the canvas is destroyed |
 | Camera, scene, renderer, selection of one canvas | Component-level providers of `GlyphCanvasComponent` | Lifetime of the canvas |
 | Wizard state (versioned) | `PreprocessingService`, saved under the localStorage key `glyphspace_preprocessing_state` | Across reloads. See [specs/wizard-storage.md](../specs/wizard-storage.md) |
-| Imported datasets | `DatasetStorageService`, IndexedDB database `glyphspace-datasets`, store `datasets` | Across reloads |
-| Uploaded CSV files, `processed_features.csv`, unzipped thumbnails | The Pyodide file system in the worker | Lifetime of the worker (page) |
+| Imported datasets, and the ZIP archive of item images of each | `DatasetStorageService`, IndexedDB database `glyphspace-datasets`, stores `datasets` and `thumbnails` | Across reloads |
+| The uploaded CSV and item image ZIP of the wizard | `WizardFileStore` (`preprocessing-wizard/services/wizard-file-store.ts`), IndexedDB database `glyphspace-wizard-files`, store `files` | Across reloads, until the wizard no longer references them. See [specs/wizard-storage.md](../specs/wizard-storage.md#uploaded-files) |
+| Uploaded CSV files, `processed_features.csv`, unpacked item images (`/thumbnails-<n>/`) | The Pyodide file system in the worker | Lifetime of the worker (page); after a reload the wizard writes the uploaded CSV back, and `ThumbnailService` unpacks a dataset's archive again on first use |
 
 Root services (`providedIn: 'root'`) are singletons shared by all canvases. `CanvasCameraService`, `CanvasRendererService` and `CanvasSelectionService` are listed in the canvas component's `providers`, so every canvas gets its own instances.
 

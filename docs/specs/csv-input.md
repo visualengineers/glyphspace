@@ -27,15 +27,15 @@ Every row is one item, named by its id.
 
 | | Wizard | CLI |
 |---|---|---|
-| Recognised column | named exactly `ID` | named `id` in any case, surrounding spaces ignored; renamed to `ID` |
+| Recognised column | named `id` in any case, surrounding spaces ignored (`is_id_column` in `src/assets/preprocessing_processor.py`); renamed to `ID` | same (`add_id_column_if_missing` in `tools/dataset_common.py`) |
 | Position | moved to the front | moved to the front |
 | No such column | ids `"0"`, `"1"`, … from the row index | same |
 
 Ids must be unique. The dashboard keys items by id: for a repeated id it keeps the features of the first row, and the positions of the repeated rows overwrite each other.
 
-Note that the wizard only uses a column named exactly `ID`. A column named `id` or `Id` is detected as data type ID, starts as a metadata column, and the items get row-index ids.
+If several columns match, the wizard takes the one named exactly `ID`, or else the first (`_use_id_column` in `src/assets/preprocessing_processor_config.py`); the CLI takes the first. In the wizard the id column is detected as data type ID and starts as metadata, but processing uses it as the item id only, never as a metadata column or a feature.
 
-Thumbnails are found by id: `<id>.jpg` (see [Preparing data](../user-guide/preparing-data.md)).
+Item images for the Image glyph type are found by id. Bundled datasets: `src/assets/thumbnails/<dataset>/<id>.jpg` (see [Preparing data](../user-guide/preparing-data.md#thumbnails)). Wizard datasets: a ZIP archive chosen in Step 1, whose files are named `<id>.jpg`, `.jpeg`, `.png` or `.webp` (extension in any case). Folders inside the archive are flattened when it is unpacked (`unpack_flat` in `src/app/workers/pyodide-calls.ts`); `indexImages` in `src/app/services/thumbnail.service.ts` maps each file to its id.
 
 ## Column types
 
@@ -45,7 +45,7 @@ The wizard detects a type per column (`detect_data_type`) and uses it to choose 
 
 | # | Rule | Type |
 |---|---|---|
-| 1 | name is `id` (any case) | `id` |
+| 1 | name is `id` (any case, surrounding spaces ignored) | `id` |
 | 2 | name is `latitude`, `longitude`, `lat`, `lon`, `lng` or `long` (any case) | `coordinate` |
 | 3 | numeric, with at most two distinct values, all of them 0/1 | `boolean` |
 | 4 | numeric | `numeric` |
@@ -92,7 +92,7 @@ The wizard treats all of these as ordinary columns.
 | Limit | Value | Error class |
 |---|---|---|
 | Distinct values of a one-hot encoded column | 500 (`MAX_ONEHOT_UNIQUE`) | K7 |
-| Glyph features | 3–12 | K5 |
+| Glyph features | 3–8 | K5 |
 | Time per worker request (profiling, processing) | 60 s (`DataProcessorService.sendRequestUntil`) | K6 |
 | Neighbour parameters of IsoMap, LLE, LTSA, UMAP | below the number of rows | K4 |
 

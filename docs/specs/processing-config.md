@@ -21,7 +21,7 @@ The configuration object the wizard sends with `processWithConfig`, what the Pyt
 | `columns` | column config[] | One entry per column of the CSV, see below. |
 | `cleaning` | `{ removeDuplicates: boolean }` | Drop duplicate rows. |
 | `projections` | `ProjectionConfig` | Projection switches and parameters. Not used by Python (see [Projections](#projections)). |
-| `glyphFeatures` | string[] | Encoded feature names for the glyph rays. Used when there are 3–12; otherwise the first 5 features. |
+| `glyphFeatures` | string[] | Encoded feature names for the glyph rays. Used when there are 3–8; otherwise the first 5 features. |
 | `tooltipFeatures` | string[] \| null | Encoded feature names for the tooltip; `null` lists every feature. |
 | `colorScaleMode` | `'continuous'` \| `'categorical'` | Written to `schema.colorRange` (`true` for continuous). |
 | `colorScaleId` | number | Written to `schema.colorScaleId`. |
@@ -47,7 +47,7 @@ Python still accepts three legacy values that the wizard no longer sends: the mi
 
 ## Order of operations
 
-1. **Read** the CSV. If there is no column named `ID`, ids are generated from the row index; the ID column is moved to the front.
+1. **Read** the CSV. The id column (named `id` in any case, surrounding spaces ignored; see [CSV input](csv-input.md#id-column)) is moved to the front and renamed `ID`; without one, ids are generated from the row index.
 2. **Fill** missing values per feature column.
 3. **Cap** outliers (strategy `cap`). Outliers are always detected on the original values, with `find_outliers` in `src/assets/preprocessing_processor.py`, the same function that produces Step 3's count.
 4. **Drop rows:** missing values of `remove_rows` columns and outliers of `remove` columns.
@@ -69,7 +69,7 @@ Metadata columns skip steps 2–4, 6 and 7, including any cleaning settings left
 | `remove_rows` | Rows with a missing value in this column are dropped (step 4). |
 | `fill_mean`, `fill_median` | Numeric columns only; other columns are left unchanged. |
 | `fill_mode` | The most frequent value (0 if there is none). |
-| `fill_value` | `missingValueFillValue`, converted to the column's type: a number for numeric columns, `true`/`false`/`1`/`0` for boolean columns. A value that doesn't convert is an error: class K8 for numeric columns; for boolean columns the message matches no class and the wizard shows its generic issue. |
+| `fill_value` | `missingValueFillValue`, converted to the column's type: a number for numeric columns, `true`/`false`/`1`/`0` for boolean columns. A value that doesn't convert is an error of class K8, for numeric and boolean columns alike. |
 
 Outlier detection:
 

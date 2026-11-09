@@ -22,7 +22,7 @@ Message types: `WorkerRequest` and `WorkerReply` in `src/app/shared/interfaces/p
 - On start, the worker loads Pyodide `PYODIDE_VERSION` (0.29.5) from `https://cdn.jsdelivr.net/pyodide/v<version>/full/` and installs `pandas` and `scikit-learn` with micropip. Every request waits for this.
 - Requests run one at a time, in the order they arrive (`runSerialized`).
 - The Python modules `preprocessing_processor.py` and `preprocessing_processor_config.py` are fetched from `assets/` and written to the worker's file system the first time a request needs them.
-- The worker lives as long as the page. Its file system holds the uploaded CSV files, so a reload loses them.
+- The worker lives as long as the page. Its file system holds the uploaded CSV files and the unpacked item images, so a reload loses them. The wizard keeps the uploaded CSV in IndexedDB and writes it back with `profileData` after a reload ([Wizard storage](wizard-storage.md#uploaded-files)); `ThumbnailService` unpacks a dataset's stored image archive again on first use.
 
 ### Matching replies to requests
 
@@ -42,8 +42,8 @@ Message types: `WorkerRequest` and `WorkerReply` in `src/app/shared/interfaces/p
 | `getProcessedFeatures` | — | `processedFeatures { data }` | `data` is the text of `processed_features.csv` from the last `processWithConfig`. |
 | `pruneFiles` | `keep: string[]` | `filesPruned { removed }` | Deletes every tracked input not in `keep`, with its result file. |
 | `getJson` | `file` | `json { file, data }` | Reads and parses a JSON file from the worker's file system. |
-| `unzip` | `fileName`, `buffer` | `unzipped { folder, images }` | Writes `<name>.zip`, unpacks it into `/<name>/` and lists its `.png`, `.jpg`, `.jpeg` and `.webp` files. No UI sends this request at present. |
-| `getThumb` | `file` | `thumb { file, data }` | Reads `/<file>`; `data` is transferred, not copied. |
+| `unzip` | `folder`, `buffer` | `unzipped { folder, images }` | Writes `<folder>.zip`, unpacks it flat into `/<folder>/` (files in subfolders land in `/<folder>/` itself) and lists its `.png`, `.jpg`, `.jpeg` and `.webp` files, extension in any case. `ThumbnailService` sends it with the folders `thumbnails-0`, `thumbnails-1`, … to unpack an item image archive. |
+| `getThumb` | `file` | `thumb { file, data }` | Reads `/<file>`, e.g. `thumbnails-0/17.jpg`; `data` is transferred, not copied. |
 
 Any exception becomes `error { message }`. The client rejects the pending request with `new Error(message)`; every `error` reply is also logged to the console, with or without a pending request.
 

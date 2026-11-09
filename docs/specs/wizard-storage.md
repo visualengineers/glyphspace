@@ -6,7 +6,7 @@ _For contributors who add, rename or remove a field of the wizard state._
 
 ## Scope
 
-The part of the wizard state that survives a page reload: what is saved, when, in which format, and how older saves are migrated. The code is `src/app/preprocessing-wizard/services/wizard-storage.ts`; `PreprocessingService` calls it. Processed datasets are stored separately in IndexedDB (see [Dataset format](dataset-format.md#stored-datasets-indexeddb)).
+The part of the wizard state that survives a page reload: what is saved, when, in which format, and how older saves are migrated. The code is `src/app/preprocessing-wizard/services/wizard-storage.ts`; `PreprocessingService` calls it. The uploaded files are kept in IndexedDB ([Uploaded files](#uploaded-files)). Processed datasets are stored separately in IndexedDB (see [Dataset format](dataset-format.md#stored-datasets-indexeddb)).
 
 ## Storage
 
@@ -22,7 +22,8 @@ interface SerializedState {
   version: 3;
   currentStep: number;              // index into WIZARD_STEPS
   dataProfile: DataProfile | null;  // profile of the uploaded CSV, incl. 10 preview rows
-  rawFileName: string | null;       // name of the CSV in the Pyodide worker's file system
+  rawFileName: string | null;       // name of the CSV in the worker's file system and the file store
+  thumbnailArchiveName: string | null;  // name of the item image ZIP in the file store, if one was chosen
   columnConfigs: [string, ColumnConfig][];  // Map entries: column name → config
   cleaningConfig: CleaningConfig;
   projectionConfig: ProjectionConfig;
@@ -35,9 +36,20 @@ interface SerializedState {
 }
 ```
 
-Not saved: the undo/redo history, the processing result (`processedDataset`, `cleaningResult`) and UI state (`isProcessing`, progress, `error`).
+Not saved: the undo/redo history, the processing result (`processedDataset`, `cleaningResult`), UI state (`isProcessing`, progress, `error`) and `uploadMissing`.
 
-The uploaded file itself is not saved either. It lives in the Pyodide worker's file system, which a reload empties. A restored state therefore names a file the new worker doesn't have, and requests that read it (outlier counts, processing) fail until the file is uploaded again.
+## Uploaded files
+
+The uploaded CSV and the item image ZIP are not part of the JSON value. `WizardFileStore` (`src/app/preprocessing-wizard/services/wizard-file-store.ts`) keeps them in IndexedDB:
+
+- database `glyphspace-wizard-files`, version 1, object store `files`; the key is the file name (`rawFileName`, `thumbnailArchiveName`), the value the file as a `Blob`;
+- saved when a CSV is loaded (`loadCSV`) or a ZIP is chosen (`setThumbnailArchive`);
+- pruned together with the worker's files: every stored file that the state, the undo/redo history or a running upload no longer names is deleted (`WizardFileStore.prune`), for example after `resetState` or when the ZIP is removed;
+- best effort: when IndexedDB is unavailable, nothing is stored and a reload finds nothing.
+
+A reload empties the worker's file system. When the restored state names a CSV, `PreprocessingService.restoreUploadedFile` loads it from the store and writes it back into the worker with `profileData`. Requests that read the file (outlier and duplicate counts, processing) wait for that (`loadedFileName`). If the file is not stored or can't be written back, the state gets `uploadMissing: true` and the wizard goes to the upload step, which asks for the file and keeps its continue button disabled. A file uploaded then with exactly the same column names keeps the restored settings, without an undo entry; any other file replaces them like a new upload.
+
+Step 6 reads the ZIP from the store (`PreprocessingService.thumbnailArchive`) and attaches it to the processed dataset, which keeps its own copy ([Dataset format](dataset-format.md#stored-datasets-indexeddb)).
 
 ## Restoring and migrating
 
@@ -50,7 +62,8 @@ The uploaded file itself is not saved either. It lives in the Pyodide worker's f
 | `projectionConfig` | Built from `DEFAULT_PROJECTION_CONFIG`: a saved value is taken only for a current setting and only if it has the default's type. Settings that no longer exist, such as TriMap's former `trimapWeightAdj`, are dropped. |
 | `cleaningConfig` | Saved values over `DEFAULT_CLEANING_CONFIG`. |
 | `colorScaleMode` | `categorical` if saved as such, otherwise `continuous`. |
-| `colorScaleId` | The saved integer, otherwise 0. |
+| `colorScaleId` | The saved integer, otherwise 0. A retired scale id is restored as its replacement (4 → 6, 5 → 7; `resolveColorScaleId`). |
+| `thumbnailArchiveName` | The saved string, otherwise `null`. |
 | other fields | The saved value, or empty (`null`, `''`, `[]`). |
 
 Malformed JSON throws; the caller logs it and keeps the initial state.
@@ -61,7 +74,7 @@ Malformed JSON throws; the caller logs it and keeps the initial state.
 |---|---|
 | 1 | Five steps; no `version` field. |
 | 2 | Six steps: visualization split into projection and appearance, so review moved from index 4 to 5. |
-| 3 | Column configs have a `role` (feature or metadata). |
+| 3 | Column configs have a `role` (feature or metadata). Later, without a new version: `thumbnailArchiveName`, restored as `null` from saves without it. |
 
 ## Changing the format
 

@@ -32,6 +32,8 @@ Drag a CSV file onto the upload area, or click **Browse Files**. Files can be up
 
 Once the file is loaded, the step shows **Data Loaded Successfully** with the file name, size, number of rows and columns, a **Data Quality** score, the number of duplicate rows (if any) and a preview of the first 10 rows. **Upload Different File** replaces the file.
 
+**Item images (optional)** adds pictures for the **Image** glyph type. Click **Choose ZIP File** and pick a ZIP file (up to 200 MB) with one picture per item, named after the item's ID, e.g. `17.jpg`. JPG, PNG and WebP pictures are used; folders inside the ZIP don't matter. **Remove** drops the ZIP again. The pictures are attached to the dataset in Step 6, once FastMap is done; a notification says how many item images were added. Items without a picture show a grey placeholder.
+
 ## Step 2: Select Columns
 
 The table lists every column with its missing values, detected **Data Type**, **Use as** role, count, number of unique values and a small distribution chart.
@@ -90,10 +92,10 @@ You need at least one projection column to continue.
 
 ## Step 5: Glyphs & Color
 
-These settings define the dashboard's initial view. You can change them later in the sidebar's **Encoding** panel ([Encoding and filters](encoding-and-filters.md)).
+These settings define the dashboard's initial view. You can change them later in the sidebar ([Encoding and filters](encoding-and-filters.md)).
 
 - **Color attribute** and **Color scale:** the feature that colours the items, and its colours.
-- **Glyph Features:** the 3 to 12 features a glyph shows, in order. Click a feature under **Available features** to add it, or drag it. Reorder with **Move up** / **Move down** (or by dragging), and remove with **Remove feature**. The bar next to each feature shows its variance.
+- **Glyph Features:** the 3 to 8 features a glyph shows, in order. Click a feature under **Available features** to add it, or drag it. Reorder with **Move up** / **Move down** (or by dragging), and remove with **Remove feature**. The bar next to each feature shows its variance.
 - **Smart Suggestions** picks the five features with the most variation.
 - **Glyph Preview** shows how a glyph will look.
 
@@ -122,9 +124,11 @@ They keep running after you click **Open in Glyphspace**. Each finished projecti
 | What | Where | Kept until |
 |---|---|---|
 | Wizard settings and the current step | Your browser's local storage | You click **Start over**, open the dataset with **Open in Glyphspace**, or clear the site data |
-| The uploaded CSV file | The page's memory | You reload or close the page |
-| Datasets opened with **Open in Glyphspace** | Your browser's IndexedDB | You delete the dataset (**Delete this dataset** in the menu bar) or clear the site data |
+| The uploaded CSV file and the item image ZIP | Your browser's IndexedDB | You click **Start over**, open the dataset with **Open in Glyphspace**, or clear the site data |
+| Datasets opened with **Open in Glyphspace**, with their item images | Your browser's IndexedDB | You delete the dataset (**Delete this dataset** in the menu bar) or clear the site data |
+
+After a reload, the wizard loads the uploaded file again by itself. If it is no longer there, Step 1 opens with a note that the file is no longer loaded: upload it again. A file with the same columns keeps your settings; a file with other columns starts with new column settings.
 
 Imported datasets appear in the **Data** menu marked **(uploaded)**, also after a reload. They are stored only in the browser you used.
 
-Thumbnail images can't be added through the wizard, so the **Thumbnails** glyph type shows grey placeholders for imported datasets. Bundled datasets can include images; see [Preparing data](preparing-data.md#thumbnails).
+Bundled datasets can include images as well; see [Preparing data](preparing-data.md#thumbnails).
