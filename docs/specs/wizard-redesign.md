@@ -1,5 +1,11 @@
 # Implementierungs-Tickets – Wizard-Überarbeitung
 
+_For contributors who want the requirements and history behind the current wizard. Written in German._
+
+**Status:** Implemented (merged into `main` with #76, November 2026) · **Related:** [Wizard](../development/wizard.md), [Changelog](../../CHANGELOG.md)
+
+Formerly `ROADMAP.md` in the repository root. Still open: the section [Ausblick](#ausblick--offen-aber-nicht-im-umsetzungsrahmen) at the end.
+
 Ticketsystem für die Umsetzungsphase. Als Backbone dient der **Anforderungskatalog (A1–A15)** 
 Jede Anforderung ist ein Ticket. Feingranulare Einzelbefunde werden nicht als eigene Tickets geführt, sondern innerhalb des jeweiligen Anforderungstickets als abzuhakende Punkte gelistet.
 
