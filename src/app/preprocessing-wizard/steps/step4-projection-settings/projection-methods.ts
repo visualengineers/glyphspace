@@ -68,7 +68,7 @@ export const PROJECTION_PREVIEW_KEYS: Readonly<Record<ProjectionMethodKey, strin
  * support stay, so bringing one back means deleting it from this set.
  */
 export const HIDDEN_PROJECTION_METHODS: ReadonlySet<ProjectionMethodKey> = new Set<ProjectionMethodKey>([
-  // Hidden until druidjs fixes LLE (0.9 finds the largest eigenvectors); see ROADMAP.
+  // Hidden until druidjs fixes LLE (0.9 finds the largest eigenvectors); see docs/specs/wizard-redesign.md.
   'enableLLE',
 ]);
 
