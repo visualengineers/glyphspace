@@ -52,7 +52,7 @@ It then:
 
 1. Writes `mydata_with_id.csv` next to the input file: the CSV with its ID column moved to the front (or added).
 2. Writes the dataset files to `src/assets/data/`, named `mydata.<DDMMYYYY>.<type>.json`, with today's date: schema, features, statistics (`meta`) and positions for PCA, UMAP and t-SNE, plus a position file for coordinates and for each `-x`/`-y` pair, if present.
-3. Regenerates `src/default-dataset.ts` from all dataset files in `src/assets/data/`.
+3. Regenerates `src/default-dataset.ts` from all dataset files in `src/assets/data/`. `wineqr` and `nutrients` come first, in that order (`DATASET_ORDER` in the script), the others follow by name. The first dataset in the list opens on start.
 
 The dataset appears in the **Data** menu as `mydata` (the file name without `.csv`) the next time the app is built or the dev server reloads. The tool label-encodes text columns and shows the first five features in the glyph; you can change the glyph features and the colour in the sidebar ([Encoding and filters](encoding-and-filters.md)).
 

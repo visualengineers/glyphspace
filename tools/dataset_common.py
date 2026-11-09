@@ -422,7 +422,7 @@ def collect_datasets(folder: str, source: str) -> list[dict]:
     """
     grouped = defaultdict(lambda: defaultdict(dict))  # { base: { time: { type/subtype: filename } } }
 
-    for file in os.listdir(folder):
+    for file in sorted(os.listdir(folder)):  # os.listdir has no fixed order
         match = DATASET_FILE_PATTERN.match(file) if file.endswith(".json") else None
         if not match:
             continue

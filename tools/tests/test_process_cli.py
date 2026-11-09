@@ -283,3 +283,16 @@ def test_the_cli_marks_datasets_with_item_images(process):
     source = Path('src/default-dataset.ts').read_text(encoding='utf-8')
     [dataset] = json.loads(source.split('DEFAULT_DATASETCOLLECTION: DatasetCollection = ', 1)[1])
     assert dataset['images'] is True
+
+
+def test_the_cli_lists_bundled_datasets_in_a_fixed_order(process):
+    # The first entry opens on start; it must not depend on the file system's order.
+    for name in ['zeta', 'nutrients', 'alpha', 'wineqr']:
+        Path(f'src/assets/data/{name}.01012026.feature.json').write_text('[]', encoding='utf-8')
+
+    process.discover_datasets()
+
+    source = Path('src/default-dataset.ts').read_text(encoding='utf-8')
+    collection = json.loads(source.split('DEFAULT_DATASETCOLLECTION: DatasetCollection = ', 1)[1])
+    assert [dataset['dataset'] for dataset in collection] == ['wineqr', 'nutrients', 'alpha', 'zeta']
+

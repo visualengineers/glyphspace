@@ -85,7 +85,7 @@ Components talk through subjects on `ConfigService` rather than calling each oth
 
 ### Loading a dataset
 
-1. `ConfigService.loadData(name)` emits. The menubar does this on dataset selection (after `FilterService.clearFilters()`), `DataLoaderService` after an import and at startup. All bundled datasets are requested in parallel; the one shown at startup is the first in `src/default-dataset.ts` order that loads, however the downloads finish (`FirstInOrder`, `shared/helpers/first-in-order.ts`).
+1. `ConfigService.loadData(name)` emits. The menubar does this on dataset selection (after `FilterService.clearFilters()`), `DataLoaderService` after an import and at startup. All bundled datasets are requested in parallel; the one shown at startup is the first in `src/default-dataset.ts` order (fixed by `DATASET_ORDER` in `tools/process.py`) that loads, however the downloads finish (`FirstInOrder`, `shared/helpers/first-in-order.ts`).
 2. Each canvas calls `DataLoaderService.getGlyphData(name)`. It takes the `GlyphObject`s from `DatasetCacheService` and gives them to `FilterService` (`setActiveGlyphData`, counts).
 3. The canvas takes the timestamps and projections from `DatasetCollectionService` and selects the first of each.
 4. It clears the scene, computes the position bounds, and calls `fitToView`: scale positions, rebuild the spatial grid, reset to the low zoom level, render all glyphs, animate the camera.

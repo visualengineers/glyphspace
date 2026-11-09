@@ -19,7 +19,7 @@ GlyphSpace is an Angular 22 app (standalone components) that shows datasets as g
 - **Data:** bundled datasets are JSON files in `src/assets/data/`, listed in `src/default-dataset.ts`. Uploaded CSV files are processed in the browser by the preprocessing wizard.
 - **Python in the browser:** the wizard's pipeline (`src/assets/preprocessing_processor*.py`) runs on Pyodide in `src/app/workers/pyodide.worker.ts`. Never build Python source from request data; use `pythonCall` (`src/app/workers/pyodide-calls.ts`).
 - **Projections:** DruidJS. FastMap runs on the main thread; other methods run in one web worker each (`src/app/workers/projection.worker.ts`).
-- **CLI:** `python tools/process.py <file.csv>` writes a bundled dataset and regenerates `src/default-dataset.ts`; without arguments it only regenerates `src/default-dataset.ts`. Re-run it after adding or deleting files in `src/assets/data/` or `src/assets/thumbnails/`, and check the dataset order in the result: the first entry opens on start.
+- **CLI:** `python tools/process.py <file.csv>` writes a bundled dataset and regenerates `src/default-dataset.ts`; without arguments it only regenerates `src/default-dataset.ts`. Re-run it after adding or deleting files in `src/assets/data/` or `src/assets/thumbnails/`, The first entry opens on start; `DATASET_ORDER` in `tools/process.py` fixes the order.
 
 ## Commands
 
