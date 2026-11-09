@@ -1,4 +1,4 @@
-import { Component, Input, OnDestroy } from '@angular/core';
+import { Component, Input, OnDestroy, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ConfigService } from '../../services/config.service';
 import { GlyphConfiguration } from '../../glyph/glyph-configuration';
@@ -13,14 +13,16 @@ import {
   scaleTypeForFeature,
 } from '../../shared/interfaces/color-scale';
 import { ColorScaleSelectorComponent } from '../../shared/components/color-scale-selector/color-scale-selector.component';
+import { GlyphIconComponent } from '../glyph-icon/glyph-icon.component';
 
 type GlyphOptionKey = 'useCoordinateSystem' | 'useBackground' | 'useContour';
 
 /** Glyph type, color mapping and appearance (options and sizes) of the glyphs. */
 @Component({
   selector: 'app-encoding-tab',
-  imports: [FormsModule, ColorScaleSelectorComponent],
+  imports: [FormsModule, ColorScaleSelectorComponent, GlyphIconComponent],
   templateUrl: './encoding-tab.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './encoding-tab.component.scss',
 })
 export class EncodingTabComponent implements OnDestroy {
@@ -30,11 +32,16 @@ export class EncodingTabComponent implements OnDestroy {
   /** Number of categories of each feature that has categories. */
   @Input() categoryCounts: Record<string, number> = {};
   @Input({ required: true }) glyphConfig!: GlyphConfiguration;
+  /** Whether the dataset has item images; without them Image is disabled. */
+  @Input() imagesAvailable = true;
 
   readonly glyphTypes = [GlyphType.Star, GlyphType.Flower, GlyphType.Thumb].map(type => ({
     type,
     label: getGlyphTypeName(type),
   }));
+  readonly GlyphType = GlyphType;
+  readonly noImagesHint =
+    "This dataset has no item images. Import a dataset with a ZIP of images in the wizard's first step.";
   readonly groupedColorScales = buildGroupedColorScales(COLOR_SCALES);
   readonly sizeLimits = ITEM_SIZE_PX;
 
@@ -47,7 +54,13 @@ export class EncodingTabComponent implements OnDestroy {
   }
 
   // --- Glyph type and options ---
+  /** Image needs item images; the button stays focusable so its title can say why it is off. */
+  isUnavailable(type: GlyphType): boolean {
+    return type === GlyphType.Thumb && !this.imagesAvailable;
+  }
+
   setGlyphType(type: GlyphType): void {
+    if (this.isUnavailable(type)) return;
     this.glyphConfig.glyphType = type;
     this.config.updateConfiguration();
   }

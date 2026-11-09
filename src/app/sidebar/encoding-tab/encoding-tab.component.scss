@@ -34,7 +34,12 @@
 
   button {
     @include s.outline-button;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
     min-height: 36px;
+    padding: 0 8px;
     font-size: v.$font-size-base;
     font-weight: 400;
 
@@ -42,6 +47,20 @@
       @include s.selected;
       font-weight: 600;
     }
+
+    @include s.soft-disabled;
+
+    &[aria-disabled='true'] .type-icon {
+      opacity: 0.45;
+    }
+  }
+
+  .type-icon {
+    flex: none;
+  }
+
+  .material-icons.type-icon {
+    font-size: 18px;
   }
 }
 

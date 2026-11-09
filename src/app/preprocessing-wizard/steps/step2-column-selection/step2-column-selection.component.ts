@@ -1,4 +1,12 @@
-import { Component, OnInit, forwardRef, ViewChild, ElementRef, HostListener } from '@angular/core';
+import {
+  Component,
+  OnInit,
+  forwardRef,
+  ViewChild,
+  ElementRef,
+  HostListener,
+  ChangeDetectionStrategy,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PreprocessingService } from '../../services/preprocessing.service';
@@ -43,6 +51,7 @@ function isTextEntry(target: EventTarget | null): boolean {
   imports: [CommonModule, FormsModule, MiniHistogramComponent, HelpTooltipComponent, DataTypeBadgeComponent],
   templateUrl: './step2-column-selection.component.html',
   styleUrl: './step2-column-selection.component.scss',
+  changeDetection: ChangeDetectionStrategy.Eager,
   providers: [{ provide: WIZARD_STEP, useExisting: forwardRef(() => Step2ColumnSelectionComponent) }],
 })
 export class Step2ColumnSelectionComponent implements OnInit, WizardStep {

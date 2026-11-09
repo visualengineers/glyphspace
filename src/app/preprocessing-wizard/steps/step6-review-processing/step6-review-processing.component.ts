@@ -1,4 +1,13 @@
-import { Component, OnInit, OnDestroy, ChangeDetectorRef, NgZone, Output, EventEmitter } from '@angular/core';
+import {
+  Component,
+  OnInit,
+  OnDestroy,
+  ChangeDetectorRef,
+  NgZone,
+  Output,
+  EventEmitter,
+  ChangeDetectionStrategy,
+} from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { Subscription } from 'rxjs';
 import { PreprocessingService } from '../../services/preprocessing.service';
@@ -87,6 +96,7 @@ function methodRole(label: string): string {
   standalone: true,
   imports: [NgTemplateOutlet, DataTypeBadgeComponent, WizardIssueCardComponent],
   templateUrl: './step6-review-processing.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './step6-review-processing.component.scss',
 })
 export class Step6ReviewProcessingComponent implements OnInit, OnDestroy {

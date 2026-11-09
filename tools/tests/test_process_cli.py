@@ -29,6 +29,10 @@ pytestmark = pytest.mark.filterwarnings('error::FutureWarning')
 ONE_HOT_THRESHOLD = 10
 
 
+# pandas 3 always has these behaviours; with pandas 2 the second run turns them on.
+PANDAS_3 = int(pd.__version__.split('.')[0]) >= 3
+
+
 @pytest.fixture(autouse=True, params=['pandas-default', 'pandas-3-mode'])
 def pandas_mode(request, tmp_path, monkeypatch):
     # The import writes its files relative to the working directory.
@@ -36,6 +40,8 @@ def pandas_mode(request, tmp_path, monkeypatch):
     if request.param == 'pandas-default':
         yield
         return
+    if PANDAS_3:
+        pytest.skip('pandas 3 is installed, so the default run already covers it')
     with pd.option_context('mode.copy_on_write', True, 'future.infer_string', True):
         yield
 
@@ -263,3 +269,17 @@ def test_the_cli_lists_the_written_datasets(process):
     assert (dataset['dataset'], dataset['source']) == ('edge', 'local')
     assert set(dataset['items'][0]['algorithms']) == {'feature', 'meta', 'schema', 'position'}
     assert set(dataset['items'][0]['algorithms']['position']) == {'pca', 'tsne', 'umap'}
+    assert 'images' not in dataset
+
+
+def test_the_cli_marks_datasets_with_item_images(process):
+    process.process_csv_file(cli_csv())
+    images = Path('src/assets/thumbnails/edge')
+    images.mkdir(parents=True)
+    (images / 'r0.jpg').write_bytes(b'jpg')
+
+    process.discover_datasets()
+
+    source = Path('src/default-dataset.ts').read_text(encoding='utf-8')
+    [dataset] = json.loads(source.split('DEFAULT_DATASETCOLLECTION: DatasetCollection = ', 1)[1])
+    assert dataset['images'] is True

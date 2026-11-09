@@ -6,12 +6,21 @@
         type="button"
         [class.active]="glyphConfig.glyphType === option.type"
         [attr.aria-pressed]="glyphConfig.glyphType === option.type"
+        [attr.aria-disabled]="isUnavailable(option.type) || null"
+        [attr.aria-describedby]="isUnavailable(option.type) ? 'encoding-no-images' : null"
+        [attr.title]="isUnavailable(option.type) ? noImagesHint : null"
         (click)="setGlyphType(option.type)"
       >
-        {{ option.label }}
+        @if (option.type === GlyphType.Thumb) {
+          <span class="material-icons type-icon" aria-hidden="true">image</span>
+        } @else {
+          <app-glyph-icon class="type-icon" [type]="option.type" [size]="18" />
+        }
+        <span class="type-label">{{ option.label }}</span>
       </button>
     }
   </div>
+  <span class="visually-hidden" id="encoding-no-images">{{ noImagesHint }}</span>
 </section>
 
 <section class="group" aria-labelledby="encoding-color-by">

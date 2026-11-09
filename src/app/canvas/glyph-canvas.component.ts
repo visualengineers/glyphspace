@@ -11,6 +11,7 @@ import {
   NgZone,
   ChangeDetectorRef,
   OnChanges,
+  ChangeDetectionStrategy,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import * as THREE from 'three';
@@ -61,6 +62,7 @@ import { hasFeatureAxes } from '../shared/enum/glyph-type';
   ],
   providers: [CanvasCameraService, CanvasRendererService, CanvasSelectionService],
   templateUrl: './glyph-canvas.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./glyph-canvas.component.scss'],
 })
 export class GlyphCanvasComponent implements AfterViewInit, OnDestroy, OnChanges {

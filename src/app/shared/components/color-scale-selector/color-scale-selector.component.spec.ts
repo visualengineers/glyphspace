@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, ChangeDetectionStrategy } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ColorScaleSelectorComponent } from './color-scale-selector.component';
 import { COLOR_SCALES, ColorScale, buildGroupedColorScales, getColorScaleById } from '../../interfaces/color-scale';
@@ -6,6 +6,7 @@ import { COLOR_SCALES, ColorScale, buildGroupedColorScales, getColorScaleById } 
 @Component({
   standalone: true,
   imports: [ColorScaleSelectorComponent],
+  changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     <span id="host-scale-label">Color scale</span>
     <app-color-scale-selector

@@ -16,6 +16,8 @@ export interface DatasetCollectionEntry {
   dataset: string;
   source: string;
   items: DatasetItem[];
+  /** Bundled datasets: item images are in assets/thumbnails/<dataset>/ (set by tools/process.py). */
+  images?: boolean;
 }
 
 export type DatasetCollection = DatasetCollectionEntry[];

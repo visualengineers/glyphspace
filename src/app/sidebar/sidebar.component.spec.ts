@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { SidebarComponent } from './sidebar.component';
 import { ConfigService } from '../services/config.service';
 import { DataLoaderService } from '../services/data-loader.service';
+import { ThumbnailService } from '../services/thumbnail.service';
 import { GlyphType } from '../shared/enum/glyph-type';
 import { MAX_GLYPH_AXES } from '../glyph/glyph-axes';
 
@@ -9,15 +10,27 @@ describe('SidebarComponent', () => {
   let fixture: ComponentFixture<SidebarComponent>;
   let el: HTMLElement;
   let config: ConfigService;
+  let hasImages: ReturnType<typeof vi.fn>;
 
   const tab = (id: string) => el.querySelector<HTMLButtonElement>(`#sidebar-tab-${id}`)!; // eslint-disable-line @typescript-eslint/no-non-null-assertion
   const panel = (id: string) => el.querySelector<HTMLElement>(`#sidebar-tabpanel-${id}`)!; // eslint-disable-line @typescript-eslint/no-non-null-assertion
   const title = () => el.querySelector('.title')?.textContent?.replace(/\s+/g, ' ').trim();
 
   beforeEach(async () => {
+    hasImages = vi.fn().mockResolvedValue(true);
     await TestBed.configureTestingModule({
       imports: [SidebarComponent],
-      providers: [{ provide: DataLoaderService, useValue: {} }],
+      providers: [
+        {
+          provide: DataLoaderService,
+          useValue: {
+            getMetaData: async () => ({ features: {} }),
+            getSchema: async () => undefined,
+            getGlyphData: async () => [],
+          },
+        },
+        { provide: ThumbnailService, useValue: { hasImages } },
+      ],
     }).compileComponents();
     config = TestBed.inject(ConfigService);
     config.replaceActiveFeatures(['1', '2', '3']);
@@ -25,6 +38,28 @@ describe('SidebarComponent', () => {
     fixture = TestBed.createComponent(SidebarComponent);
     el = fixture.nativeElement;
     fixture.detectChanges();
+  });
+
+  it('switches from Image to Star when the loaded dataset has no item images', async () => {
+    hasImages.mockResolvedValue(false);
+    config.getConfiguration().glyphType = GlyphType.Thumb;
+
+    config.loadData('plain');
+
+    await vi.waitFor(() => expect(config.getConfiguration().glyphType).toBe(GlyphType.Star));
+    expect(hasImages).toHaveBeenCalledWith('plain');
+    expect(fixture.componentInstance.imagesAvailable).toBe(false);
+  });
+
+  it('keeps Image for a dataset with item images', async () => {
+    config.getConfiguration().glyphType = GlyphType.Thumb;
+
+    config.loadData('wineqr');
+
+    await vi.waitFor(() => expect(hasImages).toHaveBeenCalledWith('wineqr'));
+    await fixture.whenStable();
+    expect(config.getConfiguration().glyphType).toBe(GlyphType.Thumb);
+    expect(fixture.componentInstance.imagesAvailable).toBe(true);
   });
 
   it('opens on the Filters tab', () => {

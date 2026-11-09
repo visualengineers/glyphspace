@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Component, EventEmitter, Input, Output, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ConfigService } from '../../services/config.service';
 import { FilterService } from '../../services/filter.service';
@@ -15,6 +15,7 @@ import { GlyphIconComponent } from '../glyph-icon/glyph-icon.component';
   selector: 'app-filters-tab',
   imports: [FormsModule, HistogramComponent, GlyphIconComponent],
   templateUrl: './filters-tab.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './filters-tab.component.scss',
 })
 export class FiltersTabComponent {

@@ -48,6 +48,19 @@ export class ThumbnailService implements ThumbnailResolver {
     return (await index)?.size ?? 0;
   }
 
+  /**
+   * Whether the dataset has item images for the Image glyph type: a bundled
+   * dataset says so in the dataset list, a processed one has an image archive.
+   */
+  async hasImages(dataset: string): Promise<boolean> {
+    const entry = this.collections.getCollectionEntry(dataset);
+    if (entry == null) return false;
+    if (entry.source === 'local') return entry.images === true;
+    const index = this.archives.get(dataset);
+    if (index) return ((await index)?.size ?? 0) > 0;
+    return (await this.storage.getThumbnailArchive(dataset)) != null;
+  }
+
   /** Drop the images of a deleted dataset (the stored archive goes with the dataset). */
   forget(dataset: string): void {
     this.archives.delete(dataset);
