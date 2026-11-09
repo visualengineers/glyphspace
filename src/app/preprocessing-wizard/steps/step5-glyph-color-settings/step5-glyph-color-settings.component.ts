@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, OnInit, forwardRef } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit, forwardRef, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { PreprocessingService } from '../../services/preprocessing.service';
 import { WizardStep, WIZARD_STEP } from '../../shared/wizard-step';
@@ -37,6 +37,7 @@ export type MoveDirection = 'up' | 'down';
   imports: [FormsModule, HelpTooltipComponent, ColorScaleSelectorComponent],
   templateUrl: './step5-glyph-color-settings.component.html',
   styleUrl: './step5-glyph-color-settings.component.scss',
+  changeDetection: ChangeDetectionStrategy.Eager,
   providers: [{ provide: WIZARD_STEP, useExisting: forwardRef(() => Step5GlyphColorSettingsComponent) }],
 })
 export class Step5GlyphColorSettingsComponent implements OnInit, WizardStep {

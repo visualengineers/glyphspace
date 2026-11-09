@@ -1,4 +1,14 @@
-import { Component, ElementRef, EventEmitter, Input, OnDestroy, OnInit, Output, ViewChild } from '@angular/core';
+import {
+  Component,
+  ElementRef,
+  EventEmitter,
+  Input,
+  OnDestroy,
+  OnInit,
+  Output,
+  ViewChild,
+  ChangeDetectionStrategy,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Subscription } from 'rxjs';
 import { PreprocessingWizardComponent } from '../preprocessing-wizard/preprocessing-wizard.component';
@@ -12,6 +22,7 @@ import { ConfigService } from '../services/config.service';
   standalone: true,
   imports: [PreprocessingWizardComponent, FormsModule],
   templateUrl: './menubar.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./menubar.component.scss'],
 })
 export class MenuBarComponent implements OnInit, OnDestroy {

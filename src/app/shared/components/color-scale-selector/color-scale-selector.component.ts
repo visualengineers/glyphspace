@@ -1,4 +1,13 @@
-import { ChangeDetectorRef, Component, ElementRef, EventEmitter, HostListener, Input, Output } from '@angular/core';
+import {
+  ChangeDetectorRef,
+  Component,
+  ElementRef,
+  EventEmitter,
+  HostListener,
+  Input,
+  Output,
+  ChangeDetectionStrategy,
+} from '@angular/core';
 import { ColorScale, getContinuousGradient, getCategoricalColors } from '../../interfaces/color-scale';
 
 let nextSelectorId = 0;
@@ -17,6 +26,7 @@ let nextSelectorId = 0;
   standalone: true,
   imports: [],
   templateUrl: './color-scale-selector.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './color-scale-selector.component.scss',
 })
 export class ColorScaleSelectorComponent {

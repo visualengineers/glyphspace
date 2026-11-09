@@ -13,6 +13,7 @@ import {
   Injector,
   afterNextRender,
   inject,
+  ChangeDetectionStrategy,
 } from '@angular/core';
 import { Subscription, distinctUntilChanged, map, skip } from 'rxjs';
 import { PreprocessingService, UndoRedoInfo } from './services/preprocessing.service';
@@ -76,6 +77,7 @@ type PendingFocus = 'dialog' | 'step';
     Step6ReviewProcessingComponent,
   ],
   templateUrl: './preprocessing-wizard.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './preprocessing-wizard.component.scss',
 })
 export class PreprocessingWizardComponent implements OnInit, OnDestroy {

@@ -9,6 +9,7 @@ import {
   ViewChild,
   afterNextRender,
   inject,
+  ChangeDetectionStrategy,
 } from '@angular/core';
 import { Subscription } from 'rxjs';
 
@@ -42,6 +43,7 @@ const PLACEHOLDER_COLOR = '#9aa4ad';
   selector: 'app-sidebar',
   imports: [GlyphLegendComponent, FilterSummaryComponent, FiltersTabComponent, EncodingTabComponent],
   templateUrl: './sidebar.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./sidebar.component.scss'],
 })
 export class SidebarComponent implements OnInit, OnDestroy {

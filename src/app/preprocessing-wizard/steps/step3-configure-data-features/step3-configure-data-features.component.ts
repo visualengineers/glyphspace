@@ -1,4 +1,12 @@
-import { Component, OnInit, forwardRef, ViewChild, ElementRef, HostListener } from '@angular/core';
+import {
+  Component,
+  OnInit,
+  forwardRef,
+  ViewChild,
+  ElementRef,
+  HostListener,
+  ChangeDetectionStrategy,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { PreprocessingService } from '../../services/preprocessing.service';
 import { WizardStep, WIZARD_STEP } from '../../shared/wizard-step';
@@ -57,6 +65,7 @@ function bulkApplyAnnouncement(result: BulkApplyResult): string {
   imports: [FormsModule, HelpTooltipComponent, DataPreviewTableComponent, ConsequenceHintComponent],
   templateUrl: './step3-configure-data-features.component.html',
   styleUrls: ['./step3-configure-data-features.component.scss', './step3-accessibility.scss'],
+  changeDetection: ChangeDetectionStrategy.Eager,
   providers: [{ provide: WIZARD_STEP, useExisting: forwardRef(() => Step3ConfigureDataFeaturesComponent) }],
 })
 export class Step3ConfigureDataFeaturesComponent implements OnInit, WizardStep {

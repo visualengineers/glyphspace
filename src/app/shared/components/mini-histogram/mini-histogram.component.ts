@@ -7,6 +7,7 @@ import {
   ViewChild,
   AfterViewInit,
   SimpleChanges,
+  ChangeDetectionStrategy,
 } from '@angular/core';
 import * as d3 from 'd3';
 import { HistogramData } from '../../../preprocessing-wizard/models/column-statistics';
@@ -19,6 +20,7 @@ import { prepareStackedBinsFromArray, rebinHistogramData } from '../../utils/his
   standalone: true,
   imports: [],
   templateUrl: './mini-histogram.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './mini-histogram.component.scss',
 })
 export class MiniHistogramComponent implements OnChanges, AfterViewInit, OnDestroy {

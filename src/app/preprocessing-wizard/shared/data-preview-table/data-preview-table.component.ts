@@ -1,9 +1,10 @@
-import { Component, Input } from '@angular/core';
+import { Component, Input, ChangeDetectionStrategy } from '@angular/core';
 @Component({
   selector: 'app-data-preview-table',
   standalone: true,
   imports: [],
   templateUrl: './data-preview-table.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './data-preview-table.component.scss',
 })
 export class DataPreviewTableComponent {

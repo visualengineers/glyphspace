@@ -10,12 +10,12 @@ GlyphSpace is a single-page Angular application with no backend and no router. E
 
 | Concern | Library | Where |
 |---|---|---|
-| UI framework | Angular 21, standalone components, zone.js change detection | `src/main.ts` (`provideZoneChangeDetection`), `app.config.ts` (only `provideHttpClient`) |
+| UI framework | Angular 22, standalone components, zone.js change detection (existing components eager, new ones OnPush, [ADR 0011](../decisions/0011-existing-components-keep-eager-change-detection.md)) | `src/main.ts` (`provideZoneChangeDetection`), `app.config.ts` (only `provideHttpClient`) |
 | State and events | RxJS subjects in root services | `services/config.service.ts`, `services/filter.service.ts` |
 | Canvas rendering | three.js (`WebGLRenderer`, orthographic camera) | `canvas/`, `glyph/renderers/` |
 | Charts, colour scales, layout helpers | d3 (histogram brush, `scaleLinear`/`scaleQuantize`, `forceSimulation`, `quadtree`) | `sidebar/histogram/`, `shared/interfaces/color-scale.ts`, `canvas/`, `shared/helpers/glyph-helper.ts` |
 | Dimensionality reduction | DruidJS 0.9 (`@saehrimnir/druidjs`) | `workers/druid-runner.ts`, `workers/projection.worker.ts`, `services/projection.service.ts` |
-| Data preparation | Pyodide 0.29.5 from the jsDelivr CDN, with pandas and scikit-learn installed through micropip | `workers/pyodide.worker.ts`, `src/assets/preprocessing_processor*.py` |
+| Data preparation | Pyodide 314.0.7 (Python 3.14) from the jsDelivr CDN, with pandas 3.0 and scikit-learn 1.8 installed through micropip | `workers/pyodide.worker.ts`, `src/assets/preprocessing_processor*.py` |
 
 ## Module map
 

@@ -1,4 +1,13 @@
-import { ChangeDetectorRef, Component, ElementRef, Input, NgZone, OnDestroy, ViewChild } from '@angular/core';
+import {
+  ChangeDetectorRef,
+  Component,
+  ElementRef,
+  Input,
+  NgZone,
+  OnDestroy,
+  ViewChild,
+  ChangeDetectionStrategy,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { PARKED_POPUP_STYLE, PopupCoordinator, PopupPlacement, PopupTrigger, placePopup } from '../popup-coordinator';
 import {
@@ -44,6 +53,7 @@ function prefersReducedMotion(): boolean {
   standalone: true,
   imports: [CommonModule],
   templateUrl: './projection-preview.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './projection-preview.component.scss',
 })
 export class ProjectionPreviewComponent implements OnDestroy {
