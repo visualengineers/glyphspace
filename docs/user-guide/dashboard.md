@@ -25,8 +25,8 @@ The bar at the top of each canvas shows **Pos:** (the projection), **Time:** (th
 - **TIME STAMP:** the dataset version to show.
 - **DIMENSIONALITY REDUCTION:** the projection this canvas uses, e.g. `pca`, `umap`, `tsne` or, for imported data, `fastmap` and the methods you chose in the wizard. Changing it moves the items to their new positions in an animation.
 - **BACKGROUND PROJECTIONS:** right after an import, the projections that are still being computed. Each finished one is added to **DIMENSIONALITY REDUCTION**.
-- **TRANSITION SPEED AND PLAYBACK:** the speed of that animation (**−** / **+**) and a play/pause button for it.
-- **Avoid collision:** pushes overlapping items apart, just far enough that what is drawn no longer overlaps: dots, petals or stars, or whole circles when the circle background or the coordinate system is shown. It adjusts when you zoom to another level. Turning it off (or fitting the canvas) moves the items back.
+- **TRANSITION SPEED AND PLAYBACK:** the speed of that animation (**−** / **+**, from 1 to 10; 10, the fastest, is the start value) and a play/pause button for it. The speed also applies when items move back after **Avoid collision**.
+- **Avoid collision:** pushes overlapping items apart, just far enough that what is drawn no longer overlaps: dots, petals or stars, or whole circles when the circle background or the coordinate system is shown. It adjusts by itself when you zoom to another level or change **Size**, the glyph axes or the appearance: larger items move further apart, smaller ones back towards their places. Turning it off (or fitting the canvas) moves the items back.
 - **Aggregate items:** merges items that lie close together. In the zoomed-out view, each group is drawn as a single ring.
 
 ## Navigating
