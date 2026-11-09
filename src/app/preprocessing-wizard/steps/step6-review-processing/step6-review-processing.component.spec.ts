@@ -141,11 +141,9 @@ describe('Step6ReviewProcessingComponent – summary and deep links', () => {
     // when the table above it takes the remaining height.
     const buttonBar = el.querySelector('.action-buttons');
     if (!buttonBar) throw new Error('button bar not rendered');
-    expectFillsStep(
-      shellScroller,
-      el.querySelector<HTMLElement>('.review-section .info-box'),
-      buttonBar.getBoundingClientRect().top
-    );
+    expectFillsStep(shellScroller, el.querySelector<HTMLElement>('.review-section .info-box'), {
+      areaBottom: buttonBar.getBoundingClientRect().top,
+    });
     expect(getComputedStyle(el.querySelector('.review-section .columns-table') as Element).overflowY).toBe('auto');
   });
 

@@ -105,13 +105,10 @@ describe('Step4ProjectionSettingsComponent – accessibility', () => {
     shellScroller = mountInShellLayout(host);
     fixture.detectChanges();
 
-    expectFillsStep(shellScroller, host.querySelector<HTMLElement>('.projection-options-two-col'));
-    // Both panels stretch to the full height of the row.
-    const heights = Array.from(host.querySelectorAll<HTMLElement>('.projection-options-two-col > .config-panel')).map(
-      panel => panel.offsetHeight
-    );
-    expect(heights.length).toBe(2);
-    expect(heights[0]).toBe(heights[1]);
+    // Both panels stretch to the grid's bottom edge, the one shared by all steps.
+    const panels = host.querySelectorAll<HTMLElement>('.projection-options-two-col > .config-panel');
+    expect(panels.length).toBe(2);
+    expectFillsStep(shellScroller, host.querySelector<HTMLElement>('.projection-options-two-col'), { panels });
   });
 
   function el<T extends Element>(selector: string, root: ParentNode = host): T {

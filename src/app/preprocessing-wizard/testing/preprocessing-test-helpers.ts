@@ -37,22 +37,29 @@ export function mountInShellLayout(stepHost: HTMLElement, height = 800): HTMLEle
 /**
  * Asserts that `box` ends at the steps' shared bottom edge in a step mounted
  * with mountInShellLayout (only the step's bottom padding and the box's margin
- * lie between it and `areaBottom`), and that the step itself does not scroll.
- * `areaBottom` is the bottom of the step's content area: the scroller's bottom,
- * or the top of a button bar the step renders itself (Step 6).
+ * lie between it and the area's bottom), and that the step itself does not
+ * scroll.
+ * - `areaBottom`: bottom of the step's content area; the scroller's bottom by
+ *   default, or the top of a button bar the step renders itself (Step 6).
+ * - `panels`: the visible boxes inside `box` (e.g. the two panels of a grid);
+ *   each must end on the box's bottom edge too, not above it.
  */
 export function expectFillsStep(
   scroller: HTMLElement,
   box: HTMLElement | null,
-  areaBottom = scroller.getBoundingClientRect().bottom
+  options: { areaBottom?: number; panels?: Iterable<HTMLElement> } = {}
 ): void {
   if (!box) throw new Error('main box not rendered');
   const content = box.closest<HTMLElement>('.step-content');
   if (!content) throw new Error('main box is not inside .step-content');
+  const areaBottom = options.areaBottom ?? scroller.getBoundingClientRect().bottom;
+  const boxBottom = box.getBoundingClientRect().bottom;
   const expectedGap =
     parseFloat(getComputedStyle(content).paddingBottom) + parseFloat(getComputedStyle(box).marginBottom);
-  const gap = areaBottom - box.getBoundingClientRect().bottom;
-  expect(gap).toBeCloseTo(expectedGap, 0);
+  expect(areaBottom - boxBottom).toBeCloseTo(expectedGap, 0);
+  for (const panel of options.panels ?? []) {
+    expect(Math.abs(panel.getBoundingClientRect().bottom - boxBottom), panel.className).toBeLessThanOrEqual(1);
+  }
   expect(scroller.scrollHeight).toBeLessThanOrEqual(scroller.clientHeight);
 }
 

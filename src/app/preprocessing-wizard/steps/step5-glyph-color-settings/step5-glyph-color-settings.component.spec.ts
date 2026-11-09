@@ -608,7 +608,10 @@ describe('Step5GlyphColorSettingsComponent – template', () => {
     const el = render();
     shellScroller = mountInShellLayout(el);
 
-    expectFillsStep(shellScroller, el.querySelector<HTMLElement>('.glyph-section-two-col'));
+    // Both panels end on the grid's bottom edge, the one shared by all steps.
+    const panels = el.querySelectorAll<HTMLElement>('.glyph-section-two-col > .config-panel');
+    expect(panels.length).toBe(2);
+    expectFillsStep(shellScroller, el.querySelector<HTMLElement>('.glyph-section-two-col'), { panels });
     // The available list takes the features panel's remaining height down to its bottom.
     const panel = el.querySelector<HTMLElement>('.glyph-features-panel');
     const list = el.querySelector<HTMLElement>('.available-features-list');

@@ -93,6 +93,12 @@
       flex: none;
       min-height: 0;
     }
+
+    // The grid's own margin sets the bottom edge shared by all steps; the
+    // panels' margin would end them 16px higher than in the other steps.
+    > .config-panel {
+      margin-bottom: 0;
+    }
   }
 
   // ── Left: Glyph Features Panel ─────────────────────────────────────────────
