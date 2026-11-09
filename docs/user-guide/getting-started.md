@@ -24,6 +24,8 @@ One of them is loaded when the app starts. Datasets you import yourself appear i
 
 ## The screen at a glance
 
+![The dashboard with the wine quality dataset: two canvases, the left one showing all items as points, the right one zoomed in to star glyphs, and the Encoding panel of the sidebar on the right.](../images/dashboard.png)
+
 | Area | What it holds |
 |---|---|
 | **Menu bar** (top) | **Data**: choose the dataset. **Upload**: open the import wizard. **Export**: download the visible items as CSV. **Screenshot**: save the canvases as PNG. **Canvas**: **Add** a canvas, **Fit all** canvases to their content. On narrow screens the controls fold into the menu button. |

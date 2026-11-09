@@ -8,6 +8,8 @@ Glyphspace is a complete rewrite of the [Glyphboard application](https://github.
 
 See the running demo on Github pages: [https://visual-engineers.org/glyphspace/](https://visual-engineers.org/glyphspace/).
 
+![GlyphSpace showing the wine quality dataset: on the left a canvas with all 1,599 wines as coloured points in a UMAP projection, on the right a second canvas zoomed in so that each wine is a star glyph of five features, and on the right edge the Encoding panel with the glyph axes and the colour scale.](docs/images/dashboard.png)
+
 ## Your own data
 
 - **In the browser:** the preprocessing wizard turns a CSV file into a dataset in six steps, entirely in your browser. Step 1 offers a Wine Quality (red) sample to try it (P. Cortez et al., UCI Machine Learning Repository, CC BY 4.0). See [Importing data](docs/user-guide/importing-data.md).
