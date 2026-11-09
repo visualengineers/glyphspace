@@ -1,5 +1,5 @@
 import type { MockInstance } from 'vitest';
-import { Component } from '@angular/core';
+import { Component, ChangeDetectionStrategy } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { HelpTooltipComponent } from '../help-tooltip/help-tooltip.component';
 import { POPUP_HIDE_DELAY_MS } from '../popup-coordinator';
@@ -9,6 +9,7 @@ import { PREVIEW_CAPTIONS } from './projection-preview.data';
 @Component({
   standalone: true,
   imports: [ProjectionPreviewComponent, HelpTooltipComponent],
+  changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     <app-projection-preview methodKey="tri"></app-projection-preview>
     <app-projection-preview methodKey="umap" position="bottom"></app-projection-preview>

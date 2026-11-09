@@ -1,5 +1,15 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, inject, Input, NgZone, OnDestroy, Output, OnInit } from '@angular/core';
+import {
+  Component,
+  EventEmitter,
+  inject,
+  Input,
+  NgZone,
+  OnDestroy,
+  Output,
+  OnInit,
+  ChangeDetectionStrategy,
+} from '@angular/core';
 import { ConfigService } from '../../services/config.service';
 import { FormsModule } from '@angular/forms';
 import { FilterService } from '../../services/filter.service';
@@ -15,6 +25,7 @@ export type SettingMode = 'position' | null;
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './settingscontrols.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./settingscontrols.component.scss'],
 })
 export class SettingsControlPanelComponent implements OnDestroy, OnInit {

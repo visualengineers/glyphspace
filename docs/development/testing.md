@@ -36,7 +36,7 @@ python -B -m pytest -p no:cacheprovider tools/tests
 
 | File | Covers |
 |---|---|
-| `tools/tests/test_preprocessing_config.py` | the wizard's pipeline (`src/assets/preprocessing_processor*.py`). Each test runs with default pandas and with pandas-3 behaviour enabled; the option values are read from the TypeScript enums, so a renamed option breaks the test. |
+| `tools/tests/test_preprocessing_config.py` | the wizard's pipeline (`src/assets/preprocessing_processor*.py`). Each test runs with the installed pandas; with pandas 2 it runs a second time with pandas-3 behaviour enabled; the option values are read from the TypeScript enums, so a renamed option breaks the test. |
 | `tools/tests/test_process_cli.py` | the CLI (`tools/process.py`, `tools/dataset_common.py`) |
 
 `-B` and `-p no:cacheprovider` keep `__pycache__` and `.pytest_cache` out of the working tree.

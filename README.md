@@ -20,7 +20,7 @@ The CSV conventions (ID column, pre-computed coordinates, latitude/longitude) ar
 ## Development
 
 ```bash
-npm ci                            # install dependencies (Node 24, see .nvmrc)
+npm ci                            # install dependencies (Node 26, see .nvmrc)
 npx playwright install chromium   # once per machine: the browser for the unit tests
 npm start                         # dev server at http://localhost:4200/
 npm test                          # unit tests (watch mode); npm run test:ci runs them once

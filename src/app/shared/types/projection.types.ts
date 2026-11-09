@@ -8,17 +8,7 @@
  * Used by ProjectionService, projection.worker, and UI components.
  */
 export type ProjectionMethod =
-  | 'pca'
-  | 'fastmap'
-  | 'isomap'
-  | 'mds'
-  | 'lle'
-  | 'ltsa'
-  | 'tsne'
-  | 'umap'
-  | 'trimap'
-  | 'topomap'
-  | 'sammon';
+  'pca' | 'fastmap' | 'isomap' | 'mds' | 'lle' | 'ltsa' | 'tsne' | 'umap' | 'trimap' | 'topomap' | 'sammon';
 
 /**
  * Result of a projection computation.

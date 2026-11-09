@@ -14,7 +14,7 @@ The project documentation is in `docs/` (index: `docs/README.md`). Read the rele
 
 ## Architecture in brief
 
-GlyphSpace is an Angular 21 app (standalone components) that shows datasets as glyphs placed by dimensionality reductions. There is no backend; it is deployed as a static site to GitHub Pages.
+GlyphSpace is an Angular 22 app (standalone components) that shows datasets as glyphs placed by dimensionality reductions. There is no backend; it is deployed as a static site to GitHub Pages.
 
 - **Data:** bundled datasets are JSON files in `src/assets/data/`, listed in `src/default-dataset.ts`. Uploaded CSV files are processed in the browser by the preprocessing wizard.
 - **Python in the browser:** the wizard's pipeline (`src/assets/preprocessing_processor*.py`) runs on Pyodide in `src/app/workers/pyodide.worker.ts`. Never build Python source from request data; use `pythonCall` (`src/app/workers/pyodide-calls.ts`).

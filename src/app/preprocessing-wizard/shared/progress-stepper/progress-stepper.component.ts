@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter } from '@angular/core';
+import { Component, Input, Output, EventEmitter, ChangeDetectionStrategy } from '@angular/core';
 export interface Step {
   label: string;
   /** Purpose of the step, shown for the current (and upcoming) steps. */
@@ -16,6 +16,7 @@ let nextStepperId = 0;
   standalone: true,
   imports: [],
   templateUrl: './progress-stepper.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './progress-stepper.component.scss',
 })
 export class ProgressStepperComponent {

@@ -41,6 +41,10 @@ def ts_enum(name: str) -> list[str]:
     return re.findall(r"=\s*'([^']*)'", body)
 
 
+# pandas 3 always has these behaviours; with pandas 2 the second run turns them on.
+PANDAS_3 = int(pd.__version__.split('.')[0]) >= 3
+
+
 @pytest.fixture(autouse=True, params=['pandas-default', 'pandas-3-mode'])
 def pandas_mode(request, tmp_path, monkeypatch):
     # The pipeline writes processed_features.csv into the working directory.
@@ -48,6 +52,8 @@ def pandas_mode(request, tmp_path, monkeypatch):
     if request.param == 'pandas-default':
         yield
         return
+    if PANDAS_3:
+        pytest.skip('pandas 3 is installed, so the default run already covers it')
     with pd.option_context('mode.copy_on_write', True, 'future.infer_string', True):
         yield
 

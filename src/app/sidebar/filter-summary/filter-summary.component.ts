@@ -1,5 +1,5 @@
 import { DecimalPipe } from '@angular/common';
-import { Component, ElementRef, HostListener, Input, ViewChild } from '@angular/core';
+import { Component, ElementRef, HostListener, Input, ViewChild, ChangeDetectionStrategy } from '@angular/core';
 import { ConfigService } from '../../services/config.service';
 import { FilterService } from '../../services/filter.service';
 import { CategoryFilter } from '../../shared/filter/category-filter';
@@ -25,6 +25,7 @@ let nextId = 0;
   selector: 'app-filter-summary',
   imports: [DecimalPipe],
   templateUrl: './filter-summary.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './filter-summary.component.scss',
 })
 export class FilterSummaryComponent {

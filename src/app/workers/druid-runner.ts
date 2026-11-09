@@ -28,17 +28,7 @@ export interface ProjectionRun {
 
 /** DruidJS classes used by the worker. */
 export type DruidClassName =
-  | 'PCA'
-  | 'FASTMAP'
-  | 'ISOMAP'
-  | 'TSNE'
-  | 'UMAP'
-  | 'MDS'
-  | 'LLE'
-  | 'LTSA'
-  | 'TriMap'
-  | 'TopoMap'
-  | 'SAMMON';
+  'PCA' | 'FASTMAP' | 'ISOMAP' | 'TSNE' | 'UMAP' | 'MDS' | 'LLE' | 'LTSA' | 'TriMap' | 'TopoMap' | 'SAMMON';
 
 /** Second constructor argument of a DruidJS class, as DruidJS declares it (e.g. `Partial<ParametersUMAP>`). */
 export type DruidParams<K extends DruidClassName> = NonNullable<ConstructorParameters<(typeof Druid)[K]>[1]>;

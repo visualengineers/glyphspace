@@ -19,7 +19,7 @@ Message types: `WorkerRequest` and `WorkerReply` in `src/app/shared/interfaces/p
 
 ### Lifecycle
 
-- On start, the worker loads Pyodide `PYODIDE_VERSION` (0.29.5) from `https://cdn.jsdelivr.net/pyodide/v<version>/full/` and installs `pandas` and `scikit-learn` with micropip. Every request waits for this.
+- On start, the worker loads Pyodide `PYODIDE_VERSION` (314.0.7) from `https://cdn.jsdelivr.net/pyodide/v<version>/full/` and installs `pandas` and `scikit-learn` with micropip. Every request waits for this.
 - Requests run one at a time, in the order they arrive (`runSerialized`).
 - The Python modules `preprocessing_processor.py` and `preprocessing_processor_config.py` are fetched from `assets/` and written to the worker's file system the first time a request needs them.
 - The worker lives as long as the page. Its file system holds the uploaded CSV files and the unpacked item images, so a reload loses them. The wizard keeps the uploaded CSV in IndexedDB and writes it back with `profileData` after a reload ([Wizard storage](wizard-storage.md#uploaded-files)); `ThumbnailService` unpacks a dataset's stored image archive again on first use.

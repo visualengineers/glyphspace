@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { Component, ElementRef, Input, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import { Component, ElementRef, Input, OnDestroy, OnInit, ViewChild, ChangeDetectionStrategy } from '@angular/core';
 import { getGlyphFromObject } from '../../shared/helpers/glyph-helper';
 import { ConfigService } from '../../services/config.service';
 import { Subscription } from 'rxjs';
@@ -36,6 +36,7 @@ export function buildTooltipRows(
   selector: 'app-tooltip',
   imports: [],
   templateUrl: './tooltip.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './tooltip.component.scss',
 })
 export class TooltipComponent implements OnInit, OnDestroy {

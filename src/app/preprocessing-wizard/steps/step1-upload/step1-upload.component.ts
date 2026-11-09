@@ -8,6 +8,7 @@ import {
   forwardRef,
   inject,
   viewChild,
+  ChangeDetectionStrategy,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -47,6 +48,7 @@ async function fetchSampleFile(): Promise<File> {
   imports: [CommonModule, FormsModule, DataPreviewTableComponent, HelpTooltipComponent],
   templateUrl: './step1-upload.component.html',
   styleUrl: './step1-upload.component.scss',
+  changeDetection: ChangeDetectionStrategy.Eager,
   providers: [{ provide: WIZARD_STEP, useExisting: forwardRef(() => Step1UploadComponent) }],
 })
 export class Step1UploadComponent implements OnInit, OnDestroy, WizardStep {

@@ -10,6 +10,7 @@ import {
   Output,
   EventEmitter,
   OnDestroy,
+  ChangeDetectionStrategy,
 } from '@angular/core';
 import * as d3 from 'd3';
 import { ItemFilter } from '../../shared/filter/item-filter';
@@ -31,6 +32,7 @@ import {
 @Component({
   selector: 'app-histogram',
   templateUrl: './histogram.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./histogram.component.scss'],
 })
 export class HistogramComponent implements OnInit, AfterViewInit, OnChanges, OnDestroy {

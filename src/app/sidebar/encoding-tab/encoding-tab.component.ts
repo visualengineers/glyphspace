@@ -1,4 +1,4 @@
-import { Component, Input, OnDestroy } from '@angular/core';
+import { Component, Input, OnDestroy, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ConfigService } from '../../services/config.service';
 import { GlyphConfiguration } from '../../glyph/glyph-configuration';
@@ -21,6 +21,7 @@ type GlyphOptionKey = 'useCoordinateSystem' | 'useBackground' | 'useContour';
   selector: 'app-encoding-tab',
   imports: [FormsModule, ColorScaleSelectorComponent],
   templateUrl: './encoding-tab.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './encoding-tab.component.scss',
 })
 export class EncodingTabComponent implements OnDestroy {

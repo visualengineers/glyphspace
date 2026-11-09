@@ -15,6 +15,8 @@ GlyphSpace has no version numbers yet, so releases are named by the date they re
 ### Changed
 
 - The wizard redesign ticket list moved from `ROADMAP.md` to [docs/specs/wizard-redesign.md](docs/specs/wizard-redesign.md).
+- Node 26 (`.nvmrc`; `package.json` requires 26 or newer), Angular 22.2, TypeScript 6.0, Vitest 5.1, three.js 0.187, lint-staged 17, Playwright 1.65 and the latest minor versions of the other packages. After pulling, install Node 26 and run `npx playwright install chromium` once. Existing components keep their change detection; new components use OnPush, Angular 22's default ([ADR 0011](docs/decisions/0011-existing-components-keep-eager-change-detection.md)). The HTTP client uses Angular's default `fetch` backend.
+- The wizard runs on Pyodide 314.0.7: Python 3.14, pandas 3.0, scikit-learn 1.8, numpy 2.4. The download stays about the same (about 40 MB). One-hot and label encoding of numeric columns no longer fill text into a number column, which pandas 4 will reject.
 - The sidebar was redesigned (#90). On top, the glyph legend shows the glyph with numbered axes; axes are added with **+ Add axis** and removed from their label, between 3 and 8 per glyph. Below it, **FILTERS** lists every active filter, search terms included, next to the number of matching items. The **Filters** tab marks the glyph's features on their cards and adds or removes them there; the **Encoding** tab holds glyph type, colour and appearance. The whole sidebar can be hidden.
 - Glyph axes follow the order of the glyph features: axis 1 points up, the others follow clockwise, and an added feature becomes the last axis. Canvases, legend and the wizard's Step 5 preview draw them the same way (#90).
 - New categorical palettes: Glasbey, Tableau 10 and Colorblind, none with grey, which marks filtered-out items. Categories take the colours in order, in the glyphs and the histograms alike. The new palettes have new ids; datasets and wizard settings saved with Observable10 or Tableau20 open with Glasbey or Tableau 10 (#89).
@@ -23,7 +25,6 @@ GlyphSpace has no version numbers yet, so releases are named by the date they re
 - The magic lens shows the items nearest the cursor in their arrangement on the canvas, as large as they fit without overlapping. Before, it scattered them at random and they piled up along its border. When more items are under the cursor than the lens shows, the ring around the cursor shrinks to the area it shows. The lens is 300 px wide (was 250).
 - Zooming from dots to glyphs no longer stalls the page as long: a flower glyph is drawn as one shape and one outline instead of one per petal, and the flower outline only at the highest zoom level, where it is visible.
 - The **Thumbnails** glyph type is now called **Image** (#90).
-- Angular 21.2.26 (CLI 21.2.29), Vitest 4.1.12, Playwright 1.65. After pulling, run `npx playwright install chromium` once for Playwright's new browser build.
 
 ### Removed
 

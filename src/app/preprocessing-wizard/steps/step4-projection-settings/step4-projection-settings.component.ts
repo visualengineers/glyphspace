@@ -1,4 +1,4 @@
-import { Component, OnInit, forwardRef } from '@angular/core';
+import { Component, OnInit, forwardRef, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PreprocessingService } from '../../services/preprocessing.service';
@@ -54,6 +54,7 @@ const MISSING_LABELS: Readonly<Record<MissingValueStrategy, string>> = {
   imports: [CommonModule, FormsModule, HelpTooltipComponent, ProjectionPreviewComponent, DataTypeBadgeComponent],
   templateUrl: './step4-projection-settings.component.html',
   styleUrl: './step4-projection-settings.component.scss',
+  changeDetection: ChangeDetectionStrategy.Eager,
   providers: [{ provide: WIZARD_STEP, useExisting: forwardRef(() => Step4ProjectionSettingsComponent) }],
 })
 export class Step4ProjectionSettingsComponent implements OnInit, WizardStep {

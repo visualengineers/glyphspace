@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Component, EventEmitter, Input, Output, ChangeDetectionStrategy } from '@angular/core';
 import { WizardIssue } from '../constants/wizard-error-classes';
 import { getStepInfo, stepNumber } from '../constants/step-info';
 
@@ -15,6 +15,7 @@ let nextIssueCardId = 0;
   standalone: true,
   imports: [],
   templateUrl: './wizard-issue-card.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './wizard-issue-card.component.scss',
 })
 export class WizardIssueCardComponent {

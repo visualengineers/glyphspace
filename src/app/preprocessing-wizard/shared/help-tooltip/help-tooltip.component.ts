@@ -1,4 +1,12 @@
-import { ChangeDetectorRef, Component, ElementRef, Input, OnDestroy, ViewChild } from '@angular/core';
+import {
+  ChangeDetectorRef,
+  Component,
+  ElementRef,
+  Input,
+  OnDestroy,
+  ViewChild,
+  ChangeDetectionStrategy,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { PARKED_POPUP_STYLE, PopupCoordinator, PopupPlacement, PopupTrigger, placePopup } from '../popup-coordinator';
 
@@ -18,6 +26,7 @@ const TOOLTIP_OFFSET_PX = 8;
   standalone: true,
   imports: [CommonModule],
   templateUrl: './help-tooltip.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './help-tooltip.component.scss',
 })
 export class HelpTooltipComponent implements OnDestroy {

@@ -9,6 +9,7 @@ import {
   afterNextRender,
   Injector,
   inject,
+  ChangeDetectionStrategy,
 } from '@angular/core';
 import { GlyphType, getGlyphTypeName, hasFeatureAxes } from '../../shared/enum/glyph-type';
 import {
@@ -56,6 +57,7 @@ let nextId = 0;
 @Component({
   selector: 'app-glyph-legend',
   templateUrl: './glyph-legend.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './glyph-legend.component.scss',
 })
 export class GlyphLegendComponent implements OnChanges {
