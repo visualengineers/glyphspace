@@ -116,11 +116,24 @@ describe('PreprocessingService – page reload', () => {
       expect(service.currentState.currentStep).toBe(stepIndex('upload'));
     });
 
-    it('keeps the settings when the same file is uploaded again', async () => {
-      await service.loadCSV(csv());
+    it('keeps the settings when the same file is uploaded again, without an undo entry', async () => {
+      const { historyId } = await service.loadCSV(csv());
 
+      expect(historyId).toBeNull();
+      expect(service.canUndo).toBe(false);
       expect(service.currentState.uploadMissing).toBe(false);
       expect(service.currentState.columnConfigs.get('a')?.enabled).toBe(false);
+    });
+
+    it('asks for the lost file again when an undo returns to it', async () => {
+      profileData.mockImplementation(async () => profileOf(['x']));
+      await service.loadCSV(csv('x\n1\n')); // other columns: a new "File replaced" entry
+
+      service.undo();
+
+      expect(service.currentState.uploadKey).toBe('wine.csv');
+      expect(service.currentState.uploadMissing).toBe(true);
+      await expect(service.processInWorker()).rejects.toThrow(/upload it again/);
     });
 
     it('starts over when a file with other columns is uploaded', async () => {

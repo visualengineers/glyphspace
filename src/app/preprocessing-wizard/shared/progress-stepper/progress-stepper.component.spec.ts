@@ -57,6 +57,15 @@ describe('ProgressStepperComponent', () => {
     expect(buttons().map(b => b.disabled)).toEqual([false, false, true, true]);
   });
 
+  it('follows the reachable flag of the owner over its own rule for later steps', () => {
+    render(
+      1,
+      STEPS.map((s, i) => ({ ...s, completed: true, reachable: i !== 2 }))
+    );
+    // Steps up to the current one stay reachable; step 3 is closed although completed.
+    expect(buttons().map(b => b.disabled)).toEqual([false, false, true, false]);
+  });
+
   it('emits the index of a reachable step on click', () => {
     render(2);
     const clicked: number[] = [];

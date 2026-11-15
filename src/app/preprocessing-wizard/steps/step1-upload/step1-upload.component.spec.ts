@@ -105,6 +105,43 @@ describe('Step1UploadComponent', () => {
     expect(profileData).not.toHaveBeenCalled();
   });
 
+  it('shows what Python says is wrong with a file, not its traceback', async () => {
+    profileData.mockRejectedValue(
+      new Error(
+        'Traceback (most recent call last):\n' +
+          '  File "/home/pyodide/preprocessing_processor.py", line 236, in profile_data\n' +
+          '    df = pd.read_csv(file_name)\n' +
+          'pandas.errors.ParserError: Error tokenizing data. C error: Expected 3 fields in line 4, saw 5\n'
+      )
+    );
+    const input = query<HTMLInputElement>('input[type="file"]');
+    Object.defineProperty(input, 'files', { value: [new File(['a,b\n1,2,3\n'], 'broken.csv')] });
+
+    input.dispatchEvent(new Event('change'));
+    await settle();
+    fixture.detectChanges();
+
+    const text = query('.error-message').textContent ?? '';
+    expect(text).toContain('The file could not be read: pandas.errors.ParserError: Error tokenizing data.');
+    expect(text).not.toContain('Traceback');
+    expect(text).not.toContain('read_csv');
+  });
+
+  it('offers no undo for a file put back after a reload (it records no history entry)', async () => {
+    (service as unknown as { updateState(u: Partial<PreprocessingState>): void }).updateState({
+      dataProfile: PROFILE,
+    });
+    vi.spyOn(service, 'loadCSV').mockResolvedValue({ profile: PROFILE, historyId: null });
+    const undoToast = vi.spyOn(toast, 'showUndo').mockImplementation(() => undefined);
+    const input = query<HTMLInputElement>('input[type="file"]');
+    Object.defineProperty(input, 'files', { value: [new File(['a\n1\n'], 'wine.csv')] });
+
+    input.dispatchEvent(new Event('change'));
+    await settle();
+
+    expect(undoToast).not.toHaveBeenCalled();
+  });
+
   it('shows the sample data source attribution', () => {
     expect(query('.sample-attribution').textContent?.trim()).toBe(
       'Sample: Wine Quality (red), P. Cortez et al., UCI Machine Learning Repository, CC BY 4.0'

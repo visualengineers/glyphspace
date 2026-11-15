@@ -121,6 +121,40 @@ describe('classifyProcessingError', () => {
     });
   });
 
+  it('classifies the glyph feature errors of the pipeline as K5', () => {
+    const unknown =
+      "Failed to process data: These glyph features are not in the processed data: 'color'. " +
+      'The current settings no longer produce them; choose the glyph features again in the glyph step.';
+    const count =
+      'Failed to process data: A glyph needs 3 to 8 glyph features, but 9 were chosen. ' +
+      'Choose the glyph features again in the glyph step.';
+
+    expect(classifyProcessingError(unknown).code).toBe('K5');
+    expect(classifyProcessingError(count).code).toBe('K5');
+  });
+
+  it('is not misled by a column name: quoted values from the data are not matched', () => {
+    const raw =
+      "Failed to process data: Column 'Memory (GB)': the fill value 'lots' is not a number. " +
+      'Enter a number or choose another missing-value strategy.';
+    expect(classifyProcessingError(raw).code).toBe('K8');
+    expect(classifyProcessingError("Column 'sample size' could not convert string to float").code).toBe('K1');
+  });
+
+  it('matches only the exception of a Python traceback, not its frames', () => {
+    const raw = [
+      'Traceback (most recent call last):',
+      '  File "/lib/python3.14/site-packages/pandas/core/frame.py", line 12, in allocate_memory',
+      '    memory = sample_rows()',
+      "ValueError: could not convert string to float: 'n/a'",
+    ].join('\n');
+
+    const issue = classifyProcessingError(raw);
+
+    expect(issue.code).toBe('K1');
+    expect(issue.raw).toBe(raw);
+  });
+
   it('is case-insensitive on the raw message', () => {
     expect(classifyProcessingError('COULD NOT CONVERT STRING to float').code).toBe('K1');
     expect(classifyProcessingError('Out Of Memory').code).toBe('K6');
