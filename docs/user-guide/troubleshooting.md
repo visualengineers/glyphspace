@@ -56,6 +56,9 @@ If one of the additional projections fails, a notification reads **METHOD could 
 |---|---|
 | A notification reads **Failed to load dataset "name"** | A bundled dataset's files couldn't be loaded. If you added or removed dataset files, regenerate the dataset list with `python tools/process.py` (see [Preparing data](preparing-data.md#remove-a-dataset)). |
 | An imported dataset is missing from the **Data** menu | Imported datasets live in the browser they were imported in. Clearing the site data, a private window or another browser starts empty. Import the CSV again. |
+| A notification reads **"name" could not be saved in the browser, so it will be gone after a reload** | The browser refused to store the imported dataset, usually because its storage for the site is full. The dataset works until you reload. Delete imported datasets you no longer need and import it again, or free storage in the browser settings. |
+| A notification reads **"name" could not be deleted** | The browser's storage failed; the dataset is kept. Try again, or reload the page first. |
+| Imported datasets are missing, or can't be opened, while GlyphSpace is open in another tab | A tab with an older version of GlyphSpace keeps the saved datasets locked. Reload or close the other tab, then reload this one. |
 | Scrolling doesn't zoom | Zooming is paused while a tooltip is pinned or the magic lens is on. Click the item again to release the tooltip, or press **L** to close the lens. |
 | No tooltip appears | Tooltips show in **Navigation Mode** (press **N**). Hold the mouse still over an item for a moment, or click it. |
 | Keyboard shortcuts don't work | Move the mouse over the canvas just before pressing the key (shortcuts pause 2 seconds after the mouse stops), and click outside any text field first. |
