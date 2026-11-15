@@ -48,20 +48,6 @@ export class SchemaConfigSyncService {
 
     this.config.featureMaxValues = maxValues;
   }
-
-  extractFeatureMaxValuesFromMeta(meta: GlyphMeta): void {
-    if (!meta || !meta.features) return;
-
-    const maxValues: Record<string, number> = {};
-
-    Object.entries(meta.features).forEach(([featureId, stats]) => {
-      if (stats.max !== undefined) {
-        maxValues[featureId] = stats.max;
-      }
-    });
-
-    this.config.featureMaxValues = maxValues;
-  }
 }
 
 /** Number of categories of each feature that has categories (label-encoded or boolean). */

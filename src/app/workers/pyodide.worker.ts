@@ -2,14 +2,32 @@
 
 import { DatasetCollection } from '../shared/interfaces/dataset-collection';
 import { WorkerReply, WorkerRequest } from '../shared/interfaces/pyodide-messages';
-import { PyArg, PyodideCallRuntime, pythonCall, runPythonCall, runPythonJson, unpackZipCall } from './pyodide-calls';
-import { InputFileRegistry, PyodideFs, assertSafeFileName, resultFileFor } from './pyodide-files';
+import {
+  PyArg,
+  PyodideCallRuntime,
+  pythonCall,
+  removeUnpackedCall,
+  runPythonCall,
+  runPythonJson,
+  unpackZipCall,
+} from './pyodide-calls';
+import {
+  InputFileRegistry,
+  PROCESSED_FEATURES_FILE,
+  PyodideFs,
+  assertSafeFileName,
+  resultFileFor,
+} from './pyodide-files';
+import PYODIDE_PACKAGES from './pyodide-packages.json';
 
-// -- Load Pyodide from CDN --
+// -- Load Pyodide, served by this site (ADR 0013) --
 
-/** The Pyodide release loaded from the CDN (single source of truth). */
-const PYODIDE_VERSION = '314.0.7';
-const PYODIDE_INDEX_URL = `https://cdn.jsdelivr.net/pyodide/v${PYODIDE_VERSION}/full/`;
+/**
+ * Where the build serves Pyodide and its packages: `pyodide/` next to the worker script, so the
+ * site's base href applies. The `pyodide` npm package fixes the version; `tools/fetch-pyodide.mjs`
+ * puts the wheels of `pyodide-packages.json` next to it.
+ */
+const PYODIDE_INDEX_URL = new URL('pyodide/', self.location.href).href;
 
 /** The subset of the Pyodide API this worker uses. */
 interface WorkerPyodide extends PyodideCallRuntime {
@@ -19,21 +37,36 @@ interface WorkerPyodide extends PyodideCallRuntime {
     readFile(path: string, options: { encoding: 'binary' }): Uint8Array<ArrayBuffer>;
     readdir(path: string): string[];
   };
-  loadPackage(name: string): Promise<unknown>;
-  pyimport(name: 'micropip'): { install(name: string): Promise<unknown> };
+  loadPackage(names: string[]): Promise<unknown>;
 }
 
 const pyodideReady = (async (): Promise<WorkerPyodide> => {
-  const { loadPyodide } = await import(`${PYODIDE_INDEX_URL}pyodide.mjs`);
-  const pyodide: WorkerPyodide = await loadPyodide({ indexURL: PYODIDE_INDEX_URL });
+  const { loadPyodide } = await import(/* @vite-ignore */ `${PYODIDE_INDEX_URL}pyodide.mjs`);
+  const pyodide: WorkerPyodide = await loadPyodide({
+    indexURL: PYODIDE_INDEX_URL,
+    // Packages resolve against this site too, never against Pyodide's CDN default.
+    packageBaseUrl: PYODIDE_INDEX_URL,
+  });
 
-  await pyodide.loadPackage('micropip');
-  const micropip = pyodide.pyimport('micropip');
-  await micropip.install('pandas');
-  await micropip.install('scikit-learn');
+  // Only packages from pyodide-lock.json, fetched with its SHA-256 as integrity: no micropip, no PyPI.
+  await pyodide.loadPackage(PYODIDE_PACKAGES);
 
   return pyodide;
 })();
+
+// -- Tell the main thread when the runtime is up (or failed to load) --
+// DataProcessorService creates this worker only when Python is needed, so
+// loading Pyodide as soon as the module runs is what the caller asked for.
+pyodideReady.then(
+  () => postMessage({ type: 'ready' } satisfies WorkerReply),
+  (err: unknown) => postMessage({ type: 'startupFailed', message: errorMessage(err) } satisfies WorkerReply)
+);
+
+/**
+ * Errors after which Pyodide can run nothing anymore (it says so itself, or
+ * the WebAssembly runtime aborted). The main thread then replaces the worker.
+ */
+const FATAL_ERROR = /fatally failed|suffered a fatal error|Aborted\(/i;
 
 // -- Ensure serialized task execution --
 let executionLock = Promise.resolve();
@@ -86,23 +119,34 @@ async function handleUnzip(
   { folder, buffer }: RequestOf<'unzip'>,
   reply: Reply
 ): Promise<void> {
-  const zipName = folder;
-  const zipPath = `${zipName}.zip`;
-  assertSafeFileName(zipPath);
+  assertSafeFileName(folder);
+  const zipPath = `${folder}.zip`;
   pyodide.FS.writeFile(zipPath, new Uint8Array(buffer));
 
   try {
-    await runPythonCall(pyodide, unpackZipCall(zipPath));
-
-    // Ensure the directory now exists
-    if (!pyodide.FS.analyzePath(`/${zipName}`).exists) {
-      throw new Error(`Unpack failed: folder /${zipName} not found`);
-    }
-    const images = pyodide.FS.readdir(`/${zipName}`).filter(f => /\.(png|jpe?g|webp)$/i.test(f));
-    reply({ type: 'unzipped', folder: zipName, images });
+    const { images, duplicates } = (await runPythonJson(pyodide, unpackZipCall(zipPath))) as {
+      images: string[];
+      duplicates: string[];
+    };
+    reply({ type: 'unzipped', folder, images, duplicates });
   } catch (err: unknown) {
     reply({ type: 'error', message: `Unzip failed: ${errorMessage(err)}` });
+  } finally {
+    // The unpacked images are all that is needed; the archive would only double the memory.
+    if (pyodide.FS.analyzePath(zipPath).exists) {
+      pyodide.FS.unlink(zipPath);
+    }
   }
+}
+
+async function handleRemoveFolder(
+  pyodide: WorkerPyodide,
+  { folder }: RequestOf<'removeFolder'>,
+  reply: Reply
+): Promise<void> {
+  assertSafeFileName(folder);
+  await runPythonCall(pyodide, removeUnpackedCall(folder));
+  reply({ type: 'folderRemoved', folder });
 }
 
 function handleGetThumb(pyodide: WorkerPyodide, { file }: RequestOf<'getThumb'>, reply: Reply): void {
@@ -149,8 +193,9 @@ async function handleProcessWithConfig(
   await runPythonCall(pyodide, pythonCall('preprocessing_processor_config', 'set_progress_callback', [sendProgress]));
 
   // Write the result to a file instead of returning a huge string through the FFI.
+  // Both outputs go to OUTPUT_FOLDER, out of reach of the uploaded files' names.
   const outputFileName = resultFileFor(fileName);
-  const args = [fileName, JSON.stringify(config), outputFileName];
+  const args = [fileName, JSON.stringify(config), outputFileName, PROCESSED_FEATURES_FILE];
   await runPythonCall(pyodide, pythonCall('preprocessing_processor_config', 'process_with_config', args));
 
   const dataset = JSON.parse(pyodide.FS.readFile(outputFileName, { encoding: 'utf8' })) as DatasetCollection;
@@ -173,7 +218,7 @@ async function handleProcessWithConfig(
 function handleGetProcessedFeatures(pyodide: WorkerPyodide, reply: Reply): void {
   // Read processed features CSV exported by Python for JavaScript projections
   try {
-    const csvText = pyodide.FS.readFile('processed_features.csv', { encoding: 'utf8' });
+    const csvText = pyodide.FS.readFile(PROCESSED_FEATURES_FILE, { encoding: 'utf8' });
     reply({ type: 'processedFeatures', data: csvText });
   } catch (err: unknown) {
     reply({ type: 'error', message: `Failed to read processed features: ${errorMessage(err)}` });
@@ -188,8 +233,13 @@ async function handleRequest(pyodide: WorkerPyodide, request: WorkerRequest, rep
     }
     case 'unzip':
       return handleUnzip(pyodide, request, reply);
+    case 'removeFolder':
+      return handleRemoveFolder(pyodide, request, reply);
     case 'getThumb':
       return handleGetThumb(pyodide, request, reply);
+    case 'putFile':
+      writeInputFile(pyodide, request.fileName, request.buffer);
+      return reply({ type: 'filePut', fileName: request.fileName });
     case 'profileData':
       return handleProfileData(pyodide, request, reply);
     case 'computeHistogram': {
@@ -223,9 +273,16 @@ self.onmessage = (ev: MessageEvent<TaggedWorkerRequest>) => {
 
   runSerialized(async () => {
     try {
-      await handleRequest(await pyodideReady, request, reply);
+      const pyodide = await pyodideReady;
+      // The client starts the request's timeout now, not when it was queued.
+      if (request.requestId !== undefined) reply({ type: 'started' });
+      await handleRequest(pyodide, request, reply);
     } catch (err: unknown) {
-      reply({ type: 'error', message: errorMessage(err) });
+      const message = errorMessage(err);
+      reply({ type: 'error', message });
+      if (FATAL_ERROR.test(message)) {
+        postMessage({ type: 'crashed', message } satisfies WorkerReply);
+      }
     }
   });
 };

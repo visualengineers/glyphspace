@@ -18,7 +18,7 @@ The TypeScript declarations are in `src/app/shared/interfaces/` (`glyph-schema.t
 
 - **Feature ids** are the strings `"1"`, `"2"`, … in the order of the encoded feature columns. The same id refers to the same feature in the schema, in every item's `features` and `values`, and in the meta.
 - **Metadata ids** are a separate sequence `"1"`, `"2"`, … over the metadata columns, used only by `schema.metadata` and each item's `metadata`.
-- **Item ids** come from the `ID` column of the input. They are strings; numeric ids in a file are accepted and converted with `String(id)` when the dataset is loaded (`DatasetCacheService.buildDataSet`). Positions are matched to items by this string.
+- **Item ids** come from the `ID` column of the input. They are strings, exactly as written in the CSV: both producers read the id column as text, and the projections keep the strings Python wrote (`ProjectionService.parseCSVFeatures`), so `007` stays `007`. Numeric ids in older files are accepted and converted with `String(id)` when the dataset is loaded (`DatasetCacheService.buildDataSet`). Positions are matched to items by this string.
 - **Context ids** select a set of feature values per item. Both producers write a single context `"1"`.
 
 ## Files of a bundled dataset
@@ -70,7 +70,7 @@ An object `{ "features": { featureId: FeatureStats } }` with statistics per feat
 
 | Field | Type | Required | Meaning |
 |---|---|---|---|
-| `histogram` | `{ bin: number }` | yes | Bins `"0"`, `"1"`, …. The CLI writes 20 bins of density for every feature. The wizard writes 20 bins for numeric features and one bin per category, with the share of items, for categorical, boolean and text features; rows with a missing value are not counted. |
+| `histogram` | `{ bin: number }` | yes | Bins `"0"`, `"1"`, …. The CLI writes 20 bins of density for every feature. The wizard writes 20 bins for numeric features and one bin per category, with the share of items, for categorical, boolean and text features; rows with a missing value are not counted. A numeric bin `n` holds the values in the `n`-th twentieth of the feature's range `[min, max]`, which is how the dashboard maps it to the [0, 1] feature values; a constant feature (all 0 in [0, 1]) has all its values in bin `"0"`. |
 | `categories` | `string[]` | no | Wizard: category label per code, so `categories[code]` names the value encoded as `code`. CLI: the sorted distinct values of a low-cardinality column. Empty or absent for numeric and one-hot features; the dashboard treats a missing list as empty. Its length is the feature's number of categories, by which the categorical colour palettes colour the feature (`ConfigService.featureCategoryCounts`, `featureColor`). |
 | `min`, `max`, `median`, `variance`, `deviation` | `number` | yes | Statistics of the encoded feature: the CLI computes them on the normalised values, the wizard on the scaled values before the [0, 1] mapping. Variance and deviation are population values. |
 | `originalMin`, `originalMax` | `number` | no | Range in the original units, for readable labels (wizard only). Dates are in seconds since the epoch. |
@@ -114,7 +114,9 @@ type DatasetCollection = {
 
 The `time` of an item is the day the data was produced: `ddmmyyyy` for bundled CLI datasets (`tools/dataset_common.py`), `yyyymmdd` (UTC) for wizard datasets (`PreprocessingService`).
 
-`memory://` entries are `memory://<name>/<time>/schema`, `…/meta`, `…/features` and, for positions, `…/<projection>`. They name content that is already in `DatasetCacheService` (or in IndexedDB) and tell the menubar which projections exist; in practice they are never fetched, because the cache always holds these datasets. Only `wasm` and `indexeddb` datasets can be deleted from the app (`DataLoaderService.deleteDataset`).
+Order matters: the dashboard opens the first dataset, the first item (time) of a dataset and the first projection of an item, and offers them in their order. For bundled datasets the CLI fixes it ([Processing pipeline](../development/processing-pipeline.md#bundled-datasets-cli)): the datasets of `DATASET_ORDER` first, then the others alphabetically; items in date order; projections UMAP, PCA, t-SNE (`PROJECTION_ORDER`), then the others by name.
+
+`memory://` entries are `memory://<name>/<time>/schema`, `…/meta`, `…/features` and, for positions, `…/<projection>`. They name content that is in `DatasetCacheService` or in IndexedDB and tell the menubar which projections exist; they are never fetched: `wasm` datasets are always in the cache, and `indexeddb` datasets are read from IndexedDB when first opened. Only `wasm` and `indexeddb` datasets can be deleted from the app (`DataLoaderService.deleteDataset`).
 
 ## Stored datasets (IndexedDB)
 
@@ -138,6 +140,8 @@ interface StoredDataset {
 ```
 
 A background projection that finishes after the dataset reached the dashboard is added to the loaded dataset and the record is saved again.
+
+At startup the app lists the stored datasets (name, time and projections, read with a cursor, one record at a time) and reads a dataset's record when it is first opened. A save that fails, for example because the storage is full, is reported to the user; the dataset then lasts only for the session. A failed deletion keeps the dataset.
 
 ## Compatibility
 

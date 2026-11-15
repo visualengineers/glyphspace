@@ -30,6 +30,8 @@ export function indexImages(folder: string, images: readonly string[]): ArchiveI
 @Injectable({ providedIn: 'root' })
 export class ThumbnailService implements ThumbnailResolver {
   private archives = new Map<string, Promise<ArchiveIndex | null>>();
+  /** The worker folder each dataset's archive is unpacked into, to delete it when it is replaced or forgotten. */
+  private folders = new Map<string, string>();
   private nextFolder = 0;
 
   constructor(
@@ -43,7 +45,7 @@ export class ThumbnailService implements ThumbnailResolver {
    * sessions. Returns the number of item images found in it.
    */
   async attachArchive(dataset: string, archive: Blob): Promise<number> {
-    const index = this.unpack(archive);
+    const index = this.unpack(dataset, archive);
     this.archives.set(dataset, index);
     await this.storage.saveThumbnailArchive(dataset, archive);
     return (await index)?.size ?? 0;
@@ -56,6 +58,7 @@ export class ThumbnailService implements ThumbnailResolver {
   async detachArchive(dataset: string): Promise<void> {
     // Known at once, before the stored archive is gone, so no image of it shows.
     this.archives.set(dataset, Promise.resolve(null));
+    this.releaseFolder(dataset);
     await this.storage.deleteThumbnailArchive(dataset);
   }
 
@@ -78,6 +81,17 @@ export class ThumbnailService implements ThumbnailResolver {
    */
   forget(dataset: string): void {
     this.archives.delete(dataset);
+    this.releaseFolder(dataset);
+  }
+
+  /** Delete the unpacked images of `dataset` from the worker's memory. */
+  private releaseFolder(dataset: string): void {
+    const folder = this.folders.get(dataset);
+    if (folder === undefined) return;
+    this.folders.delete(dataset);
+    this.dataProcessor
+      .removeFolder(folder)
+      .catch(error => console.warn('[ThumbnailService] The unpacked images could not be deleted:', error));
   }
 
   requestThumb(dataset: string, id: string): Observable<ThumbnailImage | null> {
@@ -96,14 +110,19 @@ export class ThumbnailService implements ThumbnailResolver {
   private archiveOf(dataset: string): Promise<ArchiveIndex | null> {
     let index = this.archives.get(dataset);
     if (!index) {
-      index = this.storage.getThumbnailArchive(dataset).then(archive => (archive ? this.unpack(archive) : null));
+      index = this.storage
+        .getThumbnailArchive(dataset)
+        .then(archive => (archive ? this.unpack(dataset, archive) : null));
       this.archives.set(dataset, index);
     }
     return index;
   }
 
-  private async unpack(archive: Blob): Promise<ArchiveIndex | null> {
+  /** Unpack the archive into a new worker folder; the dataset's previous folder is deleted. */
+  private async unpack(dataset: string, archive: Blob): Promise<ArchiveIndex | null> {
+    this.releaseFolder(dataset);
     const folder = `thumbnails-${this.nextFolder++}`;
+    this.folders.set(dataset, folder);
     try {
       return indexImages(folder, await this.dataProcessor.unzip(folder, archive));
     } catch (error) {

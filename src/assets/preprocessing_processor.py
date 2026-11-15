@@ -4,12 +4,142 @@ Handles CSV profiling, cleaning, and transformation in the browser via Pyodide
 """
 
 import json
+import math
+import re
+import warnings
 from typing import NamedTuple
 
 import pandas as pd
 import numpy as np
 
 TOP_VALUES_LIMIT = 10
+
+
+# --- Reading the upload and writing JSON for the JS side -----------------------------
+
+
+def read_csv(file_name) -> pd.DataFrame:
+    """Read an uploaded CSV the same way for profiling, analysis and processing.
+
+    The id column (see is_id_column) is read as text, so ids keep their leading
+    zeros ("007") and long digit strings (tweet ids) stay exact: pandas would read
+    them as numbers, and the item ids, the positions and the image file names
+    would no longer match. Every other column is parsed as pandas does.
+    """
+    header = pd.read_csv(file_name, nrows=0).columns
+    return pd.read_csv(file_name, dtype={col: str for col in header if is_id_column(col)})
+
+
+def to_json(value) -> str:
+    """Strict JSON for the JS side, whose JSON.parse rejects the NaN and Infinity
+    that json.dumps writes by default: non-finite numbers become null."""
+    try:
+        return json.dumps(value, allow_nan=False)
+    except ValueError:  # a NaN or infinity somewhere; rare, so only then walk the value
+        return json.dumps(_finite_json(value), allow_nan=False)
+
+
+def _finite_json(value):
+    """The value with every non-finite float replaced by None."""
+    if isinstance(value, (float, np.floating)):
+        return float(value) if math.isfinite(value) else None
+    if isinstance(value, dict):
+        return {key: _finite_json(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_finite_json(item) for item in value]
+    return value
+
+
+def _finite_items(stats: dict) -> dict:
+    """The statistics that are finite numbers. The profile's numeric fields are
+    optional, so an undefined statistic (the sd of a single value) is left out."""
+    return {key: value for key, value in stats.items() if math.isfinite(value)}
+
+
+def _finite_numbers(series: pd.Series) -> pd.Series:
+    """The column's finite numbers: missing, non-numeric and infinite values left out."""
+    numbers = pd.to_numeric(series, errors='coerce').astype('float64')
+    return numbers[np.isfinite(numbers)]
+
+
+# --- Dates -------------------------------------------------------------------------
+
+# A date that starts with its year (ISO 8601 and similar): never day first.
+_YEAR_FIRST = re.compile(r'^\s*\d{4}[-/.]')
+# A date that starts with its day or month: 1-2 digits, a separator, 1-2 digits, the year.
+_DAY_MONTH = re.compile(r'^\s*(\d{1,2})([./-])(\d{1,2})[./-]\d{2,4}')
+
+
+def parse_dates(values: pd.Series) -> pd.Series:
+    """The dates of a column; values that are no date become NaT.
+
+    The one parser for dates: the type detection, the profile, the encoding and
+    the meta all use it, so a column detected as dates is encoded as the same
+    dates. Values that start with the year are parsed year-month-day. For the
+    others, the data decides whether the day comes first (see _day_first): with a
+    fixed month-first reading, 13/04/2021 would not parse and 01/04/2021 would be
+    the 4th of January. Each group is parsed with one inferred format, and value
+    by value only when that leaves some unparsed (a column of mixed formats).
+    """
+    if pd.api.types.is_datetime64_any_dtype(values):
+        return values
+    texts = values[values.notna()].astype(str)
+    year_first = texts.str.match(_YEAR_FIRST)
+    parts = []
+    for group, day_first in ((texts[year_first], False), (texts[~year_first], None)):
+        if not group.empty:
+            parts.append(_parse_dates_as(group, _day_first(group) if day_first is None else day_first))
+    if not parts:
+        return pd.Series(pd.NaT, index=values.index, dtype='datetime64[ns]')
+    if any(isinstance(part.dtype, pd.DatetimeTZDtype) for part in parts):
+        parts = [_in_utc(part) for part in parts]
+    return pd.concat([part.dt.as_unit('ns') for part in parts]).reindex(values.index)
+
+
+def _day_first(texts: pd.Series) -> bool:
+    """Whether dates like 01/04/2021 put the day first.
+
+    A first number above 12 can only be a day (day first); a second number above
+    12 too (month first). When that evidence is even, dates written with dots
+    (01.04.2021) are day first; otherwise month first, pandas' default.
+    """
+    parts = texts.str.extract(_DAY_MONTH).dropna()
+    if parts.empty:
+        return False
+    day_first = int((parts[0].astype(int) > 12).sum())
+    month_first = int((parts[2].astype(int) > 12).sum())
+    if day_first != month_first:
+        return day_first > month_first
+    return bool((parts[1] == '.').any())
+
+
+def _parse_dates_as(texts: pd.Series, day_first: bool) -> pd.Series:
+    with warnings.catch_warnings():
+        # "Could not infer format": pandas then parses value by value, as wanted.
+        warnings.simplefilter('ignore', UserWarning)
+        parsed = _to_datetime(texts, day_first, None)
+        if parsed.isna().any():
+            parsed = _to_datetime(texts, day_first, 'mixed')
+    return parsed
+
+
+def _to_datetime(texts: pd.Series, day_first: bool, date_format) -> pd.Series:
+    try:
+        return pd.to_datetime(texts, errors='coerce', dayfirst=day_first, format=date_format)
+    except ValueError:  # several time zones: pandas needs them converted to one
+        return pd.to_datetime(texts, errors='coerce', dayfirst=day_first, format=date_format, utc=True)
+
+
+def _in_utc(dates: pd.Series) -> pd.Series:
+    if isinstance(dates.dtype, pd.DatetimeTZDtype):
+        return dates.dt.tz_convert('UTC')
+    return dates.dt.tz_localize('UTC')
+
+
+def epoch_seconds(dates: pd.Series) -> pd.Series:
+    """Seconds since the epoch as floats; NaT becomes NaN. Independent of the
+    resolution pandas parsed the dates to and of their time zone."""
+    return (dates - pd.Timestamp('1970-01-01', tz=dates.dt.tz)) / pd.Timedelta(seconds=1)
 
 
 class OutlierDetection(NamedTuple):
@@ -66,13 +196,6 @@ def _is_text_dtype(series):
     return pd.api.types.is_object_dtype(series) or pd.api.types.is_string_dtype(series)
 
 
-def _epoch_seconds(date_series):
-    """Integer seconds since the epoch. Normalises to nanosecond resolution first:
-    pandas 3 no longer parses dates to `datetime64[ns]` by default, so a plain
-    int64 cast would not be in nanoseconds."""
-    return date_series.dt.as_unit('ns').astype('int64') // 10**9
-
-
 def _top_values(series, n=TOP_VALUES_LIMIT):
     """The n most frequent values as [{'value': str, 'count': int}]."""
     return [
@@ -107,14 +230,13 @@ def detect_data_type(series):
             return 'boolean'
         return 'numeric'
 
-    # Try parsing as datetime
+    # Try parsing as datetime, with the parser the encoding uses
     if _is_text_dtype(series):
+        sample = series.dropna().head(100)
         try:
-            sample = series.dropna().head(100)
-            parsed = pd.to_datetime(sample, errors='coerce', format='mixed')
-            if parsed.notna().sum() / len(sample) > 0.5:
+            if not sample.empty and parse_dates(sample).notna().sum() / len(sample) > 0.5:
                 return 'date'
-        except:
+        except Exception:
             pass
 
     # Check cardinality for categorical vs text
@@ -154,23 +276,25 @@ def profile_column(series):
         'uniqueCount': int(unique_count)
     }
 
-    # Numeric statistics (coordinates are numeric values too)
+    # Numeric statistics (coordinates are numeric values too), over the finite
+    # numbers: a column without any has none, and an undefined statistic (the sd
+    # of a single value) is left out instead of becoming NaN, which JSON can't hold.
     if data_type in ['numeric', 'coordinate']:
-        numeric_series = pd.to_numeric(series, errors='coerce')
-        stats.update({
-            'min': float(numeric_series.min()) if not numeric_series.empty else 0,
-            'max': float(numeric_series.max()) if not numeric_series.empty else 0,
-            'mean': float(numeric_series.mean()) if not numeric_series.empty else 0,
-            'median': float(numeric_series.median()) if not numeric_series.empty else 0,
-            'q1': float(numeric_series.quantile(0.25)) if not numeric_series.empty else 0,
-            'q3': float(numeric_series.quantile(0.75)) if not numeric_series.empty else 0,
-            'stdDev': float(numeric_series.std()) if not numeric_series.empty else 0,
-            'variance': float(numeric_series.var()) if not numeric_series.empty else 0
-        })
+        numbers = _finite_numbers(series)
+        if not numbers.empty:
+            stats.update(_finite_items({
+                'min': float(numbers.min()),
+                'max': float(numbers.max()),
+                'mean': float(numbers.mean()),
+                'median': float(numbers.median()),
+                'q1': float(numbers.quantile(0.25)),
+                'q3': float(numbers.quantile(0.75)),
+                'stdDev': float(numbers.std()),
+                'variance': float(numbers.var())
+            }))
 
-        # Simple histogram (50 bins)
-        if not numeric_series.empty:
-            counts, bin_edges = np.histogram(numeric_series.dropna(), bins=min(50, unique_count))
+            # Simple histogram (up to 50 bins)
+            counts, bin_edges = np.histogram(numbers, bins=min(50, numbers.nunique()))
             stats['histogram'] = {
                 'bins': list(range(len(counts))),
                 'counts': [float(c) for c in counts],
@@ -179,7 +303,7 @@ def profile_column(series):
 
     # Date statistics
     elif data_type == 'date':
-        date_series = pd.to_datetime(series, errors='coerce').dropna()
+        date_series = parse_dates(series).dropna()
         if not date_series.empty:
             # Sort dates for earliest/latest
             sorted_dates = date_series.sort_values()
@@ -192,7 +316,7 @@ def profile_column(series):
             # Use 20 bins across the date range
             if len(date_series) > 1:
                 # Convert to numeric timestamps for histogram
-                timestamps = _epoch_seconds(date_series)
+                timestamps = epoch_seconds(date_series)
                 counts, bin_edges = np.histogram(timestamps, bins=min(20, len(date_series.unique())))
 
                 # Create labels showing date ranges for each bin
@@ -230,10 +354,42 @@ def profile_column(series):
     return stats
 
 
+def _fallback_profile(series: pd.Series, error: Exception) -> dict:
+    """The profile of a column whose statistics failed: its counts, typed as text.
+
+    The column is listed all the same. Left out of the profile, the wizard would
+    have no settings for it, and processing rejects a column without settings.
+    """
+    total_count = len(series)
+    non_null_count = int(series.notna().sum())
+    return {
+        'name': series.name,
+        'dataType': 'text',
+        'count': non_null_count,
+        'missingCount': total_count - non_null_count,
+        'missingPercentage': float((total_count - non_null_count) / total_count * 100) if total_count else 0.0,
+        'uniqueCount': int(series.nunique()),
+        'sampleValues': [str(v) for v in series.dropna().unique()[:10]],
+        'profileError': str(error),
+    }
+
+
+def _display_rows(rows_df: pd.DataFrame) -> list[dict]:
+    """Rows for a table in the wizard (the preview, sample duplicates): missing
+    values as "" and infinite numbers as text ("inf"), since JSON has no infinity."""
+    # As objects first: filling a number column with text is an error in pandas 4.
+    rows = rows_df.astype(object).where(rows_df.notna(), '').to_dict('records')
+    return [
+        {key: str(value) if isinstance(value, float) and not math.isfinite(value) else value
+         for key, value in row.items()}
+        for row in rows
+    ]
+
+
 def profile_data(file_name):
     """Profile a CSV file and return statistics"""
     try:
-        df = pd.read_csv(file_name)
+        df = read_csv(file_name)
 
         # Calculate quality score
         total_cells = df.shape[0] * df.shape[1]
@@ -243,18 +399,14 @@ def profile_data(file_name):
         # Detect duplicates
         duplicate_count = df.duplicated().sum()
 
-        # Profile each column
+        # Profile each column; every column is listed, also one whose statistics fail
         columns_stats = []
         for col in df.columns:
             try:
-                col_stats = profile_column(df[col])
-                columns_stats.append(col_stats)
+                columns_stats.append(profile_column(df[col]))
             except Exception as e:
                 print(f"Error profiling column {col}: {str(e)}")
-                continue
-
-        # Preview rows (first 10)
-        preview_rows = df.head(10).fillna('').to_dict('records')
+                columns_stats.append(_fallback_profile(df[col], e))
 
         profile = {
             'fileName': file_name,
@@ -264,10 +416,10 @@ def profile_data(file_name):
             'qualityScore': float(quality_score),
             'duplicateCount': int(duplicate_count),
             'columns': columns_stats,
-            'previewRows': preview_rows
+            'previewRows': _display_rows(df.head(10))
         }
 
-        return json.dumps(profile)
+        return to_json(profile)
 
     except Exception as e:
         raise Exception(f"Failed to profile data: {str(e)}")
@@ -276,15 +428,15 @@ def profile_data(file_name):
 def compute_histogram(file_name, column_name, bins=50):
     """Compute histogram for a specific column"""
     try:
-        df = pd.read_csv(file_name)
+        df = read_csv(file_name)
 
         if column_name not in df.columns:
             raise Exception(f"Column {column_name} not found")
 
-        series = pd.to_numeric(df[column_name], errors='coerce').dropna()
+        series = _finite_numbers(df[column_name])
 
         if series.empty:
-            return json.dumps({'bins': [], 'counts': [], 'binEdges': []})
+            return to_json({'bins': [], 'counts': [], 'binEdges': []})
 
         counts, bin_edges = np.histogram(series, bins=bins)
 
@@ -294,7 +446,7 @@ def compute_histogram(file_name, column_name, bins=50):
             'binEdges': [float(e) for e in bin_edges]
         }
 
-        return json.dumps(histogram)
+        return to_json(histogram)
 
     except Exception as e:
         raise Exception(f"Failed to compute histogram: {str(e)}")
@@ -303,13 +455,13 @@ def compute_histogram(file_name, column_name, bins=50):
 def detect_outliers(file_name, column_name, method='iqr_1.5'):
     """Detect outliers in a numeric column"""
     try:
-        df = pd.read_csv(file_name)
+        df = read_csv(file_name)
 
         if column_name not in df.columns:
             raise Exception(f"Column {column_name} not found")
 
         if pd.to_numeric(df[column_name], errors='coerce').dropna().empty:
-            return json.dumps({'outlierIndices': [], 'outlierCount': 0})
+            return to_json({'outlierIndices': [], 'outlierCount': 0})
 
         outliers = find_outliers(df[column_name], method).mask
         outlier_indices = outliers[outliers].index.tolist()
@@ -320,7 +472,7 @@ def detect_outliers(file_name, column_name, method='iqr_1.5'):
             'method': method
         }
 
-        return json.dumps(result)
+        return to_json(result)
 
     except Exception as e:
         raise Exception(f"Failed to detect outliers: {str(e)}")
@@ -329,7 +481,7 @@ def detect_outliers(file_name, column_name, method='iqr_1.5'):
 def detect_duplicates(file_name, subset_columns=None):
     """Detect duplicate rows in the dataset"""
     try:
-        df = pd.read_csv(file_name)
+        df = read_csv(file_name)
 
         # If subset_columns is provided, check only those columns
         if subset_columns:
@@ -345,7 +497,7 @@ def detect_duplicates(file_name, subset_columns=None):
         sample_duplicates = []
         if duplicate_count > 0:
             duplicate_rows = df[duplicates].head(5)
-            sample_duplicates = duplicate_rows.fillna('').to_dict('records')
+            sample_duplicates = _display_rows(duplicate_rows)
 
         result = {
             'duplicateCount': duplicate_count,
@@ -355,11 +507,12 @@ def detect_duplicates(file_name, subset_columns=None):
             'sampleDuplicates': sample_duplicates
         }
 
-        return json.dumps(result)
+        return to_json(result)
 
     except Exception as e:
         raise Exception(f"Failed to detect duplicates: {str(e)}")
 
 
 # Export functions for Pyodide
-__all__ = ['profile_data', 'compute_histogram', 'detect_outliers', 'detect_duplicates', 'find_outliers']
+__all__ = ['profile_data', 'compute_histogram', 'detect_outliers', 'detect_duplicates', 'find_outliers',
+           'is_id_column', 'read_csv', 'to_json', 'parse_dates', 'epoch_seconds']

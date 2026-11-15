@@ -1,0 +1,57 @@
+<button
+  type="button"
+  class="about-btn"
+  (click)="open()"
+  aria-haspopup="dialog"
+  aria-label="About GlyphSpace and licences"
+  title="About GlyphSpace and licences"
+>
+  <span class="material-icons" aria-hidden="true">info_outline</span>
+</button>
+
+<!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events, @angular-eslint/template/interactive-supports-focus -- backdrop click only; Esc closes the dialog natively -->
+<dialog #dialog class="about-dialog" aria-labelledby="about-title" (click)="onDialogClick($event)">
+  <div class="about-content">
+    <div class="about-header">
+      <h2 id="about-title">About GlyphSpace</h2>
+      <button type="button" class="close-btn" (click)="close()" aria-label="Close">
+        <span class="material-icons" aria-hidden="true">close</span>
+      </button>
+    </div>
+
+    <p>
+      GlyphSpace shows datasets as glyphs placed by dimensionality reductions. It runs entirely in your browser and is
+      open source under the MIT licence:
+      <a href="https://github.com/visualengineers/glyphspace" target="_blank" rel="noopener">source code</a>.
+    </p>
+
+    <h3>Data</h3>
+    <p class="data-wine">
+      The bundled <strong>wineqr</strong> dataset and the wizard's sample file are based on <em>Wine Quality</em> by P.
+      Cortez, A. Cerdeira, F. Almeida, T. Matos and J. Reis,
+      <a href="https://doi.org/10.24432/C56S3T" target="_blank" rel="noopener">UCI Machine Learning Repository</a>,
+      licensed under
+      <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>. Modified:
+      GlyphSpace uses the red wines, adds an ID to each, and derives normalised features and projections.
+    </p>
+
+    <h3>Third-party software</h3>
+    <ul>
+      <li class="licence-druid">
+        <strong>DruidJS {{ druidVersion }}</strong> computes the projections. It is licensed under the GNU LGPL 3.0 or
+        later; its source code is at
+        <a href="https://github.com/saehm/DruidJS/tree/v{{ druidVersion }}" target="_blank" rel="noopener"
+          >github.com/saehm/DruidJS</a
+        >. <a href="licenses/README.txt" target="_blank" rel="noopener">Notice and licence texts</a>
+      </li>
+      <li>
+        <strong>Pyodide</strong> (MPL 2.0) runs the import wizard's Python code with pandas, NumPy, SciPy and
+        scikit-learn: <a href="pyodide/THIRD-PARTY-LICENSES.txt" target="_blank" rel="noopener">their licences</a>
+      </li>
+      <li>
+        All other bundled packages:
+        <a href="3rdpartylicenses.txt" target="_blank" rel="noopener">licences</a>
+      </li>
+    </ul>
+  </div>
+</dialog>

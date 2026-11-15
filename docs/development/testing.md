@@ -4,7 +4,7 @@ _For contributors writing or running tests._
 
 Paths are relative to `src/app/` unless they start with `src/`, `tools/` or `docs/`.
 
-There are two test suites: the TypeScript unit tests (Vitest in a real Chromium, [ADR 0009](../decisions/0009-unit-tests-in-real-chromium-with-vitest.md)) and the Python tests for the two pipelines (pytest). CI runs only the unit tests ([Deployment](deployment.md)); run the Python tests yourself when you change Python code.
+There are three test suites: the TypeScript unit tests (Vitest in a real Chromium, [ADR 0009](../decisions/0009-unit-tests-in-real-chromium-with-vitest.md)), the Python tests for the two pipelines (pytest), and the tests of the Node tools in `tools/` (`node --test`). CI runs all three on every pull request ([Deployment](deployment.md)).
 
 ## Unit tests
 
@@ -31,8 +31,11 @@ Vitest artifacts such as failure screenshots land in `.vitest-attachments/`.
 ## Python tests
 
 ```bash
+python -m pip install -r requirements-dev.txt   # once, in the environment you use for tools/
 python -B -m pytest -p no:cacheprovider tools/tests
 ```
+
+`requirements-dev.txt` pins numpy, pandas, SciPy and scikit-learn to the versions that ship with Pyodide, so the tests see what users get in the browser; CI runs them on Python 3.14, Pyodide's version.
 
 | File | Covers |
 |---|---|
@@ -40,6 +43,18 @@ python -B -m pytest -p no:cacheprovider tools/tests
 | `tools/tests/test_process_cli.py` | the CLI (`tools/process.py`, `tools/dataset_common.py`) |
 
 `-B` and `-p no:cacheprovider` keep `__pycache__` and `.pytest_cache` out of the working tree.
+
+## Tool tests
+
+```bash
+npm run test:tools
+```
+
+| File | Covers |
+|---|---|
+| `tools/tests/fetch-pyodide.test.mjs` | `tools/fetch-pyodide.mjs`: package resolution from the lock file, refusing entries without hash or with a path, reading licences from wheels |
+| `tools/tests/licenses.test.mjs` | the licence notices name the installed DruidJS and Pyodide versions |
+| `tools/tests/requirements.test.mjs` | `requirements-dev.txt` pins the versions that ship with Pyodide |
 
 ## Manual testing
 

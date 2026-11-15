@@ -31,9 +31,19 @@ export function assertSafeFileName(fileName: string): void {
   }
 }
 
-/** Derived file that processWithConfig writes next to its input. */
+/**
+ * Folder of the files the pipeline writes. Uploads are plain names in the
+ * working directory (see assertSafeFileName), so no upload can be overwritten
+ * by an output, whatever it is called (e.g. `processed_features.csv`).
+ */
+export const OUTPUT_FOLDER = '/glyphspace-output';
+
+/** The projection input processWithConfig writes, read back by getProcessedFeatures. */
+export const PROCESSED_FEATURES_FILE = `${OUTPUT_FOLDER}/processed_features.csv`;
+
+/** Derived file that processWithConfig writes for its input. */
 export function resultFileFor(fileName: string): string {
-  return `${fileName}.result.json`;
+  return `${OUTPUT_FOLDER}/${fileName}.result.json`;
 }
 
 /** Tracks the input files written to the Pyodide FS during this session. */

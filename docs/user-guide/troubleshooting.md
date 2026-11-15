@@ -42,7 +42,7 @@ If one of the additional projections fails, a notification reads **METHOD could 
 | **The sample data could not be loaded.** | Try again, or upload your own CSV file. |
 | **Please choose a ZIP file.** / **The ZIP file exceeds the 200 MB limit.** (item images) | The item images must be packed into one `.zip` file of at most 200 MB. |
 | **The image ZIP contains no JPG, PNG or WebP pictures.** (Step 6) | The ZIP chosen in Step 1 holds no pictures in these formats, or it could not be unpacked. Choose another ZIP in Step 1 and process again. |
-| Importing doesn't work offline | The wizard downloads its Python runtime (Pyodide) from the jsDelivr CDN. Check your internet connection and that `cdn.jsdelivr.net` isn't blocked. |
+| Importing doesn't work offline | The wizard downloads its Python runtime (Pyodide, about 40 MB) from the GlyphSpace site the first time. Check your connection to the site; after that, your browser's cache usually has it. |
 | **Please select at least one column to continue** (Step 2) | Tick at least one column. |
 | **Use at least one column as a feature to continue — metadata alone cannot be projected** (Step 2) | Set at least one column's **Use as** to **Feature**. |
 | **Include at least one column in the projection to continue.** (Step 4) | Tick at least one column under **Projection Columns**. |
@@ -56,6 +56,9 @@ If one of the additional projections fails, a notification reads **METHOD could 
 |---|---|
 | A notification reads **Failed to load dataset "name"** | A bundled dataset's files couldn't be loaded. If you added or removed dataset files, regenerate the dataset list with `python tools/process.py` (see [Preparing data](preparing-data.md#remove-a-dataset)). |
 | An imported dataset is missing from the **Data** menu | Imported datasets live in the browser they were imported in. Clearing the site data, a private window or another browser starts empty. Import the CSV again. |
+| A notification reads **"name" could not be saved in the browser, so it will be gone after a reload** | The browser refused to store the imported dataset, usually because its storage for the site is full. The dataset works until you reload. Delete imported datasets you no longer need and import it again, or free storage in the browser settings. |
+| A notification reads **"name" could not be deleted** | The browser's storage failed; the dataset is kept. Try again, or reload the page first. |
+| Imported datasets are missing, or can't be opened, while GlyphSpace is open in another tab | A tab with an older version of GlyphSpace keeps the saved datasets locked. Reload or close the other tab, then reload this one. |
 | Scrolling doesn't zoom | Zooming is paused while a tooltip is pinned or the magic lens is on. Click the item again to release the tooltip, or press **L** to close the lens. |
 | No tooltip appears | Tooltips show in **Navigation Mode** (press **N**). Hold the mouse still over an item for a moment, or click it. |
 | Keyboard shortcuts don't work | Move the mouse over the canvas just before pressing the key (shortcuts pause 2 seconds after the mouse stops), and click outside any text field first. |

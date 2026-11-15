@@ -9,7 +9,7 @@ GlyphSpace places every row of a dataset as a point on a 2D map computed by a di
 - **Online:** the demo runs at <https://visual-engineers.org/glyphspace/>. Nothing to install.
 - **Locally:** run `npm start` in the repository and open <http://localhost:4200/>. See [Development setup](../development/setup.md) for the prerequisites.
 
-The app runs entirely in your browser, and your data never leaves your machine. You need an internet connection for importing a CSV: when GlyphSpace starts, it downloads the import wizard's Python runtime (Pyodide with pandas and scikit-learn) from the jsDelivr CDN in the background.
+The app runs entirely in your browser, and your data never leaves your machine. The import wizard runs on a Python runtime (Pyodide with pandas and scikit-learn) that GlyphSpace downloads from its own site, about 40 MB the first time; your browser keeps it for later visits.
 
 ## Bundled datasets
 
@@ -43,7 +43,7 @@ Two datasets ship with the app and appear in the **Data** menu:
 ## Try the import with sample data
 
 1. Click **Upload** in the menu bar. The **Data Preprocessing Wizard** opens.
-2. In Step 1, click **Try with sample data**. It loads the Wine Quality (red) CSV (P. Cortez et al., UCI Machine Learning Repository, CC BY 4.0).
+2. In Step 1, click **Try with sample data**. It loads the Wine Quality (red) CSV (P. Cortez et al., UCI Machine Learning Repository, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), with an ID column added). The menu bar's **ⓘ** button lists the sources and licences of the data and software GlyphSpace uses.
 3. Click through the steps with the button at the bottom right. The defaults work for this file.
 4. In Step 6, click **Start Processing**, then **Open in Glyphspace**.
 

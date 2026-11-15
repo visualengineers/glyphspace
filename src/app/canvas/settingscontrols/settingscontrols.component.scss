@@ -363,3 +363,7 @@
   border-radius: 2px;
   transition: width 0.3s ease;
 }
+
+.visually-hidden {
+  @include m.visually-hidden;
+}

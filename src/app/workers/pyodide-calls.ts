@@ -54,36 +54,98 @@ export function pythonCall(module: string, func: string, args: readonly PyArg[])
 }
 
 /**
- * Flat-extracts a zip archive into `/<archive name>`. The target folder is only
- * replaced when a previous unpack created it (marker file), so an archive name
- * can never wipe an unrelated directory such as `/lib` or `/home`.
+ * Limits of an unpacked image archive. The unpacked files live in the worker's
+ * memory, so they bound what a ZIP bomb can claim. Step 1 accepts archives up to
+ * 200 MB, and images barely compress, so real archives stay far below them.
+ */
+export const ZIP_LIMITS = {
+  /** Files in the archive (of any kind). */
+  maxEntries: 100_000,
+  /** Uncompressed size of one image. */
+  maxFileBytes: 32 * 1024 * 1024,
+  /** Uncompressed size of all images together. */
+  maxTotalBytes: 512 * 1024 * 1024,
+} as const;
+
+/**
+ * Flat-extracts the image files of a zip archive into `/<archive name>` and
+ * returns, as JSON, the image names and the entries left out as duplicates.
+ *
+ * - Only `.png`, `.jpg`, `.jpeg` and `.webp` files are extracted, without their
+ *   folders; `/` and `\` both separate folders (archives made on Windows use `\`).
+ *   macOS resource forks (`__MACOSX/`, `._name`) are skipped.
+ * - The first entry of a file name wins; later ones are reported in `duplicates`.
+ * - The limits (ZIP_LIMITS) are checked against the sizes in the archive's
+ *   directory before anything is written; zipfile reads at most that many bytes.
+ * - The target folder is only replaced when a previous unpack created it (marker
+ *   file), so an archive name can never wipe an unrelated directory such as
+ *   `/lib` or `/home`.
  */
 const UNPACK_FLAT_SOURCE = `
-import os, shutil, zipfile
+import json, os, shutil, zipfile
 
-def unpack_flat(zip_path):
+IMAGE_SUFFIXES = (".png", ".jpg", ".jpeg", ".webp")
+
+def unpack_flat(zip_path, max_entries, max_file_bytes, max_total_bytes):
     base = "/" + os.path.splitext(os.path.basename(zip_path))[0]
     marker = os.path.join(base, ".unpacked")
-    if os.path.exists(base):
-        if not os.path.exists(marker):
-            raise ValueError(f"Refusing to replace existing folder {base}")
-        shutil.rmtree(base)
-    os.mkdir(base)
-    open(marker, "w").close()
 
-    with zipfile.ZipFile(zip_path, "r") as zip_ref:
-        for member in zip_ref.namelist():
-            if member.endswith("/"):
+    with zipfile.ZipFile(zip_path, "r") as archive:
+        members = [m for m in archive.infolist() if not m.is_dir()]
+        if len(members) > max_entries:
+            raise ValueError(f"The archive holds {len(members)} files; at most {max_entries} are supported.")
+        images, duplicates, total = {}, [], 0
+        for member in members:
+            path = member.filename.replace("\\\\", "/")
+            name = path.rsplit("/", 1)[-1]
+            if not name.lower().endswith(IMAGE_SUFFIXES) or name.startswith("._") or "__MACOSX/" in path:
                 continue
-            target_path = os.path.join(base, os.path.basename(member))
-            with zip_ref.open(member) as source, open(target_path, "wb") as target:
+            if name in images:
+                duplicates.append(member.filename)
+                continue
+            if member.file_size > max_file_bytes:
+                raise ValueError(f"The image {member.filename} is larger than {max_file_bytes // 2**20} MB.")
+            total += member.file_size
+            if total > max_total_bytes:
+                raise ValueError(f"The images of the archive are larger than {max_total_bytes // 2**20} MB together.")
+            images[name] = member
+
+        if os.path.exists(base):
+            if not os.path.exists(marker):
+                raise ValueError(f"Refusing to replace existing folder {base}")
+            shutil.rmtree(base)
+        os.mkdir(base)
+        open(marker, "w").close()
+        for name, member in images.items():
+            with archive.open(member) as source, open(os.path.join(base, name), "wb") as target:
                 shutil.copyfileobj(source, target)
-    print("Unpacked to", base)
+    return json.dumps({"images": list(images), "duplicates": duplicates})
 `;
 
-/** Call that extracts the zip archive at `zipPath` (see UNPACK_FLAT_SOURCE). */
+/** Call that extracts the zip archive at `zipPath` (see UNPACK_FLAT_SOURCE); returns JSON. */
 export function unpackZipCall(zipPath: string): PythonCall {
-  return { code: `${UNPACK_FLAT_SOURCE}\nunpack_flat(*${PY_ARGS})`, args: [zipPath] };
+  const { maxEntries, maxFileBytes, maxTotalBytes } = ZIP_LIMITS;
+  return {
+    code: `${UNPACK_FLAT_SOURCE}\nunpack_flat(*${PY_ARGS})`,
+    args: [zipPath, maxEntries, maxFileBytes, maxTotalBytes],
+  };
+}
+
+/** Deletes `/<folder>` if, and only if, an unpack created it (see UNPACK_FLAT_SOURCE). */
+const REMOVE_UNPACKED_SOURCE = `
+import os, shutil
+
+def remove_unpacked(folder):
+    base = "/" + folder
+    if not os.path.exists(os.path.join(base, ".unpacked")):
+        return False
+    shutil.rmtree(base)
+    return True
+`;
+
+/** Call that deletes the unpacked folder `folder` (see REMOVE_UNPACKED_SOURCE). */
+export function removeUnpackedCall(folder: string): PythonCall {
+  return { code: `${REMOVE_UNPACKED_SOURCE}\nremove_unpacked(*${PY_ARGS})`, args: [folder] };
 }
 
 /**

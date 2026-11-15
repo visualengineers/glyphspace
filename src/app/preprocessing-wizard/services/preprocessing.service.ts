@@ -115,6 +115,9 @@ export class PreprocessingService {
     private dataLoader: DataLoaderService,
     private fileStore: WizardFileStore
   ) {
+    // The wizard is open: start Python now (the worker is created on first need),
+    // so it is ready by the time the user has picked a file.
+    this.dataProcessor.preload?.();
     // Load saved state from localStorage if available
     this.loadStateFromStorage();
   }

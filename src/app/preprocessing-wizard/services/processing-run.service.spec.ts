@@ -99,7 +99,11 @@ describe('ProcessingRunService', () => {
   }
 
   const flush = (): Promise<void> => new Promise(resolve => setTimeout(resolve));
-  const umap = (x: number): ProjectionResult => ({ method: 'umap', positions: [{ id: 0, x, y: x }], computeTime: 100 });
+  const umap = (x: number): ProjectionResult => ({
+    method: 'umap',
+    positions: [{ id: '0', x, y: x }],
+    computeTime: 100,
+  });
 
   beforeEach(() => {
     localStorage.clear();
@@ -122,10 +126,10 @@ describe('ProcessingRunService', () => {
       'canRetry',
       'retry',
     ]);
-    projection.parseCSVFeatures.mockReturnValue({ features: [[1], [2]], ids: [0, 1] });
+    projection.parseCSVFeatures.mockReturnValue({ features: [[1], [2]], ids: ['0', '1'] });
     projection.runFastMapSync.mockResolvedValue({
       method: 'fastmap',
-      positions: [{ id: 0, x: 0, y: 0 }],
+      positions: [{ id: '0', x: 0, y: 0 }],
       computeTime: 1,
     });
     projection.runUMAP.mockImplementation(() => {
@@ -216,7 +220,7 @@ describe('ProcessingRunService', () => {
     await flush();
 
     expect(dataLoader.addPositionsToLoadedDataset).toHaveBeenCalledExactlyOnceWith('wine', '20261115', 'umap', [
-      { id: 0, position: { x: 1, y: 1 } },
+      { id: '0', position: { x: 1, y: 1 } },
     ]);
     expect(dataLoader.saveDatasetToStorage).toHaveBeenLastCalledWith('wine', '20261115');
     expect(datasetOf(cars).positions).not.toHaveProperty('umap');

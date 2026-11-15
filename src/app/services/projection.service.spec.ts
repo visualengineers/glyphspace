@@ -329,7 +329,7 @@ describe('ProjectionService – parseCSVFeatures', () => {
   it('reads the ids and feature rows', () => {
     const result = service.parseCSVFeatures('ID,a,b\n1,0.5,0.25\nx7,1,0\n');
 
-    expect(result.ids).toEqual([1, 'x7']);
+    expect(result.ids).toEqual(['1', 'x7']);
     expect(result.features).toEqual([
       [0.5, 0.25],
       [1, 0],
@@ -346,5 +346,14 @@ describe('ProjectionService – parseCSVFeatures', () => {
 
   it('rejects a file without data rows', () => {
     expect(() => service.parseCSVFeatures('ID,a\n')).toThrow(/no data rows/);
+  });
+
+  // Positions are matched to items by the id string Python wrote: a numeric-looking
+  // id converted to a number came back as another string, and its item had no position.
+  it('keeps numeric-looking ids exactly as written', () => {
+    const written = ['007', '1234567890123456789', '1.0', '1e5', '0x1A', ' 12', '42'];
+    const csv = ['ID,a', ...written.map(id => `${id},0.5`)].join('\n');
+
+    expect(service.parseCSVFeatures(csv).ids).toEqual(written);
   });
 });

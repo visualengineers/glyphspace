@@ -48,8 +48,8 @@ Step 3 asks the worker for outlier counts per column (`detectOutliers`) and the 
 A processing run belongs to `ProcessingRunService` (`preprocessing-wizard/services/processing-run.service.ts`), not to Step 6: Step 6 starts it (`start`) and renders its `status$`, so the run goes on when the wizard is closed, and reopening the wizard shows it where it is. A second press while a run is in its processing phase joins it. Each run keeps its own dataset name, timestamp and collection, and the inputs key it started with (`PreprocessingService.processingInputsKey`: the stored upload, the item-image ZIP and every setting sent to Python). The primary run runs inside `PreprocessingService.whileProcessing`, which keeps `isProcessing` up (and undo/redo disabled) until FastMap is done:
 
 1. `PreprocessingService.processInWorker` builds the config (`buildProcessingConfig`) and sends `processWithConfig` with the upload key. Python fills, caps, drops, encodes and scales ([order of operations](../specs/processing-config.md#order-of-operations)), writes `processed_features.csv` and returns the dataset without positions. Progress messages drive the progress bar up to 70 %.
-2. `getProcessedFeatures` fetches the CSV; `ProjectionService.parseCSVFeatures` reads it with a CSV parser (d3's `csvParseRows`, since pandas quotes ids that contain a comma) and turns it into a matrix and an id list.
-3. `ProjectionService.runFastMapSync` loads DruidJS (first use only) and runs FastMap on the main thread.
+2. `getProcessedFeatures` fetches the CSV; `ProjectionService.parseCSVFeatures` reads it with a CSV parser (d3's `csvParseRows`, since pandas quotes ids that contain a comma) and turns it into a matrix and an id list. The ids stay the strings Python wrote; converting a numeric-looking id (`007`, `1.0`, a 19-digit id) would no longer match its item.
+3. `ProjectionService.runFastMapSync` loads DruidJS (first use only) and runs FastMap on the main thread, with the input checks of every projection ([Worker protocol](../specs/worker-protocol.md#input-checks)): input of rank 0 or 1 is placed exactly without DruidJS, and NaN coordinates are an error instead of items without a position.
 4. The positions are stored in the run's collection (`storeProjectionPositions`), and `PreprocessingService.adoptProcessingResult` makes it the wizard's result, if the inputs are still those the run started with.
 
 A run is discarded as soon as its inputs change (any setting, another file, undo/redo, Start over or "Process Another Dataset"): it stops after the step it is in (the Python step itself can't be interrupted, see below), adopts nothing, its background projections are cancelled, and Step 6 shows the review again. `PreprocessingService` drops an adopted result the same way, in `updateState`, so a result never outlives the settings it was computed from. Step 6 offers Start Processing only when no setting makes processing impossible (`detectStartBlockers`: a missing upload, no feature or projection column, glyph features the settings don't produce).
@@ -85,3 +85,13 @@ A failed request rejects with the worker's message. Processing errors are classi
 ## Bundled datasets (CLI)
 
 `tools/process.py` is a separate pipeline in plain Python (pandas, scikit-learn, umap-learn) that writes bundled datasets into `src/assets/data/` and regenerates `src/default-dataset.ts`. It is not part of the app build and shares no code with the wizard's pipeline; the differences are listed in [CSV input](../specs/csv-input.md). Its tests are in `tools/tests/test_process_cli.py`.
+
+The dashboard opens the first dataset of `src/default-dataset.ts`, its first time and its first projection, so `discover_datasets` writes the list in a fixed order that does not depend on the file system:
+
+- **Datasets:** those in `DATASET_ORDER` (`tools/process.py`; `wineqr`, then `nutrients`) first, the others alphabetically, ignoring case.
+- **Times:** in date order (`ddmmyyyy` read as a date, not sorted as text).
+- **Projections:** `PROJECTION_ORDER` (`tools/dataset_common.py`; UMAP, PCA, t-SNE), then the others (`epsg`, `<prefix>`) by name.
+
+A test (`test_the_committed_dataset_list_is_up_to_date`) fails when `src/default-dataset.ts` differs from what the tool would write for `src/assets/data/`, order included.
+
+An import writes its files into a temporary folder and copies them into `src/assets/data/` only when all of them are written, so a failure leaves no partial dataset. For small files the projections adapt: PCA lays out a file with a single feature along x, t-SNE lowers its perplexity to a third of the rows and UMAP its neighbours to one less than the rows, and a file with five rows or fewer gets no t-SNE and UMAP positions.

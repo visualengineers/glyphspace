@@ -1,5 +1,14 @@
 import * as THREE from 'three';
-import { Component, ElementRef, Input, OnDestroy, OnInit, ViewChild, ChangeDetectionStrategy } from '@angular/core';
+import {
+  Component,
+  ElementRef,
+  Input,
+  OnDestroy,
+  OnInit,
+  ViewChild,
+  ChangeDetectionStrategy,
+  ChangeDetectorRef,
+} from '@angular/core';
 import { getGlyphFromObject } from '../../shared/helpers/glyph-helper';
 import { ConfigService } from '../../services/config.service';
 import { Subscription } from 'rxjs';
@@ -51,8 +60,20 @@ export class TooltipComponent implements OnInit, OnDestroy {
   tooltipInfo: TooltipInfo | null = null;
   tooltipX = 0;
   tooltipY = 0;
+  private destroyed = false;
 
-  constructor(private config: ConfigService) {}
+  constructor(
+    private config: ConfigService,
+    private cdr: ChangeDetectorRef
+  ) {}
+
+  /**
+   * Show a state change at once. The canvas handles pointer input outside
+   * Angular's zone, so hover popups are scheduled and cancelled there.
+   */
+  private refresh(): void {
+    if (!this.destroyed) this.cdr.detectChanges();
+  }
 
   ngOnInit(): void {
     // Subscribe to modal state changes to hide fixed tooltips when modal opens
@@ -66,6 +87,8 @@ export class TooltipComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.destroyed = true;
+    clearTimeout(this.hoverTimeout);
     this.subscription.unsubscribe();
   }
 
@@ -78,8 +101,11 @@ export class TooltipComponent implements OnInit, OnDestroy {
     this.tooltipX = x + 10; // slight offset from cursor
     this.tooltipY = y + 10;
     this.tooltipVisible = true;
+    this.refresh();
     requestAnimationFrame(() => {
+      if (this.destroyed) return;
       this.repositionTooltip(x, y);
+      this.refresh();
     });
   }
 
@@ -118,7 +144,9 @@ export class TooltipComponent implements OnInit, OnDestroy {
   }
 
   hideTooltip(): void {
+    if (!this.tooltipVisible) return;
     this.tooltipVisible = false;
+    this.refresh();
   }
 
   /**
@@ -132,6 +160,7 @@ export class TooltipComponent implements OnInit, OnDestroy {
     if (this.tooltipRef?.nativeElement) {
       this.tooltipRef.nativeElement.classList.remove('fixed');
     }
+    this.refresh();
   }
 
   scheduleHoverPopup(x: number, y: number, object: THREE.Object3D): void {
@@ -173,8 +202,10 @@ export class TooltipComponent implements OnInit, OnDestroy {
   }
 
   private setFixed(fixed: boolean): void {
+    if (this.tooltipFixed === fixed) return;
     this.tooltipFixed = fixed;
     this.tooltipRef.nativeElement.classList.toggle('fixed', fixed);
+    this.refresh();
   }
 
   isFixed(): boolean {

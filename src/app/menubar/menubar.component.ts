@@ -12,15 +12,16 @@ import {
 import { FormsModule } from '@angular/forms';
 import { Subscription } from 'rxjs';
 import { PreprocessingWizardComponent } from '../preprocessing-wizard/preprocessing-wizard.component';
+import { AboutComponent } from './about/about.component';
 import { DataLoaderService } from '../services/data-loader.service';
-import { FilterService } from '../services/filter.service';
 import { DataExportService } from '../services/data-export.service';
 import { ConfigService } from '../services/config.service';
+import { ToastService } from '../services/toast.service';
 
 @Component({
   selector: 'app-menubar',
   standalone: true,
-  imports: [PreprocessingWizardComponent, FormsModule],
+  imports: [PreprocessingWizardComponent, FormsModule, AboutComponent],
   templateUrl: './menubar.component.html',
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./menubar.component.scss'],
@@ -43,9 +44,9 @@ export class MenuBarComponent implements OnInit, OnDestroy {
 
   constructor(
     private dataLoader: DataLoaderService,
-    private filterService: FilterService,
     private dataExport: DataExportService,
-    private configService: ConfigService
+    private configService: ConfigService,
+    private toast: ToastService
   ) {}
 
   ngOnInit(): void {
@@ -70,9 +71,10 @@ export class MenuBarComponent implements OnInit, OnDestroy {
     this.dataSub?.unsubscribe();
   }
 
-  onDatasetSelect(name: string) {
-    this.filterService.clearFilters();
-    this.configService.loadData(name);
+  /** Open the chosen dataset; the list goes back to the open one if it can't be loaded. */
+  async onDatasetSelect(name: string): Promise<void> {
+    const result = await this.dataLoader.openDataset(name);
+    if (result === 'unavailable') this.selectedDataset = this.configService.loadedData || null;
   }
 
   upload() {
@@ -123,8 +125,12 @@ export class MenuBarComponent implements OnInit, OnDestroy {
 
   async onDeleteDataset(name: string | null): Promise<void> {
     if (!name || !this.isUserDataset(name)) return;
-    if (confirm(`Delete dataset "${name}"? This cannot be undone.`)) {
+    if (!confirm(`Delete dataset "${name}"? This cannot be undone.`)) return;
+    try {
       await this.dataLoader.deleteDataset(name);
+    } catch (error) {
+      console.error(`[Menubar] Failed to delete dataset "${name}":`, error);
+      this.toast.error(`"${name}" could not be deleted. Please try again.`);
     }
   }
 }

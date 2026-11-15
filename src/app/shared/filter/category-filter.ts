@@ -1,60 +1,57 @@
 import { GlyphObject } from '../../glyph/glyph-object';
+import { binOfValue } from '../utils/histogram.utils';
 import { ItemFilter } from './item-filter';
 
-export interface CategoryRange {
-  min: number;
-  max: number;
-}
-
+/**
+ * Accepts the items counted in the clicked bars of a categorical histogram.
+ * An item is in a bar exactly when its normalised value falls in that bin
+ * (`binOfValue`), so a click never picks up items of the neighbouring bar.
+ */
 export class CategoryFilter extends ItemFilter {
   private _featureName: string;
-  private _ranges: CategoryRange[] = [];
+  private bins = new Set<number>();
+  private binCount = 0;
 
-  constructor();
-  constructor(featureName?: string);
-  constructor(featureName?: string, ranges?: CategoryRange[]) {
+  constructor(featureName = '') {
     super();
-    this._featureName = featureName ?? '';
-    if (ranges) {
-      this.setRanges(ranges);
-    }
+    this._featureName = featureName;
   }
 
-  /* -----------------------------
-   * Core filter lifecycle
-   * ----------------------------- */
-
   public override clear(): void {
-    this._ranges = [];
+    this.bins.clear();
   }
 
   public override empty(): boolean {
-    return this._ranges.length === 0;
+    return this.bins.size === 0;
   }
 
   public override info(): string {
-    const ranges = this._ranges.map(r => `[${r.min}, ${r.max}]`).join(', ');
-
-    return `CategoryFilter for ${this._featureName} with ranges ${ranges} | FilterMode: ${this.filterMode}`;
+    return `CategoryFilter for ${this._featureName} with bins ${[...this.bins].join(', ')} of ${this.binCount} | FilterMode: ${this.filterMode}`;
   }
 
   public override inFilter(item: GlyphObject): boolean {
     if (this.empty()) return false;
-
-    const contextKey = String(item.currentContext);
-    const featureContext = item.features[contextKey];
-    const value = featureContext?.[this._featureName];
-
-    if (value === undefined) {
-      return false;
-    }
-
-    return this._ranges.some(r => value >= r.min && value <= r.max);
+    const value = item.features?.[item.currentContext]?.[this._featureName];
+    if (typeof value !== 'number' || Number.isNaN(value)) return false;
+    return this.bins.has(binOfValue(value, this.binCount));
   }
 
-  /* -----------------------------
-   * Feature name
-   * ----------------------------- */
+  /** Accept the items in the given bins of a histogram with binCount bins. */
+  public setBins(bins: Iterable<number>, binCount: number): void {
+    if (!Number.isInteger(binCount) || binCount < 1) throw new RangeError('binCount must be a positive integer');
+    const selected = new Set(bins);
+    for (const bin of selected) {
+      if (!Number.isInteger(bin) || bin < 0 || bin >= binCount) {
+        throw new RangeError('bins must be integers within the histogram');
+      }
+    }
+    this.bins = selected;
+    this.binCount = binCount;
+  }
+
+  public get selectedBins(): ReadonlySet<number> {
+    return this.bins;
+  }
 
   public get featureName(): string {
     return this._featureName;
@@ -62,44 +59,5 @@ export class CategoryFilter extends ItemFilter {
 
   public set featureName(name: string) {
     this._featureName = name;
-  }
-
-  /* -----------------------------
-   * Range management
-   * ----------------------------- */
-
-  public get ranges(): readonly CategoryRange[] {
-    return this._ranges;
-  }
-
-  public addRange(min: number, max: number): void {
-    this.validateRange(min, max);
-    this._ranges.push({ min, max });
-  }
-
-  public removeRange(index: number): void {
-    if (index < 0 || index >= this._ranges.length) return;
-    this._ranges.splice(index, 1);
-  }
-
-  public setRanges(ranges: CategoryRange[]): void {
-    ranges.forEach(r => this.validateRange(r.min, r.max));
-    this._ranges = [...ranges];
-  }
-
-  /* -----------------------------
-   * Validation
-   * ----------------------------- */
-
-  private validateRange(min: number, max: number): void {
-    if (min === undefined || max === undefined) {
-      throw new RangeError('range values must be defined');
-    }
-
-    // CategoryFilter can work with both normalized [0,1] and raw integer values
-    // so we only check that min <= max
-    if (min > max) {
-      throw new RangeError('min must be <= max');
-    }
   }
 }

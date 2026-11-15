@@ -11,6 +11,7 @@ GlyphSpace has no version numbers yet, so releases are named by the date they re
 - Documentation in `docs/`: a user guide, specifications of the data formats and worker protocols, architecture decision records, and development guides. This changelog ([#93](https://github.com/visualengineers/glyphspace/pull/93)).
 - Item images for imported datasets: Step 1 of the wizard takes an optional ZIP file with one picture per item, named after the item's ID (JPG, PNG or WebP). The **Image** glyph type shows them, and the dataset keeps them in the browser ([#92](https://github.com/visualengineers/glyphspace/pull/92)).
 - A **Size** slider in the sidebar's **Encoding** tab sets dots and glyphs together: a typical glyph of the dataset reaches about as far as the dot it replaces, so items keep their size when zooming from dots to glyphs ([#90](https://github.com/visualengineers/glyphspace/pull/90)).
+- An ⓘ button at the right end of the menu bar opens **About GlyphSpace**: the sources and licences of the bundled data, and the licences of DruidJS, Pyodide and the other software the site ships ([#106](https://github.com/visualengineers/glyphspace/pull/106)).
 
 ### Changed
 
@@ -27,8 +28,18 @@ GlyphSpace has no version numbers yet, so releases are named by the date they re
 - Zooming from dots to glyphs no longer stalls the page as long: a flower glyph is drawn as one shape and one outline instead of one per petal, and the flower outline only at the highest zoom level, where it is visible ([#94](https://github.com/visualengineers/glyphspace/pull/94)).
 - The **Thumbnails** glyph type is now called **Image** ([#90](https://github.com/visualengineers/glyphspace/pull/90)).
 - The glyph type buttons show a small star, flower or picture next to their name. **Image** is off for a dataset without item images, and such a dataset opens with **Star** instead of grey placeholders ([#96](https://github.com/visualengineers/glyphspace/pull/96)).
-- A processed dataset reaches the dashboard only through **Open in Glyphspace**; background projections that finish later are added to that dataset.
-- The wizard storage format is now version 4; saved wizard sessions are migrated.
+- Pointer handling and drawing of the canvases run outside Angular's change detection, which makes hovering and panning cheaper with several canvases ([#104](https://github.com/visualengineers/glyphspace/pull/104)).
+- The icon buttons on the canvases have accessible names for screen readers ([#104](https://github.com/visualengineers/glyphspace/pull/104)).
+- Selections, histogram redraws and sidebar updates scale to tens of thousands of items: selections use a set, histograms redraw only when the colours change (no longer on every frame of the size slider), and canvas redraws no longer run change detection for the whole app ([#105](https://github.com/visualengineers/glyphspace/pull/105)).
+- Saved datasets are read into memory when first opened instead of all at startup ([#105](https://github.com/visualengineers/glyphspace/pull/105)).
+- The import wizard's Python runtime (Pyodide with pandas and scikit-learn, about 40 MB) now comes from the GlyphSpace site itself instead of the jsDelivr CDN. Only the packages in Pyodide's lock file are installed, each checked against its SHA-256 ([ADR 0013](docs/decisions/0013-self-host-pyodide.md)) ([#106](https://github.com/visualengineers/glyphspace/pull/106)).
+- GitHub Pages is deployed from GitHub Actions artifacts instead of the `gh-pages` branch, with every action pinned to a commit. CI also runs the Python tests, the formatting check and a dependency audit, and fails on lint warnings ([#106](https://github.com/visualengineers/glyphspace/pull/106)).
+- Node 26 is required by npm (`engine-strict`), and every checkout uses LF line endings (`.gitattributes`). A Windows working copy made before needs one re-checkout ([setup](docs/development/setup.md)) ([#106](https://github.com/visualengineers/glyphspace/pull/106)).
+- The Python runtime of the import wizard (about 40 MB) is loaded only when the wizard opens or an imported dataset's images are shown, no longer on every visit ([#107](https://github.com/visualengineers/glyphspace/pull/107)).
+- A Python worker that crashes or exceeds its time limit is replaced and gets the uploaded files back ([#107](https://github.com/visualengineers/glyphspace/pull/107)).
+- A column of the uploaded file without settings is reported as an error instead of being processed as a feature ([#107](https://github.com/visualengineers/glyphspace/pull/107)).
+- A processed dataset reaches the dashboard only through **Open in Glyphspace**; background projections that finish later are added to that dataset ([#108](https://github.com/visualengineers/glyphspace/pull/108)).
+- The wizard storage format is now version 4; saved wizard sessions are migrated ([#108](https://github.com/visualengineers/glyphspace/pull/108)).
 
 ### Removed
 
@@ -53,22 +64,57 @@ GlyphSpace has no version numbers yet, so releases are named by the date they re
 - Step 1's file requirements no longer promise that `-x`/`-y` and latitude/longitude columns become positions; only the command-line tool uses them ([#92](https://github.com/visualengineers/glyphspace/pull/92)).
 - The help on background projections points to the canvas's position settings (**Pos**) instead of controls that don't exist ([#92](https://github.com/visualengineers/glyphspace/pull/92)).
 - Histograms in the hidden sidebar tab no longer cause invalid SVG errors in the console ([#94](https://github.com/visualengineers/glyphspace/pull/94)).
-- A background projection that finishes after **Open in Glyphspace** is added to that dataset, never to the dataset processed next.
-- Changing a setting, uploading another file or starting over makes an earlier processing result outdated: the review step shows the review again, and the result's background projections stop. Before, an old result could be opened under a new name.
-- **Start over** during processing no longer lets the run finish into the fresh wizard or save the discarded dataset.
-- Reopening the wizard during processing shows the running run instead of offering **Start Processing** again.
-- Glyph features that an encoding change or a new file removes are dropped from the glyph; before, they were silently replaced by feature 1.
-- Text and categorical columns with encoding None are offered as their one-hot features, as Python encodes them.
-- The stepper no longer skips a step whose settings are invalid. **Start Processing** stays off and names the step to fix.
-- Undoing a re-upload of a file under the same name goes back to the earlier file, and the "File replaced" toast undoes only its own upload.
-- A column name such as "Memory (GB)" no longer makes an error look like a time or memory limit. Step 1 shows the cause of a failed upload instead of a Python traceback.
-- Ctrl+Z works on checkboxes, radio buttons and selects, and the fill value records one undo entry per edit instead of one per keystroke.
-- Item images are stored only when the dataset is opened, so images of a dataset never opened can't appear for a later one with the same name.
-- A failed save of the wizard state no longer brings back an older session after a reload, and the wizard reopens on the step shown last.
+- The canvases free the graphics memory of the glyphs they redraw; before, it grew with every zoom-level change, filter and hover until the browser lost the WebGL context ([#104](https://github.com/visualengineers/glyphspace/pull/104)).
+- Canvases hidden while another one is maximised are no longer blank after **Fit all**, loading a dataset or an import ([#104](https://github.com/visualengineers/glyphspace/pull/104)).
+- Items of the other canvases no longer stay scattered after the magic lens closes, and the lens no longer resets collision avoidance there ([#104](https://github.com/visualengineers/glyphspace/pull/104)).
+- A quick pan no longer pins a tooltip. A pinned tooltip scrolls with the mouse wheel, and clicks on it stay on it ([#104](https://github.com/visualengineers/glyphspace/pull/104)).
+- Pinch zoom no longer redraws every glyph on each finger movement ([#104](https://github.com/visualengineers/glyphspace/pull/104)).
+- Aggregation follows a projection switch, and every cluster keeps its ring ([#104](https://github.com/visualengineers/glyphspace/pull/104)).
+- Items that move into view without the camera moving (projection switch, collision avoidance) are drawn ([#104](https://github.com/visualengineers/glyphspace/pull/104)).
+- Collision avoidance applies to the new layout after a fit or a projection switch ([#104](https://github.com/visualengineers/glyphspace/pull/104)).
+- The item hovered in another canvas keeps pulsing when the hover moves from one item to the next ([#104](https://github.com/visualengineers/glyphspace/pull/104)).
+- Image glyphs are as large as their placeholder and no longer flicker when drawn small ([#104](https://github.com/visualengineers/glyphspace/pull/104)).
+- A dataset whose items all share a value on one axis is spread along the other instead of collapsing to a point ([#104](https://github.com/visualengineers/glyphspace/pull/104)).
+- `-` removes the last canvas and leaves the others as they are; removing the maximised canvas shows the others again ([#104](https://github.com/visualengineers/glyphspace/pull/104)).
+- Choosing a bundled dataset that is still downloading no longer leaves the canvases blank; the dashboard switches once it has arrived. A dataset chosen during startup is no longer replaced by the start dataset ([#105](https://github.com/visualengineers/glyphspace/pull/105)).
+- Histogram brushes and category bars filter exactly the items counted in their bars. The brush snaps to whole bars, greys the same bars it filters, and stays on them when the sidebar is resized ([#105](https://github.com/visualengineers/glyphspace/pull/105)).
+- Category bars of the bundled datasets name the categories they hold (the "Beef Products" bar said "Baked Products"). The selection overlay marks the right bars and adds up the selections of all canvases ([#105](https://github.com/visualengineers/glyphspace/pull/105)).
+- Removing one selection under **FILTERS** keeps the other canvases' selections and the histogram brushes ([#105](https://github.com/visualengineers/glyphspace/pull/105)).
+- Removing a canvas removes its selection. Adding a canvas no longer resets the count of matching items ([#105](https://github.com/visualengineers/glyphspace/pull/105)).
+- Deleting the active dataset resets the filters. A failed deletion keeps the dataset and shows an error ([#105](https://github.com/visualengineers/glyphspace/pull/105)).
+- A dataset processed again under the same name no longer offers projections it lost ([#105](https://github.com/visualengineers/glyphspace/pull/105)).
+- The CSV export quotes its header, so a column label with a comma no longer shifts the columns ([#105](https://github.com/visualengineers/glyphspace/pull/105)).
+- A dataset that can't be saved in the browser, for example because storage is full, shows a warning instead of failing silently. A tab running an older version no longer makes saved datasets hang ([#105](https://github.com/visualengineers/glyphspace/pull/105)).
+- The sample data attribution in Step 1 links the CC BY 4.0 licence and says what was changed ([#106](https://github.com/visualengineers/glyphspace/pull/106)).
+- Items whose ID looks like a number (`007`, `1.0`, a 19-digit ID) keep their ID and their positions; before, they had no position in imported datasets ([#107](https://github.com/visualengineers/glyphspace/pull/107)).
+- An upload no longer fails with "Unexpected token 'N'" when a column has a single value, the file has a single row, or a value is infinite ([#107](https://github.com/visualengineers/glyphspace/pull/107)).
+- Dates written day first (`13/04/2021`, `01.04.2021`) are detected and encoded with every date. Before, every day above 12 became a missing value and the others were read month first ([#107](https://github.com/visualengineers/glyphspace/pull/107)).
+- One-hot features take the settings of their own column, not those of a column whose name starts theirs (`price` for `price_band_low`). Feature names that would collide are rejected ([#107](https://github.com/visualengineers/glyphspace/pull/107)).
+- Projections of degenerate input (one varying column, columns that repeat each other, two rows) place every item instead of leaving some without a position. Input that can't be embedded fails with a clear error ([#107](https://github.com/visualengineers/glyphspace/pull/107)).
+- Histograms of constant features show their bar where the items are ([#107](https://github.com/visualengineers/glyphspace/pull/107)).
+- An upload named `processed_features.csv` is no longer overwritten by processing ([#107](https://github.com/visualengineers/glyphspace/pull/107)).
+- After a reload on a slow connection, restoring the uploaded file no longer times out. A request that times out no longer holds up the next one ([#107](https://github.com/visualengineers/glyphspace/pull/107)).
+- Image ZIPs made on Windows (backslash folders) work. Duplicate image names, macOS resource forks and oversized archives are handled ([#107](https://github.com/visualengineers/glyphspace/pull/107)).
+- Bundled datasets open with UMAP again, as before [#100](https://github.com/visualengineers/glyphspace/pull/100), and their times are listed in date order ([#107](https://github.com/visualengineers/glyphspace/pull/107)).
+- The command-line tool handles small CSV files and leaves no partial dataset after an error. Columns such as `update` or `sentiment` are no longer read as dates ([#107](https://github.com/visualengineers/glyphspace/pull/107)).
+- A background projection that finishes after **Open in Glyphspace** is added to that dataset, never to the dataset processed next ([#108](https://github.com/visualengineers/glyphspace/pull/108)).
+- Changing a setting, uploading another file or starting over makes an earlier processing result outdated: the review step shows the review again, and the result's background projections stop. Before, an old result could be opened under a new name ([#108](https://github.com/visualengineers/glyphspace/pull/108)).
+- **Start over** during processing no longer lets the run finish into the fresh wizard or save the discarded dataset ([#108](https://github.com/visualengineers/glyphspace/pull/108)).
+- Reopening the wizard during processing shows the running run instead of offering **Start Processing** again ([#108](https://github.com/visualengineers/glyphspace/pull/108)).
+- Glyph features that an encoding change or a new file removes are dropped from the glyph; before, they were silently replaced by feature 1 ([#108](https://github.com/visualengineers/glyphspace/pull/108)).
+- Text and categorical columns with encoding None are offered as their one-hot features, as Python encodes them ([#108](https://github.com/visualengineers/glyphspace/pull/108)).
+- The stepper no longer skips a step whose settings are invalid. **Start Processing** stays off and names the step to fix ([#108](https://github.com/visualengineers/glyphspace/pull/108)).
+- Undoing a re-upload of a file under the same name goes back to the earlier file, and the "File replaced" toast undoes only its own upload ([#108](https://github.com/visualengineers/glyphspace/pull/108)).
+- A column name such as "Memory (GB)" no longer makes an error look like a time or memory limit. Step 1 shows the cause of a failed upload instead of a Python traceback ([#108](https://github.com/visualengineers/glyphspace/pull/108)).
+- Ctrl+Z works on checkboxes, radio buttons and selects, and the fill value records one undo entry per edit instead of one per keystroke ([#108](https://github.com/visualengineers/glyphspace/pull/108)).
+- Item images are stored only when the dataset is opened, so images of a dataset never opened can't appear for a later one with the same name ([#108](https://github.com/visualengineers/glyphspace/pull/108)).
+- A failed save of the wizard state no longer brings back an older session after a reload, and the wizard reopens on the step shown last ([#108](https://github.com/visualengineers/glyphspace/pull/108)).
 
 ### Security
 
 - All `npm audit` findings are fixed (2 critical, 7 high, 39 moderate), partly through `overrides` for minimatch and glob ([#94](https://github.com/visualengineers/glyphspace/pull/94)).
+- Values in the CSV export that a spreadsheet would run as formulas (starting with `=`, `+`, `-` or `@`) start with an apostrophe; plain numbers stay as they are ([#105](https://github.com/visualengineers/glyphspace/pull/105)).
+- The site has a Content-Security-Policy that allows only its own origin, and the browser contacts no other server ([#106](https://github.com/visualengineers/glyphspace/pull/106)).
 
 ## 2026-11-09: Wizard redesign
 

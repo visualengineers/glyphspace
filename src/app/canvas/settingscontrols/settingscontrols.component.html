@@ -30,19 +30,34 @@
   </div>
 
   <div class="settings-actions">
-    <button class="action-btn" (click)="fitToView.emit()" title="Fit to screen">
-      <span class="material-icons">crop_free</span>
+    <button
+      type="button"
+      class="action-btn"
+      (click)="fitToView.emit()"
+      title="Fit to screen"
+      aria-label="Fit to screen"
+    >
+      <span class="material-icons" aria-hidden="true">crop_free</span>
     </button>
     <button
+      type="button"
       class="action-btn"
       (click)="toggleMaximize.emit()"
       [class.active]="maximized"
       [title]="maximized ? 'Restore canvas' : 'Maximize canvas'"
+      [attr.aria-label]="maximized ? 'Restore canvas' : 'Maximize canvas'"
     >
-      <span class="material-icons">{{ maximized ? 'close_fullscreen' : 'open_in_full' }}</span>
+      <span class="material-icons" aria-hidden="true">{{ maximized ? 'close_fullscreen' : 'open_in_full' }}</span>
     </button>
-    <button class="action-btn" (click)="triggerDelete()" [disabled]="totalCells <= 1" title="Remove canvas">
-      <span class="material-icons">close</span>
+    <button
+      type="button"
+      class="action-btn"
+      (click)="triggerDelete()"
+      [disabled]="totalCells <= 1"
+      title="Remove canvas"
+      aria-label="Remove canvas"
+    >
+      <span class="material-icons" aria-hidden="true">close</span>
     </button>
   </div>
 
@@ -82,16 +97,20 @@
                     <span class="status-indicator" [ngClass]="proj.status">
                       @switch (proj.status) {
                         @case ('running') {
-                          <span class="material-icons spinning">sync</span>
+                          <span class="material-icons spinning" aria-hidden="true">sync</span>
+                          <span class="visually-hidden">running</span>
                         }
                         @case ('complete') {
-                          <span class="material-icons">check_circle</span>
+                          <span class="material-icons" aria-hidden="true">check_circle</span>
+                          <span class="visually-hidden">complete</span>
                         }
                         @case ('error') {
-                          <span class="material-icons">error</span>
+                          <span class="material-icons" aria-hidden="true">error</span>
+                          <span class="visually-hidden">failed</span>
                         }
                         @case ('pending') {
-                          <span class="material-icons">schedule</span>
+                          <span class="material-icons" aria-hidden="true">schedule</span>
+                          <span class="visually-hidden">waiting</span>
                         }
                       }
                     </span>
@@ -108,24 +127,38 @@
         }
 
         <div class="animation-control-group">
-          <label class="menu-label" for="settings-speed-display">TRANSITION SPEED AND PLAYBACK</label>
-          <div class="animation-controls">
-            <button class="icon-btn" (click)="decreaseSpeed()" data-tooltip="Decrease speed">
-              <i class="material-icons">remove</i>
+          <span class="menu-label" id="settings-speed-label">TRANSITION SPEED AND PLAYBACK</span>
+          <div class="animation-controls" role="group" aria-labelledby="settings-speed-label">
+            <button
+              type="button"
+              class="icon-btn"
+              (click)="decreaseSpeed()"
+              aria-label="Decrease speed"
+              data-tooltip="Decrease speed"
+            >
+              <i class="material-icons" aria-hidden="true">remove</i>
             </button>
-            <div id="settings-speed-display" class="speed-display">
+            <div id="settings-speed-display" class="speed-display" role="status" aria-label="Transition speed">
               {{ animationSpeed }}
             </div>
-            <button class="icon-btn" (click)="increaseSpeed()" data-tooltip="Increase speed">
-              <i class="material-icons">add</i>
+            <button
+              type="button"
+              class="icon-btn"
+              (click)="increaseSpeed()"
+              aria-label="Increase speed"
+              data-tooltip="Increase speed"
+            >
+              <i class="material-icons" aria-hidden="true">add</i>
             </button>
             <button
+              type="button"
               class="icon-btn play-btn"
               (click)="togglePaused()"
               [class.active]="!paused"
+              [attr.aria-label]="paused ? 'Play animation' : 'Pause animation'"
               [attr.data-tooltip]="paused ? 'Play animation' : 'Pause animation'"
             >
-              <i class="material-icons">
+              <i class="material-icons" aria-hidden="true">
                 {{ paused ? 'play_arrow' : 'pause' }}
               </i>
             </button>
@@ -134,11 +167,23 @@
 
         <!-- TOGGLE BUTTONS -->
         <div class="toggle-group horizontal">
-          <button class="toggle-btn" [class.active]="collisionAvoidance" (click)="toggleCollision.emit()">
+          <button
+            type="button"
+            class="toggle-btn"
+            [class.active]="collisionAvoidance"
+            [attr.aria-pressed]="collisionAvoidance"
+            (click)="toggleCollision.emit()"
+          >
             Avoid collision
           </button>
 
-          <button class="toggle-btn" [class.active]="aggregated" (click)="toggleAggregation.emit()">
+          <button
+            type="button"
+            class="toggle-btn"
+            [class.active]="aggregated"
+            [attr.aria-pressed]="aggregated"
+            (click)="toggleAggregation.emit()"
+          >
             Aggregate items
           </button>
         </div>

@@ -11,11 +11,12 @@ export type ProjectionMethod =
   'pca' | 'fastmap' | 'isomap' | 'mds' | 'lle' | 'ltsa' | 'tsne' | 'umap' | 'trimap' | 'topomap' | 'sammon';
 
 /**
- * Result of a projection computation.
+ * Result of a projection computation. Item ids are strings, exactly as Python
+ * wrote them (an id like "007" must not become 7).
  */
 export interface ProjectionResult {
   method: ProjectionMethod;
-  positions: { id: string | number; x: number; y: number }[];
+  positions: { id: string; x: number; y: number }[];
   computeTime: number; // milliseconds
 }
 
@@ -42,7 +43,7 @@ export interface ProjectionWorkerRequest {
   type: 'compute';
   method: ProjectionMethod;
   features: number[][];
-  ids: (string | number)[];
+  ids: string[];
   config?: ProjectionComputeConfig;
 }
 
@@ -52,7 +53,7 @@ export interface ProjectionWorkerRequest {
 export interface ProjectionWorkerResponse {
   type: 'result' | 'error' | 'progress';
   method?: string;
-  positions?: { id: string | number; x: number; y: number }[];
+  positions?: { id: string; x: number; y: number }[];
   computeTime?: number;
   error?: string;
   progress?: number;
