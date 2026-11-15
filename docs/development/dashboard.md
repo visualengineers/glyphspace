@@ -151,7 +151,7 @@ The settings overlay (`canvas/settingscontrols/`) shows the current projection, 
 
 ## Sidebar
 
-`sidebar/sidebar.component.ts` holds the dataset and glyph state and passes it to its parts; the parts report changes as events, and the sidebar updates `ConfigService`. A fixed header holds the first two parts, two tabs (WAI-ARIA tabs pattern, Filters first) the others. Both tab panels stay mounted, so the histogram filters keep their state while hidden. The collapse button hides the whole sidebar (`collapsed` host class) and an edge handle brings it back.
+`sidebar/sidebar.component.ts` holds the dataset and glyph state and passes it to its parts; the parts report changes as events, and the sidebar updates `ConfigService`. A fixed header holds the first two parts, two tabs (WAI-ARIA tabs pattern, Filters first) the others. Both tab panels stay mounted, so the histogram filters keep their state while hidden. The collapse button hides the whole sidebar (`collapsed` host class) and an edge handle brings it back. Filters often change outside Angular's zone (a brush, a canvas selection), so the sidebar runs change detection on `FilterService.filterChanged$`, which updates the live count and the filter summary; other commands, such as every canvas redraw, don't trigger it.
 
 | Part | Folder | Contents |
 |---|---|---|

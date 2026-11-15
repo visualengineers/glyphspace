@@ -1,8 +1,10 @@
+import { NgZone } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { SidebarComponent } from './sidebar.component';
 import { ConfigService } from '../services/config.service';
 import { DataLoaderService } from '../services/data-loader.service';
 import { ThumbnailService } from '../services/thumbnail.service';
+import { FilterService } from '../services/filter.service';
 import { GlyphType } from '../shared/enum/glyph-type';
 import { MAX_GLYPH_AXES } from '../glyph/glyph-axes';
 
@@ -60,6 +62,19 @@ describe('SidebarComponent', () => {
     await fixture.whenStable();
     expect(config.getConfiguration().glyphType).toBe(GlyphType.Thumb);
     expect(fixture.componentInstance.imagesAvailable).toBe(true);
+  });
+
+  // Regression: every command, so every canvas redraw, re-entered the zone and
+  // ran change detection for the whole app; only filter changes affect the sidebar.
+  it('runs change detection for filter changes, not for every canvas command', () => {
+    const run = vi.spyOn(TestBed.inject(NgZone), 'run');
+
+    config.redraw();
+    config.reRender();
+    expect(run).not.toHaveBeenCalled();
+
+    TestBed.inject(FilterService).refreshFilters();
+    expect(run).toHaveBeenCalled();
   });
 
   it('opens on the Filters tab', () => {

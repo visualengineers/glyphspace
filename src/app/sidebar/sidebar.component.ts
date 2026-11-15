@@ -20,6 +20,7 @@ import { GlyphConfiguration } from '../glyph/glyph-configuration';
 import { MAX_GLYPH_AXES } from '../glyph/glyph-axes';
 import { GlyphType, hasFeatureAxes } from '../shared/enum/glyph-type';
 import { ThumbnailService } from '../services/thumbnail.service';
+import { FilterService } from '../services/filter.service';
 import { FeaturesData } from '../shared/interfaces/glyph-meta';
 import { GlyphSchema } from '../shared/interfaces/glyph-schema';
 import { COLOR_SCALES, scaleTypeForFeature } from '../shared/interfaces/color-scale';
@@ -81,6 +82,7 @@ export class SidebarComponent implements OnInit, OnDestroy {
   private ngZone = inject(NgZone);
   private injector = inject(Injector);
   private thumbnails = inject(ThumbnailService);
+  private filterService = inject(FilterService);
 
   constructor(
     public config: ConfigService,
@@ -128,9 +130,11 @@ export class SidebarComponent implements OnInit, OnDestroy {
     );
 
     // Filters change outside Angular's view (histogram brush, canvas selection):
-    // refresh the live count and the filter summary.
+    // refresh the live count and the filter summary. Only filter changes do this;
+    // other commands (every canvas redraw, a loaded image) must not run change
+    // detection for the whole app.
     this.subs.add(
-      this.config.commandSubject$.subscribe(() => {
+      this.filterService.filterChanged$.subscribe(() => {
         this.ngZone.run(() => {
           /* intentional: forces change detection */
         });
