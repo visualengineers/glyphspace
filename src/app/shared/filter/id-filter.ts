@@ -1,67 +1,62 @@
 import { GlyphObject } from '../../glyph/glyph-object';
 import { ItemFilter } from './item-filter';
 
+/** Accepts the items whose id was selected. The ids are a set, so a test is O(1) however many are selected. */
 export class IdFilter extends ItemFilter {
-  private _acceptableIds: string[];
+  private ids: Set<string>;
 
-  constructor(acceptableIds?: string[]) {
+  constructor(acceptableIds: Iterable<string> = []) {
     super();
-    this._acceptableIds = acceptableIds === undefined ? [] : acceptableIds;
+    this.ids = new Set(acceptableIds);
   }
 
   public override info() {
-    return 'Id Filter Length ' + this._acceptableIds.length + ' FilterMode: ' + this.filterMode;
+    return 'Id Filter Length ' + this.ids.size + ' FilterMode: ' + this.filterMode;
   }
 
   public override empty() {
-    return this._acceptableIds.length <= 0;
+    return this.ids.size === 0;
   }
 
   public override inFilter(item: GlyphObject): boolean {
-    return this._acceptableIds.indexOf(item.id) >= 0;
+    return this.ids.has(item.id);
+  }
+
+  /** Number of selected ids. */
+  public get size(): number {
+    return this.ids.size;
+  }
+
+  public has(id: string): boolean {
+    return this.ids.has(id);
   }
 
   public add(id: string) {
-    const pos = this._acceptableIds.indexOf(id);
-    if (pos < 0) {
-      this._acceptableIds.push(id);
-    }
+    this.ids.add(id);
   }
 
   public remove(id: string) {
-    const pos = this._acceptableIds.indexOf(id);
-    if (pos >= 0) {
-      this._acceptableIds.splice(pos, 1);
-    }
+    this.ids.delete(id);
   }
 
   public toggle(id: string) {
-    const pos = this._acceptableIds.indexOf(id);
-    if (pos >= 0) {
-      this._acceptableIds.splice(pos, 1);
-    } else {
-      this._acceptableIds.push(id);
-    }
+    if (!this.ids.delete(id)) this.ids.add(id);
   }
 
+  /** The selected ids, sorted. */
   public get acceptableIds(): string[] {
-    return this._acceptableIds;
+    return [...this.ids].sort();
   }
 
   public set acceptableIds(ids: string[]) {
-    this._acceptableIds = ids.sort();
+    this.ids = new Set(ids);
   }
 
   public override clear() {
-    this._acceptableIds.splice(0, this._acceptableIds.length);
+    this.ids.clear();
   }
 
-  public addMultiple(newIds: string[]) {
-    newIds.forEach((id: string) => {
-      if (this._acceptableIds.indexOf(id) < 0) {
-        this._acceptableIds.push(id);
-      }
-    });
-    this._acceptableIds.sort();
+  public addMultiple(newIds: Iterable<string>) {
+    for (const id of newIds) this.ids.add(id);
   }
 }

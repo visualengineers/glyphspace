@@ -57,9 +57,10 @@ export class FilterSummaryComponent {
     if (returnFocus) this.trigger?.nativeElement.focus();
   }
 
+  /** Reset every filter; their owners (histograms, canvases) show the reset on `filterChanged$`. */
   clearAll(): void {
     this.filterService.clearFilters();
-    this.config.clearSelection();
+    this.config.redraw();
     this.close(true);
   }
 
@@ -83,20 +84,15 @@ export class FilterSummaryComponent {
       }));
     }
     if (filter instanceof IdFilter) {
-      return [
-        {
-          key: `ids-${index}`,
-          label: `${filter.acceptableIds.length} selected`,
-          remove: () => this.clear(filter, () => this.config.clearSelection()),
-        },
-      ];
+      // One canvas's selection: only that one goes, the others and every other filter stay.
+      return [{ key: `ids-${index}`, label: `${filter.size} selected`, remove: () => this.clear(filter) }];
     }
     if (filter instanceof FeatureFilter || filter instanceof CategoryFilter) {
       return [
         {
           key: `feature-${index}`,
           label: this.labels[filter.featureName] || filter.featureName,
-          remove: () => this.clear(filter, () => this.config.redraw()),
+          remove: () => this.clear(filter),
         },
       ];
     }
@@ -109,9 +105,9 @@ export class FilterSummaryComponent {
     this.config.redraw();
   }
 
-  private clear(filter: ItemFilter, redraw: () => void): void {
+  private clear(filter: ItemFilter): void {
     filter.clear();
     this.filterService.refreshFilters();
-    redraw();
+    this.config.redraw();
   }
 }

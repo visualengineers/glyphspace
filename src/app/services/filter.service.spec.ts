@@ -144,6 +144,42 @@ describe('FilterService', () => {
     expect(filter.empty()).toBe(true);
   });
 
+  it('counts the items of the data it filters, keeping the active filters', () => {
+    const filter = new TestFilter();
+    filter.add('1');
+    service.ensureFilter(filter);
+
+    service.setActiveGlyphData(createGlyphMap(['1', '2', '3']));
+
+    expect(service.totalItems).toBe(3);
+    expect(service.filteredItems).toBe(1);
+  });
+
+  // Regression: a removed canvas left its selection registered, so the other
+  // canvases kept greying out everything outside it.
+  it('unregisters a filter and refreshes', () => {
+    const glyphMap = createGlyphMap(['1', '2']);
+    service.setActiveGlyphData(glyphMap);
+    const filter = new TestFilter();
+    filter.add('1');
+    service.ensureFilter(filter);
+    service.refreshFilters();
+
+    expect(service.removeFilter(filter)).toBe(true);
+
+    expect(service.getFilters()).toEqual([]);
+    expect(glyphMap.get('2')?.passive).toBe(false);
+    expect(service.filteredItems).toBe(2);
+  });
+
+  it('tells whether a removed filter was filtering', () => {
+    const empty = new TestFilter();
+    service.ensureFilter(empty);
+
+    expect(service.removeFilter(empty)).toBe(false);
+    expect(service.removeFilter(new TestFilter())).toBe(false);
+  });
+
   it('should treat all-empty filters as no filtering', () => {
     const glyphMap = createGlyphMap(['1', '2']);
     service.setActiveGlyphData(glyphMap);

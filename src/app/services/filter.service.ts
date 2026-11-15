@@ -12,18 +12,23 @@ export class FilterService {
   private filters: ItemFilter[] = [];
   private activeGlyphData: Map<string, GlyphObject> | undefined;
 
+  /** Emits after every refresh; filter owners sync their visuals to their filter's state on it. */
   private filterChangedSubject = new Subject<void>();
   filterChanged$: Observable<void> = this.filterChangedSubject.asObservable();
 
+  /** Items of the active dataset. */
   totalItems = 0;
+  /** Items of the active dataset that pass the filters. */
   filteredItems = 0;
 
   /**
-   * Set the active glyph data reference used by refreshFilters().
-   * Called by DataLoaderService when the active dataset changes.
+   * Make a dataset's items the ones the filters apply to, and count them.
+   * Called by DataLoaderService when it opens a dataset.
    */
   setActiveGlyphData(data: Map<string, GlyphObject> | undefined): void {
     this.activeGlyphData = data;
+    this.totalItems = data?.size ?? 0;
+    this.refreshFilters();
   }
 
   /**
@@ -41,7 +46,7 @@ export class FilterService {
     this.refreshFilters();
   }
 
-  getFilters(): ItemFilter[] {
+  getFilters(): readonly ItemFilter[] {
     return this.filters;
   }
 
@@ -49,6 +54,20 @@ export class FilterService {
     if (!this.filters.includes(filter)) {
       this.filters.push(filter);
     }
+  }
+
+  /**
+   * Unregister a filter whose owner goes away (a removed canvas) or no longer
+   * filters, and refresh. Returns whether it was filtering, so the caller knows
+   * whether the canvases need a redraw.
+   */
+  removeFilter(filter: ItemFilter): boolean {
+    const index = this.filters.indexOf(filter);
+    if (index < 0) return false;
+    const wasFiltering = !filter.empty();
+    this.filters.splice(index, 1);
+    this.refreshFilters();
+    return wasFiltering;
   }
 
   clearIdFilters(): void {
@@ -61,30 +80,24 @@ export class FilterService {
 
   refreshFilters(): void {
     const glyphData = this.activeGlyphData;
-    if (glyphData == null) return;
+    if (glyphData == null) {
+      this.filteredItems = 0;
+      this.filterChangedSubject.next();
+      return;
+    }
 
     let count = 0;
-    const allFiltersEmpty = this.filters.length === 0 || this.filters.every(filter => filter.empty());
-    const orFiltering = this.filters
-      .filter(filter => filter.filterMode === FilterMode.Or)
-      .every(filter => filter.empty());
+    const active = this.filters.filter(filter => !filter.empty());
+    const andFilters = active.filter(filter => filter.filterMode === FilterMode.And);
+    const orFilters = active.filter(filter => filter.filterMode === FilterMode.Or);
     glyphData.forEach((item: GlyphObject) => {
-      let andFilter = true;
-      let orFilter = orFiltering;
-      this.filters.forEach(filter => {
-        if (filter.empty()) {
-          return;
-        }
-
-        if (filter.filterMode === FilterMode.Or) {
-          orFilter = orFilter || filter.inFilter(item);
-        } else if (filter.filterMode === FilterMode.And) {
-          andFilter = andFilter && filter.inFilter(item);
-        }
-      });
-
-      item.passive = allFiltersEmpty ? false : !(andFilter && orFilter);
-      if (!item.passive) count++;
+      // An item passes when every And filter accepts it and, if any Or filter is
+      // active, at least one of them does. Without active filters, every item passes.
+      const passes =
+        andFilters.every(filter => filter.inFilter(item)) &&
+        (orFilters.length === 0 || orFilters.some(filter => filter.inFilter(item)));
+      item.passive = !passes;
+      if (passes) count++;
     });
     this.filteredItems = count;
     this.filterChangedSubject.next();

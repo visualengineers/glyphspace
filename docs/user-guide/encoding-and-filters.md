@@ -21,7 +21,7 @@ With the **Image** glyph type there are no axes: the header reads **n/a** and th
 
 **FILTERS** below the legend shows the number of active filters. Next to it, **matching / total** counts the items that pass them.
 
-Click **FILTERS** to list the active filters: search terms (in quotes), feature filters (by feature name) and the canvas selection (**N selected**). Remove a single entry with its **×**, or everything with **Clear all**.
+Click **FILTERS** to list the active filters: search terms (in quotes), feature filters (by feature name) and the canvas selection (**N selected**). Remove a single entry with its **×** (for a selection, only that canvas's selection goes), or everything with **Clear all**.
 
 ## Filters
 
@@ -39,8 +39,8 @@ Type into **Text search in features…** and press **Enter**. The term is added 
 
 The tab shows one card per feature, labelled with the feature name and its type, with a histogram.
 
-- **Numeric features:** drag across the histogram to keep a range. Bars outside it turn grey. Click outside the brushed range to remove the filter.
-- **Categorical features:** each bar is one category. Click bars to keep those categories; click again to drop one. A categorical feature with more than 40 categories is shown as a numeric histogram instead.
+- **Numeric features:** drag across the histogram to keep the bars you touch; the range snaps to whole bars and keeps exactly the items counted in them. Bars outside it turn grey. Click outside the brushed range to remove the filter.
+- **Categorical features:** each bar is one category or, in the bundled datasets, sometimes a few neighbouring categories (hover to see which). Click bars to keep those categories; click again to drop one. A categorical feature with more than 40 categories is shown as a numeric histogram instead.
 - Hover over a bar to see its range or category.
 - The bars of the feature chosen under **COLOR BY** use its colours (with a categorical palette, in the same order as the glyphs); all other histograms are grey.
 - When items are selected in a canvas, each bar shows the share of selected items in blue.

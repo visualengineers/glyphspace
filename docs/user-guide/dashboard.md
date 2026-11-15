@@ -6,7 +6,7 @@ The dashboard is the grid of canvases in the middle of the screen. Each canvas s
 
 ## Choosing a dataset
 
-Pick a dataset in the **Data** menu of the menu bar. Switching datasets clears all filters. Datasets you imported are marked **(uploaded)**. For those, a **Delete this dataset** button appears next to the menu; it asks for confirmation and cannot be undone. Bundled datasets can't be deleted.
+Pick a dataset in the **Data** menu of the menu bar. Switching datasets clears all filters. If you pick a dataset that is still downloading, the canvases switch to it once it has arrived. Datasets you imported are marked **(uploaded)**. For those, a **Delete this dataset** button appears next to the menu; it asks for confirmation and cannot be undone. Bundled datasets can't be deleted.
 
 ## Canvases
 
@@ -103,5 +103,5 @@ Selected items keep their colour; all others turn grey in every canvas. The sele
 
 | Button | Result |
 |---|---|
-| **Export** (menu bar) | A CSV of all items that are currently not greyed out: the ID, the original feature values and then the metadata columns. The file name contains a timestamp, the dataset name and the number of items. |
+| **Export** (menu bar) | A CSV of all items that are currently not greyed out: the ID, the original feature values and then the metadata columns. The file name contains a timestamp, the dataset name and the number of items. Values that a spreadsheet would run as a formula start with an apostrophe. |
 | **Screenshot** (menu bar) | One PNG per canvas, at twice the screen resolution. |

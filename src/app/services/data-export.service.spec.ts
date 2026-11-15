@@ -38,12 +38,35 @@ describe('DataExportService', () => {
       { label: { '1': 'fat' }, metadata: { '1': 'flavor' } }
     );
 
-    expect(csv.split('\n')).toEqual(['id,fat,flavor', '"brie","45","buttery, nutty"', '"gouda","30",""']);
+    expect(csv.split('\n')).toEqual(['"id","fat","flavor"', '"brie","45","buttery, nutty"', '"gouda","30",""']);
   });
 
   it('exports features only for a dataset without metadata', async () => {
     const csv = await exportedCsv([glyph('brie', { '1': '45' })], { label: { '1': 'fat' } });
 
-    expect(csv.split('\n')).toEqual(['id,fat', '"brie","45"']);
+    expect(csv.split('\n')).toEqual(['"id","fat"', '"brie","45"']);
+  });
+
+  // Regression: the header was joined unquoted, so a label with a comma (a
+  // one-hot feature like "group_Lamb, Veal, and Game Products") added columns
+  // and shifted every column after it.
+  it('quotes the header like the rows', async () => {
+    const csv = await exportedCsv([glyph('lamb', { '1': '1', '2': '20' })], {
+      label: { '1': 'group_Lamb, Veal, and Game Products', '2': 'Price "EUR"' },
+    });
+
+    expect(csv.split('\n')[0]).toBe('"id","group_Lamb, Veal, and Game Products","Price ""EUR"""');
+  });
+
+  it('keeps spreadsheets from running values as formulas, but leaves numbers alone', async () => {
+    const csv = await exportedCsv(
+      [glyph('x', { '1': '=HYPERLINK("http://evil")', '2': '-3.5', '3': '@SUM(A1)', '4': '+1e-5', '5': '-x' })],
+      { label: { '1': 'a', '2': 'b', '3': 'c', '4': 'd', '5': '=e' } }
+    );
+
+    expect(csv.split('\n')).toEqual([
+      `"id","a","b","c","d","'=e"`,
+      `"x","'=HYPERLINK(""http://evil"")","-3.5","'@SUM(A1)","+1e-5","'-x"`,
+    ]);
   });
 });

@@ -54,7 +54,7 @@ flowchart LR
   WIZ <--> PRJ
   WIZ -- "processed dataset" --> DL
   B -- "HTTP GET at startup" --> DL
-  IDB -- "read at startup" --> DL
+  IDB -- "listed at startup, read when opened" --> DL
   DL -- "save after import" --> IDB
   DL --> CACHE
   DL --> CFG
@@ -64,11 +64,11 @@ flowchart LR
   CFG --> CAN
 ```
 
-**Bundled datasets.** The `DataLoaderService` constructor requests the schema, meta, feature and position files of every dataset in `DEFAULT_DATASETCOLLECTION` (`src/default-dataset.ts`) from `assets/data/`, and builds each into the cache. The first dataset in collection order that loads becomes the active one, whatever order the downloads finish in. It also reads every dataset saved in IndexedDB into the cache.
+**Bundled datasets.** The `DataLoaderService` constructor requests the schema, meta, feature and position files of every dataset in `DEFAULT_DATASETCOLLECTION` (`src/default-dataset.ts`) from `assets/data/`, and builds each into the cache. The first dataset in collection order that loads becomes the active one, whatever order the downloads finish in, unless the user opened another one meanwhile. It also lists the datasets saved in IndexedDB; each is read into the cache when it is first opened.
 
 **Imported datasets.** The wizard writes the uploaded CSV into the Pyodide file system, profiles it, and in Step 6 sends the configuration to Python (`DataProcessorService.processWithConfig`). Python returns the dataset (schema, meta, features) and writes the processed feature matrix to `processed_features.csv`. The wizard reads that file back, runs FastMap on the main thread as the primary projection, and starts the other selected methods in background workers. "Open in Glyphspace" hands the dataset to `DataLoaderService.loadProcessedDataset`, which builds it into the cache, and to `saveDatasetToStorage`, which saves it to IndexedDB. Background projections that finish later are added to the loaded dataset and saved again. A ZIP of item images chosen in Step 1 is attached to the dataset after FastMap (`ThumbnailService.attachArchive`). The details are in [wizard.md](wizard.md) and [processing-pipeline.md](processing-pipeline.md); the file formats are in [specs/dataset-format.md](../specs/dataset-format.md).
 
-**From cache to screen.** `ConfigService.loadData(name)` emits the active dataset name. Every canvas then reads its `GlyphObject`s from the cache, scales the positions of the selected projection into canvas space and renders them. Filters and selections never remove items: `FilterService` marks them `passive`, and the canvases draw passive items in grey. See [dashboard.md](dashboard.md).
+**From cache to screen.** `DataLoaderService.openDataset(name)` waits until the dataset is loaded, resets the filters, applies its schema and emits the name with `ConfigService.loadData(name)`. Every canvas then reads its `GlyphObject`s from the cache, scales the positions of the selected projection into canvas space and renders them. Filters and selections never remove items: `FilterService` marks them `passive`, and the canvases draw passive items in grey. See [dashboard.md](dashboard.md).
 
 ## Dataset sources
 
@@ -80,7 +80,7 @@ Every entry of the dataset collection (`shared/interfaces/dataset-collection.ts`
 | `wasm` | Produced by the wizard in this session | `memory://<name>/<timestamp>/<part>` | Yes |
 | `indexeddb` | Saved wizard output, read at startup | `memory://<name>/<timestamp>/<part>` | Yes |
 
-The `memory://` references are identifiers, not URLs: the data behind them is already in `DatasetCacheService` (and, for `indexeddb`, stored in IndexedDB under the dataset name). In practice nothing fetches them: `DataLoaderService.loadDataSet` would hand a `wasm` entry to the worker's `getJson`, but the cache always holds these datasets, so that path isn't reached. When `saveDatasetToStorage` succeeds, the entry's source changes from `wasm` to `indexeddb`. IndexedDB keys datasets by name, so saving a dataset under an existing name replaces it.
+The `memory://` references are identifiers, not URLs, and nothing fetches them: a `wasm` dataset is always in `DatasetCacheService`, and an `indexeddb` dataset is read from IndexedDB, where it is stored under its name, when it is first opened. When `saveDatasetToStorage` succeeds, the entry's source changes from `wasm` to `indexeddb`. IndexedDB keys datasets by name, so saving a dataset under an existing name replaces it.
 
 ## Where state lives
 

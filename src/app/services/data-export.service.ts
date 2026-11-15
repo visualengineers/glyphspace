@@ -2,6 +2,11 @@ import { Injectable } from '@angular/core';
 import { GlyphObject } from '../glyph/glyph-object';
 import { GlyphSchema } from '../shared/interfaces/glyph-schema';
 
+/** Characters that make a spreadsheet read a cell as a formula (OWASP's CSV injection list). */
+const FORMULA_START = /^[=+\-@\t\r]/;
+/** A number as the dataset writes it, e.g. `-3.5`, `+2`, `-1e-5`. */
+const PLAIN_NUMBER = /^[+-]?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?$/i;
+
 @Injectable({
   providedIn: 'root',
 })
@@ -55,7 +60,7 @@ export class DataExportService {
     // --------------------------------------------------
     const headers = ['id', ...orderedLabels];
     const rows: string[] = [];
-    rows.push(headers.join(','));
+    rows.push(headers.map(header => this.escapeCSV(header)).join(','));
 
     // --------------------------------------------------
     // 4. CSV rows
@@ -86,8 +91,14 @@ export class DataExportService {
     this.downloadBlob(blob, fileName);
   }
 
+  /**
+   * A quoted CSV field. A text that a spreadsheet would run as a formula (it
+   * starts with `=`, `+`, `-`, `@`, a tab or a carriage return) gets a leading
+   * `'`, which spreadsheets show as text; plain numbers such as `-3.5` stay as they are.
+   */
   private escapeCSV(value: string | number | undefined | null): string {
-    const str = String(value ?? '');
+    let str = String(value ?? '');
+    if (FORMULA_START.test(str) && !PLAIN_NUMBER.test(str)) str = `'${str}`;
     return `"${str.replace(/"/g, '""')}"`;
   }
 

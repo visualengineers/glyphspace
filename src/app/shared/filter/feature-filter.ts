@@ -1,47 +1,64 @@
 import { GlyphObject } from '../../glyph/glyph-object';
+import { binOfValue } from '../utils/histogram.utils';
 import { ItemFilter } from './item-filter';
 
+interface BinRange {
+  minBin: number;
+  maxBin: number;
+  binCount: number;
+}
+
+/**
+ * Accepts the items counted in a range of bins of a numeric feature's histogram
+ * (the sidebar brush). Bins are numpy's half-open bins of the normalised value
+ * (`binOfValue`), so the filter keeps exactly the items drawn in the brushed bars.
+ */
 export class FeatureFilter extends ItemFilter {
   private _featureName: string;
-  private _minValue: number | undefined;
-  private _maxValue: number | undefined;
+  private range: BinRange | null = null;
 
-  constructor();
-  constructor(featureName?: string);
-  constructor(featureName?: string, minValue?: number, maxValue?: number) {
+  constructor(featureName = '') {
     super();
-    this._featureName = featureName === undefined ? '' : featureName;
-    this._minValue = minValue === undefined ? 0 : minValue;
-    this._maxValue = maxValue === undefined ? 0 : maxValue;
+    this._featureName = featureName;
   }
 
   public override clear() {
-    this._minValue = undefined;
-    this._maxValue = undefined;
+    this.range = null;
   }
 
   public override empty() {
-    return this._minValue === undefined || this._maxValue === undefined;
+    return this.range === null;
   }
 
   public override info() {
-    return (
-      'Feature Filter for ' +
-      this.featureName +
-      ' with ' +
-      this._minValue +
-      ' : ' +
-      this._maxValue +
-      ' FilterMode: ' +
-      this.filterMode
-    );
+    const range = this.range ? `bins ${this.range.minBin}–${this.range.maxBin} of ${this.range.binCount}` : 'no range';
+    return `Feature Filter for ${this.featureName} with ${range} FilterMode: ${this.filterMode}`;
   }
 
   public override inFilter(item: GlyphObject): boolean {
-    const value = item.features[item.currentContext][this._featureName];
-    if (this._minValue === undefined || this._maxValue === undefined) return false;
+    if (!this.range) return false;
+    const value = item.features?.[item.currentContext]?.[this._featureName];
+    if (typeof value !== 'number' || Number.isNaN(value)) return false;
+    const bin = binOfValue(value, this.range.binCount);
+    return bin >= this.range.minBin && bin <= this.range.maxBin;
+  }
 
-    return value >= this._minValue && value <= this._maxValue;
+  /** Accept the items in bins minBin … maxBin (inclusive) of a histogram with binCount bins. */
+  public setBinRange(minBin: number, maxBin: number, binCount: number): void {
+    if (!Number.isInteger(binCount) || binCount < 1) throw new RangeError('binCount must be a positive integer');
+    if (!Number.isInteger(minBin) || !Number.isInteger(maxBin) || minBin < 0 || maxBin >= binCount) {
+      throw new RangeError('bins must be integers within the histogram');
+    }
+    if (minBin > maxBin) throw new RangeError('minBin must be <= maxBin');
+    this.range = { minBin, maxBin, binCount };
+  }
+
+  public get minBin(): number | undefined {
+    return this.range?.minBin;
+  }
+
+  public get maxBin(): number | undefined {
+    return this.range?.maxBin;
   }
 
   public get featureName(): string {
@@ -49,29 +66,5 @@ export class FeatureFilter extends ItemFilter {
   }
   public set featureName(newFeatureName: string) {
     this._featureName = newFeatureName;
-  }
-
-  public get minValue(): number | undefined {
-    return this._minValue;
-  }
-  public set minValue(newMinValue: number) {
-    if (newMinValue === undefined) throw new RangeError('value undefined in feature filter');
-    if (newMinValue < 0.0 || newMinValue > 1.0) {
-      throw new RangeError('supplied parameter must be in interval [0,1]');
-    }
-
-    this._minValue = newMinValue;
-  }
-
-  public get maxValue(): number | undefined {
-    return this._maxValue;
-  }
-  public set maxValue(newMaxValue: number | undefined) {
-    if (newMaxValue === undefined) throw new RangeError('value undefined in feature filter');
-    if (newMaxValue < 0.0 || newMaxValue > 1.0) {
-      throw new RangeError('supplied parameter must be in interval [0,1]');
-    }
-
-    this._maxValue = newMaxValue;
   }
 }

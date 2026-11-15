@@ -29,6 +29,8 @@ GlyphSpace has no version numbers yet, so releases are named by the date they re
 - The glyph type buttons show a small star, flower or picture next to their name. **Image** is off for a dataset without item images, and such a dataset opens with **Star** instead of grey placeholders ([#96](https://github.com/visualengineers/glyphspace/pull/96)).
 - Pointer handling and drawing of the canvases run outside Angular's change detection, which makes hovering and panning cheaper with several canvases ([#104](https://github.com/visualengineers/glyphspace/pull/104)).
 - The icon buttons on the canvases have accessible names for screen readers ([#104](https://github.com/visualengineers/glyphspace/pull/104)).
+- Selections, histogram redraws and sidebar updates scale to tens of thousands of items: selections use a set, histograms redraw only when the colours change (no longer on every frame of the size slider), and canvas redraws no longer run change detection for the whole app ([#105](https://github.com/visualengineers/glyphspace/pull/105)).
+- Saved datasets are read into memory when first opened instead of all at startup ([#105](https://github.com/visualengineers/glyphspace/pull/105)).
 
 ### Removed
 
@@ -65,10 +67,20 @@ GlyphSpace has no version numbers yet, so releases are named by the date they re
 - Image glyphs are as large as their placeholder and no longer flicker when drawn small ([#104](https://github.com/visualengineers/glyphspace/pull/104)).
 - A dataset whose items all share a value on one axis is spread along the other instead of collapsing to a point ([#104](https://github.com/visualengineers/glyphspace/pull/104)).
 - `-` removes the last canvas and leaves the others as they are; removing the maximised canvas shows the others again ([#104](https://github.com/visualengineers/glyphspace/pull/104)).
+- Choosing a bundled dataset that is still downloading no longer leaves the canvases blank; the dashboard switches once it has arrived. A dataset chosen during startup is no longer replaced by the start dataset ([#105](https://github.com/visualengineers/glyphspace/pull/105)).
+- Histogram brushes and category bars filter exactly the items counted in their bars. The brush snaps to whole bars, greys the same bars it filters, and stays on them when the sidebar is resized ([#105](https://github.com/visualengineers/glyphspace/pull/105)).
+- Category bars of the bundled datasets name the categories they hold (the "Beef Products" bar said "Baked Products"). The selection overlay marks the right bars and adds up the selections of all canvases ([#105](https://github.com/visualengineers/glyphspace/pull/105)).
+- Removing one selection under **FILTERS** keeps the other canvases' selections and the histogram brushes ([#105](https://github.com/visualengineers/glyphspace/pull/105)).
+- Removing a canvas removes its selection. Adding a canvas no longer resets the count of matching items ([#105](https://github.com/visualengineers/glyphspace/pull/105)).
+- Deleting the active dataset resets the filters. A failed deletion keeps the dataset and shows an error ([#105](https://github.com/visualengineers/glyphspace/pull/105)).
+- A dataset processed again under the same name no longer offers projections it lost ([#105](https://github.com/visualengineers/glyphspace/pull/105)).
+- The CSV export quotes its header, so a column label with a comma no longer shifts the columns ([#105](https://github.com/visualengineers/glyphspace/pull/105)).
+- A dataset that can't be saved in the browser, for example because storage is full, shows a warning instead of failing silently. A tab running an older version no longer makes saved datasets hang ([#105](https://github.com/visualengineers/glyphspace/pull/105)).
 
 ### Security
 
 - All `npm audit` findings are fixed (2 critical, 7 high, 39 moderate), partly through `overrides` for minimatch and glob ([#94](https://github.com/visualengineers/glyphspace/pull/94)).
+- Values in the CSV export that a spreadsheet would run as formulas (starting with `=`, `+`, `-` or `@`) start with an apostrophe; plain numbers stay as they are ([#105](https://github.com/visualengineers/glyphspace/pull/105)).
 
 ## 2026-11-09: Wizard redesign
 
