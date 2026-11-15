@@ -2,6 +2,22 @@ import { GlyphObject } from '../../glyph/glyph-object';
 import { StringStringMap } from '../interfaces/glyph-feature';
 import { ItemFilter } from './item-filter';
 
+/**
+ * Lower-cased values per values object. An item's values are replaced, not
+ * changed, when its dataset is built again, so the cache never goes stale and
+ * a refresh doesn't lower-case every value of every item again.
+ */
+const lowerCaseValues = new WeakMap<StringStringMap, string[]>();
+
+function lowerCased(values: StringStringMap): string[] {
+  let lower = lowerCaseValues.get(values);
+  if (!lower) {
+    lower = Object.values(values).map(value => String(value).toLowerCase());
+    lowerCaseValues.set(values, lower);
+  }
+  return lower;
+}
+
 export class TextFilter extends ItemFilter {
   private _acceptableStrings: string[];
 
@@ -29,10 +45,7 @@ export class TextFilter extends ItemFilter {
 
   private matchesAny(values: StringStringMap | undefined): boolean {
     if (!values) return false;
-    return Object.values(values).some(val => {
-      const valStr = String(val).toLowerCase();
-      return this._acceptableStrings.some(substr => valStr.includes(substr));
-    });
+    return lowerCased(values).some(value => this._acceptableStrings.some(substr => value.includes(substr)));
   }
 
   public get acceptableStrings(): string[] {

@@ -18,6 +18,12 @@ import {
   OutlierMethod,
 } from '../../models/data-type.enum';
 
+/** The value, or a failed test when it is missing. */
+function defined<T>(value: T | null | undefined): T {
+  if (value === null || value === undefined) throw new Error('expected a value');
+  return value;
+}
+
 /**
  * A3 — unit tests for the error-classification and pre-flight-detection logic.
  * Covers the user-relevant failure classes (K1–K7), the generic fallback,
@@ -326,10 +332,10 @@ describe('detectPreflightIssues', () => {
     const issues = detectPreflightIssues(state);
     const k3 = issues.find(i => i.code === 'K3');
     expect(k3).toBeTruthy();
-    expect(k3!.severity).toBe('warning');
+    expect(k3?.severity).toBe('warning');
     expect(k3?.step).toBe('columns');
-    expect(k3!.title).toContain('const');
-    expectActionable(k3!);
+    expect(k3?.title).toContain('const');
+    expectActionable(defined(k3));
   });
 
   it('flags a mostly-empty projection column as a K3 warning', () => {
@@ -368,10 +374,10 @@ describe('detectPreflightIssues', () => {
     });
     const k4 = detectPreflightIssues(state).find(i => i.code === 'K4');
     expect(k4).toBeTruthy();
-    expect(k4!.severity).toBe('warning');
+    expect(k4?.severity).toBe('warning');
     expect(k4?.step).toBe('projection');
-    expect(k4!.why).toContain('UMAP');
-    expectActionable(k4!);
+    expect(k4?.why).toContain('UMAP');
+    expectActionable(defined(k4));
   });
 
   it('does not flag K4 when the neighbour count stays below the row count', () => {
@@ -403,8 +409,8 @@ describe('detectPreflightIssues', () => {
     });
     const k6 = detectPreflightIssues(state).find(i => i.code === 'K6');
     expect(k6).toBeTruthy();
-    expect(k6!.severity).toBe('warning');
-    expectActionable(k6!);
+    expect(k6?.severity).toBe('warning');
+    expectActionable(defined(k6));
   });
 
   it('does not flag K6 for a large dataset with only fast methods', () => {

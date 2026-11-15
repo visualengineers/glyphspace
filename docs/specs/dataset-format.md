@@ -114,7 +114,7 @@ type DatasetCollection = {
 
 The `time` of an item is the day the data was produced: `ddmmyyyy` for bundled CLI datasets (`tools/dataset_common.py`), `yyyymmdd` (UTC) for wizard datasets (`PreprocessingService`).
 
-`memory://` entries are `memory://<name>/<time>/schema`, `…/meta`, `…/features` and, for positions, `…/<projection>`. They name content that is already in `DatasetCacheService` (or in IndexedDB) and tell the menubar which projections exist; in practice they are never fetched, because the cache always holds these datasets. Only `wasm` and `indexeddb` datasets can be deleted from the app (`DataLoaderService.deleteDataset`).
+`memory://` entries are `memory://<name>/<time>/schema`, `…/meta`, `…/features` and, for positions, `…/<projection>`. They name content that is in `DatasetCacheService` or in IndexedDB and tell the menubar which projections exist; they are never fetched: `wasm` datasets are always in the cache, and `indexeddb` datasets are read from IndexedDB when first opened. Only `wasm` and `indexeddb` datasets can be deleted from the app (`DataLoaderService.deleteDataset`).
 
 ## Stored datasets (IndexedDB)
 
@@ -138,6 +138,8 @@ interface StoredDataset {
 ```
 
 A background projection that finishes after the dataset reached the dashboard is added to the loaded dataset and the record is saved again.
+
+At startup the app lists the stored datasets (name, time and projections, read with a cursor, one record at a time) and reads a dataset's record when it is first opened. A save that fails, for example because the storage is full, is reported to the user; the dataset then lasts only for the session. A failed deletion keeps the dataset.
 
 ## Compatibility
 

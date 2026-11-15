@@ -1,6 +1,7 @@
-import { Injectable } from '@angular/core';
+import { inject, Injectable, NgZone } from '@angular/core';
 import * as THREE from 'three';
 import { GlyphObject } from '../../glyph/glyph-object';
+import { GlyphCacheObject } from '../../glyph/glyph-cache-object';
 import { GlyphSizeInfo } from '../../glyph/glyph-size-info';
 import { RenderTask } from '../../shared/enum/render-task';
 import { SpatialGrid } from '../../shared/helpers/spatial-grid';
@@ -14,12 +15,36 @@ import {
 } from '../../shared/helpers/three-helper';
 import { LENS_ENLARGEMENT_FACTOR, MIN_RENDER_INTERVAL_MS } from '../../shared/constants/canvas-constants';
 import { GlyphRenderConfig } from '../../glyph/glyph-render-config';
+import { disposeObject } from '../../glyph/mesh-disposal';
 
-// Reusable scratch vector to avoid per-frame allocations
-const _tempVec3 = new THREE.Vector3();
+interface Bounds {
+  minX: number;
+  maxX: number;
+  minY: number;
+  maxY: number;
+}
+interface ViewRect {
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+}
+type RenderGlyphsArgs = [GlyphObject[], number, string, string, boolean, GlyphRenderConfig];
 
+/** Smallest cell of the spatial grid, in canvas units. */
+const MIN_GRID_CELL = 10;
+/** Items per grid cell the cell size aims at. */
+const ITEMS_PER_GRID_CELL = 100;
+
+/**
+ * The scene of one canvas. It owns the glyph meshes in `glyphGroup`: a mesh it
+ * takes out of the group is disposed (`releaseMesh`), so GPU memory does not
+ * grow with every redraw.
+ */
 @Injectable()
 export class CanvasRendererService {
+  private ngZone = inject(NgZone);
+
   scene!: THREE.Scene;
   renderer!: THREE.WebGLRenderer;
   glyphGroup = new THREE.Group();
@@ -27,7 +52,7 @@ export class CanvasRendererService {
   sizeInfo = new GlyphSizeInfo();
   /** Scale of every glyph mesh, from the camera zoom (see glyphScale). */
   private _glyphScale = 1;
-  positionBounds: { minX: number; maxX: number; minY: number; maxY: number } | undefined;
+  positionBounds: Bounds | undefined;
 
   // Spatial grid
   spatialGrid = new SpatialGrid<GlyphObject>(100);
@@ -35,7 +60,10 @@ export class CanvasRendererService {
 
   // Render task management
   needsRender = new Set<RenderTask>();
+  /** Counts the requests of each task, so a delayed cancel can tell it was requested again. */
+  private taskRequests = new Map<RenderTask, number>();
   private onRenderRequested?: () => void;
+  private disposed = false;
 
   // Background colors
   readonly standardBackgroundColor = new THREE.Color(0xffffff);
@@ -43,10 +71,13 @@ export class CanvasRendererService {
 
   // Clipping
   private clippingFrameCounter = 0;
+  /** Items moved: the next clipping checks the view even if the camera stayed. */
+  private clippingDirty = true;
 
   // Render throttling to prevent cascading re-renders
   private lastRenderTime = 0;
   private pendingRender: ReturnType<typeof setTimeout> | null = null;
+  private pendingArgs: RenderGlyphsArgs | null = null;
 
   setRenderRequestCallback(fn: () => void): void {
     this.onRenderRequested = fn;
@@ -69,22 +100,43 @@ export class CanvasRendererService {
     this.sizeInfo.update();
   }
 
+  /** Take over the canvas size. A hidden canvas (0 × 0) keeps its last size. */
   updateRendererSize(width: number, height: number): void {
+    if (width <= 0 || height <= 0) return;
     this.renderer.setSize(width, height, false);
     this.sizeInfo.update();
   }
 
+  get isDisposed(): boolean {
+    return this.disposed;
+  }
+
   requestRender(task: RenderTask): void {
+    if (this.disposed) return;
+    this.taskRequests.set(task, (this.taskRequests.get(task) ?? 0) + 1);
     this.needsRender.add(task);
     this.onRenderRequested?.();
   }
 
+  /**
+   * End `task` one frame later, so the frame that finishes it is still drawn.
+   * A request of the task in between keeps it.
+   */
   cancelRender(task: RenderTask): void {
-    requestAnimationFrame(() => {
-      this.needsRender.delete(task);
-    });
+    const requests = this.taskRequests.get(task);
+    this.ngZone.runOutsideAngular(() =>
+      requestAnimationFrame(() => {
+        if (this.taskRequests.get(task) === requests) this.needsRender.delete(task);
+      })
+    );
   }
 
+  /**
+   * Rebuild the meshes of the items in the view (all items with `force`) and
+   * drop the others'. Calls less than MIN_RENDER_INTERVAL_MS apart collapse
+   * into one trailing call with the latest arguments; a forced call replaces
+   * a pending one.
+   */
   renderGlyphs(
     glyphData: GlyphObject[],
     canvasId: number,
@@ -94,31 +146,30 @@ export class CanvasRendererService {
     renderConfig: GlyphRenderConfig,
     force = false
   ): void {
-    if (!this.scene) return;
+    if (!this.scene || this.disposed) return;
 
-    const now = performance.now();
-    const elapsed = now - this.lastRenderTime;
-
-    // Throttle: if called too rapidly, schedule a single trailing render
+    const elapsed = performance.now() - this.lastRenderTime;
     if (elapsed < MIN_RENDER_INTERVAL_MS && !force) {
-      if (!this.pendingRender) {
-        this.pendingRender = setTimeout(() => {
+      this.pendingArgs = [glyphData, canvasId, selectedTimestamp, selectedAlgorithm, aggregated, renderConfig];
+      this.pendingRender ??= this.ngZone.runOutsideAngular(() =>
+        setTimeout(() => {
+          const args = this.pendingArgs;
           this.pendingRender = null;
-          this.doRenderGlyphs(
-            glyphData,
-            canvasId,
-            selectedTimestamp,
-            selectedAlgorithm,
-            aggregated,
-            renderConfig,
-            force
-          );
-        }, MIN_RENDER_INTERVAL_MS - elapsed);
-      }
+          this.pendingArgs = null;
+          if (args && this.scene && !this.disposed) this.doRenderGlyphs(...args, false);
+        }, MIN_RENDER_INTERVAL_MS - elapsed)
+      );
       return;
     }
 
+    this.cancelPendingRender();
     this.doRenderGlyphs(glyphData, canvasId, selectedTimestamp, selectedAlgorithm, aggregated, renderConfig, force);
+  }
+
+  private cancelPendingRender(): void {
+    if (this.pendingRender) clearTimeout(this.pendingRender);
+    this.pendingRender = null;
+    this.pendingArgs = null;
   }
 
   private doRenderGlyphs(
@@ -132,22 +183,23 @@ export class CanvasRendererService {
   ): void {
     this.lastRenderTime = performance.now();
 
-    glyphData.forEach((glyph: GlyphObject) => {
+    for (const glyph of glyphData) {
       const cacheObject = glyph.getCacheObject(canvasId, selectedTimestamp, selectedAlgorithm);
-      const oldMesh = cacheObject.mesh;
-      if (oldMesh) this.glyphGroup.remove(oldMesh);
       if (cacheObject.visible || force) {
-        const mesh = glyph.render(
+        this.buildMesh(
+          glyph,
+          cacheObject,
           this.sizeInfo,
+          canvasId,
           selectedTimestamp,
           selectedAlgorithm,
-          canvasId,
           aggregated,
           renderConfig
         );
-        if (mesh != null) this.addGlyphMesh(mesh);
+      } else {
+        this.releaseMesh(cacheObject);
       }
-    });
+    }
 
     this.updatePositionBounds(glyphData, selectedTimestamp, selectedAlgorithm);
     this.requestRender(RenderTask.SceneRender);
@@ -161,20 +213,63 @@ export class CanvasRendererService {
     aggregated: boolean,
     renderConfig: GlyphRenderConfig
   ): void {
-    const mesh = glyph.getMesh(selectedTimestamp, selectedAlgorithm, canvasId);
-    if (mesh !== undefined) this.glyphGroup.remove(mesh);
-
-    const newMesh = glyph.render(
+    if (this.disposed) return;
+    const cacheObject = glyph.getCacheObject(canvasId, selectedTimestamp, selectedAlgorithm);
+    this.buildMesh(
+      glyph,
+      cacheObject,
       this.sizeInfo,
+      canvasId,
       selectedTimestamp,
       selectedAlgorithm,
-      canvasId,
       aggregated,
       renderConfig
     );
-    if (newMesh) this.addGlyphMesh(newMesh);
-
     this.requestRender(RenderTask.SceneRender);
+  }
+
+  /** Replace the item's mesh with a new one (none when aggregation leaves it out). */
+  private buildMesh(
+    glyph: GlyphObject,
+    cacheObject: GlyphCacheObject,
+    sizeInfo: GlyphSizeInfo,
+    canvasId: number,
+    selectedTimestamp: string,
+    selectedAlgorithm: string,
+    aggregated: boolean,
+    renderConfig: GlyphRenderConfig
+  ): THREE.Object3D | null {
+    this.releaseMesh(cacheObject);
+    const mesh = glyph.render(sizeInfo, selectedTimestamp, selectedAlgorithm, canvasId, aggregated, renderConfig);
+    if (mesh) this.addGlyphMesh(mesh);
+    return mesh;
+  }
+
+  /** Take the item's mesh out of the scene and free what it owns. */
+  private releaseMesh(cacheObject: GlyphCacheObject): void {
+    const mesh = cacheObject.mesh;
+    if (!mesh) return;
+    this.glyphGroup.remove(mesh);
+    disposeObject(mesh);
+    cacheObject.mesh = undefined;
+  }
+
+  /**
+   * Take the items of `glyphData` out of this canvas: dispose their meshes and
+   * forget their cache entries for `canvasId`. Whatever else is left in the
+   * scene (e.g. meshes whose cache entries the dataset cache dropped) goes too.
+   */
+  clearGlyphs(glyphData: GlyphObject[], canvasId: number): void {
+    this.cancelPendingRender();
+    for (const glyph of glyphData) {
+      const cacheObject = glyph.renderCache.get(canvasId);
+      if (cacheObject) this.releaseMesh(cacheObject);
+      glyph.clearCache(canvasId);
+    }
+    for (const child of this.glyphGroup.children) disposeObject(child);
+    this.glyphGroup.clear();
+    this.spatialGrid.clear();
+    this.clippingDirty = true;
   }
 
   get glyphScale(): number {
@@ -197,15 +292,26 @@ export class CanvasRendererService {
     this.glyphGroup.add(mesh);
   }
 
+  /** Items moved without the camera moving: the next clipping checks every item again. */
+  invalidateClipping(): void {
+    this.clippingDirty = true;
+  }
+
+  /**
+   * Viewport clipping: mark which items lie in the view (where they are drawn
+   * now) and build the meshes of those that come into it. Runs every second
+   * frame, when the view moved by half a glyph radius or items moved
+   * (invalidateClipping). The render config is only built when a mesh is.
+   */
   updateClipping(
     glyphData: GlyphObject[],
-    viewRect: { left: number; right: number; top: number; bottom: number },
-    lastViewRect: { left: number; right: number; top: number; bottom: number },
+    viewRect: ViewRect,
+    lastViewRect: ViewRect,
     canvasId: number,
     selectedTimestamp: string,
     selectedAlgorithm: string,
     aggregated: boolean,
-    renderConfig: GlyphRenderConfig
+    renderConfig: () => GlyphRenderConfig
   ): void {
     // Throttle to 30fps (every 2nd frame)
     this.clippingFrameCounter++;
@@ -213,15 +319,16 @@ export class CanvasRendererService {
 
     const { left, right, bottom, top } = viewRect;
 
-    // Skip if viewport hasn't changed significantly
+    // Skip if neither the viewport nor the items moved significantly
     const threshold = this.sizeInfo.radius * 0.5;
-    if (
+    const viewMoved = !(
       Math.abs(left - lastViewRect.left) < threshold &&
       Math.abs(right - lastViewRect.right) < threshold &&
       Math.abs(top - lastViewRect.top) < threshold &&
       Math.abs(bottom - lastViewRect.bottom) < threshold
-    )
-      return;
+    );
+    if (!viewMoved && !this.clippingDirty) return;
+    this.clippingDirty = false;
 
     // Update cached viewport
     lastViewRect.left = left;
@@ -230,41 +337,27 @@ export class CanvasRendererService {
     lastViewRect.bottom = bottom;
 
     const r = this.sizeInfo.radius;
-
-    // Use spatial grid for efficient viewport culling if available
-    if (this.spatialGrid.size > 0 && glyphData.length > 500) {
-      const visibleGlyphs = this.spatialGrid.queryRect(left - r, right + r, bottom - r, top + r);
-
-      for (const glyph of glyphData) {
-        const cachedObject = glyph.getCacheObject(canvasId, selectedTimestamp, selectedAlgorithm);
-        if (!visibleGlyphs.has(glyph)) {
-          cachedObject.visible = false;
-        }
+    const level = this.sizeInfo.currentZoomLevel;
+    let config: GlyphRenderConfig | undefined;
+    for (const glyph of glyphData) {
+      const cacheObject = glyph.getCacheObject(canvasId, selectedTimestamp, selectedAlgorithm);
+      const { x, y } = cacheObject.display;
+      const inView = x + r > left && x - r < right && y + r > bottom && y - r < top;
+      if (inView && !cacheObject.mesh && !cacheObject.isAggregatedAway(aggregated, level)) {
+        config ??= renderConfig();
+        this.buildMesh(
+          glyph,
+          cacheObject,
+          this.sizeInfo,
+          canvasId,
+          selectedTimestamp,
+          selectedAlgorithm,
+          aggregated,
+          config
+        );
+        this.requestRender(RenderTask.SceneRender);
       }
-
-      for (const glyph of visibleGlyphs) {
-        const cachedObject = glyph.getCacheObject(canvasId, selectedTimestamp, selectedAlgorithm);
-        if (!cachedObject.visible) {
-          this.renderGlyph(glyph, selectedTimestamp, selectedAlgorithm, canvasId, aggregated, renderConfig);
-        }
-        cachedObject.visible = true;
-      }
-    } else {
-      glyphData.forEach(glyph => {
-        const cachedObject = glyph.getCacheObject(canvasId, selectedTimestamp, selectedAlgorithm);
-        const cachedMesh = cachedObject.mesh;
-        if (cachedMesh) {
-          const isVisible =
-            cachedMesh.position.x + r > left &&
-            cachedMesh.position.x - r < right &&
-            cachedMesh.position.y + r > bottom &&
-            cachedMesh.position.y - r < top;
-          if (!cachedObject.visible && isVisible) {
-            this.renderGlyph(glyph, selectedTimestamp, selectedAlgorithm, canvasId, aggregated, renderConfig);
-          }
-          cachedObject.visible = isVisible;
-        }
-      });
+      cacheObject.visible = inView;
     }
   }
 
@@ -276,30 +369,27 @@ export class CanvasRendererService {
     canvasWidth: number,
     canvasHeight: number
   ): void {
-    glyphData.forEach(glyph => {
-      if (this.positionBounds === undefined) return;
+    const bounds = this.positionBounds;
+    if (bounds === undefined) return;
 
+    for (const glyph of glyphData) {
       const cacheObject = glyph.getCacheObject(canvasId, selectedTimestamp, selectedAlgorithm);
-      const originalX = glyph.getPosition(selectedTimestamp, selectedAlgorithm).x ?? 0;
-      const originalY = glyph.getPosition(selectedTimestamp, selectedAlgorithm).y ?? 0;
+      const original = glyph.getPosition(selectedTimestamp, selectedAlgorithm);
+      const { x, y } = scalePosition(original.x ?? 0, original.y ?? 0, bounds, canvasWidth, canvasHeight);
 
-      const { x: scaledX, y: scaledY } = scalePosition(
-        originalX,
-        originalY,
-        this.positionBounds!, // eslint-disable-line @typescript-eslint/no-non-null-assertion -- guarded by `if (this.positionBounds == undefined) return` above
-        canvasWidth,
-        canvasHeight
-      );
-
-      cacheObject.position.x = scaledX;
-      cacheObject.position.y = scaledY;
-      cacheObject.x = scaledX;
-      cacheObject.y = scaledY;
-      cacheObject.mesh?.position.set(scaledX, scaledY, 0);
-    });
+      cacheObject.position.x = x;
+      cacheObject.position.y = y;
+      cacheObject.x = x;
+      cacheObject.y = y;
+      cacheObject.moveTo(x, y);
+    }
+    this.clippingDirty = true;
   }
 
-  /** Returns true when all glyphs have reached their original positions */
+  /**
+   * Move every item a step of `animationSpeed` towards its target position.
+   * Returns true when all have arrived.
+   */
   animateBackToOriginal(
     glyphData: GlyphObject[],
     canvasId: number,
@@ -308,17 +398,20 @@ export class CanvasRendererService {
     animationSpeed: number
   ): boolean {
     let finished = true;
-    glyphData.forEach(glyph => {
-      const cachedObject = glyph.getCacheObject(canvasId, selectedTimestamp, selectedAlgorithm);
-      const target = cachedObject.position;
-      const mesh = cachedObject.mesh;
-
-      if (mesh) {
-        const finalPosition = nearlyEqual(mesh.position.x, target.x) && nearlyEqual(mesh.position.y, target.y);
-        finished = finished && finalPosition;
-        mesh.position.lerp(_tempVec3.set(target.x, target.y, 0), animationSpeed);
+    for (const glyph of glyphData) {
+      const cacheObject = glyph.getCacheObject(canvasId, selectedTimestamp, selectedAlgorithm);
+      const { display, position } = cacheObject;
+      if (nearlyEqual(display.x, position.x) && nearlyEqual(display.y, position.y)) {
+        if (display.x !== position.x || display.y !== position.y) cacheObject.moveTo(position.x, position.y);
+        continue;
       }
-    });
+      finished = false;
+      cacheObject.moveTo(
+        display.x + (position.x - display.x) * animationSpeed,
+        display.y + (position.y - display.y) * animationSpeed
+      );
+    }
+    this.clippingDirty = true;
     return finished;
   }
 
@@ -343,6 +436,11 @@ export class CanvasRendererService {
     }
   }
 
+  /**
+   * Index the items by where they are drawn, for hit testing. The cell size
+   * aims at about ITEMS_PER_GRID_CELL items per cell, measured in the canvas
+   * space the items are inserted in.
+   */
   rebuildSpatialGrid(
     glyphData: GlyphObject[],
     canvasId: number,
@@ -351,95 +449,74 @@ export class CanvasRendererService {
   ): void {
     this.spatialGrid.clear();
 
-    const count = glyphData.length;
-    if (count > 0 && this.positionBounds) {
-      const width = this.positionBounds.maxX - this.positionBounds.minX;
-      const height = this.positionBounds.maxY - this.positionBounds.minY;
-      const area = width * height;
-      const targetCellArea = area / (count / 100);
-      const cellSize = Math.max(50, Math.sqrt(targetCellArea));
-      this.spatialGrid.setCellSize(cellSize);
-    }
+    const caches = glyphData.map(glyph => glyph.getCacheObject(canvasId, selectedTimestamp, selectedAlgorithm));
+    this.spatialGrid.setCellSize(gridCellSize(caches.map(cache => cache.display)));
 
     const radius = this.sizeInfo.radius;
-    for (const glyph of glyphData) {
-      const cacheObject = glyph.getCacheObject(canvasId, selectedTimestamp, selectedAlgorithm);
-      const x = cacheObject.position.x ?? 0;
-      const y = cacheObject.position.y ?? 0;
-      this.spatialGrid.insert(glyph, x, y, radius);
-    }
+    glyphData.forEach((glyph, i) => this.spatialGrid.insert(glyph, caches[i].display.x, caches[i].display.y, radius));
 
     this.spatialGridDirty = false;
   }
 
+  /**
+   * Show the items in another canvas's magic lens enlarged here, pushed apart
+   * so they don't cover each other. Only the new meshes move: the items keep
+   * their positions, and a redraw (as when they leave the lens) puts them back.
+   */
   renderMagicLensGlyphs(
     glyphs: GlyphObject[],
-    glyphData: GlyphObject[],
     canvasId: number,
     selectedTimestamp: string,
     selectedAlgorithm: string,
     aggregated: boolean,
     renderConfig: GlyphRenderConfig
   ): void {
-    const highlightedIds = new Set(glyphs.map(g => g.id));
+    if (this.disposed || glyphs.length === 0) return;
 
-    // Reset unhighlighted glyphs to their original positions
-    for (const glyph of glyphData) {
-      if (highlightedIds.has(glyph.id)) continue;
-      const node = glyph.getCacheObject(canvasId, selectedTimestamp, selectedAlgorithm);
-      node.x = node.position.x;
-      node.y = node.position.y;
-      node.vx = 0;
-      node.vy = 0;
-      node.mesh?.position.set(node.position.x, node.position.y, 0);
-    }
+    const nodes = glyphs.map(glyph => {
+      const cacheObject = glyph.getCacheObject(canvasId, selectedTimestamp, selectedAlgorithm);
+      return { glyph, cacheObject, x: cacheObject.display.x, y: cacheObject.display.y };
+    });
 
-    if (glyphs.length > 1) {
-      const nodes: { x: number; y: number; mesh: THREE.Object3D | undefined }[] = [];
-      glyphs.forEach(glyph => {
-        const cache = glyph.getCacheObject(canvasId, selectedTimestamp, selectedAlgorithm);
-        nodes.push({ x: cache.position.x, y: cache.position.y, mesh: cache.mesh });
-      });
+    // Simple iterative collision resolution
+    const enlargedRadius = this.sizeInfo.getRadius(ZoomLevel.high) * LENS_ENLARGEMENT_FACTOR * this._glyphScale;
+    const minDist = enlargedRadius * 2;
+    for (let iter = 0; iter < 5; iter++) {
+      for (let i = 0; i < nodes.length; i++) {
+        for (let j = i + 1; j < nodes.length; j++) {
+          const dx = nodes[j].x - nodes[i].x;
+          const dy = nodes[j].y - nodes[i].y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
 
-      // Simple iterative collision resolution
-      const enlargedRadius = this.sizeInfo.getRadius(ZoomLevel.high) * LENS_ENLARGEMENT_FACTOR * this._glyphScale;
-      const minDist = enlargedRadius * 2;
-
-      for (let iter = 0; iter < 5; iter++) {
-        for (let i = 0; i < nodes.length; i++) {
-          for (let j = i + 1; j < nodes.length; j++) {
-            const dx = nodes[j].x - nodes[i].x;
-            const dy = nodes[j].y - nodes[i].y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-
-            if (dist < minDist && dist > 0) {
-              const overlap = (minDist - dist) / 2;
-              const nx = dx / dist;
-              const ny = dy / dist;
-              nodes[i].x -= nx * overlap;
-              nodes[i].y -= ny * overlap;
-              nodes[j].x += nx * overlap;
-              nodes[j].y += ny * overlap;
-            }
+          if (dist < minDist && dist > 0) {
+            const overlap = (minDist - dist) / 2;
+            const nx = dx / dist;
+            const ny = dy / dist;
+            nodes[i].x -= nx * overlap;
+            nodes[i].y -= ny * overlap;
+            nodes[j].x += nx * overlap;
+            nodes[j].y += ny * overlap;
           }
         }
       }
-
-      nodes.forEach(node => {
-        node.mesh?.position.set(node.x, node.y, 0);
-      });
     }
 
-    glyphs.forEach(glyph => {
-      const lensSize = this.sizeInfo.clone();
-      lensSize.currentZoomLevel = ZoomLevel.high;
-      lensSize.radius = lensSize.radius * LENS_ENLARGEMENT_FACTOR;
-
-      const mesh = glyph.getMesh(selectedTimestamp, selectedAlgorithm, canvasId);
-      if (mesh !== undefined) this.glyphGroup.remove(mesh);
-      const newMesh = glyph.render(lensSize, selectedTimestamp, selectedAlgorithm, canvasId, aggregated, renderConfig);
-      if (newMesh) this.addGlyphMesh(newMesh);
-    });
+    const lensSize = this.sizeInfo.clone();
+    lensSize.currentZoomLevel = ZoomLevel.high;
+    lensSize.radius = lensSize.radius * LENS_ENLARGEMENT_FACTOR;
+    for (const { glyph, cacheObject, x, y } of nodes) {
+      const mesh = this.buildMesh(
+        glyph,
+        cacheObject,
+        lensSize,
+        canvasId,
+        selectedTimestamp,
+        selectedAlgorithm,
+        aggregated,
+        renderConfig
+      );
+      mesh?.position.set(x, y, 0);
+    }
 
     this.requestRender(RenderTask.SceneRender);
   }
@@ -457,9 +534,10 @@ export class CanvasRendererService {
       return hitTest(event, this.renderer, this.glyphGroup, camera, this.sizeInfo);
     }
 
-    // Convert screen to world coordinates
+    // The hit test accepts items within the hit tolerance in screen pixels;
+    // candidates are the items within that distance in canvas units.
     const worldPos = screenToWorld(event, this.renderer, camera);
-    const searchRadius = this.sizeInfo.radius * 3;
+    const searchRadius = this.sizeInfo.hitTolerance / camera.zoom;
     const nearbyGlyphs = this.spatialGrid.queryPoint(worldPos.x, worldPos.y, searchRadius);
 
     if (nearbyGlyphs.size === 0) return null;
@@ -473,20 +551,19 @@ export class CanvasRendererService {
     return hitTestCandidates(event, this.renderer, candidates, camera, this.sizeInfo);
   }
 
+  /**
+   * Free the canvas's meshes and its WebGL renderer, and stop rendering. The
+   * renderer releases its copies of the shared geometries and materials; those
+   * stay for the other canvases.
+   */
   dispose(): void {
-    this.scene?.traverse(obj => {
-      if ((obj as THREE.Mesh).geometry) {
-        (obj as THREE.Mesh).geometry.dispose();
-      }
-      if ((obj as THREE.Mesh).material) {
-        const material = (obj as THREE.Mesh).material;
-        if (Array.isArray(material)) {
-          material.forEach(m => m.dispose());
-        } else {
-          material.dispose();
-        }
-      }
-    });
+    this.disposed = true;
+    this.cancelPendingRender();
+    this.needsRender.clear();
+    this.onRenderRequested = undefined;
+
+    for (const child of this.glyphGroup.children) disposeObject(child);
+    this.glyphGroup.clear();
 
     this.renderer?.forceContextLoss?.();
     if (this.renderer) {
@@ -494,8 +571,29 @@ export class CanvasRendererService {
       this.renderer.domElement = null!;
       this.renderer.dispose();
     }
-    this.glyphGroup.clear();
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- intentional cleanup to release scene reference
     this.scene = null!;
   }
+}
+
+/**
+ * Cell size for a spatial grid over `points` (canvas units): about
+ * ITEMS_PER_GRID_CELL points per cell over their bounding box, at least
+ * MIN_GRID_CELL.
+ */
+export function gridCellSize(points: readonly { x: number; y: number }[]): number {
+  if (points.length === 0) return MIN_GRID_CELL;
+  let minX = Infinity,
+    maxX = -Infinity,
+    minY = Infinity,
+    maxY = -Infinity;
+  for (const { x, y } of points) {
+    if (x < minX) minX = x;
+    if (x > maxX) maxX = x;
+    if (y < minY) minY = y;
+    if (y > maxY) maxY = y;
+  }
+  const area = (maxX - minX) * (maxY - minY);
+  const cellSize = Math.sqrt(area / Math.max(points.length / ITEMS_PER_GRID_CELL, 1));
+  return Number.isFinite(cellSize) ? Math.max(MIN_GRID_CELL, cellSize) : MIN_GRID_CELL;
 }
