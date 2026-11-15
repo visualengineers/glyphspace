@@ -21,13 +21,17 @@ dataset only as their original values (schema 'metadata' plus each item's
 
 import json
 import math
+import os
+from collections import Counter
+
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import StandardScaler, MinMaxScaler, RobustScaler, LabelEncoder
 
-# Shared with Step 3's outlier count. The worker writes preprocessing_processor.py
-# to the Pyodide FS when the file is profiled, which precedes every processing run.
-from preprocessing_processor import find_outliers, is_id_column
+# Shared with Step 1 and Step 3 (the CSV reader, the date parser, the outlier
+# count), so processing reads the file and its dates exactly as they were shown.
+# The worker writes preprocessing_processor.py to the Pyodide FS before it loads this module.
+from preprocessing_processor import epoch_seconds, find_outliers, is_id_column, parse_dates, read_csv, to_json
 
 # NOTE: Removed PCA, IncrementalPCA, TSNE imports - now handled by DruidJS in JavaScript
 # All dimensionality reduction is done in the browser for better UX
@@ -53,6 +57,10 @@ MAX_ONEHOT_UNIQUE = 500
 MIN_GLYPH_FEATURES = 3
 MAX_GLYPH_FEATURES = 8
 
+# Where compute_projections writes the projection input by default (the worker
+# passes a path outside the folder of the uploaded files).
+PROCESSED_FEATURES_FILE = 'processed_features.csv'
+
 # Progress callback - will be set by worker
 progress_callback = None
 
@@ -66,10 +74,12 @@ def report_progress(step, progress, message=''):
         progress_callback(step, progress, message)
 
 
-def process_with_config(file_name, config_json, output_file=None):
+def process_with_config(file_name, config_json, output_file=None, features_file=PROCESSED_FEATURES_FILE):
     """
     Process CSV file according to wizard configuration
     Returns DatasetCollection JSON or writes to file
+
+    features_file: where the projection input is written (see compute_projections).
     """
     try:
         config = json.loads(config_json) if isinstance(config_json, str) else config_json
@@ -77,12 +87,13 @@ def process_with_config(file_name, config_json, output_file=None):
         report_progress('Loading data', 5, f'Reading {file_name}')
 
         # Read CSV
-        df = pd.read_csv(file_name)
+        df = read_csv(file_name)
         # Duplicates are judged on the file's own columns (like Step 3's count):
         # a generated ID is unique per row and would hide every duplicate.
         csv_columns = list(df.columns)
 
         df, csv_columns = _use_id_column(df, csv_columns)
+        _check_every_column_is_configured(df, config)
 
         report_progress('Data loaded', 10, f'{len(df)} rows, {len(df.columns)} columns')
 
@@ -100,12 +111,13 @@ def process_with_config(file_name, config_json, output_file=None):
 
         # Step 2: Feature Engineering
         report_progress('Encoding features', 30, 'Converting categorical variables')
-        df_processed, feature_names, feature_categories, df_encoded = apply_feature_engineering(df_cleaned, config)
+        df_processed, feature_names, feature_categories, df_encoded, feature_sources = \
+            apply_feature_engineering(df_cleaned, config)
         report_progress('Features encoded', 50, f'{len(feature_names)} features created')
 
         # Step 3: Compute Projections
         report_progress('Computing PCA', 60, 'Dimensionality reduction')
-        projections = compute_projections(df_processed, config)
+        projections = compute_projections(df_processed, config, feature_sources, features_file)
         report_progress('Projections computed', 80, f'{len(projections)} projection(s) created')
 
         # Step 4: Build DatasetCollection
@@ -114,17 +126,20 @@ def process_with_config(file_name, config_json, output_file=None):
         # tooltip values stay aligned with the processed rows after drops.
         df_original = df.loc[df_cleaned.index]
         dataset = build_dataset_collection(df_original, df_processed, feature_names, feature_categories, projections,
-                                           config, df_encoded=df_encoded)
+                                           config, df_encoded=df_encoded, feature_sources=feature_sources)
         report_progress('Dataset built', 95, 'Finalizing...')
 
+        # Strict JSON: the worker parses the result with JSON.parse, which rejects NaN.
+        result = to_json(dataset)
         if output_file:
+            _make_parent_folder(output_file)
             with open(output_file, 'w') as f:
-                json.dump(dataset, f)
+                f.write(result)
             report_progress('Complete', 100, 'Processing successful')
             return output_file
         else:
             report_progress('Complete', 100, 'Processing successful')
-            return json.dumps(dataset)
+            return result
 
     except Exception as e:
         # `from None` suppresses the implicit exception chain: without it, the
@@ -216,6 +231,30 @@ def _fill_with(column: pd.Series, value) -> pd.Series:
         # Filling an object column of booleans would downcast it (deprecated in pandas 2).
         return column.astype('boolean').fillna(bool(value))
     return column.fillna(value)
+
+
+def _check_every_column_is_configured(df: pd.DataFrame, config: dict) -> None:
+    """Every column of the file must have a column config.
+
+    The wizard sends one per column it profiled. A column without one means the
+    file changed after it was configured (for example a different file uploaded
+    under the same name); processing it with defaults would turn columns the
+    user never saw into features.
+    """
+    configured = {col['name'] for col in config.get('columns', [])}
+    unconfigured = [col for col in df.columns if col != 'ID' and col not in configured]
+    if unconfigured:
+        listed = ', '.join(f"'{col}'" for col in unconfigured)
+        raise Exception(
+            f"The file has columns that have no settings: {listed}. It was changed after it was "
+            f"configured; upload it again in the upload step."
+        )
+
+
+def _make_parent_folder(path: str) -> None:
+    folder = os.path.dirname(path)
+    if folder:
+        os.makedirs(folder, exist_ok=True)
 
 
 def _use_id_column(df: pd.DataFrame, csv_columns: list) -> tuple[pd.DataFrame, list]:
@@ -324,15 +363,20 @@ def _metadata_columns(df: pd.DataFrame, column_configs: dict) -> list:
     ]
 
 
-def _resolve_base_col(col, column_configs):
-    """Resolve a feature column name to its base column config.
-    Tries exact match first, then prefix match for one-hot encoded columns (e.g. city_NYC → city)."""
-    if col in column_configs:
-        return col
-    for name in column_configs:
-        if col.startswith(name + '_'):
-            return name
-    return None
+def _check_unique_feature_names(feature_names: list) -> None:
+    """Features are looked up by name: two of the same name would mix up their columns.
+
+    Only one-hot encoding can produce such a pair: a column 'a' with the value 'b'
+    gives the feature 'a_b', which may also be another column of the file, or the
+    feature of another column's value ('a_b' with the value 'c' and 'a' with 'b_c').
+    """
+    shared = sorted(name for name, count in Counter(feature_names).items() if count > 1)
+    if shared:
+        listed = ', '.join(f"'{name}'" for name in shared)
+        raise Exception(
+            f"One-hot encoding would give several features the name {listed}. Rename the columns "
+            f"in the CSV file, or choose label encoding for one of them in the configure step."
+        )
 
 
 def apply_feature_engineering(df, config):
@@ -343,13 +387,15 @@ def apply_feature_engineering(df, config):
     features (text gets a 'missing' category instead).
 
     Returns:
-        tuple: (scaled_df, feature_names, feature_categories, encoded_df)
+        tuple: (scaled_df, feature_names, feature_categories, encoded_df, feature_sources)
             - scaled_df: DataFrame with encoded and scaled features (no NaN)
             - feature_names: List of feature column names
             - feature_categories: Dict mapping feature name -> list of category labels, indexed by code
               (label-encoded and boolean features)
             - encoded_df: the encoded features before scaling (category codes stay integers,
               missing values stay NaN)
+            - feature_sources: Dict mapping feature name -> the column it encodes; a one-hot
+              feature '<column>_<value>' maps to <column> (recorded, not guessed from the name)
     """
     column_configs = {col['name']: col for col in config.get('columns', [])}
 
@@ -390,23 +436,20 @@ def apply_feature_engineering(df, config):
     encoded_dfs = []
     feature_names = []
     feature_categories = {}  # Track categories for label-encoded features
+    feature_sources = {}  # feature name -> the column it encodes
 
     for col in enabled_cols:
+        first_feature = len(feature_names)
         col_config = column_configs.get(col, {})
         encoding = col_config.get('encoding', 'none')
         data_type = col_config.get('dataType', 'unknown')
         col_data = df[col]
 
-        # Date columns: convert to numeric timestamps regardless of encoding setting
+        # Date columns: seconds since the epoch regardless of encoding setting, parsed
+        # like the type detection did. Missing and unparseable dates stay missing
+        # (not 1970-01-01), so they do not stretch the scaling.
         if data_type == 'date':
-            date_series = pd.to_datetime(col_data, errors='coerce')
-            # Replace NaT before int64 conversion (NaT becomes -9223372036854775808)
-            mask = date_series.isna()
-            date_series = date_series.fillna(pd.Timestamp('1970-01-01'))
-            # seconds since epoch; as_unit('ns') because pandas 3 infers a coarser resolution
-            col_numeric = date_series.dt.as_unit('ns').astype('int64').astype(float) / 10**9
-            # Missing dates stay missing (not 1970-01-01), so they do not stretch the scaling
-            col_numeric = col_numeric.mask(mask).rename(col)
+            col_numeric = epoch_seconds(parse_dates(col_data)).rename(col)
             encoded_dfs.append(col_numeric.to_frame())
             feature_names.append(col)
 
@@ -449,15 +492,17 @@ def apply_feature_engineering(df, config):
             encoded_dfs.append(col_numeric.to_frame())
             feature_names.append(col)
 
+        feature_sources.update({name: col for name in feature_names[first_feature:]})
+
+    _check_unique_feature_names(feature_names)
+
     # Single concat at the end
     encoded_df = pd.concat(encoded_dfs, axis=1)
 
-    # PHASE 2: Scaling - batch by scaling method
+    # PHASE 2: Scaling - batch by scaling method; a feature takes the scaling of its column
     scaling_groups = {}
     for col in encoded_df.columns:
-        base = _resolve_base_col(col, column_configs)
-        col_config = column_configs.get(base, {}) if base else {}
-        scaling = col_config.get('scaling', 'none')
+        scaling = column_configs.get(feature_sources[col], {}).get('scaling', 'none')
 
         if scaling not in scaling_groups:
             scaling_groups[scaling] = []
@@ -475,7 +520,7 @@ def apply_feature_engineering(df, config):
     # Add ID back
     scaled_df.insert(0, 'ID', id_col.values)
 
-    return scaled_df, feature_names, feature_categories, encoded_df
+    return scaled_df, feature_names, feature_categories, encoded_df, feature_sources
 
 
 def _rescale(values: pd.Series, encoding: str) -> pd.Series:
@@ -538,23 +583,26 @@ def _boolean_categories(values: pd.Series, codes: pd.Series) -> list[str]:
     return labels
 
 
-def compute_projections(df, config):
+def compute_projections(df, config, feature_sources=None, features_file=PROCESSED_FEATURES_FILE):
     """
     Export the features for the projections, which run in the browser (DruidJS).
 
     Writes the ID and the feature columns marked for projection (all features
-    when none is marked) to processed_features.csv in the working directory;
-    the worker hands that file to the projection code.
+    when none is marked) to features_file; the worker hands that file to the
+    projection code.
 
     Args:
         df: Processed DataFrame with encoded/scaled features
         config: Configuration dict with 'columns' (includeInProjection per column)
+        feature_sources: feature name -> its column (see apply_feature_engineering);
+            a feature without an entry is its own column
+        features_file: path of the CSV to write
 
     Returns:
         An empty list: no projection is computed here.
     """
-    proj_config = config.get('projections', {})
     column_configs = {col['name']: col for col in config.get('columns', [])}
+    feature_sources = feature_sources or {}
 
     # Get feature columns (exclude ID)
     feature_cols = [col for col in df.columns if col != 'ID']
@@ -562,7 +610,7 @@ def compute_projections(df, config):
     # Filter to columns marked for projection
     projection_cols = [
         col for col in feature_cols
-        if column_configs.get(_resolve_base_col(col, column_configs) or col, {}).get('includeInProjection', True)
+        if column_configs.get(feature_sources.get(col, col), {}).get('includeInProjection', True)
     ]
 
     if not projection_cols:
@@ -603,7 +651,8 @@ def compute_projections(df, config):
 
     # Write to CSV in Pyodide virtual filesystem
     # JavaScript will read this file via worker communication
-    feature_df.to_csv('processed_features.csv', index=False)
+    _make_parent_folder(features_file)
+    feature_df.to_csv(features_file, index=False)
 
     report_progress('Features exported', 70,
                    f'Ready for JavaScript projections: {n_features} dims, {n_samples:,} rows')
@@ -618,11 +667,16 @@ def _value_histogram(values: np.ndarray, value_range: tuple[float, float]) -> di
 
     The bins span value_range, the feature's full range: the dashboard reads bin n
     as the n-th of HISTOGRAM_BINS equal parts of the [0, 1]-normalized feature.
+    A constant feature is normalized to 0, so its values are counted in bin 0
+    (np.histogram would centre an empty range on the value, i.e. bin 10).
     """
     if values.size == 0:
         return {str(j): 0.0 for j in range(HISTOGRAM_BINS)}
+    low, high = value_range
+    if not high > low:
+        high = low + 1.0
     # cast to float to handle boolean columns
-    counts, _ = np.histogram(values.astype(float), bins=HISTOGRAM_BINS, range=value_range, density=True)
+    counts, _ = np.histogram(values.astype(float), bins=HISTOGRAM_BINS, range=(low, high), density=True)
     return {str(j): float(count) for j, count in enumerate(counts)}
 
 
@@ -632,7 +686,7 @@ def _original_text(value) -> str:
 
 
 def build_dataset_collection(df_original, df_processed, feature_names, feature_categories, projections, config,
-                             df_encoded=None):
+                             df_encoded=None, feature_sources=None):
     """Build DatasetCollection format from processed data with optimized performance
 
     Args:
@@ -645,8 +699,14 @@ def build_dataset_collection(df_original, df_processed, feature_names, feature_c
         df_encoded: Encoded features before scaling, for the category histograms
             (scaled category codes are negative or fractional) and to leave missing
             values (NaN there, 0 in df_processed) out of all histograms; defaults to df_processed
+        feature_sources: feature name -> the column it encodes (see apply_feature_engineering);
+            a feature without an entry is its own column
     """
     category_codes = df_encoded if df_encoded is not None else df_processed
+    feature_sources = feature_sources or {}
+
+    def source_of(feature):
+        return feature_sources.get(feature, feature)
 
     # Build column config lookup from config dict
     column_configs = {col['name']: col for col in config.get('columns', [])}
@@ -669,7 +729,7 @@ def build_dataset_collection(df_original, df_processed, feature_names, feature_c
     use_cache = []  # Boolean array indicating if we should use cache for this feature
 
     for col in feature_names:
-        base_col = _resolve_base_col(col, column_configs) or col
+        base_col = source_of(col)
         base_col_list.append(base_col)
 
         if base_col in df_original.columns:
@@ -745,7 +805,7 @@ def build_dataset_collection(df_original, df_processed, feature_names, feature_c
     color_feature_idx = None
     if color_feature_name:
         for i, col in enumerate(feature_names):
-            base_col = _resolve_base_col(col, column_configs) or col
+            base_col = source_of(col)
             if base_col == color_feature_name:
                 color_feature_idx = i + 1
                 break
@@ -804,7 +864,7 @@ def build_dataset_collection(df_original, df_processed, feature_names, feature_c
     # Build types mapping (feature ID -> original data type)
     feature_types = {}
     for i, col in enumerate(feature_names):
-        base_col = _resolve_base_col(col, column_configs) or col
+        base_col = source_of(col)
         col_config = column_configs.get(base_col, {})
         # Get original data type (before encoding/processing)
         original_type = col_config.get('dataType', 'unknown')
@@ -854,7 +914,7 @@ def build_dataset_collection(df_original, df_processed, feature_names, feature_c
         col_std = float(np.std(col_values))
 
         # Determine feature type and categories
-        base_col = _resolve_base_col(col, column_configs) or col
+        base_col = source_of(col)
         feature_type = feature_types.get(str(i + 1), 'numeric')
         categories = feature_categories.get(col, [])
 
@@ -870,7 +930,7 @@ def build_dataset_collection(df_original, df_processed, feature_names, feature_c
                     original_max = float(orig_clean.max())
             elif feature_type == 'date':
                 try:
-                    date_series = pd.to_datetime(orig_series, errors='coerce', format='mixed').dropna()
+                    date_series = parse_dates(orig_series).dropna()
                     if len(date_series) > 0:
                         # Store as epoch seconds for JS date formatting
                         original_min = float(date_series.min().timestamp())

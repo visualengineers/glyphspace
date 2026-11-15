@@ -34,6 +34,7 @@ from dataset_common import (
     generate_xy_positions,
     plan_features,
     positions_from_embedding,
+    read_csv,
     write_json,
 )
 
@@ -106,7 +107,7 @@ def process_csv_file(input_csv_path: str) -> None:
         print(f"Error: File {csv_path} does not exist.")
         sys.exit(1)
 
-    df = pd.read_csv(csv_path)
+    df = read_csv(csv_path)
 
     df = add_id_column_if_missing(df)
 

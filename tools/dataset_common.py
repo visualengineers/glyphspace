@@ -77,9 +77,21 @@ def is_enumerate(col: pd.Series) -> bool:
     return col.nunique(dropna=True) <= ENUMERATE_THRESHOLD
 
 
+def is_id_column(name: str) -> bool:
+    """Whether a column holds the item ids: it is named "id" in any case (the wizard's rule too)."""
+    return str(name).strip().lower() == "id"
+
+
+def read_csv(path) -> pd.DataFrame:
+    """Read the CSV with its id column as text, so ids keep leading zeros ("007") and
+    long digit strings stay exact; as numbers they would no longer match image names."""
+    header = pd.read_csv(path, nrows=0).columns
+    return pd.read_csv(path, dtype={col: str for col in header if is_id_column(col)})
+
+
 def add_id_column_if_missing(df: pd.DataFrame) -> pd.DataFrame:
     """Move the (single) id column to the front as "ID", or add one from the row index."""
-    id_col = next((col for col in df.columns if col.strip().lower() == "id"), None)
+    id_col = next((col for col in df.columns if is_id_column(col)), None)
 
     if id_col:
         # pole position for id_col
@@ -267,7 +279,12 @@ def _meta_categories(column: FeatureColumn, source: pd.Series) -> list[str]:
 
 
 def _column_meta(col_numeric: pd.Series, histogram_bins: int) -> dict:
-    counts, _ = np.histogram(col_numeric, bins=histogram_bins, density=True)
+    # Bin n is the n-th part of [min, max], as the dashboard reads it. A constant
+    # column (all 0 once normalized) belongs in bin 0; np.histogram would centre
+    # its empty range on the value and count it in the middle bin.
+    low, high = float(col_numeric.min()), float(col_numeric.max())
+    counts, _ = np.histogram(col_numeric, bins=histogram_bins, range=(low, high if high > low else low + 1.0),
+                             density=True)
     return {
         "histogram": {str(j): float(count) for j, count in enumerate(counts)},
         "max": float(col_numeric.max()),

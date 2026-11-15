@@ -30,6 +30,7 @@ Every row is one item, named by its id.
 | Recognised column | named `id` in any case, surrounding spaces ignored (`is_id_column` in `src/assets/preprocessing_processor.py`); renamed to `ID` | same (`add_id_column_if_missing` in `tools/dataset_common.py`) |
 | Position | moved to the front | moved to the front |
 | No such column | ids `"0"`, `"1"`, … from the row index | same |
+| Values | read as text (`read_csv` in `src/assets/preprocessing_processor.py`): `007` stays `007`, a 19-digit id keeps every digit, `1.0` stays `1.0` | read as text too (`read_csv` in `tools/dataset_common.py`) |
 
 Ids must be unique. The dashboard keys items by id: for a repeated id it keeps the features of the first row, and the positions of the repeated rows overwrite each other.
 
@@ -61,6 +62,18 @@ Defaults per column (`createDefaultColumnConfig` in `src/app/preprocessing-wizar
 - Columns with more than 50 % missing values, and columns with a single distinct value, start deselected.
 
 Coordinate columns are ordinary numeric features in the wizard; it does not create a geographic projection.
+
+A column whose statistics can't be computed is still listed in the profile, typed as text, with the reason in `profileError` (`_fallback_profile`): processing rejects a column without settings, so leaving it out would make the file unprocessable.
+
+#### Dates
+
+The type detection (rule 5), the Step 1 statistics and the encoding read dates with the same function, `parse_dates` in `src/assets/preprocessing_processor.py`:
+
+- Values that start with a four-digit year (`2021-04-13`, `2021/04/13`) are read year, month, day.
+- For the others the data decides whether the day or the month comes first: a first number above 12 can only be a day (`13/04/2021`), a second number above 12 only a day too (`04/13/2021`). When that evidence is even, dates written with dots (`01.04.2021`) are day first, others month first.
+- Each group is parsed with one inferred format, and value by value when that leaves values unparsed, so columns with mixed formats work. Values with different time zones are converted to UTC. Values that are no date become missing.
+
+The CLI parses dates with pandas' defaults (`_convert_date_columns`), month first.
 
 ### CLI
 

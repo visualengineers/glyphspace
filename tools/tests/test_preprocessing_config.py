@@ -687,3 +687,225 @@ def test_up_to_eight_chosen_glyph_features_are_kept_in_order():
 
 def test_more_than_eight_glyph_features_are_not_taken():
     assert len(run_with_glyph_features(9)) <= ppc.MAX_GLYPH_FEATURES
+
+
+# --- Strict JSON: the worker parses every result with JSON.parse -------------------
+
+
+def strict_json(text: str):
+    """json.loads as strict as JavaScript's JSON.parse: NaN and Infinity are errors."""
+    def reject(constant):
+        raise ValueError(f'{constant} is not JSON')
+    return json.loads(text, parse_constant=reject)
+
+
+@pytest.mark.parametrize('csv_text', [
+    'name,score\na,5\nb,\nc,\n',  # one value: its sample sd is undefined
+    'name,score\na,5\n',  # a single row
+    'lat,lon\nnorth,east\nsouth,west\n',  # coordinate names without numbers
+    'x,y\n1,inf\n2,-inf\n3,4\n',  # infinite values, also in the preview rows
+])
+def test_the_profile_is_strict_json(csv_text):
+    Path('data.csv').write_text(csv_text, encoding='utf-8')
+
+    profile = strict_json(pp.profile_data('data.csv'))
+
+    assert [column['name'] for column in profile['columns']] == csv_text.split('\n', 1)[0].split(',')
+
+
+def test_an_undefined_statistic_is_left_out_of_the_profile():
+    Path('data.csv').write_text('name,score\na,5\nb,\nc,\n', encoding='utf-8')
+
+    score = strict_json(pp.profile_data('data.csv'))['columns'][1]
+
+    assert (score['min'], score['max'], score['mean']) == (5.0, 5.0, 5.0)
+    assert 'stdDev' not in score and 'variance' not in score
+
+
+def test_infinite_values_are_left_out_of_the_statistics_and_shown_in_the_preview():
+    Path('data.csv').write_text('x,y\n1,inf\n2,-inf\n3,4\n', encoding='utf-8')
+
+    profile = strict_json(pp.profile_data('data.csv'))
+
+    y = profile['columns'][1]
+    assert (y['min'], y['max']) == (4.0, 4.0)
+    assert sum(y['histogram']['counts']) == 1
+    assert [row['y'] for row in profile['previewRows']] == ['inf', '-inf', 4.0]
+
+
+def test_a_column_whose_statistics_fail_is_still_listed(monkeypatch):
+    Path('data.csv').write_text('a,b\n1,x\n2,y\n', encoding='utf-8')
+    real = pp.profile_column
+
+    def failing(series):
+        if series.name == 'b':
+            raise RuntimeError('broken')
+        return real(series)
+    monkeypatch.setattr(pp, 'profile_column', failing)
+
+    columns = strict_json(pp.profile_data('data.csv'))['columns']
+
+    assert [c['name'] for c in columns] == ['a', 'b']
+    assert columns[1]['dataType'] == 'text' and columns[1]['profileError'] == 'broken'
+    assert (columns[1]['count'], columns[1]['uniqueCount']) == (2, 2)
+
+
+def test_the_processed_dataset_is_strict_json():
+    frame = pd.DataFrame({'n': [1.0, np.nan, 3.0], 'empty': [np.nan] * 3, 'c': ['a', None, 'b']})
+    config = {'columns': [column('n'), column('empty'), column('c', dataType='categorical', encoding='label')],
+              'datasetName': 'test', 'timestamp': '1'}
+
+    strict_json(ppc.process_with_config(write_csv(frame), json.dumps(config)))
+
+
+@pytest.mark.parametrize('value', [float('nan'), float('inf'), float('-inf'), np.float64('nan')])
+def test_to_json_writes_non_finite_numbers_as_null(value):
+    assert strict_json(pp.to_json({'a': [1.0, value], 'b': {'c': value}})) == {'a': [1.0, None], 'b': {'c': None}}
+
+
+# --- Item ids are text: leading zeros and long digit strings survive ----------------
+
+
+ID_CSV = 'id,x,y\n007,1,5\n1234567890123456789,2,6\n1.0,3,7\n42,4,8\n'
+ID_TEXTS = ['007', '1234567890123456789', '1.0', '42']
+
+
+def test_ids_keep_their_text_in_the_dataset_and_the_projection_input():
+    Path('data.csv').write_text(ID_CSV, encoding='utf-8')
+    columns = [column('id', dataType='id', role='metadata'), column('x'), column('y')]
+
+    dataset = run('data.csv', columns)
+
+    assert ids(dataset) == ID_TEXTS
+    # the projection CSV holds the ids as written, so JS reads exactly these strings
+    rows = Path('processed_features.csv').read_text(encoding='utf-8').splitlines()[1:]
+    assert [row.split(',')[0] for row in rows] == ID_TEXTS
+
+
+def test_the_profile_shows_ids_as_written():
+    Path('data.csv').write_text(ID_CSV, encoding='utf-8')
+
+    profile = strict_json(pp.profile_data('data.csv'))
+
+    assert [row['id'] for row in profile['previewRows']] == ID_TEXTS
+    assert profile['columns'][0]['dataType'] == 'id'
+
+
+# --- Dates: one parser for the detection, the profile and the encoding --------------
+
+
+@pytest.mark.parametrize('dates, expected', [
+    (['01/04/2021', '13/04/2021', '25/12/2021'], ['2021-04-01', '2021-04-13', '2021-12-25']),  # day first
+    (['04/01/2021', '04/13/2021', '12/25/2021'], ['2021-04-01', '2021-04-13', '2021-12-25']),  # month first
+    (['01.04.2021', '02.04.2021'], ['2021-04-01', '2021-04-02']),  # dots: day first
+    (['2021-04-01', '13/04/2021', '2021-12-25'], ['2021-04-01', '2021-04-13', '2021-12-25']),  # ISO and day first
+    (['2021-01-11', 'April 13, 2021'], ['2021-01-11', '2021-04-13']),
+])
+def test_parse_dates_reads_the_day_and_month_the_data_shows(dates, expected):
+    parsed = pp.parse_dates(pd.Series(dates))
+
+    assert parsed.dt.strftime('%Y-%m-%d').tolist() == expected
+
+
+def test_parse_dates_keeps_missing_and_invalid_values_missing():
+    parsed = pp.parse_dates(pd.Series(['13/04/2021', None, 'not a date']))
+
+    assert parsed.isna().tolist() == [False, True, True]
+
+
+def test_parse_dates_with_several_time_zones():
+    parsed = pp.parse_dates(pd.Series(['2024-01-01T00:00:00+01:00', '2024-01-01T00:00:00+02:00']))
+
+    assert pp.epoch_seconds(parsed).tolist() == [1704063600.0, 1704060000.0]
+
+
+EU_DATES = ['01/04/2021', '13/04/2021', '25/12/2021', None]
+
+
+def test_a_day_first_date_column_is_detected_and_encoded_with_every_date():
+    frame = pd.DataFrame({'when': EU_DATES, 'x': [1.0, 2.0, 3.0, 4.0]})
+    csv = write_csv(frame)
+    assert pp.detect_data_type(pd.read_csv(csv)['when']) == 'date'
+
+    dataset = run(csv, [column('when', dataType='date', scaling='minmax'), column('x')])
+
+    key = feature_key(dataset, 'when')
+    features = [row['features']['1'][key] for row in dataset['features']]
+    assert features[:3] == pytest.approx([0.0, 12 / 268, 1.0])  # 13 April is 12 of 268 days in
+    meta = dataset['meta']['features'][key]
+    assert (meta['originalMin'], meta['originalMax']) == (pd.Timestamp('2021-04-01').timestamp(),
+                                                          pd.Timestamp('2021-12-25').timestamp())
+
+
+def test_the_profile_of_a_day_first_date_column_spans_all_its_dates():
+    write_csv(pd.DataFrame({'when': EU_DATES}))
+
+    when = strict_json(pp.profile_data('data.csv'))['columns'][0]
+
+    assert when['dataType'] == 'date'
+    assert (when['min'], when['max']) == (pd.Timestamp('2021-04-01').timestamp() * 1000,
+                                          pd.Timestamp('2021-12-25').timestamp() * 1000)
+
+
+# --- One-hot features belong to the column they encode -----------------------------
+
+
+def test_one_hot_features_take_the_settings_of_their_own_column_not_of_a_prefix():
+    frame = pd.DataFrame({'price': [10.0, 20.0, 30.0, 40.0], 'price_band': ['low', 'low', 'high', 'high']})
+    columns = [column('price', scaling='standard', includeInProjection=False),
+               column('price_band', dataType='categorical', encoding='onehot', isColorFeature=True)]
+
+    dataset = run(write_csv(frame), columns)
+
+    schema = dataset['schema']
+    low = feature_key(dataset, 'price_band_low')
+    assert schema['types'][low] == 'categorical'
+    assert schema['color'] == feature_key(dataset, 'price_band_high')  # the first feature of price_band
+    assert [row['values'][low] for row in dataset['features']] == ['low', 'low', 'high', 'high']
+    # unscaled 0/1 (price's 'standard' scaling would have centred them)
+    assert [row['features']['1'][low] for row in dataset['features']] == [1.0, 1.0, 0.0, 0.0]
+    # price_band feeds the projection, price does not
+    assert list(pd.read_csv('processed_features.csv').columns) == ['ID', 'price_band_high', 'price_band_low']
+
+
+@pytest.mark.parametrize('frame, name', [
+    (pd.DataFrame({'a': ['b', 'c'], 'a_b': [1.0, 2.0]}), 'a_b'),  # a value of a names another column
+    (pd.DataFrame({'a': ['b_c', 'd'], 'a_b': ['c', 'e']}), 'a_b_c'),  # two columns' values meet
+])
+def test_one_hot_features_named_like_another_feature_are_rejected(frame, name):
+    columns = [column(col) if pd.api.types.is_numeric_dtype(frame[col])
+               else column(col, dataType='categorical', encoding='onehot') for col in frame.columns]
+
+    with pytest.raises(Exception, match=f"several features the name '{name}'"):
+        run(write_csv(frame), columns)
+
+
+# --- Columns without settings, and where the outputs go -----------------------------
+
+
+def test_a_column_without_settings_is_rejected_not_encoded():
+    frame = pd.DataFrame({'x': [1.0, 2.0], 'added': ['a', 'b']})
+
+    with pytest.raises(Exception, match="columns that have no settings: 'added'"):
+        run(write_csv(frame), [column('x')])
+
+
+def test_the_projection_input_goes_to_the_file_the_worker_names():
+    config = {'columns': [column('x')], 'datasetName': 'test', 'timestamp': '1'}
+
+    ppc.process_with_config(write_csv(pd.DataFrame({'x': [1.0, 2.0]})), json.dumps(config),
+                            'out/result.json', features_file='out/features.csv')
+
+    assert pd.read_csv('out/features.csv').columns.tolist() == ['ID', 'x']
+    assert strict_json(Path('out/result.json').read_text(encoding='utf-8'))['selectedDataset'] == 'test.1'
+    assert not Path('processed_features.csv').exists()
+
+
+# --- Histograms of constant features --------------------------------------------------
+
+
+def test_a_constant_feature_is_counted_in_the_first_histogram_bin():
+    dataset = run(write_csv(pd.DataFrame({'c': [5.0, 5.0, 5.0], 'x': [1.0, 2.0, 3.0]})), [column('c'), column('x')])
+
+    histogram = dataset['meta']['features'][feature_key(dataset, 'c')]['histogram']
+    assert [key for key, density in histogram.items() if density > 0] == ['0']

@@ -102,6 +102,14 @@ def test_a_column_without_any_value_becomes_0_without_warnings(recwarn):
     assert [str(w.message) for w in recwarn] == []
 
 
+def test_a_constant_column_is_counted_in_the_first_histogram_bin():
+    result = import_frame(with_id({'c': [5.0, 5.0, 5.0], 'x': [1.0, 2.0, 3.0]}))
+
+    histogram = result['meta']['features']['1']['histogram']
+    assert [key for key, density in histogram.items() if density > 0] == ['0']
+    assert result['meta']['features']['2']['histogram']['19'] > 0  # x = 1.0 at the top of its range
+
+
 def test_values_without_missing_ones_are_min_max_normalized_as_before():
     result = import_frame(with_id({'n': [2, 4, 6, 10], 'tag': ['b', 'a', 'c', 'a']}), threshold=1)
 
@@ -256,6 +264,17 @@ def test_the_cli_imports_a_csv_with_a_one_hot_column(process):
     assert min(row['features']['1']['4'] for row in rows if row['values']['4']) == 0.0
     for kind in ('pca', 'tsne', 'umap'):
         assert [p['id'] for p in written(f'position.{kind}')] == [f'r{i}' for i in range(40)]
+
+
+def test_the_cli_keeps_ids_as_written(process):
+    rows = ['id,x,y'] + [f'{i:03d},{i},{(i * 7) % 11}' for i in range(40)]
+    Path('edge.csv').write_text('\n'.join(rows) + '\n', encoding='utf-8')
+
+    process.process_csv_file('edge.csv')
+
+    expected = [f'{i:03d}' for i in range(40)]
+    assert [row['id'] for row in written('feature')] == expected
+    assert [p['id'] for p in written('position.pca')] == expected
 
 
 def test_the_cli_lists_the_written_datasets(process):

@@ -31,6 +31,7 @@
 # Vitest browser mode: screenshots of failed tests (next to the spec) and their attachment copies
 __screenshots__/
 /.vitest-attachments
+/.vitest
 /libpeerconnection.log
 npm-debug.log
 testem.log
