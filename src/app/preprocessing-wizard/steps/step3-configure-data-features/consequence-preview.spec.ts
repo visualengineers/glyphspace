@@ -178,7 +178,12 @@ describe('consequence-preview', () => {
         EncodingMethod.None,
         'Text is one-hot encoded into 5 new columns (+1 for missing values if kept)',
       ],
-      ['none on a categorical column', categorical(5), EncodingMethod.None, null],
+      [
+        'none on a categorical column (one-hot encoded by the pipeline too: it is not read as numbers)',
+        categorical(5),
+        EncodingMethod.None,
+        'Text is one-hot encoded into 5 new columns',
+      ],
     ];
     cases.forEach(([name, column, method, expected]) => {
       it(name, () => expect(describeEncoding(column, method)).toBe(expected));

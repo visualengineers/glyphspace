@@ -38,6 +38,8 @@ GlyphSpace has no version numbers yet, so releases are named by the date they re
 - The Python runtime of the import wizard (about 40 MB) is loaded only when the wizard opens or an imported dataset's images are shown, no longer on every visit ([#107](https://github.com/visualengineers/glyphspace/pull/107)).
 - A Python worker that crashes or exceeds its time limit is replaced and gets the uploaded files back ([#107](https://github.com/visualengineers/glyphspace/pull/107)).
 - A column of the uploaded file without settings is reported as an error instead of being processed as a feature ([#107](https://github.com/visualengineers/glyphspace/pull/107)).
+- A processed dataset reaches the dashboard only through **Open in Glyphspace**; background projections that finish later are added to that dataset ([#108](https://github.com/visualengineers/glyphspace/pull/108)).
+- The wizard storage format is now version 4; saved wizard sessions are migrated ([#108](https://github.com/visualengineers/glyphspace/pull/108)).
 
 ### Removed
 
@@ -95,6 +97,18 @@ GlyphSpace has no version numbers yet, so releases are named by the date they re
 - Image ZIPs made on Windows (backslash folders) work. Duplicate image names, macOS resource forks and oversized archives are handled ([#107](https://github.com/visualengineers/glyphspace/pull/107)).
 - Bundled datasets open with UMAP again, as before [#100](https://github.com/visualengineers/glyphspace/pull/100), and their times are listed in date order ([#107](https://github.com/visualengineers/glyphspace/pull/107)).
 - The command-line tool handles small CSV files and leaves no partial dataset after an error. Columns such as `update` or `sentiment` are no longer read as dates ([#107](https://github.com/visualengineers/glyphspace/pull/107)).
+- A background projection that finishes after **Open in Glyphspace** is added to that dataset, never to the dataset processed next ([#108](https://github.com/visualengineers/glyphspace/pull/108)).
+- Changing a setting, uploading another file or starting over makes an earlier processing result outdated: the review step shows the review again, and the result's background projections stop. Before, an old result could be opened under a new name ([#108](https://github.com/visualengineers/glyphspace/pull/108)).
+- **Start over** during processing no longer lets the run finish into the fresh wizard or save the discarded dataset ([#108](https://github.com/visualengineers/glyphspace/pull/108)).
+- Reopening the wizard during processing shows the running run instead of offering **Start Processing** again ([#108](https://github.com/visualengineers/glyphspace/pull/108)).
+- Glyph features that an encoding change or a new file removes are dropped from the glyph; before, they were silently replaced by feature 1 ([#108](https://github.com/visualengineers/glyphspace/pull/108)).
+- Text and categorical columns with encoding None are offered as their one-hot features, as Python encodes them ([#108](https://github.com/visualengineers/glyphspace/pull/108)).
+- The stepper no longer skips a step whose settings are invalid. **Start Processing** stays off and names the step to fix ([#108](https://github.com/visualengineers/glyphspace/pull/108)).
+- Undoing a re-upload of a file under the same name goes back to the earlier file, and the "File replaced" toast undoes only its own upload ([#108](https://github.com/visualengineers/glyphspace/pull/108)).
+- A column name such as "Memory (GB)" no longer makes an error look like a time or memory limit. Step 1 shows the cause of a failed upload instead of a Python traceback ([#108](https://github.com/visualengineers/glyphspace/pull/108)).
+- Ctrl+Z works on checkboxes, radio buttons and selects, and the fill value records one undo entry per edit instead of one per keystroke ([#108](https://github.com/visualengineers/glyphspace/pull/108)).
+- Item images are stored only when the dataset is opened, so images of a dataset never opened can't appear for a later one with the same name ([#108](https://github.com/visualengineers/glyphspace/pull/108)).
+- A failed save of the wizard state no longer brings back an older session after a reload, and the wizard reopens on the step shown last ([#108](https://github.com/visualengineers/glyphspace/pull/108)).
 
 ### Security
 

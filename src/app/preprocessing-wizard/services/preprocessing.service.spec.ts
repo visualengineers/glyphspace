@@ -85,6 +85,7 @@ describe('PreprocessingService – Undo/Redo history', () => {
     // updateState is private but is the honest way to install a base state in a test.
     (service as unknown as { updateState(u: Partial<PreprocessingState>): void }).updateState({
       rawFileName: 'test.csv',
+      uploadKey: 'test.csv',
       dataProfile: profile,
       columnConfigs,
       datasetName: 'test',
@@ -736,63 +737,52 @@ describe('PreprocessingService – Undo/Redo history', () => {
     });
   });
 
-  describe('processData re-entrancy guard', () => {
+  describe('processInWorker – the Python part of a run', () => {
     function processingService(processWithConfig: Mock): PreprocessingService {
       const svc = createTestPreprocessingService({ processWithConfig, pruneFiles: async () => undefined });
       (svc as unknown as { updateState(u: Partial<PreprocessingState>): void }).updateState({
         rawFileName: 'test.csv',
+        uploadKey: 'test (2).csv',
         dataProfile: service.currentState.dataProfile,
         columnConfigs: service.currentState.columnConfigs,
       });
       return svc;
     }
 
-    it('does not start a second run while one is in flight', async () => {
-      let finishRun: (value: unknown) => void = () => undefined;
-      const spy = vi.fn().mockReturnValue(new Promise(resolve => (finishRun = resolve)));
+    it('processes the stored upload with the current settings', async () => {
+      const spy = vi.fn().mockResolvedValue({ datasets: {} });
       const svc = processingService(spy);
 
-      const first = svc.processData();
-      const second = svc.processData();
-      // The run reaches the worker after checking that the file is loaded.
-      await vi.waitFor(() => expect(spy).toHaveBeenCalled());
-      expect(spy).toHaveBeenCalledTimes(1);
+      await svc.processInWorker();
 
-      finishRun({ datasets: {} });
-      await Promise.all([first, second]);
+      expect(spy).toHaveBeenCalledExactlyOnceWith('test (2).csv', buildProcessingConfig(svc.currentState));
+    });
+
+    it('holds isProcessing while the worker runs, and rejects with its error', async () => {
+      let processing = false;
+      const spy = vi.fn().mockImplementation(async () => {
+        processing = svc.currentState.isProcessing;
+        throw new Error('boom');
+      });
+      const svc = processingService(spy);
+
+      await expect(svc.processInWorker()).rejects.toThrowError('boom');
+      expect(processing).toBe(true);
       expect(svc.currentState.isProcessing).toBe(false);
     });
 
-    it('allows a new run after the previous one finished', async () => {
-      const spy = vi.fn().mockImplementation(() => Promise.resolve({ datasets: {} }));
-      const svc = processingService(spy);
-
-      await svc.processData();
-      await svc.processData();
-      expect(spy).toHaveBeenCalledTimes(2);
-    });
-
-    it('allows a new run after the previous one failed', async () => {
-      const spy = vi.fn().mockReturnValue(Promise.reject(new Error('boom')));
-      const svc = processingService(spy);
-
-      await expect(svc.processData()).rejects.toThrowError('boom');
-      await expect(svc.processData()).rejects.toThrowError('boom');
-      expect(spy).toHaveBeenCalledTimes(2);
-    });
-
-    describe('whileProcessing – a run with phases after processData (e.g. FastMap)', () => {
+    describe('whileProcessing – a run with phases after the worker (e.g. FastMap)', () => {
       const resolvedRun = (): Mock => vi.fn().mockImplementation(() => Promise.resolve({ datasets: {} }));
 
-      it('keeps isProcessing up after processData until the whole run has finished', async () => {
+      it('keeps isProcessing up after the worker run until the whole run has finished', async () => {
         const svc = processingService(resolvedRun());
         svc.pushHistory('Earlier change');
         let processingAfterWorkerRun = false;
         let undoAfterWorkerRun: unknown = 'not called';
 
         await svc.whileProcessing(async () => {
-          await svc.processData();
-          // The phase after the worker run (FastMap in the review step).
+          await svc.processInWorker();
+          // The phase after the worker run (FastMap).
           processingAfterWorkerRun = svc.currentState.isProcessing;
           undoAfterWorkerRun = svc.undo();
         });
@@ -829,6 +819,236 @@ describe('PreprocessingService – Undo/Redo history', () => {
         await run;
         expect(svc.currentState.isProcessing).toBe(false);
       });
+    });
+  });
+
+  describe('the processing result belongs to the inputs it was computed from', () => {
+    const result = { datasets: { test: {} } };
+
+    function adopt(): void {
+      expect(service.adoptProcessingResult(result, service.processingInputsKey)).toBe(true);
+      expect(service.currentState.processedDataset).toBe(result);
+    }
+
+    it('is refused when the settings changed while the run was computing', () => {
+      const inputs = service.processingInputsKey;
+      service.updateColumnConfig('alpha', { scalingMethod: ScalingMethod.Robust });
+
+      expect(service.adoptProcessingResult(result, inputs)).toBe(false);
+      expect(service.currentState.processedDataset).toBeNull();
+    });
+
+    it('is dropped by any change of a setting sent to Python', () => {
+      adopt();
+      service.updateColumnConfig('alpha', { encodingMethod: EncodingMethod.Standardize });
+      expect(service.currentState.processedDataset).toBeNull();
+
+      adopt();
+      service.updateCleaningConfig({ removeDuplicates: true });
+      expect(service.currentState.processedDataset).toBeNull();
+
+      adopt();
+      service.updateProjectionConfig({ enableUMAP: true });
+      expect(service.currentState.processedDataset).toBeNull();
+
+      adopt();
+      service.setGlyphFeatures(['alpha', 'beta', 'gamma']);
+      expect(service.currentState.processedDataset).toBeNull();
+    });
+
+    it('is dropped when another file is uploaded', async () => {
+      const svc = createTestPreprocessingService({
+        profileData: async () => ({ ...(service.currentState.dataProfile as DataProfile), fileName: 'x' }),
+        pruneFiles: async () => undefined,
+      });
+      await svc.loadCSV(new File(['a\n1\n'], 'one.csv'));
+      svc.adoptProcessingResult(result, svc.processingInputsKey);
+
+      await svc.loadCSV(new File(['a\n2\n'], 'two.csv'));
+
+      expect(svc.currentState.processedDataset).toBeNull();
+    });
+
+    it('is also dropped by undo, and not brought back by redo', () => {
+      service.toggleColumnEnabled('gamma');
+      adopt();
+      service.undo();
+      expect(service.currentState.processedDataset).toBeNull();
+      service.redo();
+      expect(service.currentState.processedDataset).toBeNull();
+    });
+
+    it('survives derived values (outlier counts) and navigation', () => {
+      adopt();
+      service.updateColumnMetadata('alpha', { outlierCount: 3 });
+      service.goToStep('features');
+      expect(service.currentState.processedDataset).toBe(result);
+    });
+
+    it('is cleared on request and by a reset', () => {
+      adopt();
+      service.clearProcessingResult();
+      expect(service.currentState.processedDataset).toBeNull();
+
+      adopt();
+      service.resetState();
+      expect(service.currentState.processedDataset).toBeNull();
+    });
+  });
+
+  describe('glyph features stay valid', () => {
+    function seedCategories(): void {
+      const color: ColumnStatistics = {
+        ...makeColumn('color', DataType.Categorical),
+        topValues: [
+          { value: 'red', count: 60 },
+          { value: 'blue', count: 40 },
+        ],
+      };
+      const profile = { ...(service.currentState.dataProfile as DataProfile) };
+      profile.columns = [...profile.columns, color];
+      const columnConfigs = new Map(service.currentState.columnConfigs);
+      columnConfigs.set(
+        'color',
+        makeConfig('color', {
+          originalType: DataType.Categorical,
+          targetType: DataType.Categorical,
+          encodingMethod: EncodingMethod.Label,
+        })
+      );
+      (service as unknown as { updateState(u: Partial<PreprocessingState>): void }).updateState({
+        dataProfile: profile,
+        columnConfigs,
+        glyphFeatures: ['alpha', 'beta', 'color'],
+        tooltipFeatures: ['color'],
+      });
+    }
+
+    it('drops a glyph feature that an encoding change renames (label → one-hot)', () => {
+      seedCategories();
+
+      service.updateColumnConfig('color', { encodingMethod: EncodingMethod.OneHot });
+
+      expect(service.currentState.glyphFeatures).toEqual(['alpha', 'beta']);
+      expect(service.currentState.tooltipFeatures).toEqual([]);
+      expect(service.getPreviewFeatureNames()).toContain('color_red');
+    });
+
+    it('brings the glyph feature back with the same undo', () => {
+      seedCategories();
+      service.updateColumnConfig('color', { encodingMethod: EncodingMethod.OneHot });
+
+      service.undo();
+
+      expect(service.currentState.glyphFeatures).toEqual(['alpha', 'beta', 'color']);
+    });
+
+    it('drops the glyph features of the old file when another file is uploaded', async () => {
+      const newProfile: DataProfile = {
+        ...(service.currentState.dataProfile as DataProfile),
+        columns: [makeColumn('x', DataType.Numeric), makeColumn('y', DataType.Numeric)],
+      };
+      const svc = createTestPreprocessingService({
+        profileData: async () => newProfile,
+        pruneFiles: async () => undefined,
+      });
+      (svc as unknown as { updateState(u: Partial<PreprocessingState>): void }).updateState({
+        ...service.currentState,
+        glyphFeatures: ['alpha', 'beta', 'gamma'],
+      });
+
+      await svc.loadCSV(new File(['x,y\n1,2\n'], 'other.csv'));
+
+      expect(svc.currentState.glyphFeatures).toEqual([]);
+    });
+  });
+
+  describe('uploads of the same file name', () => {
+    const profileOf = (column: string): DataProfile => ({
+      ...(service.currentState.dataProfile as DataProfile),
+      columns: [makeColumn(column, DataType.Numeric)],
+    });
+
+    it('keep the upload an undo goes back to, under a key of its own', async () => {
+      const profileData = vi.fn().mockResolvedValueOnce(profileOf('old')).mockResolvedValueOnce(profileOf('new'));
+      const svc = createTestPreprocessingService({ profileData, pruneFiles: async () => undefined });
+
+      await svc.loadCSV(new File(['old\n1\n'], 'data.csv'));
+      await svc.loadCSV(new File(['new\n1\n'], 'data.csv'));
+
+      expect(profileData.mock.calls.map(call => call[0])).toEqual(['data.csv', 'data (2).csv']);
+      expect(svc.currentState.rawFileName).toBe('data.csv');
+      expect(svc.currentState.uploadKey).toBe('data (2).csv');
+      expect(svc.currentState.dataProfile?.fileName).toBe('data.csv');
+
+      svc.undo();
+
+      expect(svc.currentState.uploadKey).toBe('data.csv');
+      expect(Array.from(svc.currentState.columnConfigs.keys())).toEqual(['old']);
+    });
+
+    it('returns the id of the history entry the upload recorded', async () => {
+      const svc = createTestPreprocessingService({
+        profileData: async () => profileOf('a'),
+        pruneFiles: async () => undefined,
+      });
+
+      const first = await svc.loadCSV(new File(['a\n1\n'], 'data.csv'));
+      const second = await svc.loadCSV(new File(['a\n1\n'], 'data.csv'));
+
+      expect(first.historyId).not.toBeNull();
+      expect(second.historyId).toBe(svc.latestHistoryId);
+    });
+  });
+
+  describe('furthest step', () => {
+    it('grows with navigation and never shrinks when going back', () => {
+      service.goToStep('projection');
+      service.goToStep('columns');
+
+      expect(service.currentState.furthestStep).toBe(stepIndex('projection'));
+    });
+
+    it('starts over for a new file and on reset', async () => {
+      const svc = createTestPreprocessingService({
+        profileData: async () => service.currentState.dataProfile,
+        pruneFiles: async () => undefined,
+      });
+      svc.goToStep('appearance');
+      svc.goToStep('upload');
+
+      await svc.loadCSV(new File(['a\n1\n'], 'data.csv'));
+      expect(svc.currentState.furthestStep).toBe(stepIndex('upload'));
+
+      svc.goToStep('features');
+      svc.resetState();
+      expect(svc.currentState.furthestStep).toBe(0);
+    });
+  });
+
+  describe('saving to localStorage', () => {
+    const saved = (): { currentStep?: number } =>
+      JSON.parse(localStorage.getItem('glyphspace_preprocessing_state') ?? '{}');
+
+    it('saves on navigation, so a reload returns to the step shown last', () => {
+      service.goToStep('projection');
+      expect(saved().currentStep).toBe(stepIndex('projection'));
+    });
+
+    it('removes an older save when saving fails, so a reload starts over', () => {
+      service.goToStep('features');
+      expect(saved().currentStep).toBe(stepIndex('features'));
+      vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+      const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+        throw new DOMException('full', 'QuotaExceededError');
+      });
+      try {
+        service.goToStep('projection');
+      } finally {
+        setItem.mockRestore();
+      }
+
+      expect(localStorage.getItem('glyphspace_preprocessing_state')).toBeNull();
     });
   });
 

@@ -76,6 +76,7 @@ describe('Step4ProjectionSettingsComponent – accessibility', () => {
     service = createTestPreprocessingService();
     (service as unknown as { updateState(u: Partial<PreprocessingState>): void }).updateState({
       rawFileName: 'test.csv',
+      uploadKey: 'test.csv',
       dataProfile: makeProfile(),
       columnConfigs: new Map(NAMES.map(name => [name, makeConfig(name)])),
       projectionConfig: { ...DEFAULT_PROJECTION_CONFIG, enableUMAP: true },

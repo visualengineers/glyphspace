@@ -8,7 +8,7 @@ For what the CSV should look like, see [Preparing data](preparing-data.md).
 
 ## Moving through the wizard
 
-- The list on the left shows the six steps. Completed steps show a short summary. Click a step to go back, or to jump forward to a step you have already reached.
+- The list on the left shows the six steps. Completed steps show a short summary. Click a step to go back, or to jump forward to a step you have already reached, as long as the steps before it are complete: if a change makes an earlier step incomplete (for example every column used as metadata), fix it there first.
 - **Back** and the **Continue to …** button at the bottom move one step. If the continue button is disabled, a message next to it says what is missing.
 - Help icons next to headings and settings explain each option.
 - **Close** (or **Esc**) closes the wizard. Your progress stays (see [What is saved](#what-is-saved)).
@@ -22,7 +22,7 @@ Every change you make in the wizard can be undone.
 | Undo | **Undo** | **Ctrl+Z** (**Cmd+Z** on a Mac) |
 | Redo | **Redo** | **Ctrl+Shift+Z** or **Ctrl+Y** (**Cmd** on a Mac) |
 
-The shortcuts don't act while you type in a text field or while processing runs. After an undo or redo, a note at the bottom names the setting that changed; **Show change** takes you to it.
+The shortcuts don't act while you type in a text field (there they undo your typing) or while processing runs. After an undo or redo, a note at the bottom names the setting that changed; **Show change** takes you to it.
 
 **Start over** in the title bar clears the uploaded file and all settings after you confirm.
 
@@ -103,13 +103,15 @@ These settings define the dashboard's initial view. You can change them later in
 
 The summary cards show the columns, projection and glyph settings, each with an edit button that takes you to the right step. A table lists the selected columns: features with their type, encoding, scaling and whether they are in the projection, and metadata columns marked "Metadata — tooltip and search only". Deselected columns are left out.
 
-If something is likely to fail (for example a neighbour count that isn't below the number of rows), a **Heads up** box lists it. You can start anyway or fix it first.
+If something is likely to fail (for example a neighbour count that isn't below the number of rows), a **Heads up** box lists it. You can start anyway or fix it first. If something makes processing impossible (the file has to be uploaded again, no column is a feature or in the projection, or a glyph feature no longer exists), **Start Processing** stays off until you fix it in the step shown.
 
-Click **Start Processing**. The wizard cleans and encodes the data, then computes FastMap. When **Your visualization is ready** appears:
+Click **Start Processing**. The wizard cleans and encodes the data, then computes FastMap. You can close the wizard meanwhile; opening it again shows the progress. When **Your visualization is ready** appears:
 
-- **Open in Glyphspace** loads the dataset into the dashboard and saves it in your browser.
+- **Open in Glyphspace** loads the dataset into the dashboard and saves it in your browser, with the item images if you chose a ZIP in Step 1. Nothing reaches the dashboard before that.
 - **Reprocess** runs the projections again with the current settings.
 - **Process Another Dataset** starts over with a new file.
+
+If you change a setting after processing, the result is outdated: the step shows the review again, and you process once more.
 
 If processing fails, the step explains the cause and how to fix it, with a button that takes you to the step concerned. Your file and settings are kept. See [Troubleshooting](troubleshooting.md).
 
@@ -117,7 +119,7 @@ If processing fails, the step explains the cause and how to fix it, with a butto
 
 The methods you ticked in Step 4 run in the background, each on its own, while you can already explore the FastMap layout. Under **Background Projections**, each one shows its progress and can be cancelled (**Cancel**) or, after a failure or a cancel, run again (**Retry**). **Stop all background projections** cancels the rest.
 
-They keep running after you click **Open in Glyphspace**. Each finished projection appears in the canvas settings under **DIMENSIONALITY REDUCTION** (see [Dashboard](dashboard.md#canvas-settings)), and a notification says it is ready. If one fails, a notification says so, and the other projections are not affected.
+Projections that finish before you click **Open in Glyphspace** are part of the dataset; the others keep running for it after you open it. Each finished projection appears in the canvas settings under **DIMENSIONALITY REDUCTION** (see [Dashboard](dashboard.md#canvas-settings)), and a notification says it is ready. If one fails, a notification says so, and the other projections are not affected.
 
 ## What is saved
 

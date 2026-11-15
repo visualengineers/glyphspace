@@ -91,6 +91,7 @@ function seedProfile(service: PreprocessingService, glyphFeatures: string[] = []
   };
   setState(service, {
     rawFileName: 'test.csv',
+    uploadKey: 'test.csv',
     dataProfile: profile,
     columnConfigs: new Map(names.map(name => [name, makeConfig(name)])),
     glyphFeatures,

@@ -86,6 +86,7 @@ describe('Step3ConfigureDataFeaturesComponent – undo history', () => {
     );
     (service as unknown as { updateState(u: Partial<PreprocessingState>): void }).updateState({
       rawFileName: 'test.csv',
+      uploadKey: 'test.csv',
       dataProfile: profile,
       columnConfigs,
     });
@@ -162,6 +163,46 @@ describe('Step3ConfigureDataFeaturesComponent – undo history', () => {
 
       expect(stackLength()).toBe(1);
       expect(stored('alpha').outlierMethod).toBe(OutlierMethod.ZScore_3);
+    });
+
+    it('stops requesting counts once the step is left', async () => {
+      seed();
+      component.ngOnInit();
+      component.ngOnDestroy();
+      await settle();
+
+      expect(detectOutliers).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not store a count for a file that was replaced meanwhile', async () => {
+      let answer: (value: unknown) => void = () => undefined;
+      detectOutliers.mockReturnValueOnce(new Promise(resolve => (answer = resolve)));
+      seed();
+      component.ngOnInit();
+      await vi.waitFor(() => expect(detectOutliers).toHaveBeenCalled());
+
+      // Another file with a column of the same name.
+      (service as unknown as { updateState(u: Partial<PreprocessingState>): void }).updateState({
+        uploadKey: 'other.csv',
+      });
+      component.ngOnDestroy();
+      answer({ outlier_count: 9, outlier_indices: [] });
+      await settle();
+
+      expect(stored('alpha').outlierCount).toBeUndefined();
+    });
+  });
+
+  describe('the fill value is one action per edit, not per keystroke', () => {
+    it('records one entry for a changed value and none for an unchanged one', async () => {
+      await open({ missingValueStrategy: MissingValueStrategy.FillValue, missingValueFillValue: '0' });
+
+      component.onMissingValueFillChange('alpha', '0');
+      expect(stackLength()).toBe(0);
+
+      component.onMissingValueFillChange('alpha', '42');
+      expect(stackLength()).toBe(1);
+      expect(stored('alpha').missingValueFillValue).toBe('42');
     });
   });
 

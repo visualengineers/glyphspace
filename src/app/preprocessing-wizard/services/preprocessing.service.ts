@@ -9,19 +9,16 @@ import {
 import { DataProfile, ColumnStatistics } from '../models/column-statistics';
 import { ColumnConfig, CleaningConfig, ProjectionConfig, isFeatureColumn } from '../models/column-config';
 import { ColumnRole, DataType, OutlierMethod } from '../models/data-type.enum';
+import { ProcessedCollection } from '../models/processed-collection';
 import { DataProcessorService } from '../../services/data-processor';
 import { DataLoaderService } from '../../services/data-loader.service';
 import { LAST_STEP_INDEX, WizardStepId, stepIdAt, stepIndex } from '../shared/constants/step-info';
 import { HistorySnapshot, UndoRedoInfo, copySnapshot, describeDiff } from './history-diff';
 import { colorScaleForFeature, columnDefaultsFor, createDefaultColumnConfig } from './column-defaults';
-import {
-  ProcessedCollection,
-  buildProcessingConfig,
-  predictEncodedFeatureNames,
-  storeProjectionPositions,
-} from './processing-config';
+import { buildProcessingConfig, predictEncodedFeatureNames } from './processing-config';
 import { STORAGE_KEY, deserializeState, serializeState } from './wizard-storage';
 import { WizardFileStore } from './wizard-file-store';
+import { uniqueDatasetName } from './dataset-name';
 import { MAX_GLYPH_AXES, MIN_GLYPH_AXES } from '../../glyph/glyph-axes';
 
 export type { UndoRedoInfo } from './history-diff';
@@ -36,6 +33,17 @@ interface HistoryEntry {
 export interface ColumnConfigChange {
   columnName: string;
   updates: Partial<ColumnConfig>;
+}
+
+/** What loadCSV did with an upload. */
+export interface LoadedFile {
+  profile: DataProfile;
+  /**
+   * The undo entry the upload recorded ("File loaded" / "File replaced"), or
+   * null when it recorded none: the file lost by a page reload was uploaded
+   * again and the restored settings were kept.
+   */
+  historyId: number | null;
 }
 
 /**
@@ -67,22 +75,27 @@ export class PreprocessingService {
   private readonly MAX_HISTORY = 50;
   private nextHistoryId = 1;
 
-  // In-flight processData() run; a second call joins it instead of starting a
-  // parallel worker job (re-entrancy guard).
-  private activeProcessingRun: Promise<void> | null = null;
-
   // Number of runs currently holding state.isProcessing (see holdProcessing).
   // Counted so a caller can keep the flag up across several phases while
-  // processData() inside it takes and releases its own hold.
+  // processInWorker() inside it takes and releases its own hold.
   private processingHolds = 0;
 
   // Uploads whose profiling is in flight. They are not in the state yet, but
   // must survive any worker-file prune that runs meanwhile.
   private uploadsInFlight = new Set<string>();
 
+  // Uploads that a page reload could not put back into the worker. A snapshot
+  // that undo/redo restores is about the upload it names, so its uploadMissing
+  // follows this set.
+  private missingUploads = new Set<string>();
+
   // Settles once the file restored after a page reload is back in the worker
   // (see restoreUploadedFile); requests that read the file wait for it.
   private uploadRestored: Promise<void> = Promise.resolve();
+
+  // processingInputsKey of the adopted processing result (see adoptProcessingResult).
+  private resultInputsKey: string | null = null;
+  private inputsKeyCache: { state: PreprocessingState; key: string } | null = null;
 
   private historySubject = new BehaviorSubject<HistoryStatus>({
     canUndo: false,
@@ -109,23 +122,9 @@ export class PreprocessingService {
     this.loadStateFromStorage();
   }
 
-  /**
-   * Generate a unique dataset name by appending (1), (2), etc. if name already exists
-   */
+  /** A dataset name not used in the dashboard yet: (1), (2), … appended when needed. */
   private getUniqueDatasetName(baseName: string): string {
-    const existingNames = this.dataLoader.getDataSetNames();
-    if (!existingNames.includes(baseName)) {
-      return baseName;
-    }
-
-    // Find the next available number
-    let counter = 1;
-    let uniqueName = `${baseName} (${counter})`;
-    while (existingNames.includes(uniqueName)) {
-      counter++;
-      uniqueName = `${baseName} (${counter})`;
-    }
-    return uniqueName;
+    return uniqueDatasetName(baseName, this.dataLoader.getDataSetNames());
   }
 
   /**
@@ -145,6 +144,8 @@ export class PreprocessingService {
   }
 
   // Step navigation by id; the index stored in state is derived from WIZARD_STEPS.
+  // Programmatic: the stepper checks isStepReachable before it calls this, and
+  // the steps' Continue buttons check their own settings (canProceed).
   public goToStep(step: WizardStepId): void {
     this.goToStepIndex(stepIndex(step));
   }
@@ -158,7 +159,9 @@ export class PreprocessingService {
 
   private goToStepIndex(index: number): void {
     if (index >= 0 && index <= LAST_STEP_INDEX) {
-      this.updateState({ currentStep: index });
+      this.updateState({ currentStep: index, furthestStep: Math.max(this.currentState.furthestStep, index) });
+      // A reload returns to the step shown last, not to the step of the last edit.
+      this.saveStateToStorage();
     }
   }
 
@@ -180,38 +183,63 @@ export class PreprocessingService {
   }
 
   // Data loading and profiling
-  public async loadCSV(file: File): Promise<DataProfile> {
+  public async loadCSV(file: File): Promise<LoadedFile> {
     const fileName = file.name;
+    const uploadKey = this.uploadKeyFor(fileName);
     const release = this.holdProcessing();
-    this.uploadsInFlight.add(fileName);
+    this.uploadsInFlight.add(uploadKey);
     this.updateState({ error: null });
 
     try {
       // Send the file to the worker for profiling; this also writes it into the Pyodide FS.
-      const profile: DataProfile = await this.dataProcessor.profileData(fileName, await file.arrayBuffer());
-      this.adoptLoadedFile(fileName, profile);
+      const profiled: DataProfile = await this.dataProcessor.profileData(uploadKey, await file.arrayBuffer());
+      // The worker knows the upload by its key; the user knows the file by its name.
+      const profile: DataProfile = { ...profiled, fileName };
+      const historyId = this.adoptLoadedFile(fileName, uploadKey, profile);
       // Kept so a page reload can put the file back into the worker.
-      void this.fileStore.save(fileName, file);
-      return profile;
+      void this.fileStore.save(uploadKey, file);
+      return { profile, historyId };
     } catch (error: unknown) {
       this.updateState({ error: this.toErrorMessage(error, 'Failed to load data file') });
       throw error;
     } finally {
       release();
-      this.uploadsInFlight.delete(fileName);
+      this.uploadsInFlight.delete(uploadKey);
       // The previous upload stays referenced by the undo history; anything no
       // longer referenced (e.g. this file, if loading failed) is removed.
       this.pruneWorkerFiles();
     }
   }
 
-  /** Install a freshly profiled file as one undoable "File loaded/replaced" action. */
-  private adoptLoadedFile(fileName: string, profile: DataProfile): void {
+  /**
+   * The key to store an upload of `fileName` under: the name itself, unless an
+   * upload still referenced (by the state, the undo history or a running
+   * upload) is stored under it. Uploading a corrected file under the same name
+   * must not overwrite the one an undo would go back to.
+   */
+  private uploadKeyFor(fileName: string): string {
+    const taken = new Set(this.referencedFileNames());
+    if (!taken.has(fileName)) return fileName;
+    const dot = fileName.lastIndexOf('.');
+    const stem = dot > 0 ? fileName.slice(0, dot) : fileName;
+    const extension = dot > 0 ? fileName.slice(dot) : '';
+    for (let n = 2; ; n++) {
+      const key = `${stem} (${n})${extension}`;
+      if (!taken.has(key)) return key;
+    }
+  }
+
+  /**
+   * Install a freshly profiled file as one undoable "File loaded/replaced"
+   * action and return its history id; null for the restore path, which records
+   * no entry.
+   */
+  private adoptLoadedFile(fileName: string, uploadKey: string, profile: DataProfile): number | null {
     if (this.currentState.uploadMissing && this.sameColumns(profile)) {
       // The file lost by a page reload is back: keep the restored settings.
-      this.updateState({ dataProfile: profile, rawFileName: fileName, uploadMissing: false });
+      this.updateState({ dataProfile: profile, rawFileName: fileName, uploadKey, uploadMissing: false });
       this.saveStateToStorage();
-      return;
+      return null;
     }
 
     const columnConfigs = new Map<string, ColumnConfig>();
@@ -225,17 +253,23 @@ export class PreprocessingService {
     const timestamp = new Date().toISOString().split('T')[0].replace(/-/g, '');
 
     // A4: snapshot the prior data before it is replaced, so a re-upload is undoable.
-    this.pushHistory(this.currentState.dataProfile !== null ? 'File replaced' : 'File loaded');
+    const historyId = this.pushHistory(this.currentState.dataProfile !== null ? 'File replaced' : 'File loaded');
 
     this.updateState({
       dataProfile: profile,
       rawFileName: fileName,
+      uploadKey,
       uploadMissing: false,
       columnConfigs,
       datasetName,
       timestamp,
+      // A new file is walked through the steps again.
+      furthestStep: this.currentState.currentStep,
     });
+    // Glyph, tooltip and color mappings name the old file's features.
+    this.validateDependentReferences();
     this.saveStateToStorage();
+    return historyId;
   }
 
   /** Choose the ZIP archive of item images for the Image glyph type, or drop it with null. */
@@ -253,19 +287,19 @@ export class PreprocessingService {
   }
 
   /**
-   * Name of the uploaded file once it is in the worker: after a page reload,
+   * Key of the uploaded file once it is in the worker: after a page reload,
    * this waits until the file is restored. Throws when there is none.
    */
-  private async loadedFileName(): Promise<string> {
+  private async loadedUploadKey(): Promise<string> {
     await this.uploadRestored;
-    const { rawFileName, uploadMissing } = this.currentState;
-    if (!rawFileName) {
+    const { uploadKey, uploadMissing } = this.currentState;
+    if (!uploadKey) {
       throw new Error('No data file loaded. Please upload a file first.');
     }
     if (uploadMissing) {
       throw new Error('The data file is no longer loaded after the page reload. Please upload it again in step 1.');
     }
-    return rawFileName;
+    return uploadKey;
   }
 
   /** Whether a profile has exactly the columns the current settings are for. */
@@ -280,21 +314,22 @@ export class PreprocessingService {
    * back from the file store. When it is gone, ask for it in the upload step;
    * uploading the same file again keeps the restored settings.
    */
-  private async restoreUploadedFile(fileName: string): Promise<void> {
+  private async restoreUploadedFile(uploadKey: string): Promise<void> {
     const release = this.holdProcessing();
-    this.uploadsInFlight.add(fileName);
+    this.uploadsInFlight.add(uploadKey);
     try {
-      const file = await this.fileStore.load(fileName);
-      if (!file) throw new Error(`"${fileName}" is not stored`);
-      await this.dataProcessor.profileData(fileName, await file.arrayBuffer());
+      const file = await this.fileStore.load(uploadKey);
+      if (!file) throw new Error(`"${uploadKey}" is not stored`);
+      await this.dataProcessor.profileData(uploadKey, await file.arrayBuffer());
     } catch (error: unknown) {
       console.warn('[PreprocessingService] The uploaded file could not be restored:', error);
-      if (this.currentState.rawFileName === fileName) {
+      this.missingUploads.add(uploadKey);
+      if (this.currentState.uploadKey === uploadKey) {
         this.updateState({ uploadMissing: true, currentStep: stepIndex('upload') });
       }
     } finally {
       release();
-      this.uploadsInFlight.delete(fileName);
+      this.uploadsInFlight.delete(uploadKey);
     }
   }
 
@@ -330,6 +365,7 @@ export class PreprocessingService {
       }
     }
     this.updateState({ columnConfigs: configs });
+    this.validateDependentReferences();
     this.saveStateToStorage();
   }
 
@@ -352,6 +388,8 @@ export class PreprocessingService {
     const configs = new Map(this.currentState.columnConfigs);
     configs.set(columnName, { ...existing, ...updates });
     this.updateState({ columnConfigs: configs });
+    // Role, selection, encoding and type all change which features exist.
+    this.validateDependentReferences();
     this.saveStateToStorage();
   }
 
@@ -404,7 +442,6 @@ export class PreprocessingService {
     if (config) {
       this.pushHistory(config.enabled ? 'Column deselected' : 'Column selected');
       this.applyColumnConfig(columnName, { enabled: !config.enabled });
-      this.validateDependentReferences();
     }
   }
 
@@ -417,7 +454,6 @@ export class PreprocessingService {
     if (!config || config.role === role) return;
     this.pushHistory(role === ColumnRole.Metadata ? 'Column used as metadata' : 'Column used as feature');
     this.applyColumnConfig(columnName, { role });
-    this.validateDependentReferences();
   }
 
   /**
@@ -452,13 +488,13 @@ export class PreprocessingService {
   }
 
   /**
-   * A4/cross-field: after any change to which columns are features (enabled, not
-   * metadata), remove references that would otherwise dangle. Concretely: a
-   * disabled or metadata column can no longer be the color feature, and
-   * glyph/tooltip mappings drop features whose underlying column is no feature
-   * any more. If the color feature was cleared, the color scale falls back to the
-   * numeric default so the review/glyph step UI does not keep showing a scale for
-   * a column that is gone.
+   * A4/cross-field: after any change to the file or to which features exist
+   * (selection, role, encoding, type), remove references that would otherwise
+   * dangle. Concretely: a disabled or metadata column can no longer be the
+   * color feature, and glyph/tooltip mappings drop features the settings no
+   * longer produce. If the color feature was cleared, the color scale falls back
+   * to the numeric default so the review/glyph step UI does not keep showing a
+   * scale for a column that is gone.
    *
    * Runs after the change (and after pushHistory captured the pre-change
    * snapshot), so a single undo reverts both the change and this cleanup as one
@@ -473,9 +509,9 @@ export class PreprocessingService {
       return { ...config, isColorFeature: false };
     });
 
-    // Glyph/tooltip mappings may only reference features of feature columns.
-    // predictEncodedFeatureNames() already restricts itself to those and handles
-    // one-hot expansion, so it is the source of truth for valid names.
+    // Glyph/tooltip mappings may only reference features the worker produces.
+    // predictEncodedFeatureNames() restricts itself to feature columns and
+    // follows Python's one-hot rule, so it is the source of truth for valid names.
     const validFeatures = new Set(predictEncodedFeatureNames(this.currentState));
     const glyphFeatures = this.currentState.glyphFeatures.filter(f => validFeatures.has(f));
     const tooltipFeatures = this.currentState.tooltipFeatures.filter(f => validFeatures.has(f));
@@ -523,8 +559,8 @@ export class PreprocessingService {
     columnName: string,
     method: OutlierMethod
   ): Promise<{ outlierCount: number; outlierIndices: number[] }> {
-    const fileName = await this.loadedFileName();
-    const result = await this.dataProcessor.detectOutliers(fileName, columnName, method);
+    const uploadKey = await this.loadedUploadKey();
+    const result = await this.dataProcessor.detectOutliers(uploadKey, columnName, method);
 
     return {
       outlierCount: result.outlier_count,
@@ -539,8 +575,8 @@ export class PreprocessingService {
     percentage: number;
     sampleDuplicates: Record<string, unknown>[];
   }> {
-    const fileName = await this.loadedFileName();
-    const result = await this.dataProcessor.detectDuplicates(fileName, subsetColumns);
+    const uploadKey = await this.loadedUploadKey();
+    const result = await this.dataProcessor.detectDuplicates(uploadKey, subsetColumns);
 
     return {
       duplicateCount: result.duplicateCount,
@@ -550,58 +586,75 @@ export class PreprocessingService {
     };
   }
 
-  // Processing
+  // ── Processing ───────────────────────────────────────────────────────────
+  // A processing run (Python, FastMap, background projections) is owned by
+  // ProcessingRunService; this service holds the inputs and the adopted result.
+
   /**
-   * Run the preprocessing pipeline in the worker. Re-entrancy guard: while a run is
-   * in flight, further calls join that run (same promise) instead of starting a
-   * second, parallel worker job; callers still wait for the actual result.
+   * Identity of everything a processing run depends on: the stored upload,
+   * the item-image archive and every setting sent to Python (which includes the
+   * projection methods and the dataset name). Derived values such as outlier
+   * counts are not part of it.
    */
-  public processData(): Promise<void> {
-    if (this.activeProcessingRun) {
-      return this.activeProcessingRun;
-    }
-    const run = this.runProcessing().finally(() => {
-      this.activeProcessingRun = null;
-    });
-    this.activeProcessingRun = run;
-    return run;
+  get processingInputsKey(): string {
+    return this.inputsKeyOf(this.currentState);
   }
 
-  private async runProcessing(): Promise<void> {
-    // Validate that we have the necessary metadata
+  private inputsKeyOf(state: PreprocessingState): string {
+    if (this.inputsKeyCache?.state !== state) {
+      const key = JSON.stringify([state.uploadKey, state.thumbnailArchiveName, buildProcessingConfig(state)]);
+      this.inputsKeyCache = { state, key };
+    }
+    return this.inputsKeyCache.key;
+  }
+
+  /**
+   * Run the Python pipeline on the uploaded file with the current settings and
+   * return the processed collection (without projection positions). Waits for
+   * a file that a page reload is still putting back into the worker.
+   */
+  public async processInWorker(): Promise<ProcessedCollection> {
     if (!this.currentState.dataProfile) {
       throw new Error('No data file loaded. Please upload a file first.');
     }
-
     const release = this.holdProcessing();
-    this.updateState({ processingProgress: 0, error: null });
-
     try {
-      // After a page reload the file may still be on its way back into the worker.
-      const fileName = await this.loadedFileName();
-
-      // Build configuration object
+      const uploadKey = await this.loadedUploadKey();
       const config = buildProcessingConfig(this.currentState);
-
-      // File is already in Pyodide FS from loadCSV() - no need to re-upload
-      // Send to worker for processing (use rawFileName which is the actual CSV file in Pyodide FS)
-      const result = await this.dataProcessor.processWithConfig(fileName, config);
-
-      this.updateState({ processedDataset: result, processingProgress: 100 });
-      this.saveStateToStorage();
-    } catch (error: unknown) {
-      this.updateState({ error: this.toErrorMessage(error, 'Processing failed') });
-      throw error;
+      return (await this.dataProcessor.processWithConfig(uploadKey, config)) as unknown as ProcessedCollection;
     } finally {
       release();
     }
   }
 
   /**
-   * Keep `isProcessing` true until `task` settles. processData() only covers the
-   * worker run; a caller whose run has further phases (the review step computes
-   * the primary FastMap projection afterwards) wraps the whole run in this, so
-   * undo/redo stay blocked until the primary result is complete.
+   * Make `collection` the wizard's processing result, if the file and settings
+   * are still those it was computed from (`inputsKey`, a processingInputsKey
+   * taken when the run started). Returns false, and keeps no result, when they
+   * changed meanwhile. The result is cleared as soon as they change later.
+   */
+  public adoptProcessingResult(collection: ProcessedCollection, inputsKey: string): boolean {
+    if (inputsKey !== this.processingInputsKey) {
+      return false;
+    }
+    this.resultInputsKey = inputsKey;
+    this.updateState({ processedDataset: collection });
+    return true;
+  }
+
+  /** Drop the processing result (a new run starts, or it was discarded). */
+  public clearProcessingResult(): void {
+    this.resultInputsKey = null;
+    if (this.currentState.processedDataset !== null) {
+      this.updateState({ processedDataset: null });
+    }
+  }
+
+  /**
+   * Keep `isProcessing` true until `task` settles. processInWorker() only covers
+   * the worker run; a caller whose run has further phases (the processing run
+   * computes the primary FastMap projection afterwards) wraps the whole run in
+   * this, so undo/redo stay blocked until the primary result is complete.
    */
   public async whileProcessing<T>(task: () => Promise<T>): Promise<T> {
     const release = this.holdProcessing();
@@ -641,9 +694,9 @@ export class PreprocessingService {
     return fallback;
   }
 
-  /** Clear a lingering processing error. The error flag lives in the root
+  /** Clear a lingering upload error. The error flag lives in the root
    *  singleton state and previously survived closing/reopening the wizard,
-   *  so a stale "Processing failed" reappeared on re-entry (P-S5-03). */
+   *  so a stale error reappeared on re-entry (P-S5-03). */
   public clearError(): void {
     if (this.currentState.error !== null) {
       this.updateState({ error: null });
@@ -657,35 +710,19 @@ export class PreprocessingService {
     return await this.dataProcessor.getProcessedFeatures();
   }
 
-  /**
-   * Add projection positions to the processed dataset
-   * Silently returns if wizard was reset (user moved on)
-   */
-  public async addProjectionPositions(
-    method: string,
-    positions: { id: string | number; x: number; y: number }[]
-  ): Promise<void> {
-    const state = this.currentState;
-
-    // If wizard was reset while background projection was running, silently skip
-    // (user has already moved on to dashboard)
-    if (!state.processedDataset) {
-      return;
-    }
-
-    storeProjectionPositions(state.processedDataset as unknown as ProcessedCollection, method, positions);
-
-    // Update state to trigger any observers
-    this.updateState({ processedDataset: state.processedDataset });
-  }
-
-  // State management
+  // State management. The one place that keeps derived state consistent: a
+  // processing result only survives an update that leaves its inputs unchanged.
   private updateState(updates: Partial<PreprocessingState>): void {
-    this.stateSubject.next({ ...this.currentState, ...updates });
+    const next = { ...this.currentState, ...updates };
+    if (next.processedDataset !== null && this.inputsKeyOf(next) !== this.resultInputsKey) {
+      next.processedDataset = null;
+    }
+    this.stateSubject.next(next);
   }
 
   public resetState(): void {
     // A run that is still in flight keeps the processing flag until it settles.
+    this.resultInputsKey = null;
     this.stateSubject.next({ ...createInitialState(), isProcessing: this.processingHolds > 0 });
     this.undoStack = [];
     this.redoStack = [];
@@ -698,16 +735,16 @@ export class PreprocessingService {
   // The Pyodide worker keeps every uploaded file (reprocessing and undoing a
   // re-upload need it) and deletes those the main thread no longer references.
 
-  /** Unique uploaded file names still referenced by the state, the undo/redo history or a running upload. */
+  /** Unique upload keys still referenced by the state, the undo/redo history or a running upload. */
   private referencedFileNames(): string[] {
     const snapshots = [
       this.currentState,
       ...this.undoStack.map(e => e.snapshot),
       ...this.redoStack.map(e => e.snapshot),
     ];
-    const names = snapshots.map(s => s.rawFileName).filter((name): name is string => name !== null);
+    const keys = snapshots.map(s => s.uploadKey).filter((key): key is string => key !== null);
     const archive = this.currentState.thumbnailArchiveName;
-    return Array.from(new Set([...names, ...(archive ? [archive] : []), ...this.uploadsInFlight]));
+    return Array.from(new Set([...keys, ...(archive ? [archive] : []), ...this.uploadsInFlight]));
   }
 
   /**
@@ -730,7 +767,7 @@ export class PreprocessingService {
   /** Prune when dropped history entries were the last reference to an uploaded file. */
   private pruneIfOrphaned(dropped: HistoryEntry[]): void {
     const referenced = new Set(this.referencedFileNames());
-    const orphaned = dropped.some(e => e.snapshot.rawFileName !== null && !referenced.has(e.snapshot.rawFileName));
+    const orphaned = dropped.some(e => e.snapshot.uploadKey !== null && !referenced.has(e.snapshot.uploadKey));
     if (orphaned) {
       this.pruneWorkerFiles();
     }
@@ -839,9 +876,13 @@ export class PreprocessingService {
     return copySnapshot(this.currentState);
   }
 
-  /** Install a snapshot, deep-copying again so the stored entry stays pristine. */
+  /**
+   * Install a snapshot, deep-copying again so the stored entry stays pristine.
+   * An upload that a page reload could not restore is still missing.
+   */
   private restoreSnapshot(snap: HistorySnapshot): void {
-    this.updateState(copySnapshot(snap));
+    const uploadMissing = snap.uploadKey !== null && this.missingUploads.has(snap.uploadKey);
+    this.updateState({ ...copySnapshot(snap), uploadMissing });
   }
 
   // Persistence (versioned; see wizard-storage.ts for the format and migration)
@@ -849,7 +890,10 @@ export class PreprocessingService {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(serializeState(this.currentState)));
     } catch (error) {
-      console.warn('Failed to save state to localStorage:', error);
+      // An older save would bring back an older session (maybe of another file)
+      // after a reload; without one, the wizard starts from the beginning.
+      console.warn('Failed to save the wizard state to localStorage; a reload will start over:', error);
+      this.clearStateFromStorage();
     }
   }
 
@@ -858,7 +902,9 @@ export class PreprocessingService {
       const restored = deserializeState(localStorage.getItem(STORAGE_KEY));
       if (restored) {
         this.updateState(restored);
-        if (restored.rawFileName) this.uploadRestored = this.restoreUploadedFile(restored.rawFileName);
+        // A save from an older version may hold references the current rules reject.
+        this.validateDependentReferences();
+        if (restored.uploadKey) this.uploadRestored = this.restoreUploadedFile(restored.uploadKey);
       }
     } catch (error) {
       console.warn('Failed to load state from localStorage:', error);
@@ -866,6 +912,10 @@ export class PreprocessingService {
   }
 
   private clearStateFromStorage(): void {
-    localStorage.removeItem(STORAGE_KEY);
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch (error) {
+      console.warn('Failed to clear the wizard state in localStorage:', error);
+    }
   }
 }

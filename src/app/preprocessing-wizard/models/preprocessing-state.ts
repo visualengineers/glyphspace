@@ -1,14 +1,23 @@
 import { DataProfile } from './column-statistics';
 import { ColumnConfig, CleaningConfig, ProjectionConfig, CleaningResult } from './column-config';
-import { DatasetCollection } from '../../shared/interfaces/dataset-collection';
+import { ProcessedCollection } from './processed-collection';
 
 export interface PreprocessingState {
   // Index into WIZARD_STEPS (0 = upload … 5 = review). Resolve it through the
   // step-id helpers in shared/constants/step-info.ts instead of comparing numbers.
   currentStep: number;
+  // Furthest step index the user has opened for the current file; the stepper
+  // offers the steps up to the one after it (see shared/step-validity.ts).
+  furthestStep: number;
 
   // Data
+  // Name of the uploaded file, as the user chose it (shown in the wizard and
+  // the base of the dataset name).
   rawFileName: string | null;
+  // Name under which the upload is kept in the worker's file system and the
+  // file store: the file name, made unique when an upload with that name is
+  // still referenced (the undo history may need both).
+  uploadKey: string | null;
   dataProfile: DataProfile | null;
   // The settings were restored after a page reload, but the uploaded file could
   // not be put back into the worker: it has to be uploaded again (not persisted).
@@ -24,7 +33,10 @@ export interface PreprocessingState {
 
   // Results
   cleaningResult: CleaningResult | null;
-  processedDataset: DatasetCollection | null;
+  // Result of the last processing run, while it still matches the file and the
+  // settings it was computed from: any change to them clears it (see
+  // PreprocessingService.adoptProcessingResult). Not persisted.
+  processedDataset: ProcessedCollection | null;
 
   // Metadata
   datasetName: string;
@@ -38,8 +50,8 @@ export interface PreprocessingState {
 
   // UI state
   isProcessing: boolean;
-  processingProgress: number;
-  processingStep: string;
+  // Why the last upload failed. Processing errors belong to the processing run
+  // (ProcessingRunService), not to the state.
   error: string | null;
 }
 
@@ -101,7 +113,9 @@ export const DEFAULT_PROJECTION_CONFIG: ProjectionConfig = {
 export function createInitialState(): PreprocessingState {
   return {
     currentStep: 0,
+    furthestStep: 0,
     rawFileName: null,
+    uploadKey: null,
     dataProfile: null,
     uploadMissing: false,
     thumbnailArchiveName: null,
@@ -117,8 +131,6 @@ export function createInitialState(): PreprocessingState {
     colorScaleMode: 'continuous',
     colorScaleId: 0,
     isProcessing: false,
-    processingProgress: 0,
-    processingStep: '',
     error: null,
   };
 }

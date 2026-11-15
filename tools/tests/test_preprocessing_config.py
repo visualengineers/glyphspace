@@ -670,23 +670,38 @@ def test_the_wizard_detects_the_id_column_by_the_same_rule(name, expected):
 
 # --- Glyph features: 3 to 8, as in the dashboard ------------------------------------
 
-def run_with_glyph_features(count: int) -> list[str]:
-    """The schema's glyph feature names when `count` of 10 features are chosen."""
-    names = [f'f{i}' for i in range(10)]
+GLYPH_TEST_FEATURES = [f'f{i}' for i in range(10)]
+
+
+def run_with_glyph_features(chosen: list[str]) -> list[str]:
+    """The schema's glyph feature names when `chosen` of 10 features f0..f9 are the glyph features."""
+    names = GLYPH_TEST_FEATURES
     frame = pd.DataFrame({name: [1.0, 2.0, float(i)] for i, name in enumerate(names)})
     config = {'columns': [column(name) for name in names], 'cleaning': {'removeDuplicates': False},
-              'datasetName': 'test', 'timestamp': '1', 'glyphFeatures': names[:count]}
+              'datasetName': 'test', 'timestamp': '1', 'glyphFeatures': chosen}
     collection = json.loads(ppc.process_with_config(write_csv(frame), json.dumps(config)))
     schema = collection['datasets'][collection['selectedDataset']]['schema']
     return [schema['label'][key] for key in schema['glyph']]
 
 
 def test_up_to_eight_chosen_glyph_features_are_kept_in_order():
-    assert run_with_glyph_features(8) == [f'f{i}' for i in range(8)]
+    assert run_with_glyph_features(GLYPH_TEST_FEATURES[:8]) == [f'f{i}' for i in range(8)]
 
 
-def test_more_than_eight_glyph_features_are_not_taken():
-    assert len(run_with_glyph_features(9)) <= ppc.MAX_GLYPH_FEATURES
+def test_the_first_five_features_are_the_glyph_without_a_choice():
+    assert run_with_glyph_features([]) == [f'f{i}' for i in range(5)]
+
+
+@pytest.mark.parametrize('count', [2, 9])
+def test_a_glyph_feature_count_outside_three_to_eight_is_rejected(count):
+    with pytest.raises(Exception, match=r'glyph needs 3 to 8 glyph features, but \d+ were chosen'):
+        run_with_glyph_features(GLYPH_TEST_FEATURES[:count])
+
+
+def test_a_glyph_feature_the_data_does_not_produce_is_rejected_not_replaced():
+    """It used to be skipped with a warning, and the glyph padded with feature 1."""
+    with pytest.raises(Exception, match=r"glyph features are not in the processed data: 'gone'"):
+        run_with_glyph_features(['f0', 'gone', 'f1'])
 
 
 # --- Strict JSON: the worker parses every result with JSON.parse -------------------

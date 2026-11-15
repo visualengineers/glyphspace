@@ -4,12 +4,15 @@ import { WizardStepId } from '../shared/constants/step-info';
 
 /**
  * A4 – Undo/Redo. The subset of PreprocessingState that undo restores. Transient
- * UI fields (currentStep, isProcessing, error, processedDataset, …) are left out
- * so undoing a data-config change never yanks the user to another step or discards
- * an in-flight processing run.
+ * UI fields (currentStep, isProcessing, error, …) are left out so undoing a
+ * data-config change never yanks the user to another step. A processing result
+ * is not restored either: it belongs to the settings it was computed from.
  */
 export interface HistorySnapshot {
   rawFileName: string | null;
+  // Which stored upload the snapshot is about: a file uploaded again under the
+  // same name is a different upload (see PreprocessingState.uploadKey).
+  uploadKey: string | null;
   dataProfile: DataProfile | null;
   columnConfigs: Map<string, ColumnConfig>;
   cleaningConfig: CleaningConfig;
@@ -31,6 +34,7 @@ export interface HistorySnapshot {
 export function copySnapshot(source: HistorySnapshot): HistorySnapshot {
   return {
     rawFileName: source.rawFileName,
+    uploadKey: source.uploadKey,
     dataProfile: source.dataProfile, // replaced wholesale on re-upload; reference is safe
     columnConfigs: new Map(Array.from(source.columnConfigs.entries()).map(([name, config]) => [name, { ...config }])),
     cleaningConfig: { ...source.cleaningConfig },
@@ -148,7 +152,7 @@ export function describeDiff(actionLabel: string, before: HistorySnapshot, after
  * column configs, `columnConfigs.<field>`. Order roughly follows the wizard steps.
  */
 export function diffSnapshots(a: HistorySnapshot, b: HistorySnapshot): string | null {
-  if (a.rawFileName !== b.rawFileName) return 'rawFileName';
+  if (a.rawFileName !== b.rawFileName || a.uploadKey !== b.uploadKey) return 'rawFileName';
   if (a.datasetName !== b.datasetName) return 'datasetName';
 
   const columnKey = diffColumnConfigs(a.columnConfigs, b.columnConfigs);

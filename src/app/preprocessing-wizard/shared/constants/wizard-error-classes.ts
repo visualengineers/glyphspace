@@ -21,6 +21,8 @@ import {
 } from '../../steps/step4-projection-settings/projection-methods';
 import { WizardStepId, stepLabel, stepNumber } from './step-info';
 import { MAX_GLYPH_AXES, MIN_GLYPH_AXES } from '../../../glyph/glyph-axes';
+import { workerErrorPattern } from '../worker-error-text';
+import { isStepValid } from '../step-validity';
 
 export type IssueSeverity = 'blocking' | 'warning';
 
@@ -85,9 +87,9 @@ const CLASS_TEMPLATES: Record<string, Omit<WizardIssue, 'raw'>> = {
   K5: {
     code: 'K5',
     severity: 'blocking',
-    title: 'The number of glyph features is out of range',
-    why: `A glyph needs between ${MIN_GLYPH_AXES} and ${MAX_GLYPH_AXES} features; the current selection is outside that range.`,
-    fix: `Adjust the selection to ${MIN_GLYPH_AXES}–${MAX_GLYPH_AXES} features in ${stepLabel('appearance')}.`,
+    title: 'The glyph features do not fit the data',
+    why: `A glyph needs between ${MIN_GLYPH_AXES} and ${MAX_GLYPH_AXES} features that the processed data contains; the selection has too few or too many, or names a feature the current settings no longer produce.`,
+    fix: `Choose ${MIN_GLYPH_AXES}–${MAX_GLYPH_AXES} glyph features again in ${stepLabel('appearance')}.`,
     step: 'appearance',
     anchorId: 'wizard-anchor-glyph',
   },
@@ -128,20 +130,27 @@ function template(code: string): WizardIssue {
  * Classify a raw processing error message into one of the K1–K8 classes.
  * Falls back to a generic (still persistent, still actionable) blocking issue
  * when no pattern matches, so the user never sees a bare "Processing failed".
+ *
+ * Only the exception at the end of a Python traceback is matched, without its
+ * quoted parts: frames hold source code, and quoted parts are the user's
+ * column names and values, which must not decide the class. The specific
+ * classes are tested first; the generic resource limit (K6) last.
  */
 export function classifyProcessingError(raw: string): WizardIssue {
-  const msg = (raw || '').toLowerCase();
+  const msg = workerErrorPattern(raw || '').toLowerCase();
   let issue: WizardIssue;
 
   if (/too many distinct values to one-?hot encode/.test(msg)) {
-    // K7 must be checked before K6: the underlying failure is a memory error,
-    // but the specific cause (a near-unique column blown up by one-hot) has a
-    // much more actionable fix than the generic "resource limit" advice.
+    // The underlying failure would be a memory error, but the specific cause
+    // (a near-unique column blown up by one-hot) has a much more actionable fix
+    // than the generic "resource limit" advice.
     issue = template('K7');
     // Deduplicated: a chained/re-raised Python exception can repeat the same
     // "'col' (N distinct values)" fragment in its formatted traceback, which
     // would otherwise double-count and re-list the same column.
-    const pairs = [...new Set([...raw.matchAll(/'([^']+)' \((\d+) distinct values\)/g)].map(m => `${m[1]} (${m[2]})`))];
+    const pairs = [
+      ...new Set([...(raw || '').matchAll(/'([^']+)' \((\d+) distinct values\)/g)].map(m => `${m[1]} (${m[2]})`)),
+    ];
     if (pairs.length === 1) {
       issue.title = `The column ${pairs[0]} has too many distinct values`;
       issue.why = `This column has almost as many different values as there are rows (typical of an ID, title, name or free-text field): ${pairs[0]}. Encoding it would expand the data into that many columns — more than the in-browser engine can hold in memory.`;
@@ -149,8 +158,6 @@ export function classifyProcessingError(raw: string): WizardIssue {
       issue.title = `${pairs.length} columns have too many distinct values`;
       issue.why = `These columns have almost as many different values as there are rows (typical of IDs, titles, names or free-text): ${pairs.join(', ')}. Encoding them would expand the data into thousands of columns — more than the in-browser engine can hold in memory.`;
     }
-  } else if (/timed out|timeout|out of memory|memory|aborted/.test(msg)) {
-    issue = template('K6');
   } else if (/the fill value .* is not (a number|true or false)/.test(msg)) {
     // Before K1, whose "not a number" pattern would otherwise claim it.
     issue = template('K8');
@@ -158,12 +165,18 @@ export function classifyProcessingError(raw: string): WizardIssue {
     issue = template('K1');
   } else if (/empty|no valid feature data|no data rows|0 rows|no rows|nothing left/.test(msg)) {
     issue = template('K2');
-  } else if (/neighbor|n_neighbors|perplexity|k must|greater than|exceeds|out of range|sample/.test(msg)) {
+  } else if (/neighbor|n_neighbors|perplexity|k must|greater than|exceeds|out of range|n_samples|samples\b/.test(msg)) {
     issue = template('K4');
   } else if (/glyph feature/.test(msg)) {
     issue = template('K5');
   } else if (/constant|zero variance|no variance|all missing|singular|division by zero/.test(msg)) {
     issue = template('K3');
+  } else if (
+    /timed out|timeout|memory ?error|out of memory|memory access|(unable to|cannot|could not|failed to) allocate|allocation failed|\baborted\b/.test(
+      msg
+    )
+  ) {
+    issue = template('K6');
   } else {
     issue = {
       code: '',
@@ -271,5 +284,54 @@ export function detectPreflightIssues(state: PreprocessingState): WizardIssue[] 
     });
   }
 
+  return issues;
+}
+
+/**
+ * Settings that make processing impossible, each as a blocking issue that
+ * names the step to fix it in. The review step offers Start Processing only
+ * when there are none: the stepper lets users jump to the review step, and a
+ * setting may have become invalid after they left its step (e.g. a glyph
+ * feature that an encoding change removed).
+ */
+export function detectStartBlockers(state: PreprocessingState): WizardIssue[] {
+  const issues: WizardIssue[] = [];
+  if (!isStepValid('upload', state)) {
+    issues.push({
+      code: '',
+      severity: 'blocking',
+      title: state.uploadMissing ? 'The data file has to be uploaded again' : 'No data file is loaded',
+      why: state.uploadMissing
+        ? 'The settings were restored after the page was reloaded, but the uploaded file could not be.'
+        : 'There is nothing to process yet.',
+      fix: `Upload the file in ${stepLabel('upload')}.`,
+      step: 'upload',
+    });
+    return issues;
+  }
+  if (!isStepValid('columns', state)) {
+    issues.push({
+      code: '',
+      severity: 'blocking',
+      title: 'No column is used as a feature',
+      why: 'Every selected column is metadata, so there is nothing to place the items by.',
+      fix: `Use at least one column as a feature in ${stepLabel('columns')}.`,
+      step: 'columns',
+      anchorId: 'wizard-anchor-columns',
+    });
+  } else if (!isStepValid('projection', state)) {
+    issues.push({
+      code: '',
+      severity: 'blocking',
+      title: 'No column is included in the projection',
+      why: 'The projection places the items by the columns included in it.',
+      fix: `Include at least one column in ${stepLabel('projection')}.`,
+      step: 'projection',
+      anchorId: 'wizard-anchor-projection-columns',
+    });
+  }
+  if (isStepValid('columns', state) && !isStepValid('appearance', state)) {
+    issues.push(template('K5'));
+  }
   return issues;
 }

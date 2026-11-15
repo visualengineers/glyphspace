@@ -154,9 +154,41 @@ describe('PreprocessingService – restoring saved state', () => {
   afterEach(() => localStorage.clear());
 
   it('reopens an old saved review step (index 4) on the new review step', () => {
-    const service = restoreFrom({ currentStep: 4, columnConfigs: [], glyphFeatures: ['a', 'b', 'c'] });
+    const feature = (name: string) => [name, { name, enabled: true, originalType: 'numeric', targetType: 'numeric' }];
+    const service = restoreFrom({
+      currentStep: 4,
+      columnConfigs: ['a', 'b', 'c'].map(feature),
+      glyphFeatures: ['a', 'b', 'c'],
+    });
     expect(service.currentStepId).toBe('review');
     expect(service.currentState.glyphFeatures).toEqual(['a', 'b', 'c']);
+  });
+
+  it('drops saved glyph features the saved columns no longer produce', () => {
+    const service = restoreFrom({
+      version: 4,
+      columnConfigs: [['a', { name: 'a', enabled: true, originalType: 'numeric', targetType: 'numeric' }]],
+      glyphFeatures: ['a', 'gone_1', 'gone_2'],
+    });
+    expect(service.currentState.glyphFeatures).toEqual(['a']);
+  });
+
+  it('restores the upload key and the furthest step, and migrates saves without them', () => {
+    expect(deserializeState(JSON.stringify({ version: 3, currentStep: 2, rawFileName: 'wine.csv' }))).toMatchObject({
+      uploadKey: 'wine.csv',
+      furthestStep: 2,
+    });
+    expect(
+      deserializeState(
+        JSON.stringify({
+          version: 4,
+          currentStep: 1,
+          furthestStep: 4,
+          rawFileName: 'wine.csv',
+          uploadKey: 'wine (2).csv',
+        })
+      )
+    ).toMatchObject({ uploadKey: 'wine (2).csv', furthestStep: 4 });
   });
 
   it('reopens an old saved visualization step (index 3) on the projection step', () => {

@@ -396,6 +396,7 @@ describe('Step4ProjectionSettingsComponent – template', () => {
     const names = ['x', 'y', 'z'];
     setState(service, {
       rawFileName: 'test.csv',
+      uploadKey: 'test.csv',
       dataProfile: makeProfile(names),
       columnConfigs: new Map(names.map(name => [name, makeConfig(name)])),
       projectionConfig: { ...DEFAULT_PROJECTION_CONFIG, enableUMAP: true },

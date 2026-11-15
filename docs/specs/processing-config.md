@@ -21,7 +21,7 @@ The configuration object the wizard sends with `processWithConfig`, what the Pyt
 | `columns` | column config[] | One entry per column of the CSV, see below. A column of the file without an entry is an error: the file changed after it was configured (for example another file uploaded under the same name), and its unseen columns must not become features. |
 | `cleaning` | `{ removeDuplicates: boolean }` | Drop duplicate rows. |
 | `projections` | `ProjectionConfig` | Projection switches and parameters. Not used by Python (see [Projections](#projections)). |
-| `glyphFeatures` | string[] | Encoded feature names for the glyph rays. Used when there are 3–8; otherwise the first 5 features. |
+| `glyphFeatures` | string[] | Encoded feature names for the glyph rays, 3–8 of them, in axis order. Empty: the first 5 features. Another count, or a name the encoding does not produce, is an error (class K5); the glyph is never padded or cut. The wizard predicts the names with `predictEncodedFeatureNames`, which follows the [encoding](#encoding) rules. |
 | `tooltipFeatures` | string[] \| null | Encoded feature names for the tooltip; `null` lists every feature. |
 | `colorScaleMode` | `'continuous'` \| `'categorical'` | Written to `schema.colorRange` (`true` for continuous). |
 | `colorScaleId` | number | Written to `schema.colorScaleId`. |

@@ -1,6 +1,10 @@
 import { PreprocessingState } from '../models/preprocessing-state';
 import { CleaningConfig, ColumnConfig, ProjectionConfig, isFeatureColumn } from '../models/column-config';
+import { ColumnStatistics } from '../models/column-statistics';
 import { DataType, EncodingMethod } from '../models/data-type.enum';
+import { ProcessedCollection, ProjectionPosition, processedDatasetOf } from '../models/processed-collection';
+
+export type { ProcessedCollection, ProjectionPosition } from '../models/processed-collection';
 
 /** One column as the worker's processWithConfig expects it. */
 export type ProcessingColumnConfig = Pick<
@@ -34,9 +38,47 @@ export interface ProcessingRequestConfig {
 }
 
 /**
+ * Whether pandas reads the column as numbers (or booleans). The profile records
+ * the type it detected, not the pandas dtype, but detect_data_type in
+ * preprocessing_processor.py only reports numeric and boolean for numeric
+ * dtypes; ID and coordinate columns are recognised by name and almost always
+ * hold numbers.
+ */
+function readAsNumbers(column: ColumnConfig): boolean {
+  return [DataType.Numeric, DataType.Boolean, DataType.Coordinate, DataType.ID].includes(column.originalType);
+}
+
+/**
+ * Whether pandas reads a boolean column as `bool` (the text True/False) rather
+ * than as 0/1 integers: Python encodes a `bool` column as one 0/1 feature
+ * whatever its settings.
+ */
+function readAsBool(stats: ColumnStatistics | undefined): boolean {
+  const values = stats?.topValues ?? [];
+  return values.length > 0 && values.every(({ value }) => value === 'True' || value === 'False');
+}
+
+/**
+ * Whether Python one-hot encodes the column (apply_feature_engineering in
+ * preprocessing_processor_config.py): dates and booleans are always one numeric
+ * feature; otherwise One-Hot does, and so does None on a column that is not
+ * read as numbers (text and categories).
+ */
+export function isOneHotEncoded(config: ColumnConfig, stats: ColumnStatistics | undefined): boolean {
+  if (config.targetType === DataType.Date || config.targetType === DataType.Boolean) return false;
+  if (config.originalType === DataType.Boolean && readAsBool(stats)) return false;
+  return (
+    config.encodingMethod === EncodingMethod.OneHot ||
+    (config.encodingMethod === EncodingMethod.None && !readAsNumbers(config))
+  );
+}
+
+/**
  * Feature names the worker will produce after encoding: feature (not metadata),
- * non-ID columns; a one-hot column expands to `<column>_<value>` per top value of
- * its profile.
+ * non-ID columns; a one-hot encoded column (see isOneHotEncoded) expands to
+ * `<column>_<value>`. The profile knows the most frequent values only, so the
+ * prediction may list fewer one-hot features than Python creates, never other
+ * ones.
  */
 export function predictEncodedFeatureNames(state: Pick<PreprocessingState, 'columnConfigs' | 'dataProfile'>): string[] {
   const enabledCols = Array.from(state.columnConfigs.values()).filter(
@@ -44,32 +86,12 @@ export function predictEncodedFeatureNames(state: Pick<PreprocessingState, 'colu
   );
 
   return enabledCols.flatMap(col => {
-    if (col.encodingMethod !== EncodingMethod.OneHot) {
-      // Label encoding, numeric, or no encoding - keeps column name
+    const colStats = state.dataProfile?.columns.find(c => c.name === col.name);
+    if (!isOneHotEncoded(col, colStats)) {
       return [col.name];
     }
-    // Predict one-hot expansion based on unique values from data profile
-    const colStats = state.dataProfile?.columns.find(c => c.name === col.name);
     return (colStats?.topValues ?? []).map(item => `${col.name}_${item.value}`);
   });
-}
-
-/** A projection position as computed on the main thread. */
-export interface ProjectionPosition {
-  id: string | number;
-  x: number;
-  y: number;
-}
-
-/** A dataset of the processed collection, as far as projection positions are concerned. */
-interface ProcessedDataset {
-  positions?: Record<string, { id: string; position: { x: number; y: number } }[]>;
-}
-
-/** The shape the worker's processWithConfig returns (wider than DatasetCollection). */
-export interface ProcessedCollection {
-  selectedDataset?: string;
-  datasets?: Record<string, ProcessedDataset | undefined>;
 }
 
 /**
@@ -82,11 +104,10 @@ export function storeProjectionPositions(
   method: string,
   positions: ProjectionPosition[]
 ): void {
-  const datasetKey = collection.selectedDataset || (collection.datasets ? Object.keys(collection.datasets)[0] : null);
-  if (!datasetKey || !collection.datasets) {
+  if (!collection.datasets) {
     throw new Error('Invalid dataset structure');
   }
-  const dataset = collection.datasets[datasetKey];
+  const dataset = processedDatasetOf(collection);
   if (!dataset) {
     throw new Error('Dataset not found');
   }

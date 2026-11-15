@@ -12,9 +12,10 @@ import {
 } from '../../../services/projection.service';
 import { ToastService } from '../../../services/toast.service';
 import { DEFAULT_PROJECTION_CONFIG, PreprocessingState, ProcessingProgress } from '../../models/preprocessing-state';
+import { ProcessingRunService } from '../../services/processing-run.service';
+import { ThumbnailService } from '../../../services/thumbnail.service';
 import { ColumnConfig } from '../../models/column-config';
 import { DataProfile } from '../../models/column-statistics';
-import { DatasetCollection } from '../../../shared/interfaces/dataset-collection';
 import { WizardStepId } from '../../shared/constants/step-info';
 import { classifyProcessingError } from '../../shared/constants/wizard-error-classes';
 import { WizardAnnouncer } from '../../shared/wizard-announcer.service';
@@ -79,6 +80,9 @@ function seedReview(service: PreprocessingService, updates: Partial<Preprocessin
   };
   setState(service, {
     rawFileName: 'test.csv',
+    uploadKey: 'test.csv',
+    datasetName: 'test',
+    timestamp: '20261115',
     dataProfile: profile,
     columnConfigs: new Map(names.map(name => [name, makeConfig(name, name === 'x')])),
     glyphFeatures: [...names],
@@ -213,6 +217,7 @@ describe('Step6ReviewProcessingComponent – processing run', () => {
   let service: PreprocessingService;
   let announcer: WizardAnnouncer;
   let progress$: Subject<ProcessingProgress>;
+  let processWithConfig: Mock;
   let runFastMapSync: Mock<ProjectionService['runFastMapSync']>;
   let terminateAllWorkers: Mock;
   let clearBackgroundStatuses: Mock;
@@ -222,12 +227,7 @@ describe('Step6ReviewProcessingComponent – processing run', () => {
   function dataProcessor(): object {
     return {
       processingProgress: progress$.asObservable(),
-      processWithConfig: () => {
-        progress$.next({ step: 'Building dataset', progress: 86, message: 'Row 1000' });
-        progress$.next({ step: 'Building dataset', progress: 90, message: 'Row 2000' });
-        progress$.next({ step: 'Complete', progress: 100, message: 'Processing successful' });
-        return Promise.resolve({ datasets: { d: {} } });
-      },
+      processWithConfig,
       getProcessedFeatures: () => Promise.resolve('id,f\n1,0.5\n2,0.7\n'),
       pruneFiles: () => Promise.resolve(),
     };
@@ -236,6 +236,12 @@ describe('Step6ReviewProcessingComponent – processing run', () => {
   beforeEach(async () => {
     localStorage.clear();
     progress$ = new Subject<ProcessingProgress>();
+    processWithConfig = vi.fn().mockImplementation(() => {
+      progress$.next({ step: 'Building dataset', progress: 86, message: 'Row 1000' });
+      progress$.next({ step: 'Building dataset', progress: 90, message: 'Row 2000' });
+      progress$.next({ step: 'Complete', progress: 100, message: 'Processing successful' });
+      return Promise.resolve({ datasets: { d: {} } });
+    });
     service = createTestPreprocessingService(dataProcessor());
     seedReview(service, { projectionConfig: NO_BACKGROUND_METHODS });
     runFastMapSync = vi
@@ -247,12 +253,13 @@ describe('Step6ReviewProcessingComponent – processing run', () => {
     runLLE = vi.fn();
     const projection = {
       backgroundStatusObservable: of(new Map()),
-      parseCSVFeatures: () => ({ features: [[0.5], [0.7]], ids: [1, 2] }),
+      parseCSVFeatures: () => ({ features: [[0.5], [0.7]], ids: ['1', '2'] }),
       runFastMapSync,
       terminateAllWorkers,
       clearBackgroundStatuses,
       detachAll,
       runLLE,
+      canRetry: () => false,
     };
     await TestBed.configureTestingModule({
       imports: [Step6ReviewProcessingComponent],
@@ -265,6 +272,8 @@ describe('Step6ReviewProcessingComponent – processing run', () => {
     }).compileComponents();
     announcer = TestBed.inject(WizardAnnouncer);
     vi.spyOn(announcer, 'announce').mockImplementation(() => undefined);
+    // Skip the minimum loading-screen time; it only exists so sighted users notice a fast run.
+    TestBed.inject(ProcessingRunService).minimumRunMs = 0;
   });
 
   afterEach(() => localStorage.clear());
@@ -272,14 +281,16 @@ describe('Step6ReviewProcessingComponent – processing run', () => {
   function create(): ComponentFixture<Step6ReviewProcessingComponent> {
     const fixture = TestBed.createComponent(Step6ReviewProcessingComponent);
     fixture.detectChanges();
-    // Skip the minimum loading-screen time; it only exists so sighted users notice a fast run.
-    (fixture.componentInstance as unknown as { MIN_LOADING_MS: number }).MIN_LOADING_MS = 0;
     return fixture;
   }
 
   function failFastMap(): void {
     runFastMapSync.mockRejectedValue(new Error('FastMap failed: boom'));
-    vi.spyOn(console, 'error').mockImplementation(() => undefined); // the component logs the failure
+    vi.spyOn(console, 'error').mockImplementation(() => undefined); // the run logs the failure
+  }
+
+  function buttonByText(el: HTMLElement, text: string): HTMLButtonElement | undefined {
+    return Array.from(el.querySelectorAll<HTMLButtonElement>('button')).find(b => b.textContent?.includes(text));
   }
 
   it('keeps the service processing, so undo is blocked, until FastMap has finished', async () => {
@@ -300,18 +311,19 @@ describe('Step6ReviewProcessingComponent – processing run', () => {
     expect(service.canUndo).toBe(true);
   });
 
-  it('lets background projections of an earlier dataset finish, detached, on a fresh run', async () => {
+  it('leaves projections of a dataset opened earlier alone on a first run', async () => {
     await create().componentInstance.startProcessing();
 
-    expect(detachAll).toHaveBeenCalled();
     expect(terminateAllWorkers).not.toHaveBeenCalled();
-    expect(clearBackgroundStatuses).not.toHaveBeenCalled();
+    expect(detachAll).not.toHaveBeenCalled();
   });
 
   it('stops and forgets the outdated background projections when reprocessing', async () => {
-    setState(service, { processedDataset: { datasets: { d: {} } } as unknown as DatasetCollection });
+    const component = create().componentInstance;
+    await component.startProcessing();
+    runFastMapSync.mockClear();
 
-    await create().componentInstance.startProcessing();
+    await component.startProcessing();
 
     expect(terminateAllWorkers).toHaveBeenCalled();
     expect(clearBackgroundStatuses).toHaveBeenCalledBefore(runFastMapSync);
@@ -346,7 +358,7 @@ describe('Step6ReviewProcessingComponent – processing run', () => {
       'Building dataset.',
       'Loading features for projections.',
       'Computing FastMap projection.',
-      'Loading dataset with FastMap.',
+      'Preparing the dataset.',
       'Processing complete. Your visualization is ready to open in Glyphspace.',
     ]);
   });
@@ -383,6 +395,46 @@ describe('Step6ReviewProcessingComponent – processing run', () => {
     expect(bar?.getAttribute('aria-valuenow')).toBe('45');
     expect(bar?.getAttribute('aria-valuetext')).toBe('45% – Encoding features');
   });
+
+  it('shows the running run again when the step is reopened, and no second Start', async () => {
+    let finishPython: (value: unknown) => void = () => undefined;
+    processWithConfig.mockReturnValue(new Promise(resolve => (finishPython = resolve)));
+    const first = create();
+    const run = first.componentInstance.startProcessing();
+    first.destroy();
+
+    const reopened = create();
+    const el = reopened.nativeElement as HTMLElement;
+    expect(reopened.componentInstance.isProcessing).toBe(true);
+    expect(buttonByText(el, 'Start Processing')).toBeUndefined();
+
+    finishPython({ datasets: { d: {} } });
+    await run;
+    reopened.detectChanges();
+    expect(reopened.componentInstance.processingComplete).toBe(true);
+    expect(buttonByText(el, 'Open in Glyphspace')).toBeDefined();
+    expect(processWithConfig).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows the review again, without the old result, after a setting changed', async () => {
+    const fixture = create();
+    await fixture.componentInstance.startProcessing();
+    expect(fixture.componentInstance.processingComplete).toBe(true);
+
+    service.updateColumnConfig('y', { includeInProjection: false });
+
+    expect(fixture.componentInstance.showProcessing).toBe(false);
+    expect(service.currentState.processedDataset).toBeNull();
+  });
+
+  it('offers no Start Processing while a setting makes processing impossible', () => {
+    seedReview(service, { projectionConfig: NO_BACKGROUND_METHODS, uploadMissing: true });
+    const fixture = create();
+    const el = fixture.nativeElement as HTMLElement;
+
+    expect(buttonByText(el, 'Start Processing')?.disabled).toBe(true);
+    expect(el.querySelector('#step6-start-blockers')?.textContent).toContain('uploaded again');
+  });
 });
 
 /**
@@ -417,7 +469,12 @@ describe('Step6ReviewProcessingComponent – cancel and retry background project
 
   beforeEach(async () => {
     localStorage.clear();
-    service = createTestPreprocessingService({ pruneFiles: () => Promise.resolve() });
+    service = createTestPreprocessingService({
+      pruneFiles: () => Promise.resolve(),
+      processingProgress: new Subject<ProcessingProgress>().asObservable(),
+      processWithConfig: () => Promise.resolve({ datasets: { d: {} } }),
+      getProcessedFeatures: () => Promise.resolve('id,f\n1,0.5\n'),
+    });
     seedReview(service, {
       projectionConfig: {
         ...NO_BACKGROUND_METHODS,
@@ -426,22 +483,49 @@ describe('Step6ReviewProcessingComponent – cancel and retry background project
         enableTSNE: true,
         enableUMAP: true,
       },
-      processedDataset: { datasets: { d: {} } } as unknown as DatasetCollection,
     });
     statuses = new BehaviorSubject(new Map<string, BackgroundStatus>());
     retryable = new Set(['tsne', 'mds']);
+    const pending = (): Promise<ProjectionResult> => new Promise<ProjectionResult>(() => undefined);
     projection = createSpyObj<ProjectionService>(
       'ProjectionService',
-      ['cancel', 'terminateAllWorkers', 'canRetry', 'retry', 'detachAll'],
+      [
+        'cancel',
+        'terminateAllWorkers',
+        'clearBackgroundStatuses',
+        'canRetry',
+        'retry',
+        'detachAll',
+        'parseCSVFeatures',
+        'runFastMapSync',
+        'runPCABackground',
+        'runMDS',
+        'runTSNE',
+        'runUMAP',
+      ],
       { backgroundStatusObservable: statuses.asObservable() }
     );
     projection.canRetry.mockImplementation(method => retryable.has(method));
+    projection.terminateAllWorkers.mockReturnValue([]);
+    projection.parseCSVFeatures.mockReturnValue({ features: [[0.5]], ids: ['1'] });
+    projection.runFastMapSync.mockResolvedValue({
+      method: 'fastmap',
+      positions: [{ id: '1', x: 0, y: 0 }],
+      computeTime: 2,
+    });
+    projection.runPCABackground.mockImplementation(pending);
+    projection.runMDS.mockImplementation(pending);
+    projection.runTSNE.mockImplementation(pending);
+    projection.runUMAP.mockImplementation(pending);
     toast = createToastServiceSpy();
     dataLoader = createSpyObj<DataLoaderService>('DataLoaderService', [
+      'getDataSetNames',
       'addProcessedDatasetToCollection',
       'loadProcessedDataset',
       'saveDatasetToStorage',
     ]);
+    dataLoader.getDataSetNames.mockReturnValue([]);
+    dataLoader.saveDatasetToStorage.mockResolvedValue(undefined);
     await TestBed.configureTestingModule({
       imports: [Step6ReviewProcessingComponent],
       providers: [
@@ -449,10 +533,14 @@ describe('Step6ReviewProcessingComponent – cancel and retry background project
         { provide: DataLoaderService, useValue: dataLoader },
         { provide: ProjectionService, useValue: projection },
         { provide: ToastService, useValue: toast },
+        { provide: ThumbnailService, useValue: { detachArchive: () => Promise.resolve() } },
       ],
     }).compileComponents();
     announcer = TestBed.inject(WizardAnnouncer);
     vi.spyOn(announcer, 'announce').mockImplementation(() => undefined);
+    const runs = TestBed.inject(ProcessingRunService);
+    runs.minimumRunMs = 0;
+    await runs.start();
   });
 
   afterEach(() => localStorage.clear());
@@ -530,7 +618,7 @@ describe('Step6ReviewProcessingComponent – cancel and retry background project
     expect(document.activeElement?.id).toBe('step6-background-heading');
   });
 
-  it('retries only that method and adds its result to the dataset', async () => {
+  it('retries only that method and adds its result to the processed dataset', async () => {
     const { el } = render();
     const result: ProjectionResult = { method: 'tsne', positions: [{ id: '1', x: 1, y: 2 }], computeTime: 1500 };
     projection.retry.mockImplementation(method => {
@@ -545,7 +633,10 @@ describe('Step6ReviewProcessingComponent – cancel and retry background project
     expect(projection.retry).toHaveBeenCalledExactlyOnceWith('tsne');
     expect(announcer.announce).toHaveBeenCalledWith('Retrying t-SNE.');
     expect(document.activeElement?.getAttribute('aria-label')).toBe('Cancel t-SNE');
-    expect(dataLoader.loadProcessedDataset).toHaveBeenCalled();
+    const dataset = service.currentState.processedDataset?.datasets?.['d'];
+    expect(dataset?.positions?.['tsne']).toEqual([{ id: '1', position: { x: 1, y: 2 } }]);
+    // The dashboard gets the dataset only through "Open in Glyphspace".
+    expect(dataLoader.loadProcessedDataset).not.toHaveBeenCalled();
     expect(toast.success).toHaveBeenCalledWith('t-SNE projection ready! (1.5s)', 4000);
   });
 
@@ -559,11 +650,16 @@ describe('Step6ReviewProcessingComponent – cancel and retry background project
     expect(toast.error).not.toHaveBeenCalled();
   });
 
-  it('detaches the running projections when the dataset is handed to the dashboard', () => {
+  it('hands the dataset to the dashboard and detaches the running projections', () => {
     const { fixture } = render();
+    const finished = vi.spyOn(fixture.componentInstance.wizardFinish, 'emit');
 
     fixture.componentInstance.goToDashboard();
 
+    expect(dataLoader.loadProcessedDataset).toHaveBeenCalledWith(expect.anything(), 'test', expect.any(String));
+    expect(dataLoader.saveDatasetToStorage).toHaveBeenCalled();
     expect(projection.detachAll).toHaveBeenCalled();
+    expect(finished).toHaveBeenCalled();
+    expect(service.currentState.dataProfile).toBeNull();
   });
 });

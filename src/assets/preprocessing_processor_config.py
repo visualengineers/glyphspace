@@ -685,6 +685,33 @@ def _original_text(value) -> str:
     return str(value) if pd.notna(value) else MISSING_VALUE_TEXT
 
 
+def _glyph_feature_ids(chosen: list, feature_names: list) -> list[str]:
+    """The schema ids ('1', '2', ...) of the glyph features chosen in the wizard.
+
+    Without a choice the glyph shows the first five features. A choice is taken
+    as it is or rejected, never padded or cut: the wizard only sends 3 to 8
+    features it predicts, so anything else means the prediction and this
+    pipeline disagree, and a glyph with silently replaced axes would mislead.
+    The message names "glyph features", which the wizard classifies as K5.
+    """
+    if not chosen:
+        return [str(i + 1) for i in range(min(5, len(feature_names)))]
+    if not MIN_GLYPH_FEATURES <= len(chosen) <= MAX_GLYPH_FEATURES:
+        raise ValueError(
+            f"A glyph needs {MIN_GLYPH_FEATURES} to {MAX_GLYPH_FEATURES} glyph features, but {len(chosen)} were chosen. "
+            f"Choose the glyph features again in the glyph step."
+        )
+    unknown = [name for name in chosen if name not in feature_names]
+    if unknown:
+        listed = ", ".join(f"'{name}'" for name in unknown)
+        raise ValueError(
+            f"These glyph features are not in the processed data: {listed}. "
+            f"The current settings no longer produce them; choose the glyph features again in the glyph step."
+        )
+    # Schema ids are 1-based positions in feature_names.
+    return [str(feature_names.index(name) + 1) for name in chosen]
+
+
 def build_dataset_collection(df_original, df_processed, feature_names, feature_categories, projections, config,
                              df_encoded=None, feature_sources=None):
     """Build DatasetCollection format from processed data with optimized performance
@@ -813,30 +840,7 @@ def build_dataset_collection(df_original, df_processed, feature_names, feature_c
     # Build labels - simple mapping since label encoding is default (no one-hot explosion)
     improved_labels = {str(i + 1): col for i, col in enumerate(feature_names)}
 
-    # Build glyph feature mapping from user selection
-    user_glyph_features = config.get('glyphFeatures', [])
-    glyph_feature_ids = []
-
-    if user_glyph_features and MIN_GLYPH_FEATURES <= len(user_glyph_features) <= MAX_GLYPH_FEATURES:
-        # Map user-selected feature names to feature IDs
-        for feature_name in user_glyph_features:
-            try:
-                # Find index in feature_names array (0-indexed)
-                idx = feature_names.index(feature_name)
-                # Schema uses 1-indexed IDs
-                glyph_feature_ids.append(str(idx + 1))
-            except ValueError:
-                print(f'[WARNING] Glyph feature not found: {feature_name}')
-
-        # Only pad if we have fewer than the minimum
-        while len(glyph_feature_ids) < MIN_GLYPH_FEATURES:
-            glyph_feature_ids.append('1')  # Use first feature as fallback
-
-        # Ensure we don't exceed the maximum
-        glyph_feature_ids = glyph_feature_ids[:MAX_GLYPH_FEATURES]
-    else:
-        # Fallback: use first 5 features as default
-        glyph_feature_ids = [str(i + 1) for i in range(min(5, len(feature_names)))]
+    glyph_feature_ids = _glyph_feature_ids(config.get('glyphFeatures') or [], feature_names)
 
     # Build tooltip array
     user_tooltip_features = config.get('tooltipFeatures', None)

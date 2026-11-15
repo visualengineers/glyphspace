@@ -102,9 +102,15 @@ export class Step5GlyphColorSettingsComponent implements OnInit, WizardStep {
     this.updateAvailableFeatures();
     this.calculateSmartSuggestions();
     // Prefill: an empty (or too small) selection gets the recommended features.
-    // historyReady is still false, so this records no undo entry.
-    if (state.glyphFeatures.length >= MIN_GLYPH_FEATURES) {
-      this.selectedGlyphFeatures = [...state.glyphFeatures];
+    // Only features the current settings produce count (the service drops the
+    // others on every change; this also covers a selection restored from an
+    // older save). historyReady is still false, so this records no undo entry.
+    const stored = state.glyphFeatures.filter(feature => this.availableFeatures.includes(feature));
+    if (stored.length >= MIN_GLYPH_FEATURES) {
+      this.selectedGlyphFeatures = stored;
+      if (stored.length !== state.glyphFeatures.length) {
+        this.preprocessingService.setGlyphFeatures(stored);
+      }
       this.regeneratePreviewData();
     } else {
       this.applySuggestedFeatures();

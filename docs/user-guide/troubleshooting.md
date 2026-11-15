@@ -18,7 +18,7 @@ Each problem has a code (K1–K8):
 | K2 | No rows were left after cleaning | The missing-value, outlier or duplicate rules removed every row. | Loosen the cleaning rules in Step 3. |
 | K3 | A column has no usable values | A selected column is constant or almost entirely empty. | Deselect it in Step 2. |
 | K4 | A projection parameter is out of range | A neighbour count (IsoMap, LTSA or UMAP) is larger than the number of rows. | Lower the parameter or turn the method off in Step 4. |
-| K5 | The number of glyph features is out of range | A glyph needs 3 to 8 features. | Adjust the glyph features in Step 5. |
+| K5 | The glyph features do not fit the data | A glyph needs 3 to 8 features, and each must still exist: changing a column's encoding or use can remove one. | Choose the glyph features again in Step 5. |
 | K6 | Processing hit a time or resource limit | The dataset is too large for the time limit or the memory available in the browser. | Use fewer columns in Step 2, or fewer methods in Step 4. |
 | K7 | A column has too many distinct values to encode | A text column has nearly as many different values as rows (an ID, title, name or free text). Encoding it would create thousands of columns. | Set it to **Metadata** in Step 2, or set its encoding to **Label** in Step 3. |
 | K8 | A fill value does not match its column | The fill value for missing entries doesn't fit the column: a numeric column needs a number, a true/false column needs true or false. | Enter a fill value that fits the column, or pick another missing-value strategy in Step 3. |
