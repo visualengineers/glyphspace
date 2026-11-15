@@ -1,0 +1,17 @@
+# LF in the repository and in every working copy, whatever core.autocrlf says, so Prettier's
+# check (endOfLine "lf") passes on Windows too.
+* text=auto eol=lf
+
+# Binary files: never convert.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.zip binary
+*.whl binary
+*.wasm binary
+*.woff binary
+*.woff2 binary
+*.ttf binary

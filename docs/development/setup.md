@@ -6,7 +6,7 @@ _For contributors setting up GlyphSpace on their machine._
 
 | Tool | Version | Used for |
 |---|---|---|
-| Node.js | 26 (`.nvmrc`; `package.json` accepts `>=26.0.0`) | the app, its tests and tooling |
+| Node.js | 26 (`.nvmrc`; `package.json` accepts `>=26.0.0`, and `.npmrc` sets `engine-strict`, so npm refuses to install with an older Node) | the app, its tests and tooling |
 | npm | the one that ships with Node (11.20 with Node 26.13) | dependencies (`package-lock.json`); older npm versions can drop entries that newer ones require, so update the lock file with a current npm |
 | Python | 3.10 or newer, with `pandas`, `numpy`, `scikit-learn`, `umap-learn` and `pytest` | only for `tools/` (bundled datasets, Python tests) |
 
@@ -43,6 +43,10 @@ The app loads the bundled datasets from `src/assets/data/` on start. The wizard'
 | `python -B -m pytest -p no:cacheprovider tools/tests` | Python tests |
 
 Run the Python commands from the repository root. On Windows, `tools/process.py` imports `umap` before numpy, pandas and scikit-learn on purpose: otherwise llvmlite's DLL fails to load (WinError 1114).
+
+## Line endings
+
+`.gitattributes` keeps every text file LF, in the repository and in the working copy, whatever `core.autocrlf` is set to, so `npm run format:check` passes on Windows too. A working copy made before `.gitattributes` existed keeps its CRLF files until git rewrites them; on a clean working tree, `git rm -r -q --cached . && git reset -q --hard` rewrites them all at once.
 
 ## Git hooks
 
