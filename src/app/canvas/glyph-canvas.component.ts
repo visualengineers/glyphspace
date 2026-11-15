@@ -152,6 +152,8 @@ export class GlyphCanvasComponent implements AfterViewInit, OnDestroy, OnChanges
     });
 
     this.configSub.unsubscribe();
+    // The selection goes with its canvas: the other canvases no longer grey out what it left out.
+    if (this.filterService.removeFilter(this.selectionSvc.selectionFilter)) this.config.redraw();
 
     if (this.animationFrameId) cancelAnimationFrame(this.animationFrameId);
     this.rendererSvc.dispose();

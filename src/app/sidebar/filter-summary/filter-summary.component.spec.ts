@@ -6,6 +6,8 @@ import { CategoryFilter } from '../../shared/filter/category-filter';
 import { FeatureFilter } from '../../shared/filter/feature-filter';
 import { IdFilter } from '../../shared/filter/id-filter';
 import { TextFilter } from '../../shared/filter/text-filter';
+import { FilterMode } from '../../shared/enum/filter-mode';
+import { GlyphObject } from '../../glyph/glyph-object';
 
 describe('FilterSummaryComponent', () => {
   let fixture: ComponentFixture<FilterSummaryComponent>;
@@ -40,8 +42,7 @@ describe('FilterSummaryComponent', () => {
 
   it('lists search terms, feature filters and the selection with their count', () => {
     const range = new FeatureFilter('1');
-    range.minValue = 0.2;
-    range.maxValue = 0.6;
+    range.setBinRange(4, 11, 20);
     const text = new TextFilter(['merlot']);
     const selection = new IdFilter(['a', 'b']);
     [range, text, selection, new CategoryFilter('2')].forEach(f => filters.ensureFilter(f));
@@ -67,10 +68,38 @@ describe('FilterSummaryComponent', () => {
     expect(labels()).toEqual(['“rose”']);
   });
 
+  // Regression: removing one "N selected" entry sent clearSelection, which
+  // cleared the selection of every canvas without refreshing the filters and
+  // reset every histogram brush while its filter stayed active.
+  it('removes one canvas selection and keeps the others and every other filter', () => {
+    const glyphs = new Map(['a', 'b', 'c'].map(id => [id, new GlyphObject(id)]));
+    filters.setActiveGlyphData(glyphs);
+    const first = new IdFilter(['a']);
+    const second = new IdFilter(['b']);
+    const range = new FeatureFilter('1');
+    range.setBinRange(0, 3, 20);
+    [first, second].forEach(selection => (selection.filterMode = FilterMode.Or));
+    [first, second, range].forEach(f => filters.ensureFilter(f));
+    const clearSelection = vi.spyOn(config, 'clearSelection');
+    const redraw = vi.spyOn(config, 'redraw');
+    fixture.detectChanges();
+    open();
+
+    el.querySelector<HTMLButtonElement>('.remove')?.click();
+    fixture.detectChanges();
+
+    expect(first.empty()).toBe(true);
+    expect(second.acceptableIds).toEqual(['b']);
+    expect(range.empty()).toBe(false);
+    expect(clearSelection).not.toHaveBeenCalled();
+    expect(redraw).toHaveBeenCalled();
+    expect(labels()).toEqual(['1 selected', 'alcohol']);
+  });
+
   it('clears all filters, including their state', () => {
     const text = new TextFilter(['merlot']);
     filters.ensureFilter(text);
-    const clearSelection = vi.spyOn(config, 'clearSelection');
+    const redraw = vi.spyOn(config, 'redraw');
     fixture.detectChanges();
     open();
 
@@ -79,7 +108,7 @@ describe('FilterSummaryComponent', () => {
 
     expect(text.empty()).toBe(true);
     expect(filters.getFilters()).toEqual([]);
-    expect(clearSelection).toHaveBeenCalled();
+    expect(redraw).toHaveBeenCalled();
     expect(el.querySelector('.popover')).toBeNull();
   });
 
