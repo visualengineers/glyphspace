@@ -27,8 +27,8 @@ GlyphSpace has no version numbers yet, so releases are named by the date they re
 - Zooming from dots to glyphs no longer stalls the page as long: a flower glyph is drawn as one shape and one outline instead of one per petal, and the flower outline only at the highest zoom level, where it is visible ([#94](https://github.com/visualengineers/glyphspace/pull/94)).
 - The **Thumbnails** glyph type is now called **Image** ([#90](https://github.com/visualengineers/glyphspace/pull/90)).
 - The glyph type buttons show a small star, flower or picture next to their name. **Image** is off for a dataset without item images, and such a dataset opens with **Star** instead of grey placeholders ([#96](https://github.com/visualengineers/glyphspace/pull/96)).
-- Pointer handling and drawing of the canvases run outside Angular's change detection, which makes hovering and panning cheaper with several canvases.
-- The icon buttons on the canvases have accessible names for screen readers.
+- Pointer handling and drawing of the canvases run outside Angular's change detection, which makes hovering and panning cheaper with several canvases ([#104](https://github.com/visualengineers/glyphspace/pull/104)).
+- The icon buttons on the canvases have accessible names for screen readers ([#104](https://github.com/visualengineers/glyphspace/pull/104)).
 
 ### Removed
 
@@ -53,18 +53,18 @@ GlyphSpace has no version numbers yet, so releases are named by the date they re
 - Step 1's file requirements no longer promise that `-x`/`-y` and latitude/longitude columns become positions; only the command-line tool uses them ([#92](https://github.com/visualengineers/glyphspace/pull/92)).
 - The help on background projections points to the canvas's position settings (**Pos**) instead of controls that don't exist ([#92](https://github.com/visualengineers/glyphspace/pull/92)).
 - Histograms in the hidden sidebar tab no longer cause invalid SVG errors in the console ([#94](https://github.com/visualengineers/glyphspace/pull/94)).
-- The canvases free the graphics memory of the glyphs they redraw; before, it grew with every zoom-level change, filter and hover until the browser lost the WebGL context.
-- Canvases hidden while another one is maximised are no longer blank after **Fit all**, loading a dataset or an import.
-- Items of the other canvases no longer stay scattered after the magic lens closes, and the lens no longer resets collision avoidance there.
-- A quick pan no longer pins a tooltip. A pinned tooltip scrolls with the mouse wheel, and clicks on it stay on it.
-- Pinch zoom no longer redraws every glyph on each finger movement.
-- Aggregation follows a projection switch, and every cluster keeps its ring.
-- Items that move into view without the camera moving (projection switch, collision avoidance) are drawn.
-- Collision avoidance applies to the new layout after a fit or a projection switch.
-- The item hovered in another canvas keeps pulsing when the hover moves from one item to the next.
-- Image glyphs are as large as their placeholder and no longer flicker when drawn small.
-- A dataset whose items all share a value on one axis is spread along the other instead of collapsing to a point.
-- `-` removes the last canvas and leaves the others as they are; removing the maximised canvas shows the others again.
+- The canvases free the graphics memory of the glyphs they redraw; before, it grew with every zoom-level change, filter and hover until the browser lost the WebGL context ([#104](https://github.com/visualengineers/glyphspace/pull/104)).
+- Canvases hidden while another one is maximised are no longer blank after **Fit all**, loading a dataset or an import ([#104](https://github.com/visualengineers/glyphspace/pull/104)).
+- Items of the other canvases no longer stay scattered after the magic lens closes, and the lens no longer resets collision avoidance there ([#104](https://github.com/visualengineers/glyphspace/pull/104)).
+- A quick pan no longer pins a tooltip. A pinned tooltip scrolls with the mouse wheel, and clicks on it stay on it ([#104](https://github.com/visualengineers/glyphspace/pull/104)).
+- Pinch zoom no longer redraws every glyph on each finger movement ([#104](https://github.com/visualengineers/glyphspace/pull/104)).
+- Aggregation follows a projection switch, and every cluster keeps its ring ([#104](https://github.com/visualengineers/glyphspace/pull/104)).
+- Items that move into view without the camera moving (projection switch, collision avoidance) are drawn ([#104](https://github.com/visualengineers/glyphspace/pull/104)).
+- Collision avoidance applies to the new layout after a fit or a projection switch ([#104](https://github.com/visualengineers/glyphspace/pull/104)).
+- The item hovered in another canvas keeps pulsing when the hover moves from one item to the next ([#104](https://github.com/visualengineers/glyphspace/pull/104)).
+- Image glyphs are as large as their placeholder and no longer flicker when drawn small ([#104](https://github.com/visualengineers/glyphspace/pull/104)).
+- A dataset whose items all share a value on one axis is spread along the other instead of collapsing to a point ([#104](https://github.com/visualengineers/glyphspace/pull/104)).
+- `-` removes the last canvas and leaves the others as they are; removing the maximised canvas shows the others again ([#104](https://github.com/visualengineers/glyphspace/pull/104)).
 
 ### Security
 
