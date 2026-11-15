@@ -94,6 +94,12 @@ export class GlyphObject {
     return axes.map(axis => axisLength(+values[axis] || 0, featureMaxValues[axis], linearScale));
   }
 
+  /**
+   * Build the item's mesh for canvas `owner` and record it as the canvas's mesh
+   * of the item; null (nothing drawn) when aggregation leaves the item out. The
+   * caller takes the previous mesh out of the scene and disposes it first
+   * (CanvasRendererService).
+   */
   public render(
     sizeInfo: GlyphSizeInfo,
     timestamp: string,
@@ -103,8 +109,7 @@ export class GlyphObject {
     renderConfig: GlyphRenderConfig
   ): THREE.Object3D | null {
     const mesh = this.renderGlyph(sizeInfo, timestamp, algorithm, owner, clustered, renderConfig);
-    const cacheObject = this.getCacheObject(owner, timestamp, algorithm);
-    if (mesh) cacheObject.mesh = mesh;
+    this.getCacheObject(owner, timestamp, algorithm).mesh = mesh ?? undefined;
     return mesh;
   }
 
@@ -117,12 +122,11 @@ export class GlyphObject {
     renderConfig: GlyphRenderConfig
   ): THREE.Object3D | null {
     const cacheObject = this.getCacheObject(owner, timestamp, algorithm);
-    const cachedMesh = cacheObject.mesh;
 
     let mesh: THREE.Object3D;
 
     if (sizeInfo.currentZoomLevel === ZoomLevel.low) {
-      if (clustered && cacheObject.isClustered && !cacheObject.isClusterRepresentative) {
+      if (cacheObject.isAggregatedAway(clustered, sizeInfo.currentZoomLevel)) {
         return null; // Omit this glyph entirely
       }
 
@@ -161,10 +165,11 @@ export class GlyphObject {
       }
     }
 
-    const x = cachedMesh ? cachedMesh.position.x : (cacheObject.x ?? 0);
-    const y = cachedMesh ? cachedMesh.position.y : (cacheObject.y ?? 0);
-    mesh.position.set(x, y, 0);
-    mesh.userData = { item: new WeakRef(this) };
+    // Where the item is drawn now, not where an earlier mesh happened to be:
+    // the magic lens of another canvas moves enlarged meshes aside.
+    mesh.position.set(cacheObject.display.x, cacheObject.display.y, 0);
+    // Keep what the renderer stored (e.g. dispose callbacks).
+    mesh.userData['item'] = new WeakRef(this);
     mesh.renderOrder = this.passive ? 1 : 99;
 
     return mesh;

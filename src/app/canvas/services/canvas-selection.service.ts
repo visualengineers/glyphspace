@@ -7,6 +7,10 @@ import { FilterMode } from '../../shared/enum/filter-mode';
 import { FilterService } from '../../services/filter.service';
 import { ConfigService } from '../../services/config.service';
 import { convertToScreenSpace } from '../../shared/helpers/three-helper';
+import { getGlyphFromObject } from '../../shared/helpers/glyph-helper';
+
+/** Overlays drawn over the canvas: pointer input on them is theirs, not the canvas's. */
+const OVERLAY_SELECTOR = '.settings-panel, .tooltip, .nav-controls-panel';
 
 @Injectable()
 export class CanvasSelectionService {
@@ -37,14 +41,14 @@ export class CanvasSelectionService {
     this.selectionBox = { left: x, top: y, width: w, height: h };
   }
 
+  /**
+   * Select the items drawn inside the selection rectangle (screen positions),
+   * replacing the selection unless Shift is held.
+   */
   selectObjectsInRectangle(
     glyphGroup: THREE.Group,
     camera: THREE.OrthographicCamera,
-    rendererElement: HTMLCanvasElement,
-    glyphData: GlyphObject[],
-    canvasId: number,
-    selectedTimestamp: string,
-    selectedAlgorithm: string
+    rendererElement: HTMLCanvasElement
   ): void {
     this.selectionBox = { left: 0, top: 0, width: 0, height: 0 };
 
@@ -53,43 +57,28 @@ export class CanvasSelectionService {
     const x2 = Math.max(this.selectionStart.x, this.selectionEnd.x);
     const y2 = Math.max(this.selectionStart.y, this.selectionEnd.y);
 
-    const contained: THREE.Object3D[] = [];
-    glyphGroup.children.forEach(obj => {
-      const screen = convertToScreenSpace(obj, camera, rendererElement);
+    const rect = rendererElement.getBoundingClientRect();
+    const screen = new THREE.Vector2();
+    const contained: GlyphObject[] = [];
+    for (const obj of glyphGroup.children) {
+      convertToScreenSpace(obj, camera, rect, screen);
       if (screen.x >= x1 && screen.x <= x2 && screen.y >= y1 && screen.y <= y2) {
-        contained.push(obj);
+        const glyph = getGlyphFromObject(obj);
+        if (glyph) contained.push(glyph);
       }
-    });
+    }
 
-    this.highlightSelectedObjects(
-      contained,
-      glyphData,
-      canvasId,
-      selectedTimestamp,
-      selectedAlgorithm,
-      !this.isShiftDown
-    );
+    this.selectGlyphs(contained, !this.isShiftDown);
   }
 
-  highlightSelectedObjects(
-    selectedObjects: THREE.Object3D[],
-    glyphData: GlyphObject[],
-    canvasId: number,
-    selectedTimestamp: string,
-    selectedAlgorithm: string,
-    replace = false
-  ): void {
-    if (selectedObjects.length === 0) {
+  /** Add the items to the selection (replacing it if `replace`); no items clears all selections. */
+  selectGlyphs(glyphs: readonly GlyphObject[], replace = false): void {
+    if (glyphs.length === 0) {
       this.filterService.clearIdFilters();
     } else {
       if (replace) this.filterService.clearIdFilters();
-      for (const glyph of glyphData) {
-        const cache = glyph.getCacheObject(canvasId, selectedTimestamp, selectedAlgorithm);
-        const obj = cache.mesh;
-        if (obj && selectedObjects.includes(obj)) {
-          (this.selectionFilter as IdFilter).add(glyph.id);
-        }
-      }
+      const filter = this.selectionFilter as IdFilter;
+      for (const glyph of glyphs) filter.add(glyph.id);
     }
     this.applyFilters();
   }
@@ -101,12 +90,9 @@ export class CanvasSelectionService {
     this.config.redraw();
   }
 
-  isMouseOverOverlay(event: MouseEvent): boolean {
-    const el = document.elementFromPoint(event.clientX, event.clientY);
-    return (
-      el?.closest('.settings-panel') !== null ||
-      el?.closest('.tooltip-popup') !== null ||
-      el?.closest('.nav-controls-panel') !== null
-    );
+  /** Whether the event happened on an overlay of the canvas (settings, tooltip, navigation). */
+  isMouseOverOverlay(event: Event): boolean {
+    const target = event.target;
+    return target instanceof Element && target.closest(OVERLAY_SELECTOR) !== null;
   }
 }

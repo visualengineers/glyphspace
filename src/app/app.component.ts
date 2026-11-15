@@ -40,17 +40,7 @@ export class AppComponent implements OnInit {
     this.recalculateGrid();
     this.updateGrid();
 
-    this.config.removeCanvasSubject$.subscribe(change => {
-      if (this.totalCells > 1) {
-        this.totalCells--;
-
-        const canvas = this.grid.find(c => c.id === change);
-        if (canvas) {
-          this.grid.splice(this.grid.indexOf(canvas), 1);
-          this.recalculateGrid();
-        }
-      }
-    });
+    this.config.removeCanvasSubject$.subscribe(id => this.removeCanvasById(id));
   }
 
   getNextFreeId(grid: GlyphCanvasItem[]): number {
@@ -108,12 +98,21 @@ export class AppComponent implements OnInit {
     }
   }
 
+  /** Remove the last canvas (`-`). The others keep their ids, and with them their state. */
   removeCanvas() {
-    if (this.totalCells > 1) {
-      this.totalCells--;
-      this.recalculateGrid();
-      this.updateGrid();
-    }
+    const last = this.grid.at(-1);
+    if (last) this.removeCanvasById(last.id);
+  }
+
+  /** Remove one canvas; there is always at least one. Removing the maximised one shows the others again. */
+  removeCanvasById(id: number) {
+    if (this.grid.length <= 1) return;
+    const index = this.grid.findIndex(c => c.id === id);
+    if (index < 0) return;
+    this.grid.splice(index, 1);
+    this.totalCells = this.grid.length;
+    if (this.maximizedId === id) this.maximizedId = null;
+    this.recalculateGrid();
   }
 
   toggleMaximize(id: number) {

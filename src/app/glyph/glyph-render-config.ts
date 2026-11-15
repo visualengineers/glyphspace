@@ -29,13 +29,20 @@ export interface GlyphRenderConfig {
   activeFeatures: string[];
   loadedData: string;
   thumbnailResolver?: ThumbnailResolver;
+  /** Draws a frame after something changed a mesh later on, e.g. an image arrived. */
   onReRender?: () => void;
 }
 
 /**
  * Build a GlyphRenderConfig snapshot from the current ConfigService state.
+ * `onReRender` draws the view the meshes are in (a canvas, the magic lens);
+ * without it every canvas draws a frame (`ConfigService.reRender`).
  */
-export function buildGlyphRenderConfig(config: ConfigService, thumbnails?: ThumbnailResolver): GlyphRenderConfig {
+export function buildGlyphRenderConfig(
+  config: ConfigService,
+  thumbnails?: ThumbnailResolver,
+  onReRender: () => void = () => config.reRender()
+): GlyphRenderConfig {
   const glyphConfig = config.getConfiguration();
   return {
     colorFeature: config.colorFeature,
@@ -51,6 +58,6 @@ export function buildGlyphRenderConfig(config: ConfigService, thumbnails?: Thumb
     activeFeatures: config.activeFeatures,
     loadedData: config.loadedData,
     thumbnailResolver: thumbnails,
-    onReRender: () => config.reRender(),
+    onReRender,
   };
 }
