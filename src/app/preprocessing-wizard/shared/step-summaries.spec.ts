@@ -2,7 +2,6 @@ import { stepSummaries } from './step-summaries';
 import { PreprocessingState, DEFAULT_CLEANING_CONFIG, DEFAULT_PROJECTION_CONFIG } from '../models/preprocessing-state';
 import { ColumnConfig, ProjectionConfig } from '../models/column-config';
 import { DataProfile } from '../models/column-statistics';
-import { DatasetCollection } from '../../shared/interfaces/dataset-collection';
 import {
   ColumnRole,
   DataType,
@@ -42,7 +41,9 @@ describe('stepSummaries', () => {
   function state(overrides: Partial<PreprocessingState> = {}): PreprocessingState {
     return {
       currentStep: 0,
+      furthestStep: 0,
       rawFileName: null,
+      uploadKey: null,
       dataProfile: null,
       uploadMissing: false,
       thumbnailArchiveName: null,
@@ -58,8 +59,6 @@ describe('stepSummaries', () => {
       colorScaleMode: 'continuous',
       colorScaleId: 0,
       isProcessing: false,
-      processingProgress: 0,
-      processingStep: '',
       error: null,
       ...overrides,
     };
@@ -157,6 +156,6 @@ describe('stepSummaries', () => {
   });
 
   it('reports the review step as processed once a dataset exists', () => {
-    expect(stepSummaries(state({ processedDataset: [] as DatasetCollection })).review).toBe('Processed');
+    expect(stepSummaries(state({ processedDataset: { datasets: {} } })).review).toBe('Processed');
   });
 });

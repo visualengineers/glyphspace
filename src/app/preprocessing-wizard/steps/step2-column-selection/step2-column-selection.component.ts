@@ -25,24 +25,14 @@ import { HELP_TEXT } from '../../shared/constants/help-text';
 import { getStepInfo } from '../../shared/constants/step-info';
 import { DataTypeBadgeComponent } from '../../shared/data-type-badge/data-type-badge.component';
 import { WizardStep, WIZARD_STEP } from '../../shared/wizard-step';
+import { isTextField } from '../../shared/text-field';
 
-/** Input types that take no typed text, so "/" is free for the search shortcut there. */
-const NON_TEXT_INPUT_TYPES: ReadonlySet<string> = new Set([
-  'checkbox',
-  'radio',
-  'button',
-  'submit',
-  'reset',
-  'range',
-  'color',
-  'file',
-]);
-
-/** Whether a key typed on `target` is text entry (the "/" shortcut must not steal it). */
+/**
+ * Whether a key typed on `target` is text entry (the "/" shortcut must not
+ * steal it). A select takes typed characters too: they pick an option.
+ */
 function isTextEntry(target: EventTarget | null): boolean {
-  if (target instanceof HTMLInputElement) return !NON_TEXT_INPUT_TYPES.has(target.type);
-  if (target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) return true;
-  return target instanceof HTMLElement && target.isContentEditable;
+  return isTextField(target) || target instanceof HTMLSelectElement;
 }
 
 @Component({

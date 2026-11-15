@@ -364,6 +364,7 @@
                           missingConsequence(selectedColumn) ? 'step3-missing-consequence' : null
                         "
                         [(ngModel)]="selectedColumn.config.missingValueFillValue"
+                        [ngModelOptions]="{ updateOn: 'blur' }"
                         (ngModelChange)="onMissingValueFillChange(selectedColumn.column.name, $event || '')"
                         placeholder="Enter fill value..."
                       />

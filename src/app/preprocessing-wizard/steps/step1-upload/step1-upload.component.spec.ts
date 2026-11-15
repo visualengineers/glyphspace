@@ -144,7 +144,7 @@ describe('Step1UploadComponent', () => {
 
   it('shows an error when the sample cannot be downloaded', async () => {
     vi.spyOn(window, 'fetch').mockResolvedValue(csvResponse(404));
-    const loadCSV = vi.spyOn(service, 'loadCSV').mockResolvedValue(PROFILE);
+    const loadCSV = vi.spyOn(service, 'loadCSV').mockResolvedValue({ profile: PROFILE, historyId: null });
 
     query<HTMLButtonElement>('.btn-sample').click();
     await settle();

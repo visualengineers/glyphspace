@@ -20,9 +20,11 @@ import { PreprocessingService, UndoRedoInfo } from './services/preprocessing.ser
 import { HistoryStatus } from './models/preprocessing-state';
 import { ProgressStepperComponent, Step } from './shared/progress-stepper/progress-stepper.component';
 import { WIZARD_STEP, WizardStep } from './shared/wizard-step';
-import { WIZARD_STEPS, WizardStepId, getStepInfo, stepIdAt, stepIndex } from './shared/constants/step-info';
+import { WIZARD_STEPS, WizardStepId, getStepInfo, stepIdAt } from './shared/constants/step-info';
 import { WizardAnnouncer } from './shared/wizard-announcer.service';
 import { stepSummaries } from './shared/step-summaries';
+import { isStepCompleted, isStepReachable } from './shared/step-validity';
+import { isTextField } from './shared/text-field';
 import { focusAnchor, wrapTabFocus } from './shared/dialog-focus';
 import { Step1UploadComponent } from './steps/step1-upload/step1-upload.component';
 import { Step2ColumnSelectionComponent } from './steps/step2-column-selection/step2-column-selection.component';
@@ -113,7 +115,6 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
   private popupOpenAtEscape = false;
 
   currentStep = 0; // index into WIZARD_STEPS; use currentStepId for lookups
-  highestStepVisited = 0; // Track highest step to enable forward navigation
   isProcessing = false;
 
   // A14: When the user prefers reduced motion, the step 2 -> 3 morph is
@@ -164,12 +165,7 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
         this.currentStep = state.currentStep;
         this.isProcessing = state.isProcessing;
 
-        // Track highest step visited for navigation
-        if (state.currentStep > this.highestStepVisited) {
-          this.highestStepVisited = state.currentStep;
-        }
-
-        // Update step completion and summaries based on state
+        // Update step completion, reachability and summaries based on state
         this.updateStepCompletion(state);
       })
     );
@@ -406,8 +402,9 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
 
   /**
    * Ctrl+Z = undo, Ctrl+Shift+Z (or Ctrl+Y) = redo. When focus is inside a text
-   * input/textarea/contenteditable we do nothing and let the browser's native
-   * field-level undo run instead. Ignored while processing.
+   * field (text input, textarea, contenteditable) we do nothing and let the
+   * browser's native field-level undo run instead; on a checkbox, radio, slider
+   * or select the wizard's undo runs, as they have none. Ignored while processing.
    */
   private onHistoryShortcut(event: KeyboardEvent): void {
     const ctrl = event.ctrlKey || event.metaKey;
@@ -418,7 +415,7 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
     const isRedo = (key === 'z' && event.shiftKey) || key === 'y';
     if (!isUndo && !isRedo) return;
 
-    if (this.isEditableTarget(event.target) || this.isProcessing) return;
+    if (isTextField(event.target) || this.isProcessing) return;
 
     event.preventDefault();
     if (isRedo) {
@@ -426,13 +423,6 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
     } else {
       this.undo();
     }
-  }
-
-  private isEditableTarget(target: EventTarget | null): boolean {
-    const el = target as HTMLElement | null;
-    if (!el) return false;
-    const tag = el.tagName;
-    return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable;
   }
 
   private reloadCurrentStep(): void {
@@ -604,37 +594,25 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
     this.morphAnimations = [];
   }
 
+  /**
+   * Completion and reachability come from the settings (shared/step-validity.ts):
+   * a step is completed once the user moved past it and its settings are valid,
+   * and a later step opens only when every step before it is valid.
+   */
   private updateStepCompletion(state: PreprocessingState): void {
     const summaries = stepSummaries(state);
     this.steps = WIZARD_STEPS.map((info, index) => ({
       ...this.steps[index],
-      completed: this.isStepCompleted(info.id, state),
+      completed: isStepCompleted(info.id, state),
+      reachable: isStepReachable(state, index),
       summary: summaries[info.id],
     }));
-  }
-
-  /**
-   * A step counts as completed when its required data exists, or once the user
-   * has moved past it (highestStepVisited). Review completes with processing.
-   */
-  isStepCompleted(id: WizardStepId, state: PreprocessingState): boolean {
-    const visitedBeyond = this.highestStepVisited > stepIndex(id);
-    switch (id) {
-      case 'upload':
-        return state.dataProfile !== null;
-      case 'columns':
-        return state.columnConfigs.size > 0 && visitedBeyond;
-      case 'review':
-        return state.processedDataset !== null;
-      default:
-        return visitedBeyond;
-    }
   }
 
   /** The stepper reports a position; navigation itself goes by step id. */
   onStepClick(index: number): void {
     const id = stepIdAt(index);
-    if (id) {
+    if (id && isStepReachable(this.preprocessingService.currentState, index)) {
       this.preprocessingService.goToStep(id);
     }
   }
@@ -662,7 +640,8 @@ export class PreprocessingWizardComponent implements OnInit, OnDestroy {
   closeStartOver(confirmed: boolean): void {
     this.startOverDialog()?.nativeElement.close();
     if (confirmed) {
-      this.highestStepVisited = 0; // Reset navigation tracking
+      // Also ends a processing run: the run discards itself when its file and
+      // settings are gone, cancelling its background projections.
       this.preprocessingService.resetState();
     }
   }

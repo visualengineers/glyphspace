@@ -7,6 +7,12 @@ export interface Step {
   summary?: string;
   icon?: string;
   completed: boolean;
+  /**
+   * Whether the step can be opened from the stepper, decided by the owner from
+   * the settings (see shared/step-validity.ts). Without it, the stepper falls
+   * back to its own rule: completed steps and the step after the last one.
+   */
+  reachable?: boolean;
 }
 
 let nextStepperId = 0;
@@ -63,13 +69,17 @@ export class ProgressStepperComponent {
   }
 
   isStepClickable(index: number): boolean {
-    // Reachable steps are:
-    // 1. The current step and every step before it (go back at will)
-    // 2. Any step already completed
-    // 3. The step directly after the furthest completed step, so the next
+    // The current step and every step before it are always reachable (go back
+    // at will). A later one is reachable when the owner says so, or else:
+    // 1. Any step already completed
+    // 2. The step directly after the furthest completed step, so the next
     //    step to fill in stays reachable even after navigating backwards
     if (index <= this.currentStep) {
       return true;
+    }
+    const reachable = this.steps[index]?.reachable;
+    if (reachable !== undefined) {
+      return reachable;
     }
     if (this.steps[index]?.completed) {
       return true;

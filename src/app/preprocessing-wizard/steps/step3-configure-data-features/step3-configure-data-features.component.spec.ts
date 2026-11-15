@@ -86,6 +86,7 @@ describe('Step3ConfigureDataFeaturesComponent – undo history', () => {
     );
     (service as unknown as { updateState(u: Partial<PreprocessingState>): void }).updateState({
       rawFileName: 'test.csv',
+      uploadKey: 'test.csv',
       dataProfile: profile,
       columnConfigs,
     });

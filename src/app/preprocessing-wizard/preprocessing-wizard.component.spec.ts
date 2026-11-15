@@ -10,7 +10,6 @@ import { WizardStep } from './shared/wizard-step';
 import { WIZARD_STEPS, WizardStepId, stepIndex } from './shared/constants/step-info';
 import { DataProfile } from './models/column-statistics';
 import { WizardAnnouncer } from './shared/wizard-announcer.service';
-import { DatasetCollection } from '../shared/interfaces/dataset-collection';
 import { createTestPreprocessingService } from './testing/preprocessing-test-helpers';
 import {
   ColumnRole,
@@ -148,6 +147,19 @@ describe('PreprocessingWizardComponent – undo/redo shell', () => {
       component.onKeyDown(makeKey({ ctrlKey: true, key: 'a' }));
       expect(component.undo).not.toHaveBeenCalled();
       expect(component.redo).not.toHaveBeenCalled();
+    });
+
+    it('undoes the wizard action on a checkbox, radio or select, which have no undo of their own', () => {
+      const undo = vi.spyOn(component, 'undo').mockImplementation(() => undefined);
+      const checkbox = Object.assign(document.createElement('input'), { type: 'checkbox' });
+      const radio = Object.assign(document.createElement('input'), { type: 'radio' });
+      const select = document.createElement('select');
+
+      for (const target of [checkbox, radio, select]) {
+        component.onKeyDown(makeKey({ ctrlKey: true, key: 'z', target }));
+      }
+
+      expect(undo).toHaveBeenCalledTimes(3);
     });
 
     it('leaves native field-level undo alone when focus is in an input', () => {
@@ -445,10 +457,37 @@ describe('PreprocessingWizardComponent – undo/redo shell', () => {
       expect(component.currentStepId).toBe('appearance');
     });
 
-    it('navigates by id when a stepper entry is clicked', () => {
+    it('navigates by id when a reachable stepper entry is clicked', () => {
+      setState({ dataProfile: {} as DataProfile, furthestStep: stepIndex('features') });
       const spy = vi.spyOn(service, 'goToStep').mockImplementation(() => undefined);
       component.onStepClick(3);
       expect(spy).toHaveBeenCalledWith('projection');
+    });
+
+    it('ignores a stepper entry behind a step whose settings are invalid', () => {
+      // The only column is metadata, so Select Columns cannot be passed.
+      const metadataOnly = new Map([['alpha', { ...makeConfig('alpha'), role: ColumnRole.Metadata }]]);
+      setState({ dataProfile: {} as DataProfile, columnConfigs: metadataOnly, furthestStep: stepIndex('review') });
+      const spy = vi.spyOn(service, 'goToStep').mockImplementation(() => undefined);
+
+      component.onStepClick(stepIndex('review'));
+
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it('tells the stepper which steps the settings let the user open', () => {
+      const metadataOnly = new Map([['alpha', { ...makeConfig('alpha'), role: ColumnRole.Metadata }]]);
+      setState({ dataProfile: {} as DataProfile, columnConfigs: metadataOnly, furthestStep: stepIndex('review') });
+      component.ngOnInit();
+
+      expect(component.steps.map(s => s.reachable)).toEqual([true, true, false, false, false, false]);
+    });
+
+    it('opens only one step beyond the furthest one for a new file', () => {
+      setState({ dataProfile: {} as DataProfile, furthestStep: 0 });
+      component.ngOnInit();
+
+      expect(component.steps.map(s => s.reachable)).toEqual([true, true, false, false, false, false]);
     });
 
     it('ignores a stepper index outside the registry', () => {
@@ -463,12 +502,23 @@ describe('PreprocessingWizardComponent – undo/redo shell', () => {
       expect(component.steps.map(s => s.completed)).toEqual([false, false, false, false, false, false]);
     });
 
-    it('marks every step before the furthest visited one completed', () => {
+    it('marks the steps before the furthest visited one completed while their settings are valid', () => {
       setState({ dataProfile: {} as DataProfile });
       component.ngOnInit();
       service.goToStep('review');
 
-      expect(component.steps.map(s => s.completed)).toEqual([true, true, true, true, true, false]);
+      // No glyph features are chosen, so Glyphs & Color is not complete.
+      expect(component.steps.map(s => s.completed)).toEqual([true, true, true, true, false, false]);
+    });
+
+    it('marks no step completed again after the wizard was started over', () => {
+      setState({ dataProfile: {} as DataProfile });
+      component.ngOnInit();
+      service.goToStep('review');
+
+      service.resetState();
+
+      expect(component.steps.map(s => s.completed)).toEqual([false, false, false, false, false, false]);
     });
 
     it('completes the Glyphs & Color step only once the user moved past it', () => {
@@ -481,8 +531,9 @@ describe('PreprocessingWizardComponent – undo/redo shell', () => {
       expect(completed('appearance')).toBe(false);
     });
 
-    it('completes the review step once a processed dataset exists', () => {
-      setState({ dataProfile: {} as DataProfile, processedDataset: {} as DatasetCollection });
+    it('completes the review step once a processing result for the current settings exists', () => {
+      setState({ dataProfile: {} as DataProfile });
+      service.adoptProcessingResult({ datasets: {} }, service.processingInputsKey);
       component.ngOnInit();
 
       expect(component.steps[stepIndex('review')].completed).toBe(true);

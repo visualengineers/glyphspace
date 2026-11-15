@@ -96,6 +96,7 @@ describe('Step3ConfigureDataFeaturesComponent – accessibility', () => {
     });
     (service as unknown as { updateState(u: Partial<PreprocessingState>): void }).updateState({
       rawFileName: 'test.csv',
+      uploadKey: 'test.csv',
       dataProfile: makeProfile(),
       columnConfigs: new Map(NAMES.map(name => [name, makeConfig(name)])),
     });
@@ -306,6 +307,7 @@ describe('Step3ConfigureDataFeaturesComponent – layout', () => {
     });
     (service as unknown as { updateState(u: Partial<PreprocessingState>): void }).updateState({
       rawFileName: 'wide.csv',
+      uploadKey: 'wide.csv',
       dataProfile: { ...makeProfile(), totalColumns: names.length, columns: names.map(makeColumn) },
       columnConfigs: new Map(names.map(name => [name, makeConfig(name)])),
     });

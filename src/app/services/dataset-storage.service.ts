@@ -123,6 +123,21 @@ export class DatasetStorageService {
     }
   }
 
+  /** Removes the ZIP archive of a dataset's item images, if there is one. */
+  async deleteThumbnailArchive(name: string): Promise<void> {
+    try {
+      const db = await this.openDb();
+      return new Promise<void>((resolve, reject) => {
+        const tx = db.transaction(THUMBNAIL_STORE, 'readwrite');
+        tx.objectStore(THUMBNAIL_STORE).delete(name);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    } catch (error) {
+      console.warn('[DatasetStorage] Failed to delete the image archive:', error);
+    }
+  }
+
   async getThumbnailArchive(name: string): Promise<Blob | undefined> {
     try {
       const db = await this.openDb();

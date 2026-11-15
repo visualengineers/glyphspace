@@ -133,7 +133,7 @@ describe('PreprocessingService – page reload', () => {
     });
 
     it('does not process without the file', async () => {
-      await expect(service.processData()).rejects.toThrow(/upload it again/);
+      await expect(service.processInWorker()).rejects.toThrow(/upload it again/);
     });
   });
 

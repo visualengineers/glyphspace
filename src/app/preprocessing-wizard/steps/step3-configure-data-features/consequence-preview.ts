@@ -153,7 +153,9 @@ export function describeEncoding(column: ColumnStatistics, method: EncodingMetho
     case EncodingMethod.Standardize:
       return describeStandard(column);
     case EncodingMethod.None: {
-      const columns = column.dataType === DataType.Text ? oneHotColumns(column) : null;
+      // Python one-hot encodes every column it does not read as numbers.
+      const isText = column.dataType === DataType.Text || column.dataType === DataType.Categorical;
+      const columns = isText ? oneHotColumns(column) : null;
       return columns ? `Text is one-hot encoded into ${columns}` : null;
     }
     default:

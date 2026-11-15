@@ -11,13 +11,8 @@ import {
 import { NgTemplateOutlet } from '@angular/common';
 import { Subscription } from 'rxjs';
 import { PreprocessingService } from '../../services/preprocessing.service';
-import { DataLoaderService } from '../../../services/data-loader.service';
-import {
-  BackgroundStatus,
-  ProjectionCancelledError,
-  ProjectionResult,
-  ProjectionService,
-} from '../../../services/projection.service';
+import { ProcessingRunService, RunStatus } from '../../services/processing-run.service';
+import { BackgroundStatus, ProjectionService } from '../../../services/projection.service';
 import { ToastService } from '../../../services/toast.service';
 import { ColumnConfig, ProjectionConfig, isFeatureColumn, isMetadataColumn } from '../../models/column-config';
 import { DEFAULT_PROJECTION_CONFIG } from '../../models/preprocessing-state';
@@ -32,12 +27,9 @@ import {
   classifyProcessingError,
   classifyBackgroundFailure,
   detectPreflightIssues,
+  detectStartBlockers,
 } from '../../shared/constants/wizard-error-classes';
-import {
-  backgroundMethodName,
-  buildBackgroundProjectionRuns,
-  enabledBackgroundMethodNames,
-} from './background-projections';
+import { backgroundMethodName, enabledBackgroundMethodNames } from './background-projections';
 
 type ChipStatus = 'ready' | 'computing' | 'queued' | 'failed' | 'cancelled';
 
@@ -57,12 +49,6 @@ export interface BackgroundItem {
   progress: number;
   message: string;
   canRetry: boolean;
-}
-
-/** Feature matrix handed from the primary run to the background projections. */
-interface PrimaryRunFeatures {
-  features: number[][];
-  ids: (string | number)[];
 }
 
 const CHIP_LABELS: Record<ChipStatus, string> = {
@@ -91,6 +77,12 @@ function methodRole(label: string): string {
   return 'Background';
 }
 
+/**
+ * Review & Process. Shows the summary before a run and the current run after:
+ * the run itself (Python, FastMap, background projections, hand-over) belongs
+ * to ProcessingRunService, so it goes on when this step is closed, and this
+ * step shows it again when reopened.
+ */
 @Component({
   selector: 'app-step6-review-processing',
   standalone: true,
@@ -117,12 +109,11 @@ export class Step6ReviewProcessingComponent implements OnInit, OnDestroy {
   selectedGlyphFeatures: string[] = [];
   projectionConfig: ProjectionConfig = { ...DEFAULT_PROJECTION_CONFIG };
 
-  // Processing state
+  // The current run, as shown (see applyRunStatus)
   isProcessing = false;
   processingProgress = 0;
   processingStep = '';
   processingComplete = false;
-  error: string | null = null;
   showProcessing = false;
 
   // Background projection status, by method key, and the list rows derived from it
@@ -131,14 +122,11 @@ export class Step6ReviewProcessingComponent implements OnInit, OnDestroy {
   readonly backgroundHeadingId = BACKGROUND_HEADING_ID;
 
   // A3: structured, persistent issues.
+  startBlockers: WizardIssue[] = []; // settings that make processing impossible (Start is disabled)
   preflightIssues: WizardIssue[] = []; // shown on the review screen before processing
-  blockingIssue: WizardIssue | null = null; // primary (hard) failure — replaces the old bare "error" string
+  blockingIssue: WizardIssue | null = null; // primary (hard) failure of the run
   partialIssues: WizardIssue[] = []; // degraded: some background projections failed (dismissable)
   private dismissedMethods = new Set<string>();
-
-  // Capture dataset info for background projections (survives wizard reset)
-  private backgroundDatasetName = '';
-  private backgroundTimestamp = '';
 
   // Expose enums
   DataType = DataType;
@@ -148,39 +136,21 @@ export class Step6ReviewProcessingComponent implements OnInit, OnDestroy {
   readonly projectionStepNumber = stepNumber('projection');
   readonly appearanceStepNumber = stepNumber('appearance');
 
-  private progressSubscription?: Subscription;
-  private backgroundStatusSubscription?: Subscription;
+  private readonly subscription = new Subscription();
 
-  // True while a startProcessing() run is in flight (re-entry guard).
-  private runActive = false;
-  // Set in ngOnDestroy: async continuations must not touch the destroyed view.
-  private destroyed = false;
-  // Last processing phase read out, so progress ticks within a phase stay silent.
+  // The run shown, and the phase read out last (progress ticks within a phase stay silent).
+  private shownRun: RunStatus | null = null;
   private lastAnnouncedPhase = '';
 
   constructor(
     public preprocessingService: PreprocessingService,
-    private dataLoader: DataLoaderService,
+    private runService: ProcessingRunService,
     private projectionService: ProjectionService,
     private toastService: ToastService,
     private cdr: ChangeDetectorRef,
     private ngZone: NgZone,
     private announcer: WizardAnnouncer
   ) {}
-
-  /** Give the new dataset the item images chosen in step 1 (Image glyph type). */
-  private async attachThumbnails(datasetName: string): Promise<void> {
-    const archive = await this.preprocessingService.thumbnailArchive();
-    if (!archive) return;
-    const count = await this.dataLoader.attachThumbnails(datasetName, archive);
-    this.ngZone.run(() => {
-      if (count > 0) {
-        this.toastService.success(`${count} item images added for the Image glyph type.`, 4000);
-      } else {
-        this.toastService.warning('The image ZIP contains no JPG, PNG or WebP pictures.');
-      }
-    });
-  }
 
   ngOnInit(): void {
     const state = this.preprocessingService.currentState;
@@ -199,44 +169,25 @@ export class Step6ReviewProcessingComponent implements OnInit, OnDestroy {
     // Prepare review data
     this.prepareReviewData();
 
-    // A3: pre-flight — surface likely failures from signals already in the state.
+    // A3: what stops processing, and what will likely make it fail.
+    this.startBlockers = detectStartBlockers(state);
     this.preflightIssues = detectPreflightIssues(state);
 
-    // A3 / A11 (P-S5-02, P-S5-03): restore the persistent result/status on re-entry.
-    // The service is a root singleton, so background statuses and the processed
-    // dataset survive closing the wizard. Re-subscribe to keep the method bar and
-    // partial-failure detection alive after reopening.
-    this.backgroundStatusSubscription = this.projectionService.backgroundStatusObservable.subscribe(statusMap => {
-      this.ngZone.run(() => {
-        this.syncBackgroundStatus(statusMap);
-        this.cdr.detectChanges();
-      });
-    });
-
-    if (state.error) {
-      // A previous run failed and the error survived in the singleton state.
-      // Show it as a persistent, classified error screen instead of a stale banner.
-      this.blockingIssue = classifyProcessingError(state.error);
-      this.showProcessing = true;
-      this.isProcessing = false;
-      this.processingComplete = false;
-    } else if (state.processedDataset) {
-      // Processing already finished in an earlier session of this wizard instance:
-      // restore the success/result screen rather than the "Start Processing" view.
-      this.showProcessing = true;
-      this.processingComplete = true;
-      this.isProcessing = false;
-    }
+    // The run and the background statuses live in root services, so they
+    // survive closing the wizard; reopening shows the run where it is.
+    this.subscription.add(
+      this.projectionService.backgroundStatusObservable.subscribe(statusMap => {
+        this.ngZone.run(() => {
+          this.syncBackgroundStatus(statusMap);
+          this.cdr.detectChanges();
+        });
+      })
+    );
+    this.subscription.add(this.runService.status$.subscribe(status => this.applyRunStatus(status)));
   }
 
   ngOnDestroy(): void {
-    this.destroyed = true;
-    if (this.progressSubscription) {
-      this.progressSubscription.unsubscribe();
-    }
-    if (this.backgroundStatusSubscription) {
-      this.backgroundStatusSubscription.unsubscribe();
-    }
+    this.subscription.unsubscribe();
   }
 
   // ============================================================================
@@ -256,32 +207,43 @@ export class Step6ReviewProcessingComponent implements OnInit, OnDestroy {
     this.enabledMethods = ['FastMap (Primary)', ...enabledBackgroundMethodNames(this.projectionConfig)];
   }
 
+  /** False while a setting makes processing impossible (see startBlockers). */
+  get canStartProcessing(): boolean {
+    return this.startBlockers.length === 0;
+  }
+
   // ============================================================================
   // Processing
   // ============================================================================
 
-  private resetProcessingState(): void {
-    this.processingComplete = false;
-    this.isProcessing = false;
-    this.processingProgress = 0;
-    this.processingStep = '';
-    this.error = null;
-    this.showProcessing = false;
-    this.blockingIssue = null;
-    this.partialIssues = [];
-    this.dismissedMethods.clear();
-    this.lastAnnouncedPhase = '';
-    // Clear any stale error left in the singleton state (P-S5-03).
-    this.preprocessingService.clearError();
-  }
+  /** Show the current run: progress, the result or the failure; the review summary when there is none. */
+  private applyRunStatus(status: RunStatus | null): void {
+    const previous = this.shownRun;
+    this.shownRun = status;
+    if (status && status.id !== previous?.id) {
+      this.lastAnnouncedPhase = '';
+      this.dismissedMethods.clear();
+      this.partialIssues = [];
+    }
 
-  private updateProcessingUI(step: string, progress: number): void {
-    this.ngZone.run(() => {
-      this.processingStep = step;
-      this.processingProgress = progress;
-      this.announcePhase(step);
-      this.detectChangesIfAlive();
-    });
+    this.showProcessing = status !== null;
+    this.isProcessing = status?.phase === 'processing';
+    this.processingComplete = status?.phase === 'complete';
+    this.processingProgress = status?.progress ?? 0;
+    this.processingStep = status?.message ?? '';
+    // A3: a failure is a persistent, actionable issue (cause + fix + target
+    // step). Screen readers hear it through the error panel's role="alert",
+    // which includes the cause; announcing it as well would read it twice.
+    this.blockingIssue = status?.phase === 'failed' ? classifyProcessingError(status.error ?? '') : null;
+
+    if (status?.phase === 'processing' && status.stage) {
+      this.announcePhase(status.stage);
+    }
+    // Only a completion seen happening; a result already there on reopening is not news.
+    if (status?.phase === 'complete' && previous?.id === status.id && previous.phase !== 'complete') {
+      this.announcer.announce('Processing complete. Your visualization is ready to open in Glyphspace.');
+    }
+    this.cdr.detectChanges();
   }
 
   /** Read out a new processing phase once; repeated ticks of the same phase stay silent. */
@@ -294,265 +256,20 @@ export class Step6ReviewProcessingComponent implements OnInit, OnDestroy {
     this.announcer.announce(`${text}.`);
   }
 
-  /** Render now, unless the step was destroyed while an async run continued. */
-  private detectChangesIfAlive(): void {
-    if (!this.destroyed) {
-      this.cdr.detectChanges();
-    }
-  }
-
-  /** Minimum time the loading hero stays on screen so a fast run -- or a fast
-   *  failure -- is actually perceivable instead of a one-frame flash. */
-  private readonly MIN_LOADING_MS = 600;
-
-  /** Resolve after the browser has had a chance to paint, so a state change
-   *  made right before heavy work is rendered first. */
-  private paintYield(): Promise<void> {
-    return new Promise<void>(resolve => requestAnimationFrame(() => setTimeout(resolve, 0)));
-  }
-
-  /** Hold until the loading hero has been visible for at least MIN_LOADING_MS. */
-  private async ensureMinVisible(startedAt: number): Promise<void> {
-    const remaining = this.MIN_LOADING_MS - (performance.now() - startedAt);
-    if (remaining > 0) {
-      await new Promise<void>(resolve => setTimeout(resolve, remaining));
-    }
-  }
-
+  /** Start a run with the current settings; resolves when its primary part has finished. */
   async startProcessing(): Promise<void> {
-    // Re-entry guard: a parallel run would race this one and its `finally`
-    // would tear down this run's progress subscription.
-    if (this.runActive) {
+    if (!this.canStartProcessing || this.runService.status?.phase === 'processing') {
       return;
     }
-    this.runActive = true;
-
-    this.releaseEarlierBackgroundRuns();
-    this.resetProcessingState();
-    this.showProcessing = true;
-    this.isProcessing = true;
-    this.processingStep = 'Initializing...';
     this.announcer.announce('Processing started.');
-
-    this.progressSubscription?.unsubscribe();
-    const progressSubscription = this.preprocessingService.processingProgress.subscribe({
-      next: progress => {
-        this.processingStep = progress.message || progress.step;
-        this.processingProgress = Math.min(progress.progress, 70);
-        // Python's final 100 % step is not read out: FastMap still has to run,
-        // and completion is announced once the dataset is loaded.
-        if (progress.progress < 100) {
-          this.announcePhase(progress.step);
-        }
-        this.detectChangesIfAlive();
-      },
-    });
-    this.progressSubscription = progressSubscription;
-
-    // Keep the loading hero visible for a perceptible minimum, measured from
-    // here, and let the browser paint it before the heavy work begins.
-    const startedAt = performance.now();
-    await this.paintYield();
-
-    try {
-      // isProcessing stays up in the service for the whole primary run (not just
-      // processData), so the shell keeps undo/redo disabled during FastMap too.
-      const primary = await this.preprocessingService.whileProcessing(() => this.runPrimaryProcessing(startedAt));
-      this.startBackgroundProjections(primary.features, primary.ids);
-    } catch (error: unknown) {
-      console.error('Processing failed:', error);
-      await this.ensureMinVisible(startedAt);
-      this.showProcessingError(error);
-    } finally {
-      // Only release what this run created.
-      progressSubscription.unsubscribe();
-      if (this.progressSubscription === progressSubscription) {
-        this.progressSubscription = undefined;
-      }
-      this.runActive = false;
-    }
-  }
-
-  /**
-   * Before a new run: when reprocessing this wizard's dataset, its earlier
-   * background projections are outdated, so stop them and clear their statuses
-   * (Retry must not re-run old data). Otherwise they belong to a dataset that
-   * was already loaded into the dashboard: let them finish, but detached.
-   */
-  private releaseEarlierBackgroundRuns(): void {
-    if (this.preprocessingService.currentState.processedDataset) {
-      this.projectionService.terminateAllWorkers();
-      this.projectionService.clearBackgroundStatuses();
-    } else {
-      this.projectionService.detachAll();
-    }
-  }
-
-  /**
-   * Python processing, then the primary FastMap projection.
-   *
-   * Deliberately not cancellable: the Python step runs in the shared Pyodide
-   * worker, and the only way to interrupt it is to terminate that worker, which
-   * drops the loaded Python runtime (a slow reload) and the uploaded file held
-   * in its virtual FS, so the user would have to upload again. FastMap runs
-   * synchronously on the main thread and cannot be interrupted either. Only the
-   * optional background projections (one worker each) offer Cancel.
-   */
-  private async runPrimaryProcessing(startedAt: number): Promise<PrimaryRunFeatures> {
-    await this.preprocessingService.processData();
-
-    this.updateProcessingUI('Loading features for projections...', 70);
-
-    const csvText = await this.preprocessingService.getProcessedFeaturesCSV();
-    const { features, ids } = this.projectionService.parseCSVFeatures(csvText);
-
-    this.updateProcessingUI('Computing FastMap projection...', 75);
-
-    // Use FastMap as the primary projection
-    const fastmapResult = await this.projectionService.runFastMapSync(features, ids);
-
-    this.updateProcessingUI('Loading dataset with FastMap...', 90);
-
-    await this.preprocessingService.addProjectionPositions('fastmap', fastmapResult.positions);
-    // The dataset name is final now; background projections may show the dataset any moment.
-    void this.attachThumbnails(this.preprocessingService.currentState.datasetName);
-
-    await this.ensureMinVisible(startedAt);
-    this.ngZone.run(() => {
-      this.processingProgress = 100;
-      this.processingStep = `Dataset loaded with FastMap (${fastmapResult.computeTime}ms)`;
-      this.processingComplete = true;
-      this.isProcessing = false;
-      this.announcer.announce('Processing complete. Your visualization is ready to open in Glyphspace.');
-      this.detectChangesIfAlive();
-    });
-
-    return { features, ids };
-  }
-
-  private showProcessingError(error: unknown): void {
-    this.ngZone.run(() => {
-      const raw = error instanceof Error ? error.message : String(error);
-      this.error = raw;
-      // A3: classify into a persistent, actionable issue (cause + fix + target step).
-      // Screen readers hear it through the error panel's role="alert" (an
-      // assertive announcement including the cause); announcing it through the
-      // WizardAnnouncer as well would read the failure twice.
-      this.blockingIssue = classifyProcessingError(raw);
-      this.isProcessing = false;
-      this.processingComplete = false;
-      this.detectChangesIfAlive();
-    });
-  }
-
-  private startBackgroundProjections(features: number[][], ids: (string | number)[]): void {
-    // Capture dataset info so background projections can add positions even after wizard reset
-    const state = this.preprocessingService.currentState;
-    this.backgroundDatasetName = state.datasetName;
-    this.backgroundTimestamp = state.timestamp;
-
-    // Note: the background-status subscription is created once in ngOnInit so it
-    // also restores the method bar after the wizard is reopened.
-    const runs = buildBackgroundProjectionRuns(this.projectionService, this.projectionConfig, features, ids);
-    for (const { name, run } of runs) {
-      void this.runBackgroundProjection(name, run);
-    }
-  }
-
-  private async runBackgroundProjection(name: string, computeFn: () => Promise<ProjectionResult>): Promise<void> {
-    try {
-      const result = await computeFn();
-
-      // Convert positions to the format expected by DataProvider
-      const positionsForProvider = result.positions.map(p => ({
-        id: p.id,
-        position: { x: p.x, y: p.y },
-      }));
-
-      // Try to add to wizard state first (if still active)
-      await this.preprocessingService.addProjectionPositions(result.method, result.positions);
-
-      const state = this.preprocessingService.currentState;
-      if (state.processedDataset) {
-        // Wizard still active - update via normal flow
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- processedDataset is an opaque structure from Python processing
-        const collection = state.processedDataset as any;
-        const datasetKey =
-          collection.selectedDataset || (collection.datasets ? Object.keys(collection.datasets)[0] : null);
-
-        if (datasetKey && collection.datasets) {
-          const dataset = collection.datasets[datasetKey];
-          if (dataset) {
-            this.dataLoader.addProcessedDatasetToCollection(state.datasetName, state.timestamp, dataset);
-            this.dataLoader.loadProcessedDataset(dataset, state.datasetName, state.timestamp);
-          }
-        }
-      } else if (this.backgroundDatasetName && this.backgroundTimestamp) {
-        // Wizard was reset but dataset is already loaded in dashboard
-        this.dataLoader.addPositionsToLoadedDataset(
-          this.backgroundDatasetName,
-          this.backgroundTimestamp,
-          result.method,
-          positionsForProvider
-        );
-        // Re-save to IndexedDB with the new projection included
-        this.dataLoader.saveDatasetToStorage(this.backgroundDatasetName, this.backgroundTimestamp);
-      }
-
-      this.ngZone.run(() => {
-        this.toastService.success(`${name} projection ready! (${(result.computeTime / 1000).toFixed(1)}s)`, 4000);
-      });
-    } catch (error: unknown) {
-      if (error instanceof ProjectionCancelledError) {
-        // Stopped on purpose (Cancel / Stop all / superseded); the status list shows it.
-        return;
-      }
-      const raw = error instanceof Error ? error.message : String(error);
-      console.error(`${name} projection failed:`, error);
-      this.ngZone.run(() => {
-        // A3 review fix: never surface the raw technical message in the toast.
-        // Use the classified, everyday-language title; the full WHY/FIX and the
-        // raw detail live in the partial-issue card's collapsible section.
-        const issue = classifyBackgroundFailure(name, raw);
-        this.toastService.error(issue.title, 6000);
-      });
-    }
+    await this.runService.start();
   }
 
   goToDashboard(): void {
-    const state = this.preprocessingService.currentState;
-
-    if (state.processedDataset) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- processedDataset is an opaque structure from Python processing
-      const collection = state.processedDataset as any;
-      const datasetKey =
-        collection.selectedDataset || (collection.datasets ? Object.keys(collection.datasets)[0] : null);
-
-      if (!datasetKey || !collection.datasets) {
-        this.error = 'Invalid dataset structure. Please try processing again.';
-        return;
-      }
-
-      const dataset = collection.datasets[datasetKey];
-
-      if (dataset) {
-        this.dataLoader.addProcessedDatasetToCollection(state.datasetName, state.timestamp, dataset);
-        this.dataLoader.loadProcessedDataset(dataset, state.datasetName, state.timestamp);
-        // Persist to IndexedDB for cross-session survival
-        this.dataLoader.saveDatasetToStorage(state.datasetName, state.timestamp);
-      } else {
-        this.error = 'Failed to load processed dataset';
-        return;
-      }
+    if (!this.runService.openInDashboard()) {
+      this.toastService.error('The processed dataset is no longer available. Please process it again.');
+      return;
     }
-
-    // Running background projections keep going for the dashboard, but can no
-    // longer be cancelled or retried from the (reset) wizard.
-    this.projectionService.detachAll();
-
-    // Reset wizard state so it's ready for a new upload
-    this.preprocessingService.resetState();
-
     this.wizardFinish.emit();
   }
 
@@ -568,16 +285,8 @@ export class Step6ReviewProcessingComponent implements OnInit, OnDestroy {
 
   startOver(): void {
     if (confirm('Are you sure you want to start over? All current configuration will be lost.')) {
-      // Terminate any running background projection workers
-      this.projectionService.terminateAllWorkers();
-      this.projectionService.clearBackgroundStatuses();
-
-      // Clear local state
-      this.backgroundProjections = new Map();
-      this.backgroundItems = [];
-      this.resetProcessingState();
-
-      // Reset wizard state
+      // Stops the run's background projections; the reset clears the rest.
+      this.runService.discard();
       this.preprocessingService.resetState();
       this.preprocessingService.goToStep('upload');
     }
@@ -599,7 +308,7 @@ export class Step6ReviewProcessingComponent implements OnInit, OnDestroy {
 
   /** Cancel one running background projection; focus moves to its Retry button. */
   cancelBackgroundProjection(method: string): void {
-    if (!this.projectionService.cancel(method)) {
+    if (!this.runService.cancelBackground(method)) {
       return;
     }
     this.announcer.announce(`${backgroundMethodName(method)} cancelled. You can retry it.`);
@@ -608,7 +317,7 @@ export class Step6ReviewProcessingComponent implements OnInit, OnDestroy {
 
   /** Cancel every running background projection. */
   stopAllBackgroundProjections(): void {
-    const stopped = this.projectionService.terminateAllWorkers();
+    const stopped = this.runService.stopAllBackground();
     if (stopped.length === 0) {
       return;
     }
@@ -619,19 +328,17 @@ export class Step6ReviewProcessingComponent implements OnInit, OnDestroy {
 
   /** Re-run one cancelled or failed background projection with the same data and settings. */
   retryBackgroundProjection(method: string): void {
-    if (!this.projectionService.canRetry(method)) {
+    this.dismissedMethods.delete(method);
+    if (!this.runService.retryBackground(method)) {
       return;
     }
-    const name = backgroundMethodName(method);
-    this.dismissedMethods.delete(method);
-    this.announcer.announce(`Retrying ${name}.`);
-    void this.runBackgroundProjection(name, () => this.projectionService.retry(method));
+    this.announcer.announce(`Retrying ${backgroundMethodName(method)}.`);
     this.focusElement(this.backgroundActionId(method));
   }
 
   /** Keep keyboard focus in the list after the pressed button was replaced or removed. */
   private focusElement(id: string): void {
-    this.detectChangesIfAlive();
+    this.cdr.detectChanges();
     document.getElementById(id)?.focus();
   }
 
@@ -725,24 +432,11 @@ export class Step6ReviewProcessingComponent implements OnInit, OnDestroy {
 
   /**
    * Retry / reprocess, keeping all uploaded data and settings. Reachable from
-   * both the blocking-error screen and the success screen.
-   *
-   * A3 review fix: the earlier version only called startProcessing(), so a fast
-   * run looked like a brief flash with no confirmation that anything happened.
-   * We now announce the retry with a toast and force the processing hero to show
-   * (isProcessing/showProcessing) before the async work begins, so the user
-   * clearly sees the spinner + progress + method status while it re-runs.
+   * both the blocking-error screen and the success screen. A toast confirms
+   * it, and the new run's progress replaces the result at once.
    */
   retryProcessing(): void {
     this.toastService.info('Restarting processing…', 3000);
-    // Make the processing state visible immediately, even before startProcessing's
-    // own reset runs, so the transition is never just a flicker.
-    this.showProcessing = true;
-    this.isProcessing = true;
-    this.processingComplete = false;
-    this.blockingIssue = null;
-    this.processingStep = 'Restarting processing…';
-    this.cdr.detectChanges();
-    this.startProcessing();
+    void this.startProcessing();
   }
 }

@@ -23,8 +23,9 @@ export function indexImages(folder: string, images: readonly string[]): ArchiveI
 /**
  * Item images for the Image glyph type. Bundled datasets ship theirs in
  * assets/thumbnails/<dataset>/<id>.jpg. Datasets from the wizard get them from
- * an uploaded ZIP archive: it is unpacked in the worker and kept in IndexedDB,
- * so a dataset restored in a later session finds its images again.
+ * an uploaded ZIP archive when they are opened in the dashboard: it is unpacked
+ * in the worker and kept in IndexedDB, so a dataset restored in a later session
+ * finds its images again.
  */
 @Injectable({ providedIn: 'root' })
 export class ThumbnailService implements ThumbnailResolver {
@@ -49,6 +50,16 @@ export class ThumbnailService implements ThumbnailResolver {
   }
 
   /**
+   * `dataset` has no item images: drop any archive kept under its name, e.g. one
+   * an earlier version of the wizard stored for a dataset that was never opened.
+   */
+  async detachArchive(dataset: string): Promise<void> {
+    // Known at once, before the stored archive is gone, so no image of it shows.
+    this.archives.set(dataset, Promise.resolve(null));
+    await this.storage.deleteThumbnailArchive(dataset);
+  }
+
+  /**
    * Whether the dataset has item images for the Image glyph type: a bundled
    * dataset says so in the dataset list, a processed one has an image archive.
    */
@@ -61,7 +72,10 @@ export class ThumbnailService implements ThumbnailResolver {
     return (await this.storage.getThumbnailArchive(dataset)) != null;
   }
 
-  /** Drop the images of a deleted dataset (the stored archive goes with the dataset). */
+  /**
+   * Drop the images of a deleted dataset from memory (the stored archive goes
+   * with the dataset). The one place that releases a dataset's unpacked images.
+   */
   forget(dataset: string): void {
     this.archives.delete(dataset);
   }

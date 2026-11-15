@@ -1,6 +1,7 @@
 import {
   Component,
   OnInit,
+  OnDestroy,
   forwardRef,
   ViewChild,
   ElementRef,
@@ -68,7 +69,7 @@ function bulkApplyAnnouncement(result: BulkApplyResult): string {
   changeDetection: ChangeDetectionStrategy.Eager,
   providers: [{ provide: WIZARD_STEP, useExisting: forwardRef(() => Step3ConfigureDataFeaturesComponent) }],
 })
-export class Step3ConfigureDataFeaturesComponent implements OnInit, WizardStep {
+export class Step3ConfigureDataFeaturesComponent implements OnInit, OnDestroy, WizardStep {
   readonly primaryLabel = 'Continue to Projection';
   readonly disabledHint = '';
 
@@ -165,9 +166,17 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit, WizardStep {
     this.cleaningConfig = { ...this.preprocessingService.currentState.cleaningConfig };
   }
 
+  // Set in ngOnDestroy: the outlier counts are requested one column at a time
+  // and stop once the step is left.
+  private destroyed = false;
+
   ngOnInit(): void {
     this.loadData();
     this.detectDuplicates();
+  }
+
+  ngOnDestroy(): void {
+    this.destroyed = true;
   }
 
   private loadData(): void {
@@ -214,6 +223,8 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit, WizardStep {
     const outlierColumns = this.columns.filter(c => DATA_TYPE_CONFIG[c.column.dataType]?.hasOutliers);
 
     for (const colState of outlierColumns) {
+      // One request at a time; none after the step was left.
+      if (this.destroyed) return;
       if (colState.outlierCount === undefined) {
         await this.detectOutliersForColumn(colState);
       }
@@ -222,12 +233,16 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit, WizardStep {
 
   private async detectOutliersForColumn(colState: ColumnConfigState): Promise<void> {
     colState.isLoadingOutliers = true;
+    // The count belongs to this upload; a file replaced meanwhile may have a
+    // column of the same name.
+    const uploadKey = this.preprocessingService.currentState.uploadKey;
 
     try {
       const result = await this.preprocessingService.detectOutliers(
         colState.column.name,
         colState.config.outlierMethod
       );
+      if (this.preprocessingService.currentState.uploadKey !== uploadKey) return;
       colState.outlierCount = result.outlierCount;
       colState.outlierIndices = result.outlierIndices;
 
@@ -357,7 +372,13 @@ export class Step3ConfigureDataFeaturesComponent implements OnInit, WizardStep {
     }
   }
 
+  /**
+   * The fill value is committed when the field loses focus (ngModelOptions
+   * updateOn: 'blur'), not per keystroke: one undo entry and one save per edit.
+   */
   onMissingValueFillChange(columnName: string, fillValue: string): void {
+    const current = this.preprocessingService.currentState.columnConfigs.get(columnName)?.missingValueFillValue ?? '';
+    if (fillValue === current) return;
     this.preprocessingService.updateColumnConfig(columnName, {
       missingValueFillValue: fillValue,
     });

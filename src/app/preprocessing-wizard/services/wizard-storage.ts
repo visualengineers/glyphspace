@@ -14,8 +14,11 @@ export const STORAGE_KEY = 'glyphspace_preprocessing_state';
  *   review moved from index 4 to 5.
  * - 3: column configs have a `role` (feature or metadata). Older saves had
  *   features only, so their columns are restored as features.
+ * - 4: `uploadKey` (the name the upload is stored under, which can differ from
+ *   `rawFileName`) and `furthestStep` (navigation). Older saves stored the
+ *   upload under its file name and get the current step as the furthest one.
  */
-export const STORAGE_VERSION = 3;
+export const STORAGE_VERSION = 4;
 
 /** Step ids of the version-1 layout, by their old index. */
 const V1_STEPS: readonly WizardStepId[] = ['upload', 'columns', 'features', 'projection', 'review'];
@@ -24,8 +27,10 @@ const V1_STEPS: readonly WizardStepId[] = ['upload', 'columns', 'features', 'pro
 type PersistedState = Pick<
   PreprocessingState,
   | 'currentStep'
+  | 'furthestStep'
   | 'dataProfile'
   | 'rawFileName'
+  | 'uploadKey'
   | 'thumbnailArchiveName'
   | 'cleaningConfig'
   | 'projectionConfig'
@@ -63,8 +68,10 @@ export function serializeState(state: PreprocessingState): SerializedState {
   return {
     version: STORAGE_VERSION,
     currentStep: state.currentStep,
+    furthestStep: state.furthestStep,
     dataProfile: state.dataProfile,
     rawFileName: state.rawFileName,
+    uploadKey: state.uploadKey,
     thumbnailArchiveName: state.thumbnailArchiveName,
     columnConfigs: Array.from(state.columnConfigs.entries()),
     cleaningConfig: state.cleaningConfig,
@@ -76,6 +83,15 @@ export function serializeState(state: PreprocessingState): SerializedState {
     colorScaleMode: state.colorScaleMode,
     colorScaleId: state.colorScaleId,
   };
+}
+
+/**
+ * The saved furthest step, never behind the current step; saves before
+ * version 4 (and invalid values) get the current step.
+ */
+export function restoreFurthestStep(saved: unknown, currentStep: number): number {
+  const valid = typeof saved === 'number' && Number.isInteger(saved) && saved >= 0 && saved <= LAST_STEP_INDEX;
+  return valid ? Math.max(saved, currentStep) : currentStep;
 }
 
 /**
@@ -120,10 +136,15 @@ export function deserializeState(raw: string | null): Partial<PreprocessingState
 
   const saved = parsed as Partial<SerializedState>;
   const version = typeof saved.version === 'number' ? saved.version : 1;
+  const currentStep = migrateStoredStep(saved.currentStep, version);
+  const rawFileName = saved.rawFileName ?? null;
   return {
-    currentStep: migrateStoredStep(saved.currentStep, version),
+    currentStep,
+    furthestStep: restoreFurthestStep(saved.furthestStep, currentStep),
     dataProfile: saved.dataProfile ?? null,
-    rawFileName: saved.rawFileName ?? null,
+    rawFileName,
+    // Before version 4 an upload was stored under its file name.
+    uploadKey: typeof saved.uploadKey === 'string' ? saved.uploadKey : rawFileName,
     thumbnailArchiveName: typeof saved.thumbnailArchiveName === 'string' ? saved.thumbnailArchiveName : null,
     columnConfigs: restoreColumnConfigs(saved.columnConfigs),
     cleaningConfig: { ...DEFAULT_CLEANING_CONFIG, ...saved.cleaningConfig },
