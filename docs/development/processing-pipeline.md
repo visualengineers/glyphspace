@@ -48,8 +48,8 @@ Step 3 asks the worker for outlier counts per column (`detectOutliers`) and the 
 `Step6ReviewProcessingComponent.startProcessing` runs the primary run inside `PreprocessingService.whileProcessing`, which keeps `isProcessing` up (and undo/redo disabled) until FastMap is done:
 
 1. `PreprocessingService.processData` builds the config (`buildProcessingConfig`) and sends `processWithConfig`. Python fills, caps, drops, encodes and scales ([order of operations](../specs/processing-config.md#order-of-operations)), writes `processed_features.csv` and returns the dataset without positions. Progress messages drive the progress bar up to 70 %.
-2. `getProcessedFeatures` fetches the CSV; `ProjectionService.parseCSVFeatures` reads it with a CSV parser (d3's `csvParseRows`, since pandas quotes ids that contain a comma) and turns it into a matrix and an id list.
-3. `ProjectionService.runFastMapSync` loads DruidJS (first use only) and runs FastMap on the main thread.
+2. `getProcessedFeatures` fetches the CSV; `ProjectionService.parseCSVFeatures` reads it with a CSV parser (d3's `csvParseRows`, since pandas quotes ids that contain a comma) and turns it into a matrix and an id list. The ids stay the strings Python wrote; converting a numeric-looking id (`007`, `1.0`, a 19-digit id) would no longer match its item.
+3. `ProjectionService.runFastMapSync` loads DruidJS (first use only) and runs FastMap on the main thread, with the input checks of every projection ([Worker protocol](../specs/worker-protocol.md#input-checks)): input of rank 0 or 1 is placed exactly without DruidJS, and NaN coordinates are an error instead of items without a position.
 4. `addProjectionPositions('fastmap', …)` stores the positions in the processed dataset (`storeProjectionPositions`).
 5. If an item image ZIP was chosen in Step 1, `Step6ReviewProcessingComponent.attachThumbnails` hands it to `DataLoaderService.attachThumbnails` under the dataset name, without waiting for it; a toast reports the number of images found ([Dashboard](dashboard.md#thumbnails)).
 

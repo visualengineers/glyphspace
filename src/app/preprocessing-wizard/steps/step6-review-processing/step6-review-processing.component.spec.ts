@@ -240,7 +240,7 @@ describe('Step6ReviewProcessingComponent – processing run', () => {
     seedReview(service, { projectionConfig: NO_BACKGROUND_METHODS });
     runFastMapSync = vi
       .fn<ProjectionService['runFastMapSync']>()
-      .mockResolvedValue({ method: 'fastmap', positions: [{ id: 1, x: 0, y: 0 }], computeTime: 3 });
+      .mockResolvedValue({ method: 'fastmap', positions: [{ id: '1', x: 0, y: 0 }], computeTime: 3 });
     terminateAllWorkers = vi.fn().mockReturnValue([]);
     clearBackgroundStatuses = vi.fn();
     detachAll = vi.fn();
@@ -532,7 +532,7 @@ describe('Step6ReviewProcessingComponent – cancel and retry background project
 
   it('retries only that method and adds its result to the dataset', async () => {
     const { el } = render();
-    const result: ProjectionResult = { method: 'tsne', positions: [{ id: 1, x: 1, y: 2 }], computeTime: 1500 };
+    const result: ProjectionResult = { method: 'tsne', positions: [{ id: '1', x: 1, y: 2 }], computeTime: 1500 };
     projection.retry.mockImplementation(method => {
       retryable.delete(method);
       publish(entry(method, 'running'));

@@ -70,10 +70,10 @@ Message types: `ProjectionWorkerRequest` and `ProjectionWorkerResponse` in `src/
 Request:
 
 ```ts
-{ type: 'compute', method: ProjectionMethod, features: number[][], ids: (string | number)[], config?: ProjectionComputeConfig }
+{ type: 'compute', method: ProjectionMethod, features: number[][], ids: string[], config?: ProjectionComputeConfig }
 ```
 
-`features[i]` is the projection input of the item `ids[i]`. `config` carries the method's parameters: `perplexity` and `iterations` for t-SNE, `neighbors` and `minDist` for UMAP, `isomapNeighbors`, `lleNeighbors`, `ltsaNeighbors`.
+`features[i]` is the projection input of the item `ids[i]`. Ids are the strings Python wrote and come back unchanged in `positions`. `config` carries the method's parameters: `perplexity` and `iterations` for t-SNE, `neighbors` and `minDist` for UMAP, `isomapNeighbors`, `lleNeighbors`, `ltsaNeighbors`.
 
 Responses:
 
@@ -101,6 +101,16 @@ A worker `onerror` event is treated like an `error` response. Messages that arri
 | `topomap` | `TopoMap` | none (always 2-D) |
 
 The parameter objects use DruidJS's own type declarations, so a parameter that DruidJS renames or drops fails to compile.
+
+### Input checks
+
+DruidJS returns NaN coordinates for degenerate input instead of failing, so `runDruidProjection` and `runTsneProjection` check the input first and the result afterwards (the same code runs FastMap on the main thread):
+
+1. **Input** (`prepareProjectionInput`): at least one row, rows of equal length, finite values; one id per row. Constant columns are dropped, since they change no distance. If no column varies, every item is placed at (0, 0). If every varying column is an affine function of the first (a single varying column, columns that repeat each other, every input of two rows), the items lie on a line and are placed along it at y = 0, with their distances preserved. DruidJS is not called in these two cases.
+2. **Parameters**: the neighbours of IsoMap, LLE, LTSA and UMAP must be fewer than the rows, the t-SNE perplexity below the number of rows.
+3. **Result** (`assertFiniteEmbedding`): one point per row, every coordinate finite. Otherwise the run fails with `<CLASS> returned invalid coordinates for <k> of <n> items: the projection input is singular for this method …` (for example IsoMap on many identical rows).
+
+A failed check is an `error` response like any other DruidJS failure; the wizard classifies the message (K4 for parameters, K3 for singular input).
 
 ## Compatibility
 

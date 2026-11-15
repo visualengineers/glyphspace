@@ -99,7 +99,7 @@ describe('projection worker – every DruidJS method in a module worker', () => 
     ]);
   });
 
-  it('reports a DruidJS failure as an error message', async () => {
+  it('reports a projection failure as an error message', async () => {
     // UMAP needs more rows than neighbours.
     const messages = await compute({
       type: 'compute',
@@ -110,7 +110,26 @@ describe('projection worker – every DruidJS method in a module worker', () => 
     });
 
     expect(messages).toEqual([
-      expect.objectContaining({ type: 'error', method: 'umap', error: expect.stringContaining('n_neighbors') }),
+      expect.objectContaining({
+        type: 'error',
+        method: 'umap',
+        error: 'UMAP: 15 neighbors exceed the 10 rows to project; choose fewer than 10 neighbors.',
+      }),
+    ]);
+  });
+
+  it('reports degenerate input as an error instead of NaN positions', async () => {
+    const duplicates = Array.from({ length: 60 }, (_, i) => [i % 3, (i % 3) * 0.5 + 1, i % 2]);
+
+    const messages = await compute({
+      type: 'compute',
+      method: 'isomap',
+      features: duplicates,
+      ids: duplicates.map((_, i) => `r${i}`),
+    });
+
+    expect(messages).toEqual([
+      expect.objectContaining({ type: 'error', error: expect.stringMatching(/^ISOMAP returned invalid coordinates/) }),
     ]);
   });
 });
