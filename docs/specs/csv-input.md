@@ -36,7 +36,7 @@ Ids must be unique. The dashboard keys items by id: for a repeated id it keeps t
 
 If several columns match, the wizard takes the one named exactly `ID`, or else the first (`_use_id_column` in `src/assets/preprocessing_processor_config.py`); the CLI takes the first. In the wizard the id column is detected as data type ID and starts as metadata, but processing uses it as the item id only, never as a metadata column or a feature.
 
-Item images for the Image glyph type are found by id. Bundled datasets: `src/assets/thumbnails/<dataset>/<id>.jpg` (see [Preparing data](../user-guide/preparing-data.md#thumbnails)). Wizard datasets: a ZIP archive chosen in Step 1, whose files are named `<id>.jpg`, `.jpeg`, `.png` or `.webp` (extension in any case). Folders inside the archive are flattened when it is unpacked (`unpack_flat` in `src/app/workers/pyodide-calls.ts`); `indexImages` in `src/app/services/thumbnail.service.ts` maps each file to its id.
+Item images for the Image glyph type are found by id. Bundled datasets: `src/assets/thumbnails/<dataset>/<id>.jpg` (see [Preparing data](../user-guide/preparing-data.md#thumbnails)). Wizard datasets: a ZIP archive chosen in Step 1, whose files are named `<id>.jpg`, `.jpeg`, `.png` or `.webp` (extension in any case). Folders inside the archive are flattened when it is unpacked (`unpack_flat` in `src/app/workers/pyodide-calls.ts`), whether the archive separates them with `/` or, as archives made on Windows may, with `\`; if two files have the same name, the first one is used. Other files and macOS resource forks are skipped. `indexImages` in `src/app/services/thumbnail.service.ts` maps each file to its id.
 
 ## Column types
 
@@ -106,7 +106,8 @@ The wizard treats all of these as ordinary columns.
 |---|---|---|
 | Distinct values of a one-hot encoded column | 500 (`MAX_ONEHOT_UNIQUE`) | K7 |
 | Glyph features | 3–8 | K5 |
-| Time per worker request (profiling, processing) | 60 s (`DataProcessorService.sendRequestUntil`) | K6 |
+| Time per worker request (profiling, processing), from the moment the worker starts it | 60 s (`REQUEST_TIMEOUT_MS` in `DataProcessorService`) | K6 |
+| Item image ZIP (Step 1) | 200 MB; inside it at most 100 000 files, 32 MB per image and 512 MB of images (`ZIP_LIMITS` in `src/app/workers/pyodide-calls.ts`) | — |
 | Neighbour parameters of IsoMap, LLE, LTSA, UMAP | below the number of rows | K4 |
 
 The error classes are explained in [Troubleshooting](../user-guide/troubleshooting.md).

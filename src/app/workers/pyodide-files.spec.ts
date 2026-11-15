@@ -1,4 +1,11 @@
-import { InputFileRegistry, PyodideFs, assertSafeFileName, resultFileFor } from './pyodide-files';
+import {
+  InputFileRegistry,
+  OUTPUT_FOLDER,
+  PROCESSED_FEATURES_FILE,
+  PyodideFs,
+  assertSafeFileName,
+  resultFileFor,
+} from './pyodide-files';
 
 /** In-memory stand-in for the Emscripten FS. */
 class FakeFs implements PyodideFs {
@@ -53,7 +60,7 @@ describe('InputFileRegistry', () => {
 
     const removed = registry.prune(['current.csv'], fs);
 
-    expect(removed).toEqual(['old.csv', 'old.csv.result.json']);
+    expect(removed).toEqual(['old.csv', '/glyphspace-output/old.csv.result.json']);
     expect(Array.from(fs.files)).toEqual(['current.csv', 'processor.py']);
     expect(registry.tracked()).toEqual(['current.csv']);
   });
@@ -87,5 +94,16 @@ describe('InputFileRegistry', () => {
     registry.track('a.csv');
 
     expect(registry.tracked()).toEqual(['a.csv']);
+  });
+});
+
+describe('pipeline outputs', () => {
+  // An upload named like an output (processed_features.csv) must not be overwritten by it.
+  it('live in a folder no uploaded file can be written to', () => {
+    for (const output of [PROCESSED_FEATURES_FILE, resultFileFor('data.csv')]) {
+      expect(output.startsWith(`${OUTPUT_FOLDER}/`)).toBe(true);
+      expect(() => assertSafeFileName(output)).toThrow();
+    }
+    expect(() => assertSafeFileName('processed_features.csv')).not.toThrow();
   });
 });

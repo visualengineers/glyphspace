@@ -54,7 +54,7 @@ Python still accepts three legacy values that the wizard no longer sends: the mi
 5. **Drop duplicates** (`cleaning.removeDuplicates`), comparing the CSV's own columns on their original values and keeping the first row.
 6. **Encode** each feature column.
 7. **Scale** each feature column. Missing values left by `keep` are ignored by the scaling and set to 0 afterwards.
-8. **Export** the scaled matrix of the projection columns to `processed_features.csv` in the Pyodide file system.
+8. **Export** the scaled matrix of the projection columns to the file the worker names (`features_file`, `/glyphspace-output/processed_features.csv` in the Pyodide file system; `processed_features.csv` in the working directory by default).
 9. **Build** the dataset.
 
 If no rows are left after step 5, processing stops with an error (class K2).
@@ -109,7 +109,7 @@ A feature without any value is set to 0 before fitting.
 
 ## Projections
 
-Python computes no projections. It writes the scaled features of the projection columns to `processed_features.csv` (`ID` first) and returns an empty `positions` object. The main thread then reads that file (`getProcessedFeatures`), runs FastMap and the enabled background methods with DruidJS, and adds each result to the dataset (`storeProjectionPositions`). See [ADR 0003](../decisions/0003-druidjs-projections-in-web-workers.md) and [Processing pipeline](../development/processing-pipeline.md).
+Python computes no projections. It writes the scaled features of the projection columns to `/glyphspace-output/processed_features.csv` (`ID` first) and returns an empty `positions` object. The main thread then reads that file (`getProcessedFeatures`), runs FastMap and the enabled background methods with DruidJS, and adds each result to the dataset (`storeProjectionPositions`). See [ADR 0003](../decisions/0003-druidjs-projections-in-web-workers.md) and [Processing pipeline](../development/processing-pipeline.md).
 
 `ProjectionConfig` (`src/app/preprocessing-wizard/models/column-config.ts`) holds one `enable<Method>` switch per background method and the parameters `isomapNeighbors`, `lleNeighbors`, `ltsaNeighbors` (0 = DruidJS default), `tsnePerplexity`, `tsneIterations`, `umapNeighbors` and `umapMinDist`. Methods in `HIDDEN_PROJECTION_METHODS` never run, whatever their switch says.
 
