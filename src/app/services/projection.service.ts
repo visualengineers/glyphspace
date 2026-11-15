@@ -44,6 +44,11 @@ interface ProjectionJob {
   reject: (reason: Error) => void;
   /** Set once the job finished or was cancelled; later worker messages are ignored. */
   ended: boolean;
+  /**
+   * Set by detachAll(): the job keeps computing and settles its own promise,
+   * but no longer reports to the status list, which belongs to the next run.
+   */
+  detached: boolean;
 }
 
 /**
@@ -65,11 +70,16 @@ function loadDruid(): Promise<DruidModule> {
   providedIn: 'root',
 })
 export class ProjectionService {
+  /**
+   * Status per method of the current run's projections only: a job released by
+   * detachAll() no longer reports here, so it cannot overwrite the status of the
+   * same method in a later run.
+   */
   private backgroundStatus$ = new BehaviorSubject<Map<string, BackgroundStatus>>(new Map());
   /**
    * The controllable job per method: the latest one started and not yet
-   * detached. An earlier job of the same method, or a job released by
-   * detachAll(), keeps computing and reporting on its own.
+   * detached. A job released by detachAll() keeps computing and settles its
+   * own promise, silently.
    */
   private jobs = new Map<string, ProjectionJob>();
   /**
@@ -217,19 +227,21 @@ export class ProjectionService {
 
   /**
    * Start one background projection in a fresh worker; it becomes the method's
-   * controllable job. A still-running earlier job of the same method is not
-   * stopped (it may belong to a dataset already handed to the dashboard): it
-   * keeps computing, reports its status and settles its own promise.
+   * controllable job. A still-running earlier job of the same method in this
+   * run is outdated by it and cancelled. Jobs of an earlier run were released
+   * by detachAll() and are not touched: they may belong to a dataset already
+   * handed to the dashboard.
    */
   private startJob(request: ProjectionRequest): Promise<ProjectionResult> {
     const { method } = request;
+    this.cancel(method);
     this.requests.set(method, request);
 
     return new Promise((resolve, reject) => {
       const worker = new Worker(new URL('../workers/projection.worker', import.meta.url), {
         type: 'module',
       });
-      const job: ProjectionJob = { worker, request, reject, ended: false };
+      const job: ProjectionJob = { worker, request, reject, ended: false, detached: false };
       this.jobs.set(method, job);
       this.updateBackgroundStatus(method, 'running', 0, `Starting ${method.toUpperCase()}...`);
 
@@ -261,13 +273,13 @@ export class ProjectionService {
       return; // a late message from a cancelled worker
     }
     if (data.type === 'progress') {
-      this.updateBackgroundStatus(method, 'running', data.progress || 0, data.message || `Computing ${method}...`);
+      this.reportStatus(job, 'running', data.progress || 0, data.message || `Computing ${method}...`);
     } else if (data.type === 'result') {
       this.endJob(job);
       if (this.requests.get(method) === job.request) {
         this.requests.delete(method);
       }
-      this.updateBackgroundStatus(method, 'complete', 100, `${method} complete`);
+      this.reportStatus(job, 'complete', 100, `${method} complete`);
       resolve({ method, positions: data.positions ?? [], computeTime: data.computeTime ?? 0 });
     } else if (data.type === 'error') {
       this.failJob(job, `${method} failed`, data.error ?? 'Unknown error');
@@ -280,8 +292,21 @@ export class ProjectionService {
       return;
     }
     this.endJob(job);
-    this.updateBackgroundStatus(job.request.method, 'error', 0, summary, detail);
+    this.reportStatus(job, 'error', 0, summary, detail);
     job.reject(new Error(`${summary}: ${detail}`));
+  }
+
+  /** Publish a job's status, unless detachAll() released the job from the current run. */
+  private reportStatus(
+    job: ProjectionJob,
+    status: BackgroundStatus['status'],
+    progress: number,
+    message: string,
+    error?: string
+  ): void {
+    if (!job.detached) {
+      this.updateBackgroundStatus(job.request.method, status, progress, message, error);
+    }
   }
 
   /** Terminate the job's worker and, if it is still the method's controllable job, forget it. */
@@ -330,13 +355,18 @@ export class ProjectionService {
   }
 
   /**
-   * Hand every running projection over, e.g. once the wizard passes its dataset
-   * to the dashboard or starts on a new one: the jobs keep computing and
-   * reporting their status, but can no longer be cancelled or retried.
+   * Hand every running projection over, once the wizard passes its dataset to
+   * the dashboard: the jobs keep computing and settle their promises, but can
+   * no longer be cancelled or retried and no longer report a status. The
+   * status list starts empty for the next run.
    */
   detachAll(): void {
+    for (const job of this.jobs.values()) {
+      job.detached = true;
+    }
     this.jobs.clear();
     this.requests.clear();
+    this.backgroundStatus$.next(new Map());
   }
 
   /**

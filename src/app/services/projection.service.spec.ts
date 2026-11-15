@@ -233,25 +233,22 @@ describe('ProjectionService – background projections', () => {
   });
 
   describe('runs of an earlier dataset', () => {
-    it('keeps an earlier run of the same method computing; only the newer one is controllable', async () => {
+    it('cancels an outdated job of the same method when a newer one starts in the same run', async () => {
       const earlier = startUmap();
       const earlierWorker = lastWorker();
       const newer = startUmap();
       const newerWorker = lastWorker();
-      expect(earlierWorker.terminated).toBe(false);
 
-      expect(service.cancel('umap')).toBe(true);
-      await expect(newer).rejects.toEqual(expect.any(ProjectionCancelledError));
-      expect(newerWorker.terminated).toBe(true);
-
-      earlierWorker.emit({ type: 'result', positions, computeTime: 4 });
-      expect(await earlier).toEqual({ method: 'umap', positions, computeTime: 4 });
+      await expect(earlier).rejects.toEqual(expect.any(ProjectionCancelledError));
       expect(earlierWorker.terminated).toBe(true);
-      // The newer run was cancelled, so it stays retryable.
-      expect(service.canRetry('umap')).toBe(true);
+      expect(newerWorker.terminated).toBe(false);
+      expect(statusOf('umap')).toBe('running');
+
+      newerWorker.emit({ type: 'result', positions, computeTime: 4 });
+      expect(await newer).toEqual({ method: 'umap', positions, computeTime: 4 });
     });
 
-    it('lets detached runs finish and report, but no longer cancels or retries them', async () => {
+    it('lets detached runs finish silently, and no longer cancels or retries them', async () => {
       const run = startUmap();
       const worker = lastWorker();
 
@@ -261,14 +258,33 @@ describe('ProjectionService – background projections', () => {
       expect(service.cancel('umap')).toBe(false);
       expect(service.terminateAllWorkers()).toEqual([]);
       expect(worker.terminated).toBe(false);
+      expect(service.getBackgroundStatus('umap')).toBeUndefined();
 
       worker.emit({ type: 'progress', progress: 70 });
-      expect(service.getBackgroundStatus('umap')?.progress).toBe(70);
+      expect(service.getBackgroundStatus('umap')).toBeUndefined();
 
       worker.emit({ type: 'result', positions, computeTime: 9 });
       expect(await run).toEqual({ method: 'umap', positions, computeTime: 9 });
-      expect(statusOf('umap')).toBe('complete');
+      expect(service.getBackgroundStatus('umap')).toBeUndefined();
       expect(service.canRetry('umap')).toBe(false);
+    });
+
+    it('never lets a detached run overwrite the status of the same method in the next run', async () => {
+      const earlier = startUmap();
+      const earlierWorker = lastWorker();
+      service.detachAll();
+
+      const next = startUmap();
+      const nextWorker = lastWorker();
+      expect(service.cancel('umap')).toBe(true);
+      await expect(next).rejects.toEqual(expect.any(ProjectionCancelledError));
+      expect(nextWorker.terminated).toBe(true);
+      expect(earlierWorker.terminated).toBe(false);
+
+      earlierWorker.emit({ type: 'error', error: 'late failure' });
+      await expect(earlier).rejects.toThrowError('umap failed: late failure');
+      expect(statusOf('umap')).toBe('cancelled');
+      expect(service.canRetry('umap')).toBe(true);
     });
   });
 });
