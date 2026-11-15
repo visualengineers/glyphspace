@@ -4,6 +4,9 @@ export const FIT_ANIMATION_DURATION_MS = 500;
 /** Margin factor when fitting the view to content (1.1 = 10% padding) */
 export const FIT_MARGIN_FACTOR = 1.1;
 
+/** Camera zoom range of wheel, pinch and fit-to-view. */
+export const ZOOM_LIMITS = { min: 0.5, max: 50 } as const;
+
 /** Throttle interval for mouse-move hit testing in milliseconds */
 export const HIT_TEST_THROTTLE_MS = 50;
 
@@ -18,6 +21,9 @@ export const CLICK_DISTANCE_THRESHOLD = 4;
 
 /** Minimum interval between consecutive renderGlyphs calls (ms) */
 export const MIN_RENDER_INTERVAL_MS = 50;
+
+/** Items closer than this (canvas units) form a cluster when aggregation is on */
+export const AGGREGATION_RADIUS = 10;
 
 /** Enlargement factor for glyphs shown inside the magic lens */
 export const LENS_ENLARGEMENT_FACTOR = 5;

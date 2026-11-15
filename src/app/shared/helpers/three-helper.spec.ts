@@ -1,7 +1,14 @@
 import type { Mock } from 'vitest';
 import * as THREE from 'three';
 import { GlyphSizeInfo } from '../../glyph/glyph-size-info';
-import { hitTest, hitTestCandidates, screenToWorld } from './three-helper';
+import {
+  convertToScreenSpace,
+  exportThreeSceneAsPNG,
+  hitTest,
+  hitTestCandidates,
+  scalePosition,
+  screenToWorld,
+} from './three-helper';
 
 // A 200x200 px canvas at the page origin looking at world [-100, 100] on both axes,
 // so world (x, y) maps to client (x + 100, 100 - y).
@@ -115,5 +122,55 @@ describe('three-helper screenToWorld', () => {
 
     expect(world.x).toBeCloseTo(50);
     expect(world.y).toBeCloseTo(-25);
+  });
+});
+
+describe('three-helper scalePosition', () => {
+  const bounds = { minX: -2, maxX: 2, minY: 0, maxY: 10 };
+
+  it('fills the canvas width and height, centred on the origin', () => {
+    expect(scalePosition(-2, 0, bounds, 400, 300)).toEqual({ x: -200, y: -150 });
+    expect(scalePosition(2, 10, bounds, 400, 300)).toEqual({ x: 200, y: 150 });
+    expect(scalePosition(0, 5, bounds, 400, 300)).toEqual({ x: 0, y: 0 });
+  });
+
+  it('centres an axis without range and still spreads the other', () => {
+    const vertical = { minX: 3, maxX: 3, minY: 0, maxY: 10 };
+    expect(scalePosition(3, 10, vertical, 400, 300)).toEqual({ x: 0, y: 150 });
+    const horizontal = { minX: 0, maxX: 10, minY: 1, maxY: 1 };
+    expect(scalePosition(0, 1, horizontal, 400, 300)).toEqual({ x: -200, y: 0 });
+  });
+
+  it('puts a single item in the centre', () => {
+    expect(scalePosition(7, 7, { minX: 7, maxX: 7, minY: 7, maxY: 7 }, 400, 300)).toEqual({ x: 0, y: 0 });
+  });
+});
+
+describe('three-helper convertToScreenSpace', () => {
+  it('maps world positions to client px of the given rect, filling the target', () => {
+    const camera = createCamera();
+    const object = new THREE.Object3D();
+    object.position.set(50, -50, 0);
+    const target = new THREE.Vector2();
+
+    const result = convertToScreenSpace(object, camera, new DOMRect(10, 20, CANVAS_SIZE, CANVAS_SIZE), target);
+
+    expect(result).toBe(target);
+    expect(result.x).toBeCloseTo(160);
+    expect(result.y).toBeCloseTo(170);
+  });
+});
+
+describe('three-helper exportThreeSceneAsPNG', () => {
+  it('exports nothing for a canvas without a size (hidden while another is maximised)', () => {
+    const render = vi.fn();
+    const renderer = { render, getSize: vi.fn(), getPixelRatio: vi.fn(), setPixelRatio: vi.fn(), setSize: vi.fn() };
+    const canvasElement = document.createElement('canvas'); // not in the document: no size
+
+    exportThreeSceneAsPNG(renderer as unknown as THREE.WebGLRenderer, new THREE.Scene(), createCamera(), {
+      canvasElement,
+    });
+
+    expect(render).not.toHaveBeenCalled();
   });
 });

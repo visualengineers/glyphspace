@@ -18,12 +18,16 @@ import {
   assertSafeFileName,
   resultFileFor,
 } from './pyodide-files';
+import PYODIDE_PACKAGES from './pyodide-packages.json';
 
-// -- Load Pyodide from CDN --
+// -- Load Pyodide, served by this site (ADR 0013) --
 
-/** The Pyodide release loaded from the CDN (single source of truth). */
-const PYODIDE_VERSION = '314.0.7';
-const PYODIDE_INDEX_URL = `https://cdn.jsdelivr.net/pyodide/v${PYODIDE_VERSION}/full/`;
+/**
+ * Where the build serves Pyodide and its packages: `pyodide/` next to the worker script, so the
+ * site's base href applies. The `pyodide` npm package fixes the version; `tools/fetch-pyodide.mjs`
+ * puts the wheels of `pyodide-packages.json` next to it.
+ */
+const PYODIDE_INDEX_URL = new URL('pyodide/', self.location.href).href;
 
 /** The subset of the Pyodide API this worker uses. */
 interface WorkerPyodide extends PyodideCallRuntime {
@@ -33,18 +37,19 @@ interface WorkerPyodide extends PyodideCallRuntime {
     readFile(path: string, options: { encoding: 'binary' }): Uint8Array<ArrayBuffer>;
     readdir(path: string): string[];
   };
-  loadPackage(name: string): Promise<unknown>;
-  pyimport(name: 'micropip'): { install(name: string): Promise<unknown> };
+  loadPackage(names: string[]): Promise<unknown>;
 }
 
 const pyodideReady = (async (): Promise<WorkerPyodide> => {
-  const { loadPyodide } = await import(`${PYODIDE_INDEX_URL}pyodide.mjs`);
-  const pyodide: WorkerPyodide = await loadPyodide({ indexURL: PYODIDE_INDEX_URL });
+  const { loadPyodide } = await import(/* @vite-ignore */ `${PYODIDE_INDEX_URL}pyodide.mjs`);
+  const pyodide: WorkerPyodide = await loadPyodide({
+    indexURL: PYODIDE_INDEX_URL,
+    // Packages resolve against this site too, never against Pyodide's CDN default.
+    packageBaseUrl: PYODIDE_INDEX_URL,
+  });
 
-  await pyodide.loadPackage('micropip');
-  const micropip = pyodide.pyimport('micropip');
-  await micropip.install('pandas');
-  await micropip.install('scikit-learn');
+  // Only packages from pyodide-lock.json, fetched with its SHA-256 as integrity: no micropip, no PyPI.
+  await pyodide.loadPackage(PYODIDE_PACKAGES);
 
   return pyodide;
 })();

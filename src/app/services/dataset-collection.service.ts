@@ -12,6 +12,13 @@ export class DatasetCollectionService {
     return this.dataSetCollectionSubject.getValue();
   }
 
+  /**
+   * Add datasets, or items of a dataset, to the collection. An incoming item
+   * replaces the item of the same dataset and time, like
+   * `DatasetCacheService.buildDataSet` replaces that timestamp's data: its
+   * projections are exactly the incoming ones, so a projection left out of a
+   * rebuilt dataset is no longer offered.
+   */
   setDatasetCollection(newCollection: DatasetCollection): void {
     const currentCollection = this.getCollection() ?? [];
 
@@ -26,16 +33,9 @@ export class DatasetCollectionService {
 
       if (existing) {
         for (const incomingItem of incoming.items) {
-          const existingItem = existing.items.find(item => item.time === incomingItem.time);
-
-          if (existingItem) {
-            existingItem.algorithms.position = {
-              ...existingItem.algorithms.position,
-              ...incomingItem.algorithms.position,
-            };
-          } else {
-            existing.items.push(incomingItem);
-          }
+          const index = existing.items.findIndex(item => item.time === incomingItem.time);
+          if (index >= 0) existing.items[index] = incomingItem;
+          else existing.items.push(incomingItem);
         }
       } else {
         datasetMap.set(incoming.dataset, { ...incoming, items: [...incoming.items] });

@@ -38,16 +38,15 @@ describe('DatasetCollectionService', () => {
     expect(service.getDataSetNames()).toContain('test-ds');
   });
 
-  it('should merge positions when adding to existing dataset', () => {
-    const entry1 = makeEntry('ds1', 't1', { pca: 'ds1/pca' });
-    service.setDatasetCollection([entry1]);
+  // Regression: positions were merged, so a dataset processed again under the
+  // same name and time kept offering a projection it no longer had.
+  it('replaces an item of the same time, projections included', () => {
+    service.setDatasetCollection([makeEntry('ds1', 't1', { fastmap: 'ds1/fastmap', umap: 'ds1/umap' })]);
 
-    const entry2 = makeEntry('ds1', 't1', { tsne: 'ds1/tsne' });
-    service.setDatasetCollection([entry2]);
+    service.setDatasetCollection([makeEntry('ds1', 't1', { fastmap: 'ds1/fastmap', pca: 'ds1/pca' })]);
 
-    const positions = service.getPositions('ds1');
-    expect(positions).toContain('pca');
-    expect(positions).toContain('tsne');
+    expect(service.getPositions('ds1')).toEqual(['fastmap', 'pca']);
+    expect(service.getTimestamps('ds1')).toEqual(['t1']);
   });
 
   it('should add new timestamps to existing dataset', () => {

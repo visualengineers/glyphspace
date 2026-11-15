@@ -1,8 +1,10 @@
+import { NgZone } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { SidebarComponent } from './sidebar.component';
 import { ConfigService } from '../services/config.service';
 import { DataLoaderService } from '../services/data-loader.service';
 import { ThumbnailService } from '../services/thumbnail.service';
+import { FilterService } from '../services/filter.service';
 import { GlyphType } from '../shared/enum/glyph-type';
 import { MAX_GLYPH_AXES } from '../glyph/glyph-axes';
 
@@ -62,6 +64,19 @@ describe('SidebarComponent', () => {
     expect(fixture.componentInstance.imagesAvailable).toBe(true);
   });
 
+  // Regression: every command, so every canvas redraw, re-entered the zone and
+  // ran change detection for the whole app; only filter changes affect the sidebar.
+  it('runs change detection for filter changes, not for every canvas command', () => {
+    const run = vi.spyOn(TestBed.inject(NgZone), 'run');
+
+    config.redraw();
+    config.reRender();
+    expect(run).not.toHaveBeenCalled();
+
+    TestBed.inject(FilterService).refreshFilters();
+    expect(run).toHaveBeenCalled();
+  });
+
   it('opens on the Filters tab', () => {
     expect(tab('filters').getAttribute('aria-selected')).toBe('true');
     expect(panel('filters').hidden).toBe(false);
@@ -107,5 +122,40 @@ describe('SidebarComponent', () => {
     await fixture.whenStable();
     expect(el.classList.contains('collapsed')).toBe(false);
     expect(document.activeElement).toBe(collapse);
+  });
+});
+
+describe('SidebarComponent – switching datasets', () => {
+  // Regression: the handler of an earlier dataset that finished last overwrote
+  // the sidebar of the dataset loaded after it.
+  it('shows the dataset loaded last, even when an earlier one finishes later', async () => {
+    let finishSlow: (value: unknown) => void = () => undefined;
+    const slowMeta = new Promise(resolve => (finishSlow = resolve));
+    await TestBed.configureTestingModule({
+      imports: [SidebarComponent],
+      providers: [
+        {
+          provide: DataLoaderService,
+          useValue: {
+            getMetaData: (name: string) => (name === 'slow' ? slowMeta : Promise.resolve({ features: { fast: {} } })),
+            getSchema: async () => undefined,
+            getGlyphData: async () => [],
+          },
+        },
+        { provide: ThumbnailService, useValue: { hasImages: async () => true } },
+      ],
+    }).compileComponents();
+    const config = TestBed.inject(ConfigService);
+    const fixture = TestBed.createComponent(SidebarComponent);
+    fixture.detectChanges();
+
+    config.loadData('slow');
+    config.loadData('fast');
+    await vi.waitFor(() => expect(fixture.componentInstance.featureIds).toEqual(['fast']));
+
+    finishSlow({ features: { slow: {} } });
+    await new Promise(resolve => setTimeout(resolve));
+
+    expect(fixture.componentInstance.featureIds).toEqual(['fast']);
   });
 });

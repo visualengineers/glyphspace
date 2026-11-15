@@ -20,7 +20,7 @@ Message types: `WorkerRequest` and `WorkerReply` in `src/app/shared/interfaces/p
 ### Lifecycle
 
 - `DataProcessorService` creates the worker on first need: the first request, or `preload()`, which `PreprocessingService` calls when the wizard opens. The app's start does not create it.
-- On start, the worker loads Pyodide `PYODIDE_VERSION` (314.0.7) from `https://cdn.jsdelivr.net/pyodide/v<version>/full/` and installs `pandas` and `scikit-learn` with micropip, then posts `ready`, or `startupFailed { message }` if that fails. Every request waits for this. `DataProcessorService.runtimeStatus` publishes `idle`, `starting`, `ready` or `failed`.
+- On start, the worker loads Pyodide (the version of the `pyodide` npm package, 314.0.7) from `pyodide/` next to the worker script and installs the packages in `workers/pyodide-packages.json` (`pandas`, `scikit-learn`) with `loadPackage`, from Pyodide's lock file ([ADR 0013](../decisions/0013-self-host-pyodide.md)). Then it posts `ready`, or `startupFailed { message }` if that fails. Every request waits for this. `DataProcessorService.runtimeStatus` publishes `idle`, `starting`, `ready` or `failed`.
 - Requests run one at a time, in the order they arrive (`runSerialized`). When the worker starts a request it posts `started` with the request's id.
 - The Python modules `preprocessing_processor.py` and `preprocessing_processor_config.py` are fetched from `assets/` and written to the worker's file system the first time a request needs them.
 - The worker's file system holds the uploaded CSV files and the unpacked item images. `DataProcessorService` keeps their contents: an input once `profileData` succeeded, an archive once `unzip` did, until `pruneFiles` or `removeFolder` lets it go.

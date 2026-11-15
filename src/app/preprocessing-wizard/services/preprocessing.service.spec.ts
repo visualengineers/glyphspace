@@ -16,6 +16,12 @@ import {
   OutlierStrategy,
 } from '../models/data-type.enum';
 
+/** The value, or a failed test when it is missing. */
+function defined<T>(value: T | null | undefined): T {
+  if (value === null || value === undefined) throw new Error('expected a value');
+  return value;
+}
+
 /**
  * A4 – Undo/Redo history engine.
  *
@@ -145,15 +151,15 @@ describe('PreprocessingService – Undo/Redo history', () => {
   describe('undo / redo round trip', () => {
     it('reverts a column-enable toggle and re-applies it', () => {
       service.toggleColumnEnabled('alpha'); // disable
-      expect(service.currentState.columnConfigs.get('alpha')!.enabled).toBe(false);
+      expect(service.currentState.columnConfigs.get('alpha')?.enabled).toBe(false);
 
       const undoInfo = service.undo();
       expect(undoInfo).not.toBeNull();
-      expect(service.currentState.columnConfigs.get('alpha')!.enabled).toBe(true);
+      expect(service.currentState.columnConfigs.get('alpha')?.enabled).toBe(true);
 
       const redoInfo = service.redo();
       expect(redoInfo).not.toBeNull();
-      expect(service.currentState.columnConfigs.get('alpha')!.enabled).toBe(false);
+      expect(service.currentState.columnConfigs.get('alpha')?.enabled).toBe(false);
     });
 
     it('reverts and re-applies a glyph-feature change', () => {
@@ -174,11 +180,11 @@ describe('PreprocessingService – Undo/Redo history', () => {
 
       // Undo the beta change first (most recent), then alpha.
       service.undo();
-      expect(service.currentState.columnConfigs.get('beta')!.encodingMethod).toBe(EncodingMethod.Normalize);
-      expect(service.currentState.columnConfigs.get('alpha')!.encodingMethod).toBe(EncodingMethod.Standardize);
+      expect(service.currentState.columnConfigs.get('beta')?.encodingMethod).toBe(EncodingMethod.Normalize);
+      expect(service.currentState.columnConfigs.get('alpha')?.encodingMethod).toBe(EncodingMethod.Standardize);
 
       service.undo();
-      expect(service.currentState.columnConfigs.get('alpha')!.encodingMethod).toBe(EncodingMethod.Normalize);
+      expect(service.currentState.columnConfigs.get('alpha')?.encodingMethod).toBe(EncodingMethod.Normalize);
     });
 
     it('keeps undo/redo labels in sync with the stacks', () => {
@@ -211,12 +217,12 @@ describe('PreprocessingService – Undo/Redo history', () => {
     it('deep-copies column configs so a later in-place mutation cannot corrupt a snapshot', () => {
       service.pushHistory('Before mutation');
       // Mutate the live config object in place, bypassing the public API entirely.
-      const liveConfig = service.currentState.columnConfigs.get('alpha')!;
+      const liveConfig = defined(service.currentState.columnConfigs.get('alpha'));
       liveConfig.encodingMethod = EncodingMethod.Standardize;
 
       service.undo();
       // The snapshot must still hold the pre-mutation value.
-      expect(service.currentState.columnConfigs.get('alpha')!.encodingMethod).toBe(EncodingMethod.Normalize);
+      expect(service.currentState.columnConfigs.get('alpha')?.encodingMethod).toBe(EncodingMethod.Normalize);
     });
 
     it('deep-copies glyph feature arrays', () => {
@@ -235,7 +241,7 @@ describe('PreprocessingService – Undo/Redo history', () => {
       // alpha is the color feature; glyph rays reference alpha + beta.
       seed();
       const configs = service.currentState.columnConfigs;
-      configs.get('alpha')!.isColorFeature = true;
+      defined(configs.get('alpha')).isColorFeature = true;
       (service as unknown as { updateState(u: Partial<PreprocessingState>): void }).updateState({
         columnConfigs: new Map(configs),
         colorScaleId: 2,
@@ -245,15 +251,15 @@ describe('PreprocessingService – Undo/Redo history', () => {
 
       // Disabling alpha must cascade: clear color feature, reset scale, drop alpha from glyph.
       service.toggleColumnEnabled('alpha');
-      expect(service.currentState.columnConfigs.get('alpha')!.isColorFeature).toBe(false);
+      expect(service.currentState.columnConfigs.get('alpha')?.isColorFeature).toBe(false);
       expect(service.currentState.colorScaleId).toBe(0);
       expect(service.currentState.glyphFeatures).toEqual(['beta']);
 
       // A single undo reverts the toggle and the whole cascade together.
       service.undo();
       const restored = service.currentState;
-      expect(restored.columnConfigs.get('alpha')!.enabled).toBe(true);
-      expect(restored.columnConfigs.get('alpha')!.isColorFeature).toBe(true);
+      expect(restored.columnConfigs.get('alpha')?.enabled).toBe(true);
+      expect(restored.columnConfigs.get('alpha')?.isColorFeature).toBe(true);
       expect(restored.colorScaleId).toBe(2);
       expect(restored.glyphFeatures).toEqual(['alpha', 'beta']);
     });
@@ -330,12 +336,12 @@ describe('PreprocessingService – Undo/Redo history', () => {
     function undoInfoAfter(mutate: () => void) {
       service.pushHistory('some action');
       mutate();
-      return service.undo()!;
+      return defined(service.undo());
     }
 
     function mutateColumn<K extends keyof ColumnConfig>(field: K, value: ColumnConfig[K]): void {
       const configs = new Map(service.currentState.columnConfigs);
-      configs.set('alpha', { ...configs.get('alpha')!, [field]: value });
+      configs.set('alpha', { ...defined(configs.get('alpha')), [field]: value });
       (service as unknown as { updateState(u: Partial<PreprocessingState>): void }).updateState({
         columnConfigs: configs,
       });
@@ -485,7 +491,7 @@ describe('PreprocessingService – Undo/Redo history', () => {
     it('falls back to the raw action label when no field maps cleanly', () => {
       // Push twice over an identical state so the diff finds no changed field.
       service.pushHistory('Free-text action');
-      const info = service.undo()!;
+      const info = defined(service.undo());
       expect(info.actionLabel).toBe('Free-text action');
       expect(info.settingLabel).toBe('Free-text action');
       expect(info.step).toBeNull();
@@ -498,7 +504,7 @@ describe('PreprocessingService – Undo/Redo history', () => {
       (service as unknown as { updateState(u: Partial<PreprocessingState>): void }).updateState({
         columnConfigs: configs,
       });
-      const info = service.undo()!;
+      const info = defined(service.undo());
       expect(info.settingLabel).toBe('Column selection');
     });
   });
@@ -518,21 +524,21 @@ describe('PreprocessingService – Undo/Redo history', () => {
 
     it('setColumnsEnabled reverts a bulk disable', () => {
       service.setColumnsEnabled(['alpha', 'beta'], false);
-      expect(service.currentState.columnConfigs.get('alpha')!.enabled).toBe(false);
-      expect(service.currentState.columnConfigs.get('beta')!.enabled).toBe(false);
+      expect(service.currentState.columnConfigs.get('alpha')?.enabled).toBe(false);
+      expect(service.currentState.columnConfigs.get('beta')?.enabled).toBe(false);
 
       service.undo();
-      expect(service.currentState.columnConfigs.get('alpha')!.enabled).toBe(true);
-      expect(service.currentState.columnConfigs.get('beta')!.enabled).toBe(true);
+      expect(service.currentState.columnConfigs.get('alpha')?.enabled).toBe(true);
+      expect(service.currentState.columnConfigs.get('beta')?.enabled).toBe(true);
     });
 
     it('selectAllColumns undo restores a previously disabled column', () => {
       service.setColumnsEnabled(['alpha'], false);
       service.selectAllColumns();
-      expect(service.currentState.columnConfigs.get('alpha')!.enabled).toBe(true);
+      expect(service.currentState.columnConfigs.get('alpha')?.enabled).toBe(true);
 
       service.undo(); // revert selectAll
-      expect(service.currentState.columnConfigs.get('alpha')!.enabled).toBe(false);
+      expect(service.currentState.columnConfigs.get('alpha')?.enabled).toBe(false);
     });
 
     it('deselectAllColumns is fully reversible', () => {

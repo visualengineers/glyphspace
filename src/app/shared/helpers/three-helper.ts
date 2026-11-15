@@ -133,48 +133,45 @@ export function panCamera(
   camera.updateProjectionMatrix();
 }
 
+const _screenScratch = new THREE.Vector3();
+
+/**
+ * Screen position (client px) of an object, for a canvas whose bounding rect is
+ * `rect`. Callers converting many objects pass the rect they read once, and a
+ * `target` to fill.
+ */
 export function convertToScreenSpace(
   obj: THREE.Object3D,
   camera: THREE.OrthographicCamera,
-  domElement: HTMLCanvasElement
+  rect: DOMRect,
+  target = new THREE.Vector2()
 ): THREE.Vector2 {
-  const pos = new THREE.Vector3();
-  obj.getWorldPosition(pos);
-  const rect = domElement.getBoundingClientRect();
-  const ndc = pos.clone().project(camera);
-  const screenX = ((ndc.x + 1) / 2) * rect.width + rect.left;
-  const screenY = ((-ndc.y + 1) / 2) * rect.height + rect.top;
-
-  return new THREE.Vector2(screenX, screenY);
+  obj.getWorldPosition(_screenScratch).project(camera);
+  return target.set(
+    ((_screenScratch.x + 1) / 2) * rect.width + rect.left,
+    ((-_screenScratch.y + 1) / 2) * rect.height + rect.top
+  );
 }
 
+/**
+ * Map raw projection coordinates into canvas space, centred on the origin: the
+ * data fills the canvas width and height, so the aspect ratio of the projection
+ * is not kept. An axis on which all items have the same value maps to its
+ * centre; the other axis is still spread out.
+ */
 export function scalePosition(
   x: number,
   y: number,
   bounds: { minX: number; maxX: number; minY: number; maxY: number },
   canvasWidth: number,
-  canvasHeight: number,
-  maxNormWidth = 50
+  canvasHeight: number
 ): { x: number; y: number } {
   const dataWidth = bounds.maxX - bounds.minX;
   const dataHeight = bounds.maxY - bounds.minY;
-
-  if (dataWidth === 0 || dataHeight === 0) {
-    return { x: 0, y: 0 };
-  }
-
-  // Normalize to [0, 1]
-  const normX = (x - bounds.minX) / dataWidth;
-  // Scale X to [0, maxNormWidth], and scale Y proportionally
-  const xInWorld = normX * maxNormWidth;
-  const scale = maxNormWidth / dataWidth;
-  const yInWorld = (y - bounds.minY) * scale;
-
-  // Center both coordinates in canvas
-  const scaledX = (xInWorld - maxNormWidth / 2) * (canvasWidth / maxNormWidth);
-  const scaledY = (yInWorld - (dataHeight * scale) / 2) * (canvasHeight / (dataHeight * scale));
-
-  return { x: scaledX, y: scaledY };
+  return {
+    x: dataWidth > 0 ? ((x - bounds.minX) / dataWidth - 0.5) * canvasWidth : 0,
+    y: dataHeight > 0 ? ((y - bounds.minY) / dataHeight - 0.5) * canvasHeight : 0,
+  };
 }
 
 export function nearlyEqual(a: number, b: number, epsilon = 0.01): boolean {
@@ -201,9 +198,11 @@ export function exportThreeSceneAsPNG(
     canvasElement = renderer.domElement,
   } = options || {};
 
-  // Get actual display size of the canvas in the DOM
+  // Get actual display size of the canvas in the DOM. A hidden canvas (another
+  // one is maximised) has none: there is nothing to export.
   const canvasWidth = canvasElement.clientWidth;
   const canvasHeight = canvasElement.clientHeight;
+  if (canvasWidth === 0 || canvasHeight === 0) return;
 
   // Backup current state
   const originalSize = new THREE.Vector2();

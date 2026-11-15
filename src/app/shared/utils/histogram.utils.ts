@@ -221,21 +221,56 @@ export function formatBinTooltip(
 }
 
 /**
- * Category label per histogram bin. Wizard datasets have one bin per category
- * (bin n = category code n, empty bins included); older CLI output uses fixed
- * bins that several categories may share, so there the non-empty bins are
- * labelled in order.
+ * The bin (0 … binCount − 1) that counts a [0, 1]-normalised feature value, as
+ * numpy's `histogram` assigns it: bin n holds the values in [n/N, (n+1)/N), and
+ * the last bin also holds 1. The dataset meta's histograms are built that way
+ * (the CLI and the wizard split the feature's range into N equal bins), so this
+ * is the bar an item is counted in. Values outside [0, 1] go to the end bins.
  */
+export function binOfValue(value: number, binCount: number): number {
+  if (binCount <= 1) return 0;
+  const width = 1 / binCount;
+  let bin = Math.min(binCount - 1, Math.max(0, Math.floor(value * binCount)));
+  // Compare with the edges as numpy computes them (n × width), not with value × N,
+  // so values on an edge land in the same bin as in the histogram.
+  if (bin > 0 && value < bin * width) bin--;
+  else if (bin < binCount - 1 && value >= (bin + 1) * width) bin++;
+  return bin;
+}
+
+/**
+ * The category codes counted in each bin. Category codes are min-max normalised
+ * like every feature, so code c of K categories is the value c / (K − 1). With
+ * one bin per category (wizard datasets) bin c holds code c; with the CLI's fixed
+ * 20 bins several categories can share a bin, and some bins hold none.
+ */
+export function categoryCodesByBin(binCount: number, categoryCount: number): Map<number, number[]> {
+  const byBin = new Map<number, number[]>();
+  for (let code = 0; code < categoryCount; code++) {
+    const value = categoryCount > 1 ? code / (categoryCount - 1) : 0;
+    const bin = binOfValue(value, binCount);
+    const codes = byBin.get(bin);
+    if (codes) codes.push(code);
+    else byBin.set(bin, [code]);
+  }
+  return byBin;
+}
+
+/** Label of a bin from the names of the categories it holds: all of them, or the first and last of many. */
+export function binCategoryLabel(names: readonly string[]): string {
+  if (names.length <= 3) return names.join(', ');
+  return `${names[0]} … ${names[names.length - 1]} (${names.length.toLocaleString('en-US')} categories)`;
+}
+
+/** Category label per histogram bin, naming the categories counted in it (see `categoryCodesByBin`). */
 export function categoryLabelsByBin(histogram: Histogram, categories: string[] | undefined): Map<number, string> {
   if (!categories?.length) {
     return new Map();
   }
-  const bins = Object.keys(histogram).map(Number);
-  if (bins.length === categories.length) {
-    return new Map(bins.map(bin => [bin, categories[bin]]));
-  }
-  const nonEmpty = Object.entries(histogram)
-    .filter(([, value]) => value !== 0)
-    .map(([key]) => Number(key));
-  return new Map(nonEmpty.filter((_, i) => i < categories.length).map((bin, i) => [bin, categories[i]]));
+  const binCount = Object.keys(histogram).length;
+  const labels = new Map<number, string>();
+  categoryCodesByBin(binCount, categories.length).forEach((codes, bin) => {
+    labels.set(bin, binCategoryLabel(codes.map(code => categories[code])));
+  });
+  return labels;
 }

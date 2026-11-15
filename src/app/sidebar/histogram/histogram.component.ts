@@ -20,14 +20,18 @@ import { FilterMode } from '../../shared/enum/filter-mode';
 import { Subscription } from 'rxjs';
 import { COLOR_SCALES, ColorScale, getColorScaleById, paletteColor } from '../../shared/interfaces/color-scale';
 import { CategoryFilter } from '../../shared/filter/category-filter';
-import { InteractionCommand } from '../../shared/enum/interaction-command';
 import { Histogram, StackedBin } from '../../shared/types/histogram.types';
 import {
   prepareStackedBinsFromObject,
   getEffectiveHistogramType,
   formatBinTooltip,
-  categoryLabelsByBin,
+  binOfValue,
+  categoryCodesByBin,
+  binCategoryLabel,
 } from '../../shared/utils/histogram.utils';
+
+/** Tolerance for a brush edge that lies on a bar edge (pixel → bin rounding). */
+const EDGE_TOLERANCE = 1e-6;
 
 @Component({
   selector: 'app-histogram',
@@ -57,7 +61,7 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges, OnD
 
   private configSub = new Subscription();
 
-  private filter!: ItemFilter;
+  private filter!: FeatureFilter;
   private categoryFilter!: CategoryFilter;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -73,16 +77,23 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges, OnD
   private yScale: any;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private brush: any;
-  private brushSelection: [number, number] | null = null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private brushGroup: any;
+  /** Brushed bins (first and last, inclusive); kept as bins so the brush survives a resize. */
+  private brushBins: [number, number] | null = null;
   private selectedBins = new Set<number>();
   private cachedStackedBins: StackedBin[] | null = null;
   private binToCategory = new Map<number, string>();
+  /** Lowest category code per bin: its palette colour is the bar's, as in the glyphs. */
+  private binToFirstCode = new Map<number, number>();
 
   private selectionCounts: Map<number, number> | null = null;
   private totalCounts: Map<number, number> | null = null;
   private selectionHighlightColor = 'rgba(59, 130, 246, 0.85)';
-  private isOwnRedraw = false;
+  private isOwnRefresh = false;
   private suppressBrushEvent = false;
+  /** Colour scale and colour feature the bars were drawn with; other configuration changes don't redraw. */
+  private colorKey = '';
 
   private defaultBarColor = '#333'; // dark gray
   private colorScale: ColorScale = COLOR_SCALES[0];
@@ -114,38 +125,44 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges, OnD
 
     this.configSub.add(
       this.configuration.glyphConfigSubject$.subscribe(() => {
+        // Only the colours depend on the configuration; sizes, axes or the glyph
+        // type change often (the size slider, every frame) and must not redraw.
+        const colorKey = `${this.configuration.colorRange}|${this.configuration.colorFeature}`;
+        if (colorKey === this.colorKey) return;
+        this.colorKey = colorKey;
         this.colorScale = getColorScaleById(this.configuration.colorRange);
         this.updateChart();
       })
     );
     this.configSub.add(
       this.configuration.loadedDataSubject$.subscribe(() => {
-        this.brushSelection = null;
+        this.brushBins = null;
         this.selectedBins.clear();
         this.selectionCounts = null;
         this.totalCounts = null;
       })
     );
-    this.configSub.add(
-      this.configuration.commandSubject$.subscribe((command: InteractionCommand) => {
-        if (command === InteractionCommand.clearselection) {
-          this.brushSelection = null;
-          this.selectedBins.clear();
-          this.selectionCounts = null;
-          this.updateChart();
-        } else if (command === InteractionCommand.redraw && !this.isOwnRedraw) {
-          // Clear brush/selection visuals if filter was externally cleared
-          if (this.filter.empty() && this.brushSelection) {
-            this.brushSelection = null;
-          }
-          if (this.categoryFilter.empty() && this.selectedBins.size > 0) {
-            this.selectedBins.clear();
-          }
-          this.computeSelectionOverlay();
-          this.updateChart();
-        }
-      })
-    );
+    this.configSub.add(this.dataProvider.filterChanged$.subscribe(() => this.onFiltersChanged()));
+  }
+
+  /**
+   * Another part changed the filters (a canvas selection, the filter summary,
+   * clearing all): show this histogram's own filter state and the selection.
+   */
+  private onFiltersChanged(): void {
+    if (this.isOwnRefresh) return;
+    let changed = false;
+    if (this.filter.empty() && this.brushBins) {
+      this.brushBins = null;
+      changed = true;
+    }
+    if (this.categoryFilter.empty() && this.selectedBins.size > 0) {
+      this.selectedBins.clear();
+      changed = true;
+    }
+    const hadOverlay = this.selectionCounts !== null;
+    this.computeSelectionOverlay();
+    if (changed || hadOverlay || this.selectionCounts !== null) this.updateChart();
   }
 
   ngOnDestroy(): void {
@@ -246,7 +263,7 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges, OnD
     if (!this.histogramData || !this.svg) return;
 
     // Clear brush selection when switching to categorical mode
-    this.brushSelection = null;
+    this.brushBins = null;
 
     // Use cached bins if available, otherwise prepare them
     const bins = this.cachedStackedBins || this.prepareStackedBins();
@@ -333,7 +350,15 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges, OnD
   }
 
   private buildBinCategoryMap() {
-    this.binToCategory = categoryLabelsByBin(this.histogramData, this.categories);
+    this.binToCategory.clear();
+    this.binToFirstCode.clear();
+    const categories = this.categories;
+    if (!categories?.length) return;
+    const binCount = Object.keys(this.histogramData).length;
+    categoryCodesByBin(binCount, categories.length).forEach((codes, bin) => {
+      this.binToCategory.set(bin, binCategoryLabel(codes.map(code => categories[code])));
+      this.binToFirstCode.set(bin, codes[0]);
+    });
   }
 
   private getCategoricalValue(bin: number): string {
@@ -417,18 +442,20 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges, OnD
       ])
       .on('end', ({ selection }: { selection: [number, number] | null }) => {
         if (this.suppressBrushEvent) return;
-        // save the current selection
-        this.brushSelection = selection;
 
         if (!selection) {
+          this.brushBins = null;
           bars.attr('fill', (d: { bin: number }) => (hasSelection ? '#d4d4d4' : this.getBarColor(d.bin, bins.length)));
 
           this.removeFilter();
           return;
         }
-        this.applyBrushFill(bars, selection, bins.length, hasSelection);
+        // The brush selects whole bars: every bar it touches, and it snaps to their edges.
+        this.brushBins = this.brushedBins(selection, bins.length);
+        this.moveBrushToBins();
+        this.applyBrushFill(bars, this.brushBins, bins.length, hasSelection);
 
-        this.filtering(selection);
+        this.filterBins(this.brushBins, bins.length);
       });
 
     const brushG = this.svg
@@ -463,27 +490,42 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges, OnD
         tooltip.style('opacity', 0);
       });
 
-    // restore previous selection if it exists (suppress event to avoid cascade)
-    if (this.brushSelection) {
-      this.suppressBrushEvent = true;
-      brushG.call(this.brush.move, this.brushSelection);
-      this.suppressBrushEvent = false;
+    this.brushGroup = brushG;
 
+    // Restore the brushed bins at this width (suppress the event to avoid a cascade)
+    if (this.brushBins) {
+      this.moveBrushToBins();
       // Re-apply outside-range greying since the brush 'end' handler was suppressed
-      this.applyBrushFill(bars, this.brushSelection, bins.length, hasSelection);
+      this.applyBrushFill(bars, this.brushBins, bins.length, hasSelection);
     }
   }
 
-  /** Visual-only: grey out numeric bars outside the brushed pixel range. */
+  /** The bars a brushed pixel range touches: [first, last]. */
+  private brushedBins([x0, x1]: [number, number], binCount: number): [number, number] {
+    const start = this.xScale.invert(Math.min(x0, x1));
+    const end = this.xScale.invert(Math.max(x0, x1));
+    const minBin = Math.min(binCount - 1, Math.max(0, Math.floor(start + EDGE_TOLERANCE)));
+    const maxBin = Math.min(binCount - 1, Math.max(minBin, Math.ceil(end - EDGE_TOLERANCE) - 1));
+    return [minBin, maxBin];
+  }
+
+  /** Put the brush rectangle on the edges of the brushed bars. */
+  private moveBrushToBins(): void {
+    if (!this.brushBins || !this.brushGroup) return;
+    const [minBin, maxBin] = this.brushBins;
+    this.suppressBrushEvent = true;
+    this.brushGroup.call(this.brush.move, [this.xScale(minBin), this.xScale(maxBin + 1)]);
+    this.suppressBrushEvent = false;
+  }
+
+  /** Visual-only: grey out the numeric bars outside the brushed bins. */
   private applyBrushFill(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     bars: d3.Selection<SVGRectElement, any, any, any>,
-    [x0, x1]: [number, number],
+    [minBin, maxBin]: [number, number],
     binCount: number,
     hasSelection: boolean
   ): void {
-    const minBin = Math.round(this.xScale.invert(x0));
-    const maxBin = Math.round(this.xScale.invert(x1));
     bars.attr('fill', (d: { bin: number }) =>
       d.bin >= minBin && d.bin <= maxBin ? (hasSelection ? '#d4d4d4' : this.getBarColor(d.bin, binCount)) : '#bdbdbd'
     );
@@ -522,174 +564,79 @@ export class HistogramComponent implements OnInit, AfterViewInit, OnChanges, OnD
       return this.defaultBarColor;
     }
 
-    // Category bins are the category codes; palettes color them in order, like the glyphs.
+    // Palettes colour the category codes in order, like the glyphs; a bar shared
+    // by several categories (CLI datasets) takes the colour of its first one.
     if (this.colorScale.type === 'categorical' && this.categories?.length) {
-      return paletteColor(this.colorScale, bin);
+      return paletteColor(this.colorScale, this.binToFirstCode.get(bin) ?? bin);
     }
 
     const t = binCount > 1 ? bin / (binCount - 1) : 0;
     return this.colorScale.scale(t);
   }
 
+  /** Filter by the clicked bars of a categorical histogram: exactly the items counted in them. */
   private filteringFromBins(selectedBins: number[]): void {
-    this.dataProvider.ensureFilter(this.filter);
     this.dataProvider.ensureFilter(this.categoryFilter);
-
-    if (!selectedBins || selectedBins.length === 0) {
-      this.categoryFilter.clear();
-      this.filter.clear();
-      this.refreshAndRedraw();
-      return;
-    }
-
-    const effectiveType = this.getEffectiveType();
-    const totalBins = Object.keys(this.histogramData).length;
-
-    // Clear both filters upfront so the unused one doesn't interfere
-    // (FeatureFilter defaults minValue=0/maxValue=0 which is NOT empty)
-    this.categoryFilter.clear();
-    this.filter.clear();
-
-    if (effectiveType === 'categorical') {
-      // Glyph feature values are ALWAYS stored in normalized [0,1] space (both
-      // process.py and the wizard normalize before storing). Histogram bins are
-      // uniformly distributed across the bin index range, so bin n corresponds to
-      // normalized value range [n/totalBins, (n+1)/totalBins].
-      //
-      // This works for:
-      //   - process.py output (20 fixed bins, multiple categories may share a bin)
-      //   - wizard uploads (one bin per category, N bins for N categories)
-      //   - any future normalized-data binning scheme
-      const binWidth = 1 / totalBins;
-      const epsilon = binWidth * 1e-6;
-
-      selectedBins.forEach(bin => {
-        const filterMin = bin * binWidth - epsilon;
-        const filterMax = (bin + 1) * binWidth + epsilon;
-        this.categoryFilter.addRange(filterMin, filterMax);
-      });
-    } else {
-      // For numeric: Filter by continuous range
-      // Bins represent ranges of continuous values
-      const steps = 1 / totalBins;
-
-      selectedBins.forEach(bin => {
-        (this.filter as FeatureFilter).minValue = bin * steps;
-        (this.filter as FeatureFilter).maxValue = Math.min((bin + 1) * steps, 1.0);
-      });
-    }
-
+    if (selectedBins.length === 0) this.categoryFilter.clear();
+    else this.categoryFilter.setBins(selectedBins, Object.keys(this.histogramData).length);
     this.refreshAndRedraw();
   }
 
-  private filtering(selection: [number, number]): void {
-    if (selection === null || selection === undefined) {
-      return;
-    }
-
+  /** Filter by the brushed bars of a numeric histogram: exactly the items counted in them. */
+  private filterBins([minBin, maxBin]: [number, number], binCount: number): void {
     this.dataProvider.ensureFilter(this.filter);
-
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- selection is a non-empty [number, number] tuple at this point
-    const absoluteMinValue: number = +d3.min(selection)!;
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- selection is a non-empty [number, number] tuple at this point
-    const absoluteMaxValue: number = +d3.max(selection)!;
-
-    const relativeMinValue: number = absoluteMinValue / this.width;
-    const relativeMaxValue: number = absoluteMaxValue / this.width;
-
-    // TODO: Workaround because data is not bound to actual bars in chart
-
-    const steps = 1 / Object.keys(this.histogramData).length;
-    const minValue = Math.floor(relativeMinValue / steps) * steps;
-    const maxValue = (Math.floor(relativeMaxValue / steps) + 1) * steps;
-
-    (this.filter as FeatureFilter).minValue = minValue;
-    (this.filter as FeatureFilter).maxValue = Math.min(maxValue, 1.0);
-
+    this.filter.setBinRange(minBin, maxBin, binCount);
     this.refreshAndRedraw();
   }
 
-  /** Refresh filters and trigger a redraw, flagging it as own to prevent cascading. */
+  /** Refresh filters and trigger a redraw, flagging it as own so this histogram doesn't react to it. */
   private refreshAndRedraw(): void {
-    this.dataProvider.refreshFilters();
-    this.isOwnRedraw = true;
-    this.configuration.redraw();
-    this.isOwnRedraw = false;
+    this.isOwnRefresh = true;
+    try {
+      this.dataProvider.refreshFilters();
+      this.configuration.redraw();
+    } finally {
+      this.isOwnRefresh = false;
+    }
   }
 
   public removeFilter() {
     this.filter.clear();
-    const pos = this.dataProvider.getFilters().indexOf(this.filter);
-    if (pos >= 0) this.dataProvider.getFilters().splice(pos, 1);
-    this.refreshAndRedraw();
+    this.isOwnRefresh = true;
+    try {
+      this.dataProvider.removeFilter(this.filter);
+      this.configuration.redraw();
+    } finally {
+      this.isOwnRefresh = false;
+    }
   }
 
+  /** Per bin, how many items of the canvas selections it counts, and how many items in all. */
   private computeSelectionOverlay(): void {
     const glyphMap = this.dataProvider.getGlyphDataSync?.();
-    if (!glyphMap || !this.histogramData) {
+    const selections = (this.dataProvider.getFilters() as readonly ItemFilter[]).filter(
+      (f): f is IdFilter => f instanceof IdFilter && !f.empty()
+    );
+    if (!glyphMap || !this.histogramData || selections.length === 0) {
       this.selectionCounts = null;
       this.totalCounts = null;
       return;
     }
 
-    const idFilter = this.dataProvider.getFilters().find((f: ItemFilter) => f instanceof IdFilter && !f.empty()) as
-      IdFilter | undefined;
-
-    if (!idFilter) {
-      this.selectionCounts = null;
-      this.totalCounts = null;
-      return;
-    }
-
-    const totalBins = Object.keys(this.histogramData).length;
+    const binCount = Object.keys(this.histogramData).length;
     const selCounts = new Map<number, number>();
     const totCounts = new Map<number, number>();
 
-    const effectiveType = this.getEffectiveType();
-
-    // Detect value range (shared by both categorical and numeric paths)
-    let vMin = Infinity,
-      vMax = -Infinity;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    glyphMap.forEach((glyph: any) => {
-      const v = glyph.features?.['1']?.[this.property];
-      if (v != null && !isNaN(v)) {
-        if (v < vMin) vMin = v;
-        if (v > vMax) vMax = v;
-      }
-    });
-    const vRange = vMax - vMin || 1;
-
-    // Categorical-only: precompute non-zero bin mapping
-    let nonZeroBins: number[] = [];
-    let numCategories = 0;
-    if (effectiveType === 'categorical') {
-      nonZeroBins = Object.entries(this.histogramData)
-        .filter(([, v]) => v !== 0)
-        .map(([k]) => +k)
-        .sort((a, b) => a - b);
-      numCategories = nonZeroBins.length;
-    }
-
-    // Single pass: assign each glyph to a bin and tally counts
+    // Each item is counted in the bin of its normalised value, as in the histogram itself.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     glyphMap.forEach((glyph: any) => {
       const featureValue = glyph.features?.['1']?.[this.property];
-      if (featureValue == null || isNaN(featureValue)) return;
+      if (typeof featureValue !== 'number' || Number.isNaN(featureValue)) return;
 
-      const normalized = (featureValue - vMin) / vRange;
-      let bin: number;
-
-      if (effectiveType === 'categorical') {
-        const catIdx = numCategories <= 1 ? 0 : Math.round(normalized * (numCategories - 1));
-        if (catIdx < 0 || catIdx >= nonZeroBins.length) return;
-        bin = nonZeroBins[catIdx];
-      } else {
-        bin = Math.min(Math.floor(normalized * totalBins), totalBins - 1);
-      }
-
+      const bin = binOfValue(featureValue, binCount);
       totCounts.set(bin, (totCounts.get(bin) || 0) + 1);
-      if (idFilter.inFilter(glyph)) {
+      // Selections of several canvases add up, like in the filters.
+      if (selections.some(selection => selection.inFilter(glyph))) {
         selCounts.set(bin, (selCounts.get(bin) || 0) + 1);
       }
     });
