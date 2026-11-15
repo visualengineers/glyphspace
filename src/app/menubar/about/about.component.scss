@@ -1,7 +1,9 @@
 @use '../../../styles/variables' as v;
 
+/* Last item of the menu bar, pushed to its right end (in the mobile menu: to the right edge). */
 :host {
   display: inline-flex;
+  margin-left: auto;
 }
 
 .about-btn {
