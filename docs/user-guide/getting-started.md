@@ -9,7 +9,7 @@ GlyphSpace places every row of a dataset as a point on a 2D map computed by a di
 - **Online:** the demo runs at <https://visual-engineers.org/glyphspace/>. Nothing to install.
 - **Locally:** run `npm start` in the repository and open <http://localhost:4200/>. See [Development setup](../development/setup.md) for the prerequisites.
 
-The app runs entirely in your browser, and your data never leaves your machine. You need an internet connection for importing a CSV: when GlyphSpace starts, it downloads the import wizard's Python runtime (Pyodide with pandas and scikit-learn) from the jsDelivr CDN in the background.
+The app runs entirely in your browser, and your data never leaves your machine. The import wizard runs on a Python runtime (Pyodide with pandas and scikit-learn) that GlyphSpace downloads from its own site, about 40 MB the first time; your browser keeps it for later visits.
 
 ## Bundled datasets
 

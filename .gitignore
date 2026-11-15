@@ -7,6 +7,11 @@
 
 # dependencies
 /node_modules
+# Python wheels for the self-hosted Pyodide (tools/fetch-pyodide.mjs)
+/.pyodide-packages
+# Python virtual environments (docs/development/setup.md)
+.venv/
+venv/
 
 # IDEs and editors
 /.idea

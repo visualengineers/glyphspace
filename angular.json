@@ -28,7 +28,13 @@
             "assets": [
               "src/assets",
               "src/favicon.ico",
-              { "glob": "*.txt", "input": "src/licenses", "output": "licenses" }
+              { "glob": "*.txt", "input": "src/licenses", "output": "licenses" },
+              {
+                "glob": "{pyodide.mjs,pyodide.asm.mjs,pyodide.asm.wasm,python_stdlib.zip,pyodide-lock.json}",
+                "input": "node_modules/pyodide",
+                "output": "pyodide"
+              },
+              { "glob": "*", "input": ".pyodide-packages", "output": "pyodide" }
             ],
             "styles": [
               "node_modules/material-icons/iconfont/filled.css",
@@ -52,7 +58,11 @@
                 }
               ],
               "outputHashing": "all",
-              "optimization": true,
+              "optimization": {
+                "scripts": true,
+                "styles": { "minify": true, "inlineCritical": false },
+                "fonts": true
+              },
               "sourceMap": false,
               "namedChunks": false,
               "aot": true

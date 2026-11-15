@@ -1,6 +1,6 @@
 # 0002. Preprocess uploaded data in the browser with Pyodide
 
-**Status:** Accepted (recorded retroactively on 2026-11-09) · **Date:** 2025-07 · **Related:** [Worker protocol](../specs/worker-protocol.md), [Processing config](../specs/processing-config.md), [ADR 0004](0004-no-python-code-built-from-data.md)
+**Status:** Accepted (recorded retroactively on 2026-11-09); where Pyodide is loaded from is superseded by [ADR 0013](0013-self-host-pyodide.md) · **Date:** 2025-07 · **Related:** [Worker protocol](../specs/worker-protocol.md), [Processing config](../specs/processing-config.md), [ADR 0004](0004-no-python-code-built-from-data.md)
 
 ## Context
 
@@ -34,3 +34,4 @@ None are recorded. The obvious ones are a server-side Python service, as in Glyp
 ## Notes
 
 - **2026-11-09:** The worker's file system is still emptied by a reload, but the uploaded file is no longer lost with it: since #92 the wizard keeps it in IndexedDB and writes it back into the worker after a reload ([Wizard storage](../specs/wizard-storage.md#uploaded-files)).
+- **2026-11-14:** Pyodide and its packages are no longer loaded from the jsDelivr CDN: the site serves them itself, packages are installed only from Pyodide's lock file, and micropip is gone ([ADR 0013](0013-self-host-pyodide.md)).

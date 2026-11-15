@@ -42,7 +42,7 @@ If one of the additional projections fails, a notification reads **METHOD could 
 | **The sample data could not be loaded.** | Try again, or upload your own CSV file. |
 | **Please choose a ZIP file.** / **The ZIP file exceeds the 200 MB limit.** (item images) | The item images must be packed into one `.zip` file of at most 200 MB. |
 | **The image ZIP contains no JPG, PNG or WebP pictures.** (Step 6) | The ZIP chosen in Step 1 holds no pictures in these formats, or it could not be unpacked. Choose another ZIP in Step 1 and process again. |
-| Importing doesn't work offline | The wizard downloads its Python runtime (Pyodide) from the jsDelivr CDN. Check your internet connection and that `cdn.jsdelivr.net` isn't blocked. |
+| Importing doesn't work offline | The wizard downloads its Python runtime (Pyodide, about 40 MB) from the GlyphSpace site the first time. Check your connection to the site; after that, your browser's cache usually has it. |
 | **Please select at least one column to continue** (Step 2) | Tick at least one column. |
 | **Use at least one column as a feature to continue — metadata alone cannot be projected** (Step 2) | Set at least one column's **Use as** to **Feature**. |
 | **Include at least one column in the projection to continue.** (Step 4) | Tick at least one column under **Projection Columns**. |

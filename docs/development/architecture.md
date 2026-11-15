@@ -15,7 +15,7 @@ GlyphSpace is a single-page Angular application with no backend and no router. E
 | Canvas rendering | three.js (`WebGLRenderer`, orthographic camera) | `canvas/`, `glyph/renderers/` |
 | Charts, colour scales, layout helpers | d3 (histogram brush, `scaleLinear`/`scaleQuantize`, `forceSimulation`, `quadtree`) | `sidebar/histogram/`, `shared/interfaces/color-scale.ts`, `canvas/`, `shared/helpers/glyph-helper.ts` |
 | Dimensionality reduction | DruidJS 0.9 (`@saehrimnir/druidjs`) | `workers/druid-runner.ts`, `workers/projection.worker.ts`, `services/projection.service.ts` |
-| Data preparation | Pyodide 314.0.7 (Python 3.14) from the jsDelivr CDN, with pandas 3.0 and scikit-learn 1.8 installed through micropip | `workers/pyodide.worker.ts`, `src/assets/preprocessing_processor*.py` |
+| Data preparation | Pyodide 314.0.7 (Python 3.14), served by the site with pandas 3.0 and scikit-learn 1.8 from its lock file ([ADR 0013](../decisions/0013-self-host-pyodide.md)) | `workers/pyodide.worker.ts`, `workers/pyodide-packages.json`, `tools/fetch-pyodide.mjs`, `src/assets/preprocessing_processor*.py` |
 
 ## Module map
 
