@@ -109,3 +109,38 @@ describe('SidebarComponent', () => {
     expect(document.activeElement).toBe(collapse);
   });
 });
+
+describe('SidebarComponent – switching datasets', () => {
+  // Regression: the handler of an earlier dataset that finished last overwrote
+  // the sidebar of the dataset loaded after it.
+  it('shows the dataset loaded last, even when an earlier one finishes later', async () => {
+    let finishSlow: (value: unknown) => void = () => undefined;
+    const slowMeta = new Promise(resolve => (finishSlow = resolve));
+    await TestBed.configureTestingModule({
+      imports: [SidebarComponent],
+      providers: [
+        {
+          provide: DataLoaderService,
+          useValue: {
+            getMetaData: (name: string) => (name === 'slow' ? slowMeta : Promise.resolve({ features: { fast: {} } })),
+            getSchema: async () => undefined,
+            getGlyphData: async () => [],
+          },
+        },
+        { provide: ThumbnailService, useValue: { hasImages: async () => true } },
+      ],
+    }).compileComponents();
+    const config = TestBed.inject(ConfigService);
+    const fixture = TestBed.createComponent(SidebarComponent);
+    fixture.detectChanges();
+
+    config.loadData('slow');
+    config.loadData('fast');
+    await vi.waitFor(() => expect(fixture.componentInstance.featureIds).toEqual(['fast']));
+
+    finishSlow({ features: { slow: {} } });
+    await new Promise(resolve => setTimeout(resolve));
+
+    expect(fixture.componentInstance.featureIds).toEqual(['fast']);
+  });
+});

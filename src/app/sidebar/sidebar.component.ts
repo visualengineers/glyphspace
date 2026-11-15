@@ -11,7 +11,7 @@ import {
   inject,
   ChangeDetectionStrategy,
 } from '@angular/core';
-import { Subscription } from 'rxjs';
+import { Subscription, filter, from, switchMap } from 'rxjs';
 
 import { ConfigService } from '../services/config.service';
 import { DataLoaderService } from '../services/data-loader.service';
@@ -94,22 +94,22 @@ export class SidebarComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    // switchMap drops the result of a dataset that is no longer the loaded one,
+    // so a slow earlier load can't overwrite the sidebar of a later one.
     this.subs.add(
-      this.config.loadedDataSubject$.subscribe(async data => {
-        if (data === '') return;
-
-        const metaData = await this.dataLoader.getMetaData();
-        const schema = await this.dataLoader.getSchema();
-        const glyphData = await this.dataLoader.getGlyphData();
-        const images = await this.thumbnails.hasImages(data);
-
-        this.ngZone.run(() => {
-          this.applyDataset(metaData?.features ?? {}, schema);
-          this.applyImageAvailability(images);
-          this.legendGlyph = this.representativeGlyph(glyphData ?? []);
-          this.updateGlyphView();
-        });
-      })
+      this.config.loadedDataSubject$
+        .pipe(
+          filter(data => data !== ''),
+          switchMap(data => from(this.readDataset(data)))
+        )
+        .subscribe(({ metaData, schema, glyphData, images }) => {
+          this.ngZone.run(() => {
+            this.applyDataset(metaData?.features ?? {}, schema);
+            this.applyImageAvailability(images);
+            this.legendGlyph = this.representativeGlyph(glyphData ?? []);
+            this.updateGlyphView();
+          });
+        })
     );
 
     this.subs.add(
@@ -140,6 +140,16 @@ export class SidebarComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.subs.unsubscribe();
+  }
+
+  private async readDataset(name: string) {
+    const [metaData, schema, glyphData, images] = await Promise.all([
+      this.dataLoader.getMetaData(name),
+      this.dataLoader.getSchema(name),
+      this.dataLoader.getGlyphData(name),
+      this.thumbnails.hasImages(name),
+    ]);
+    return { metaData, schema, glyphData, images };
   }
 
   /** Without item images the Image glyph type has nothing to show; such a dataset opens with stars. */
