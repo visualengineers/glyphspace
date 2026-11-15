@@ -43,7 +43,7 @@ Two datasets ship with the app and appear in the **Data** menu:
 ## Try the import with sample data
 
 1. Click **Upload** in the menu bar. The **Data Preprocessing Wizard** opens.
-2. In Step 1, click **Try with sample data**. It loads the Wine Quality (red) CSV (P. Cortez et al., UCI Machine Learning Repository, CC BY 4.0).
+2. In Step 1, click **Try with sample data**. It loads the Wine Quality (red) CSV (P. Cortez et al., UCI Machine Learning Repository, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), with an ID column added). The menu bar's **ⓘ** button lists the sources and licences of the data and software GlyphSpace uses.
 3. Click through the steps with the button at the bottom right. The defaults work for this file.
 4. In Step 6, click **Start Processing**, then **Open in Glyphspace**.
 

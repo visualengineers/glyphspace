@@ -63,4 +63,10 @@ A meta tag can't set `frame-ancestors`, so the policy doesn't prevent framing. W
 
 ## Licences
 
-GlyphSpace is MIT licensed. It bundles DruidJS, which is LGPL-3.0-or-later, so the site ships the LGPL and GPL texts and a notice (`src/licenses/README.txt`) under `licenses/`, plus `3rdpartylicenses.txt` with the licences of all bundled packages. Keep these when changing the build. Check a new dependency's licence before adding it.
+GlyphSpace is MIT licensed. The site ships:
+
+- under `licenses/` (from `src/licenses/`): the notice `README.txt`; the LGPL and GPL texts for DruidJS, which is LGPL-3.0-or-later and must be named with its version; the MPL-2.0 text for Pyodide and the CPython licence; the source and CC BY 4.0 licence of the bundled wine data;
+- `pyodide/THIRD-PARTY-LICENSES.txt`: the licences inside the Python wheels, written by `tools/fetch-pyodide.mjs`;
+- `3rdpartylicenses.txt`: the licences of all bundled npm packages, written by the Angular build.
+
+The menu bar's **ⓘ** button (`menubar/about/`) shows the data sources and links all three, so the notices are reachable from the app. `npm run test:tools` checks that the notices name the installed DruidJS and Pyodide versions; update `src/licenses/README.txt` and `DRUIDJS_VERSION` in `menubar/about/about.component.ts` when they change. Keep these when changing the build, and check a new dependency's licence before adding it.

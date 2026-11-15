@@ -105,10 +105,12 @@ describe('Step1UploadComponent', () => {
     expect(profileData).not.toHaveBeenCalled();
   });
 
-  it('shows the sample data source attribution', () => {
-    expect(query('.sample-attribution').textContent?.trim()).toBe(
-      'Sample: Wine Quality (red), P. Cortez et al., UCI Machine Learning Repository, CC BY 4.0'
+  it('shows the sample data source attribution with its licence and the change made', () => {
+    const attribution = query('.sample-attribution');
+    expect(attribution.textContent?.replace(/\s+/g, ' ').trim()).toBe(
+      'Sample: Wine Quality (red), P. Cortez et al., UCI Machine Learning Repository, CC BY 4.0, modified (ID column added)'
     );
+    expect(attribution.querySelector('a')?.getAttribute('href')).toBe('https://creativecommons.org/licenses/by/4.0/');
   });
 
   it('feeds the sample CSV through the same path as a user upload', async () => {

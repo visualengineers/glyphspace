@@ -22,7 +22,7 @@ GlyphSpace is a single-page Angular application with no backend and no router. E
 | Folder | Role |
 |---|---|
 | `app.component.*` | Root layout: menubar, a grid of one to four canvases, sidebar, toasts. `+` / `-` add and remove canvases. |
-| `menubar/` | Dataset picker, deleting user datasets, Upload (opens the wizard), CSV download, PNG export, add canvas, fit all. |
+| `menubar/` | Dataset picker, deleting user datasets, Upload (opens the wizard), CSV download, PNG export, add canvas, fit all; the About dialog with data sources and licences (`menubar/about/`). |
 | `canvas/` | `GlyphCanvasComponent` and its per-canvas services (camera, renderer, selection), magic lens, tooltip, the navigation and settings overlays. |
 | `glyph/` | The data-item model (`GlyphObject`), per-canvas render cache, glyph configuration, size per zoom level, and the three.js glyph renderers. |
 | `sidebar/` | The glyph legend and filter summary on top, the Filters and Encoding tabs below, the feature histograms that act as filters. |
