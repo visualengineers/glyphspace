@@ -40,5 +40,6 @@ Don't repeat content across kinds; link to it. The development docs explain the 
 `CHANGELOG.md` follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/):
 
 - Add an entry under **Unreleased** in the pull request that makes the change, in one of the groups Added, Changed, Deprecated, Removed, Fixed, Security.
-- Write for users: what they notice, not which file changed. Link the pull request.
-- When a release is made, rename **Unreleased** to the version (or the date, while there are no versions) and start a new **Unreleased**.
+- Write for users: what they notice, not which file changed. End the entry with a link to the pull request, `([#93](https://github.com/visualengineers/glyphspace/pull/93))`; a bare `(#93)` is not a link in GitHub's file view.
+- Every push to `main` is deployed, so **Unreleased** lists what is already live on the site but not yet part of a release.
+- When a release is tagged, rename **Unreleased** to the version (or the date, while there are no versions), start a new **Unreleased**, and update the link definitions at the end of the file: `[Unreleased]` compares the newest tag with `main`, each release links its tag.

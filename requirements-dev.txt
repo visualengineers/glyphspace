@@ -1,0 +1,14 @@
+# Python environment for the tests in tools/tests (CI installs exactly this):
+#   python -m pip install -r requirements-dev.txt
+#
+# The versions match the packages that ship with Pyodide, which runs the wizard's pipeline in the
+# browser (node_modules/pyodide/pyodide-lock.json), so the tests see the same pandas and
+# scikit-learn as users do. Change them together with the `pyodide` version in package.json;
+# `npm run test:tools` fails while they differ.
+#
+# Adding a bundled dataset with tools/process.py also needs umap-learn; the tests replace it with a stub.
+numpy==2.4.6
+pandas==3.0.2
+scipy==1.18.0
+scikit-learn==1.8.0
+pytest==9.2.0

@@ -6,7 +6,7 @@ _For contributors preparing a change for review._
 
 - **Formatting** is Prettier's job (`.prettierrc`): single quotes, semicolons, ES5 trailing commas, 2-space indent, lines up to 120 characters, no parentheses around a single arrow-function parameter. The pre-commit hook formats staged files under `src/`; `npm run format:check` checks all `.ts`, `.html`, `.scss` and `.json` files under `src/`.
 - **Linting** is ESLint with the recommended TypeScript, stylistic and Angular rule sets plus Angular's template accessibility rules (`eslint.config.js`). Component selectors use the prefix `app-` or `glyph-` (kebab-case); directive selectors `app` (camelCase).
-- **Explain every lint exception.** Write the reason on the same line: `// eslint-disable-next-line @typescript-eslint/no-explicit-any -- dataset is an opaque structure from Python`. `any` and `!` produce warnings, not errors, so they need a reason too.
+- **Explain every lint exception.** Write the reason on the same line: `// eslint-disable-next-line @typescript-eslint/no-explicit-any -- dataset is an opaque structure from Python`. `any` and `!` produce warnings, not errors, so they need a reason too; CI fails on any warning (`maxWarnings: 0` in `angular.json`).
 - **Comments say why**, not what the next line does. Keep them true: a comment that describes removed behaviour is worse than none.
 - **Python** in `src/assets/` and `tools/` uses type hints and docstrings. The wizard runs it on pandas 3 (Pyodide); `tools/` also runs it with pandas 2, and the tests then check pandas-3 behaviour as well. Avoid chained in-place assignments, which do nothing under copy-on-write, and filling a numeric column with text (convert first, as `_category_text` does).
 
@@ -38,6 +38,5 @@ The template accessibility lint rules catch some of this, not all.
 
 A pull request is ready for review when:
 
-- CI is green: lint, unit tests and production build ([Deployment](deployment.md));
-- the Python tests pass, if Python code changed;
+- CI is green: lint without warnings, formatting, the unit, tool and Python tests, and the production build ([Deployment](deployment.md));
 - the docs that describe the changed behaviour are updated in the same PR ([Documentation](documentation.md)): specs for formats and protocols, an ADR for a decision others must live with, the changelog for anything users notice.

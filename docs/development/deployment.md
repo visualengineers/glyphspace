@@ -9,27 +9,38 @@ GlyphSpace is a static site. One GitHub Actions workflow, `.github/workflows/dep
 ```mermaid
 flowchart LR
     PR[pull request] --> V
+    PR --> P
     Push[push to main] --> V
+    Push --> P
     subgraph V[job: verify]
-        L[lint] --> T[unit tests] --> B[production build] --> U[upload site artifact]
+        A[audit] --> L[lint, format, tool tests] --> T[unit tests] --> B[production build] --> U[upload Pages artifact]
     end
-    V -->|main only| D[job: deploy → gh-pages branch]
+    subgraph P[job: python]
+        PT[Python tests]
+    end
+    V -->|main only| D[job: deploy → GitHub Pages]
+    P -->|main only| D
 ```
 
 **verify** runs on every pull request and push (a newer run on the same ref cancels the older one):
 
-1. `npm ci` with the Node version from `.nvmrc`.
-2. `npm run lint`.
-3. `npx playwright install --with-deps --only-shell chromium`, then `npm run test:ci` with `CHROME_BIN` cleared ([ADR 0009](../decisions/0009-unit-tests-in-real-chromium-with-vitest.md)).
-4. `npm run build -- --base-href=/glyphspace/ --configuration production`.
-5. Writes `.nojekyll` and copies `3rdpartylicenses.txt` into `dist/glyphspace/browser/`.
-6. On `main` only: uploads `dist/glyphspace/browser/` as the artifact `site` (kept one day).
+1. `npm ci` with the Node version from `.nvmrc` (`.npmrc` sets `engine-strict`).
+2. `npm audit --omit=dev --audit-level=high`: a high or critical advisory in a package that reaches users fails the run. Dependabot (`.github/dependabot.yml`) proposes updates for all npm packages and the actions weekly.
+3. `npm run lint` (warnings fail too: `maxWarnings: 0` in `angular.json`), `npm run format:check`, `npm run test:tools`.
+4. `npx playwright install --with-deps --only-shell chromium`, then `npm run test:ci` with `CHROME_BIN` cleared ([ADR 0009](../decisions/0009-unit-tests-in-real-chromium-with-vitest.md)).
+5. Restores `.pyodide-packages/` from the cache (keyed by Pyodide's lock file and `pyodide-packages.json`), then `npm run build -- --base-href=/glyphspace/ --configuration production`, whose `prebuild` script downloads missing wheels and checks all of them.
+6. Copies `3rdpartylicenses.txt` into `dist/glyphspace/browser/`.
+7. On `main` only: uploads `dist/glyphspace/browser/` as the Pages artifact (kept one day).
 
-**deploy** runs only for pushes to `main`, after verify. It downloads the artifact and publishes it to the `gh-pages` branch with `peaceiris/actions-gh-pages` (Jekyll disabled). A running deploy is never cancelled (`cancel-in-progress: false`), but a deploy that is still waiting is replaced by a newer one, so only the latest of several quick pushes may be published.
+**python** runs the Python tests on Python 3.14 with `requirements-dev.txt`, which pins the package versions that ship with Pyodide.
 
-Permissions follow least privilege: the workflow can only read the repository; the deploy job alone may write.
+**deploy** runs only for pushes to `main`, after both jobs succeeded. `actions/deploy-pages` publishes the artifact to the `github-pages` environment; nothing is committed to a branch. A running deploy is never cancelled (`cancel-in-progress: false`), but a deploy that is still waiting is replaced by a newer one, so only the latest of several quick pushes may be published.
 
-The Python tests are not part of CI.
+Permissions follow least privilege: the workflow can only read the repository; the deploy job alone gets `pages: write` and `id-token: write`, and no job can write to the repository. Every action is pinned to a full commit SHA with its version in a comment, because a tag can be moved; Dependabot updates the SHAs. Every job has a `timeout-minutes`.
+
+### One-time repository setting
+
+Deploying with `actions/deploy-pages` needs **Settings → Pages → Build and deployment → Source: GitHub Actions** (instead of "Deploy from a branch" with `gh-pages`). After the switch, the `gh-pages` branch is no longer used and can be deleted.
 
 ## Build
 

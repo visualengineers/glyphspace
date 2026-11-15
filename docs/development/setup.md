@@ -8,9 +8,9 @@ _For contributors setting up GlyphSpace on their machine._
 |---|---|---|
 | Node.js | 26 (`.nvmrc`; `package.json` accepts `>=26.0.0`, and `.npmrc` sets `engine-strict`, so npm refuses to install with an older Node) | the app, its tests and tooling |
 | npm | the one that ships with Node (11.20 with Node 26.13) | dependencies (`package-lock.json`); older npm versions can drop entries that newer ones require, so update the lock file with a current npm |
-| Python | 3.10 or newer, with `pandas`, `numpy`, `scikit-learn`, `umap-learn` and `pytest` | only for `tools/` (bundled datasets, Python tests) |
+| Python | 3.14 like Pyodide (3.11 or newer works), with the packages of `requirements-dev.txt`, plus `umap-learn` for adding bundled datasets | only for `tools/` (bundled datasets, Python tests) |
 
-The repository has no Python requirements file; install the packages above into the environment you use for `tools/`.
+Create a virtual environment (`.venv/` and `venv/` are git-ignored) and install `requirements-dev.txt` into it: `python -m pip install -r requirements-dev.txt`. It pins the package versions that ship with Pyodide; `tools/process.py` additionally needs `pip install umap-learn`.
 
 ## First run
 
@@ -40,7 +40,7 @@ The app loads the bundled datasets from `src/assets/data/` on start. The wizard'
 | `npm run format` / `format:check` | Prettier over `src/**/*.{ts,html,scss,json}` |
 | `python tools/process.py <file.csv>` | add a bundled dataset ([Preparing data](../user-guide/preparing-data.md)) |
 | `python tools/process.py` | regenerate `src/default-dataset.ts` from the files in `src/assets/data/` |
-| `python -B -m pytest -p no:cacheprovider tools/tests` | Python tests |
+| `python -B -m pytest -p no:cacheprovider tools/tests` | Python tests (after `pip install -r requirements-dev.txt`) |
 
 Run the Python commands from the repository root. On Windows, `tools/process.py` imports `umap` before numpy, pandas and scikit-learn on purpose: otherwise llvmlite's DLL fails to load (WinError 1114).
 
