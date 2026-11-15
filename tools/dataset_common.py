@@ -44,6 +44,20 @@ DATASET_FILE_PATTERN = re.compile(
     r"^(?P<base>.+?)\.(?P<time>\d{8})\.(?P<type>\w+)(?:\.(?P<subtype>\w+))?\.json$"
 )
 
+# Projections of a dataset, in the order the dataset list names them: the
+# dashboard opens the first one and offers them in this order. Others (epsg,
+# <prefix>-x/-y pairs) follow by name.
+PROJECTION_ORDER = ["umap", "pca", "tsne"]
+
+# Words of a column name that make a text column a date column (see is_date_name).
+DATE_NAME_WORDS = {"date", "time", "datetime", "timestamp"}
+
+# t-SNE's default perplexity, lowered for small datasets (scikit-learn requires
+# perplexity < rows; a third of the rows is the usual upper bound).
+TSNE_PERPLEXITY = 30.0
+# UMAP's default number of neighbours, lowered for small datasets.
+UMAP_NEIGHBORS = 15
+
 
 class FeatureColumn(NamedTuple):
     """One column of the feature matrix and the imported column it encodes."""
@@ -106,6 +120,14 @@ def add_id_column_if_missing(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def is_date_name(name: str) -> bool:
+    """Whether a column name marks dates: one of its words is date, time, datetime or
+    timestamp ("sold_date", "Time", "dateOfBirth"). Words, not substrings: "update",
+    "sentiment" and "runtime" are no dates."""
+    spaced = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", " ", str(name))  # camelCase -> camel Case
+    return any(word.lower() in DATE_NAME_WORDS for word in re.split(r"[^A-Za-z0-9]+", spaced))
+
+
 def _filled_text(col: pd.Series) -> pd.Series:
     """A text column as strings, with missing values as MISSING_TEXT_CATEGORY."""
     return col.fillna(MISSING_TEXT_CATEGORY).astype(str)
@@ -114,7 +136,7 @@ def _filled_text(col: pd.Series) -> pd.Series:
 def plan_features(df: pd.DataFrame, cardinality_threshold: int) -> list[FeatureColumn]:
     """
     The columns of the feature matrix, in order: every column of df but the first
-    (ID). Non-numeric columns named like a date or time become timestamps; other
+    (ID). Non-numeric columns named like a date or time (is_date_name) become timestamps; other
     text columns with at most `cardinality_threshold` distinct values (missing
     counts as one) are one-hot encoded, one column per value, the rest label encoded.
     Plan before generate_features converts the date columns of df.
@@ -125,7 +147,7 @@ def plan_features(df: pd.DataFrame, cardinality_threshold: int) -> list[FeatureC
         schema_type = "categorical" if is_enumerate(data) else "numeric"
         if pd.api.types.is_numeric_dtype(data):
             columns.append(FeatureColumn(col, col, "number", schema_type))
-        elif "date" in col.lower() or "time" in col.lower():
+        elif is_date_name(col):
             columns.append(FeatureColumn(col, col, "date", schema_type))
         else:
             categories = sorted(_filled_text(data).unique())
@@ -401,9 +423,11 @@ def generate_xy_positions(df: pd.DataFrame, output_path_base: str) -> None:
 
 
 def positions_from_embedding(df: pd.DataFrame, embedding: np.ndarray) -> list[dict]:
-    """Pair the rows of df (by position) with the 2-D points of an embedding."""
+    """Pair the rows of df (by position) with the 2-D points of an embedding (one with
+    fewer than two coordinates is placed at y = 0)."""
+    points = _two_columns(np.asarray(embedding, dtype=float).reshape(len(df), -1), len(df))
     return [
-        {"id": row["ID"], "position": {"x": float(embedding[idx, 0]), "y": float(embedding[idx, 1])}}
+        {"id": row["ID"], "position": {"x": float(points[idx, 0]), "y": float(points[idx, 1])}}
         for idx, row in df.iterrows()
     ]
 
@@ -413,8 +437,19 @@ def _projection_input(features_df: pd.DataFrame) -> pd.DataFrame:
     return features_df[feature_cols].fillna(0).astype(float)
 
 
+def _two_columns(embedding: np.ndarray, rows: int) -> np.ndarray:
+    """The embedding as two columns; a missing second (or first) coordinate is 0."""
+    padded = np.zeros((rows, 2))
+    padded[:, : embedding.shape[1]] = embedding[:, :2]
+    return padded
+
+
 def generate_pca_positions(features_df: pd.DataFrame, output_path_base: str) -> str:
-    pca_result = PCA(n_components=2).fit_transform(_projection_input(features_df))
+    features = _projection_input(features_df)
+    # PCA has at most min(rows, columns) components: a CSV with a single feature
+    # (or row) is laid out along x.
+    components = min(2, *features.shape)
+    pca_result = PCA(n_components=components).fit_transform(features) if components else np.zeros((len(features), 0))
 
     filename = f"{output_path_base}.position.pca.json"
     write_json(filename, positions_from_embedding(features_df, pca_result))
@@ -422,9 +457,22 @@ def generate_pca_positions(features_df: pd.DataFrame, output_path_base: str) -> 
     return filename
 
 
-def generate_tsne_positions(features_df: pd.DataFrame, output_path_base: str) -> str:
-    tsne = TSNE(n_components=2, random_state=42, init="random")
-    tsne_result = tsne.fit_transform(_projection_input(features_df))
+def tsne_perplexity(rows: int) -> float | None:
+    """t-SNE's perplexity for `rows` rows: the default, or a third of the rows for
+    small datasets; None when there are too few rows (4 or fewer) for t-SNE."""
+    if rows <= 4:
+        return None
+    return min(TSNE_PERPLEXITY, (rows - 1) / 3)
+
+
+def generate_tsne_positions(features_df: pd.DataFrame, output_path_base: str) -> str | None:
+    features = _projection_input(features_df)
+    perplexity = tsne_perplexity(len(features))
+    if perplexity is None:
+        print(f"Only {len(features)} rows: too few for t-SNE; skipping its position file.")
+        return None
+    tsne = TSNE(n_components=2, random_state=42, init="random", perplexity=perplexity)
+    tsne_result = tsne.fit_transform(features)
 
     filename = f"{output_path_base}.position.tsne.json"
     write_json(filename, positions_from_embedding(features_df, tsne_result))
@@ -432,10 +480,36 @@ def generate_tsne_positions(features_df: pd.DataFrame, output_path_base: str) ->
     return filename
 
 
+def umap_neighbors(rows: int) -> int | None:
+    """UMAP's neighbours for `rows` rows: the default, or one less than the rows for
+    small datasets; None when there are too few rows (4 or fewer) for UMAP."""
+    if rows <= 4:
+        return None
+    return min(UMAP_NEIGHBORS, rows - 1)
+
+
+def _date_order(time: str) -> tuple:
+    """Sort key of a ddmmyyyy item time: by date, so 02032026 comes after 15012026."""
+    try:
+        return (0, datetime.strptime(time, "%d%m%Y"))
+    except ValueError:  # not a date: after the dates, by text
+        return (1, time)
+
+
+def _ordered_positions(positions: dict) -> dict:
+    """The position files in PROJECTION_ORDER, then the others by name."""
+    rank = {name: i for i, name in enumerate(PROJECTION_ORDER)}
+    return {name: positions[name] for name in sorted(positions, key=lambda n: (rank.get(n, len(rank)), n))}
+
+
 def collect_datasets(folder: str, source: str) -> list[dict]:
     """
     Scan folder for dataset files <base>.<timestamp>.<type>[.<subtype>].json
     and group them as [{dataset, source, items: [{algorithms, time}]}].
+
+    The order does not depend on the file system: items in date order (the
+    dashboard opens the first), projections in PROJECTION_ORDER (it opens the
+    first one and offers them in that order).
     """
     grouped = defaultdict(lambda: defaultdict(dict))  # { base: { time: { type/subtype: filename } } }
 
@@ -451,11 +525,18 @@ def collect_datasets(folder: str, source: str) -> list[dict]:
         else:
             algorithms[ftype] = file
 
+    for time_map in grouped.values():
+        for algorithms in time_map.values():
+            if "position" in algorithms:
+                algorithms["position"] = _ordered_positions(algorithms["position"])
+
     return [
         {
             "dataset": base,
             "source": source,
-            "items": [{"algorithms": algos, "time": time} for time, algos in sorted(time_map.items())],
+            "items": [
+                {"algorithms": time_map[time], "time": time} for time in sorted(time_map, key=_date_order)
+            ],
         }
         for base, time_map in grouped.items()
     ]

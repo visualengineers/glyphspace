@@ -114,6 +114,8 @@ type DatasetCollection = {
 
 The `time` of an item is the day the data was produced: `ddmmyyyy` for bundled CLI datasets (`tools/dataset_common.py`), `yyyymmdd` (UTC) for wizard datasets (`PreprocessingService`).
 
+Order matters: the dashboard opens the first dataset, the first item (time) of a dataset and the first projection of an item, and offers them in their order. For bundled datasets the CLI fixes it ([Processing pipeline](../development/processing-pipeline.md#bundled-datasets-cli)): the datasets of `DATASET_ORDER` first, then the others alphabetically; items in date order; projections UMAP, PCA, t-SNE (`PROJECTION_ORDER`), then the others by name.
+
 `memory://` entries are `memory://<name>/<time>/schema`, `…/meta`, `…/features` and, for positions, `…/<projection>`. They name content that is already in `DatasetCacheService` (or in IndexedDB) and tell the menubar which projections exist; in practice they are never fetched, because the cache always holds these datasets. Only `wasm` and `indexeddb` datasets can be deleted from the app (`DataLoaderService.deleteDataset`).
 
 ## Stored datasets (IndexedDB)

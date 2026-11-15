@@ -82,3 +82,13 @@ A failed request rejects with the worker's message. Processing errors are classi
 ## Bundled datasets (CLI)
 
 `tools/process.py` is a separate pipeline in plain Python (pandas, scikit-learn, umap-learn) that writes bundled datasets into `src/assets/data/` and regenerates `src/default-dataset.ts`. It is not part of the app build and shares no code with the wizard's pipeline; the differences are listed in [CSV input](../specs/csv-input.md). Its tests are in `tools/tests/test_process_cli.py`.
+
+The dashboard opens the first dataset of `src/default-dataset.ts`, its first time and its first projection, so `discover_datasets` writes the list in a fixed order that does not depend on the file system:
+
+- **Datasets:** those in `DATASET_ORDER` (`tools/process.py`; `wineqr`, then `nutrients`) first, the others alphabetically, ignoring case.
+- **Times:** in date order (`ddmmyyyy` read as a date, not sorted as text).
+- **Projections:** `PROJECTION_ORDER` (`tools/dataset_common.py`; UMAP, PCA, t-SNE), then the others (`epsg`, `<prefix>`) by name.
+
+A test (`test_the_committed_dataset_list_is_up_to_date`) fails when `src/default-dataset.ts` differs from what the tool would write for `src/assets/data/`, order included.
+
+An import writes its files into a temporary folder and copies them into `src/assets/data/` only when all of them are written, so a failure leaves no partial dataset. For small files the projections adapt: PCA lays out a file with a single feature along x, t-SNE lowers its perplexity to a third of the rows and UMAP its neighbours to one less than the rows, and a file with five rows or fewer gets no t-SNE and UMAP positions.

@@ -8,7 +8,9 @@ The dataset file generation lives in tools/dataset_common.py, next to this scrip
 """
 
 import json
+import shutil
 import sys
+import tempfile
 from pathlib import Path
 
 # umap (numba/llvmlite) must be imported before numpy/pandas/sklearn: on Windows,
@@ -35,6 +37,7 @@ from dataset_common import (
     plan_features,
     positions_from_embedding,
     read_csv,
+    umap_neighbors,
     write_json,
 )
 
@@ -48,9 +51,11 @@ CARDINALITY_THRESHOLD = 1  # text columns are label encoded unless constant
 HISTOGRAM_BINS = 20
 
 # Bundled datasets in this order come first in src/default-dataset.ts, and the
-# first one opens on start; any other dataset follows in alphabetical order.
-# Without it the order came from the file system (alphabetical on Windows,
-# arbitrary on Linux), and regenerating the list could change the start dataset.
+# first one opens on start; any other dataset follows in alphabetical order
+# (ignoring case). Without it the order came from the file system (alphabetical
+# on Windows, arbitrary on Linux), and regenerating the list could change the
+# start dataset. The order of each dataset's projections is PROJECTION_ORDER in
+# dataset_common.py.
 DATASET_ORDER = ["wineqr", "nutrients"]
 
 
@@ -60,10 +65,16 @@ def has_item_images(dataset: str, folder: str = thumbnailfolder) -> bool:
     return images.is_dir() and any(p.suffix.lower() == ".jpg" for p in images.iterdir())
 
 
-def ordered_datasets(entries: list[dict], order: list[str] = DATASET_ORDER) -> list[dict]:
-    """The entries with the datasets named in order first, in that order, then the others by name."""
-    rank = {name: i for i, name in enumerate(order)}
-    return sorted(entries, key=lambda entry: (rank.get(entry["dataset"], len(rank)), entry["dataset"]))
+def ordered_datasets(entries: list[dict], order: list[str] | None = None) -> list[dict]:
+    """The entries with the datasets named in `order` (default: DATASET_ORDER, read
+    when called) first, in that order, then the others alphabetically, ignoring case."""
+    rank = {name: i for i, name in enumerate(DATASET_ORDER if order is None else order)}
+
+    def key(entry: dict) -> tuple:
+        name = entry["dataset"]
+        return rank.get(name, len(rank)), name.casefold(), name
+
+    return sorted(entries, key=key)
 
 
 def discover_datasets() -> str:
@@ -92,13 +103,33 @@ def generate_umap_positions(df: pd.DataFrame, output_path_base: str) -> None:
         print("No numeric features available for UMAP.")
         return
 
+    neighbors = umap_neighbors(len(df_numeric))
+    if neighbors is None:
+        print(f"Only {len(df_numeric)} rows: too few for UMAP; skipping its position file.")
+        return
+
     # Fill NaNs with 0 and normalize
     features = StandardScaler().fit_transform(df_numeric.fillna(0))
-    embedding = umap.UMAP(n_components=2, random_state=42).fit_transform(features)
+    embedding = umap.UMAP(n_components=2, random_state=42, n_neighbors=neighbors).fit_transform(features)
 
     filename = f"{output_path_base}.position.umap.json"
     write_json(filename, positions_from_embedding(df, embedding))
     print(f"UMAP position file written: {filename}")
+
+
+def write_dataset_files(df: pd.DataFrame, output_path_base: str) -> None:
+    """Write every file of the dataset for df, named <output_path_base>.<kind>.json."""
+    # Schema, features and meta follow the same planned feature columns
+    columns = plan_features(df, CARDINALITY_THRESHOLD)
+    generate_schema(columns, output_path_base, glyph_limit=GLYPH_LIMIT)
+    features_df = generate_features(df, columns, output_path_base)  # converts df's date columns
+    feature_data = extract_projection_features(df, features_df)
+    generate_meta(features_df, columns, df, output_path_base, histogram_bins=HISTOGRAM_BINS)
+    generate_pca_positions(feature_data, output_path_base)
+    generate_umap_positions(feature_data, output_path_base)
+    generate_tsne_positions(feature_data, output_path_base)
+    generate_epsg_positions(df, output_path_base)
+    generate_xy_positions(df, output_path_base)
 
 
 def process_csv_file(input_csv_path: str) -> None:
@@ -116,20 +147,15 @@ def process_csv_file(input_csv_path: str) -> None:
     df.to_csv(output_csv_path, index=False)
     print(f"Updated CSV with ID saved: {output_csv_path}")
 
-    # Prepare base for output files
-    output_path_base = f"{datafolder}{csv_path.stem}.{current_timestamp()}"
-
-    # Generate files; schema, features and meta follow the same planned feature columns
-    columns = plan_features(df, CARDINALITY_THRESHOLD)
-    generate_schema(columns, output_path_base, glyph_limit=GLYPH_LIMIT)
-    features_df = generate_features(df, columns, output_path_base)  # converts df's date columns
-    feature_data = extract_projection_features(df, features_df)
-    generate_meta(features_df, columns, df, output_path_base, histogram_bins=HISTOGRAM_BINS)
-    generate_pca_positions(feature_data, output_path_base)
-    generate_umap_positions(feature_data, output_path_base)
-    generate_tsne_positions(feature_data, output_path_base)
-    generate_epsg_positions(df, output_path_base)
-    generate_xy_positions(df, output_path_base)
+    # The files are written to a temporary folder and moved into the data folder
+    # only when all of them are written: a failure halfway (an error in a
+    # projection) leaves no partial dataset that a later run would list.
+    file_base = f"{csv_path.stem}.{current_timestamp()}"
+    with tempfile.TemporaryDirectory() as staging:
+        write_dataset_files(df, str(Path(staging) / file_base))
+        for file in sorted(Path(staging).iterdir()):
+            shutil.copyfile(file, Path(datafolder) / file.name)  # replaces a file of an earlier run
+    print(f"Dataset files moved to {datafolder}")
 
 
 if __name__ == "__main__":

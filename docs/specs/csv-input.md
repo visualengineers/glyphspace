@@ -82,7 +82,7 @@ Every column except `ID` becomes a feature column:
 | Column | Encoding |
 |---|---|
 | numeric | the number |
-| not numeric, and the name contains `date` or `time` (any case) | seconds since the epoch; values that don't parse become missing |
+| not numeric, and one word of the name is `date`, `time`, `datetime` or `timestamp` (any case; words are split at non-letters and camelCase: `sold_date`, `dateOfBirth`, but not `update` or `runtime`; `is_date_name`) | seconds since the epoch; values that don't parse become missing |
 | other text with a single distinct value, counting a missing value as a value (`CARDINALITY_THRESHOLD` in `tools/process.py`) | one-hot (one 0/1 column) |
 | other text | label encoding of the sorted distinct values |
 
