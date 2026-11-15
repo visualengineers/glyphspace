@@ -4,61 +4,75 @@ All notable changes to GlyphSpace. The format follows [Keep a Changelog](https:/
 
 GlyphSpace has no version numbers yet, so releases are named by the date they reached `main`. The entries before November 2026 were reconstructed from the git history.
 
-## [Unreleased]
+## Unreleased
 
 ### Added
 
-- Documentation in `docs/`: a user guide, specifications of the data formats and worker protocols, architecture decision records, and development guides. This changelog (#93).
-- Item images for imported datasets: Step 1 of the wizard takes an optional ZIP file with one picture per item, named after the item's ID (JPG, PNG or WebP). The **Image** glyph type shows them, and the dataset keeps them in the browser (#92).
-- A **Size** slider in the sidebar's **Encoding** tab sets dots and glyphs together: a typical glyph of the dataset reaches about as far as the dot it replaces, so items keep their size when zooming from dots to glyphs (#90).
+- Documentation in `docs/`: a user guide, specifications of the data formats and worker protocols, architecture decision records, and development guides. This changelog ([#93](https://github.com/visualengineers/glyphspace/pull/93)).
+- Item images for imported datasets: Step 1 of the wizard takes an optional ZIP file with one picture per item, named after the item's ID (JPG, PNG or WebP). The **Image** glyph type shows them, and the dataset keeps them in the browser ([#92](https://github.com/visualengineers/glyphspace/pull/92)).
+- A **Size** slider in the sidebar's **Encoding** tab sets dots and glyphs together: a typical glyph of the dataset reaches about as far as the dot it replaces, so items keep their size when zooming from dots to glyphs ([#90](https://github.com/visualengineers/glyphspace/pull/90)).
 
 ### Changed
 
-- The wizard redesign ticket list moved from `ROADMAP.md` to [docs/specs/wizard-redesign.md](docs/specs/wizard-redesign.md) (#93).
-- Node 26 (`.nvmrc`; `package.json` requires 26 or newer), Angular 22.2, TypeScript 6.0, Vitest 5.1, three.js 0.187, lint-staged 17, Playwright 1.65 and the latest minor versions of the other packages. After pulling, install Node 26 and run `npx playwright install chromium` once. Existing components keep their change detection; new components use OnPush, Angular 22's default ([ADR 0011](docs/decisions/0011-existing-components-keep-eager-change-detection.md)). The HTTP client uses Angular's default `fetch` backend (#95).
-- The wizard runs on Pyodide 314.0.7: Python 3.14, pandas 3.0, scikit-learn 1.8, numpy 2.4. The download stays about the same (about 40 MB). One-hot and label encoding of numeric columns no longer fill text into a number column, which pandas 4 will reject (#95).
-- The sidebar was redesigned (#90). On top, the glyph legend shows the glyph with numbered axes; axes are added with **+ Add axis** and removed from their label, between 3 and 8 per glyph. Below it, **FILTERS** lists every active filter, search terms included, next to the number of matching items. The **Filters** tab marks the glyph's features on their cards and adds or removes them there; the **Encoding** tab holds glyph type, colour and appearance. The whole sidebar can be hidden.
-- Glyph axes follow the order of the glyph features: axis 1 points up, the others follow clockwise, and an added feature becomes the last axis. Canvases, legend and the wizard's Step 5 preview draw them the same way (#90).
-- New categorical palettes: Glasbey, Tableau 10 and Colorblind, none with grey, which marks filtered-out items. Categories take the colours in order, in the glyphs and the histograms alike. The new palettes have new ids; datasets and wizard settings saved with Observable10 or Tableau20 open with Glasbey or Tableau 10 (#89).
-- The flower glyph has Glyphboard's petal shape. The axes behind a glyph are lighter and thinner, and the contour ring lies behind the data (#91).
-- Dot and glyph sizes no longer depend on the screen's pixel ratio or the canvas size (#90).
-- When zooming in beyond the dots, glyphs grow more slowly than the distances between them, so overlapping glyphs separate; at the highest zoom they are smaller than before ([ADR 0012](docs/decisions/0012-glyphs-grow-slower-than-the-zoom.md)) (#97).
-- The magic lens shows the items nearest the cursor in their arrangement on the canvas, as large as they fit without overlapping. Before, it scattered them at random and they piled up along its border. When more items are under the cursor than the lens shows, the ring around the cursor shrinks to the area it shows. The lens is 300 px wide (was 250) (#94).
-- Zooming from dots to glyphs no longer stalls the page as long: a flower glyph is drawn as one shape and one outline instead of one per petal, and the flower outline only at the highest zoom level, where it is visible (#94).
-- The **Thumbnails** glyph type is now called **Image** (#90).
-- The glyph type buttons show a small star, flower or picture next to their name. **Image** is off for a dataset without item images, and such a dataset opens with **Star** instead of grey placeholders (#96).
+- The wizard redesign ticket list moved from `ROADMAP.md` to [docs/specs/wizard-redesign.md](docs/specs/wizard-redesign.md) ([#93](https://github.com/visualengineers/glyphspace/pull/93)).
+- Node 26 (`.nvmrc`; `package.json` requires 26 or newer), Angular 22.2, TypeScript 6.0, Vitest 5.1, three.js 0.187, lint-staged 17, Playwright 1.65 and the latest minor versions of the other packages. After pulling, install Node 26 and run `npx playwright install chromium` once. Existing components keep their change detection; new components use OnPush, Angular 22's default ([ADR 0011](docs/decisions/0011-existing-components-keep-eager-change-detection.md)). The HTTP client uses Angular's default `fetch` backend ([#95](https://github.com/visualengineers/glyphspace/pull/95)).
+- The wizard runs on Pyodide 314.0.7: Python 3.14, pandas 3.0, scikit-learn 1.8, numpy 2.4. The download stays about the same (about 40 MB). One-hot and label encoding of numeric columns no longer fill text into a number column, which pandas 4 will reject ([#95](https://github.com/visualengineers/glyphspace/pull/95)).
+- The sidebar was redesigned ([#90](https://github.com/visualengineers/glyphspace/pull/90)). On top, the glyph legend shows the glyph with numbered axes; axes are added with **+ Add axis** and removed from their label, between 3 and 8 per glyph. Below it, **FILTERS** lists every active filter, search terms included, next to the number of matching items. The **Filters** tab marks the glyph's features on their cards and adds or removes them there; the **Encoding** tab holds glyph type, colour and appearance. The whole sidebar can be hidden.
+- Glyph axes follow the order of the glyph features: axis 1 points up, the others follow clockwise, and an added feature becomes the last axis. Canvases, legend and the wizard's Step 5 preview draw them the same way ([#90](https://github.com/visualengineers/glyphspace/pull/90)).
+- New categorical palettes: Glasbey, Tableau 10 and Colorblind, none with grey, which marks filtered-out items. Categories take the colours in order, in the glyphs and the histograms alike. The new palettes have new ids; datasets and wizard settings saved with Observable10 or Tableau20 open with Glasbey or Tableau 10 ([#89](https://github.com/visualengineers/glyphspace/pull/89)).
+- The flower glyph has Glyphboard's petal shape. The axes behind a glyph are lighter and thinner, and the contour ring lies behind the data ([#91](https://github.com/visualengineers/glyphspace/pull/91)).
+- Dot and glyph sizes no longer depend on the screen's pixel ratio or the canvas size ([#90](https://github.com/visualengineers/glyphspace/pull/90)).
+- When zooming in beyond the dots, glyphs grow more slowly than the distances between them, so overlapping glyphs separate; at the highest zoom they are smaller than before ([ADR 0012](docs/decisions/0012-glyphs-grow-slower-than-the-zoom.md)) ([#97](https://github.com/visualengineers/glyphspace/pull/97)).
+- The magic lens shows the items nearest the cursor in their arrangement on the canvas, as large as they fit without overlapping. Before, it scattered them at random and they piled up along its border. When more items are under the cursor than the lens shows, the ring around the cursor shrinks to the area it shows. The lens is 300 px wide (was 250) ([#94](https://github.com/visualengineers/glyphspace/pull/94)).
+- Zooming from dots to glyphs no longer stalls the page as long: a flower glyph is drawn as one shape and one outline instead of one per petal, and the flower outline only at the highest zoom level, where it is visible ([#94](https://github.com/visualengineers/glyphspace/pull/94)).
+- The **Thumbnails** glyph type is now called **Image** ([#90](https://github.com/visualengineers/glyphspace/pull/90)).
+- The glyph type buttons show a small star, flower or picture next to their name. **Image** is off for a dataset without item images, and such a dataset opens with **Star** instead of grey placeholders ([#96](https://github.com/visualengineers/glyphspace/pull/96)).
+- A processed dataset reaches the dashboard only through **Open in Glyphspace**; background projections that finish later are added to that dataset.
+- The wizard storage format is now version 4; saved wizard sessions are migrated.
 
 ### Removed
 
-- The whisker glyph, also from the wizard's Step 5 preview (#90).
-- The sidebar's icon strip and its **Style** panel; glyph type and options are in the **Encoding** tab (#90).
+- The whisker glyph, also from the wizard's Step 5 preview ([#90](https://github.com/visualengineers/glyphspace/pull/90)).
+- The sidebar's icon strip and its **Style** panel; glyph type and options are in the **Encoding** tab ([#90](https://github.com/visualengineers/glyphspace/pull/90)).
 
 ### Fixed
 
-- Filtered-out glyphs stay grey at the highest zoom level (#50).
-- A click shows and pins the tooltip of the clicked item; before, a quick click could pin the tooltip of the item hovered before. Clicking the item again, or empty space, closes it (#51).
-- After a page reload the wizard puts the uploaded file back, so outlier counts and processing work without uploading it again. If the file is gone, Step 1 asks for it and keeps the settings for a file with the same columns (#92).
-- A column named `id` in any case (such as `Id`) gives the item IDs in the wizard too, as in the command-line tool. Before, only `ID` did, and the items got row numbers as IDs (#92).
-- The dashboard starts with the first bundled dataset in the list, not with whichever finished downloading first (#92).
-- Reprocessing a dataset, or importing another file under the same name, replaces its items; before, old values could stay (#92).
-- Processing no longer fails when an ID contains a comma (#92).
-- **Clear all** no longer brings old search terms back on the next search (#92).
-- Regenerating the dataset list with `tools/process.py` keeps `wineqr` as the start dataset on every system; the order came from the file system before (#100).
-- The transition speed of a canvas: 10, after lowering and raising it again, is as fast as on start (it was ten times slower), and turning off **Avoid collision** keeps the chosen speed (#99).
-- **Avoid collision** follows changes of **Size**, the glyph axes and the appearance while it is on, instead of having to be turned off and on again; smaller items move back towards their places (#99).
-- **Avoid collision** works with the new glyph size: it keeps apart what is drawn (dots, petals or stars, or whole circles with a background or axes) instead of full glyph circles, so the projection keeps its shape, and it adjusts when the zoom level changes (#97).
-- A fill value that is neither true nor false for a true/false column is reported as K8 (#92).
-- Step 1's file requirements no longer promise that `-x`/`-y` and latitude/longitude columns become positions; only the command-line tool uses them (#92).
-- The help on background projections points to the canvas's position settings (**Pos**) instead of controls that don't exist (#92).
-- Histograms in the hidden sidebar tab no longer cause invalid SVG errors in the console (#94).
+- Filtered-out glyphs stay grey at the highest zoom level ([#50](https://github.com/visualengineers/glyphspace/pull/50)).
+- A click shows and pins the tooltip of the clicked item; before, a quick click could pin the tooltip of the item hovered before. Clicking the item again, or empty space, closes it ([#51](https://github.com/visualengineers/glyphspace/pull/51)).
+- After a page reload the wizard puts the uploaded file back, so outlier counts and processing work without uploading it again. If the file is gone, Step 1 asks for it and keeps the settings for a file with the same columns ([#92](https://github.com/visualengineers/glyphspace/pull/92)).
+- A column named `id` in any case (such as `Id`) gives the item IDs in the wizard too, as in the command-line tool. Before, only `ID` did, and the items got row numbers as IDs ([#92](https://github.com/visualengineers/glyphspace/pull/92)).
+- The dashboard starts with the first bundled dataset in the list, not with whichever finished downloading first ([#92](https://github.com/visualengineers/glyphspace/pull/92)).
+- Reprocessing a dataset, or importing another file under the same name, replaces its items; before, old values could stay ([#92](https://github.com/visualengineers/glyphspace/pull/92)).
+- Processing no longer fails when an ID contains a comma ([#92](https://github.com/visualengineers/glyphspace/pull/92)).
+- **Clear all** no longer brings old search terms back on the next search ([#92](https://github.com/visualengineers/glyphspace/pull/92)).
+- Regenerating the dataset list with `tools/process.py` keeps `wineqr` as the start dataset on every system; the order came from the file system before ([#100](https://github.com/visualengineers/glyphspace/pull/100)).
+- The transition speed of a canvas: 10, after lowering and raising it again, is as fast as on start (it was ten times slower), and turning off **Avoid collision** keeps the chosen speed ([#99](https://github.com/visualengineers/glyphspace/pull/99)).
+- **Avoid collision** follows changes of **Size**, the glyph axes and the appearance while it is on, instead of having to be turned off and on again; smaller items move back towards their places ([#99](https://github.com/visualengineers/glyphspace/pull/99)).
+- **Avoid collision** works with the new glyph size: it keeps apart what is drawn (dots, petals or stars, or whole circles with a background or axes) instead of full glyph circles, so the projection keeps its shape, and it adjusts when the zoom level changes ([#97](https://github.com/visualengineers/glyphspace/pull/97)).
+- A fill value that is neither true nor false for a true/false column is reported as K8 ([#92](https://github.com/visualengineers/glyphspace/pull/92)).
+- Step 1's file requirements no longer promise that `-x`/`-y` and latitude/longitude columns become positions; only the command-line tool uses them ([#92](https://github.com/visualengineers/glyphspace/pull/92)).
+- The help on background projections points to the canvas's position settings (**Pos**) instead of controls that don't exist ([#92](https://github.com/visualengineers/glyphspace/pull/92)).
+- Histograms in the hidden sidebar tab no longer cause invalid SVG errors in the console ([#94](https://github.com/visualengineers/glyphspace/pull/94)).
+- A background projection that finishes after **Open in Glyphspace** is added to that dataset, never to the dataset processed next.
+- Changing a setting, uploading another file or starting over makes an earlier processing result outdated: the review step shows the review again, and the result's background projections stop. Before, an old result could be opened under a new name.
+- **Start over** during processing no longer lets the run finish into the fresh wizard or save the discarded dataset.
+- Reopening the wizard during processing shows the running run instead of offering **Start Processing** again.
+- Glyph features that an encoding change or a new file removes are dropped from the glyph; before, they were silently replaced by feature 1.
+- Text and categorical columns with encoding None are offered as their one-hot features, as Python encodes them.
+- The stepper no longer skips a step whose settings are invalid. **Start Processing** stays off and names the step to fix.
+- Undoing a re-upload of a file under the same name goes back to the earlier file, and the "File replaced" toast undoes only its own upload.
+- A column name such as "Memory (GB)" no longer makes an error look like a time or memory limit. Step 1 shows the cause of a failed upload instead of a Python traceback.
+- Ctrl+Z works on checkboxes, radio buttons and selects, and the fill value records one undo entry per edit instead of one per keystroke.
+- Item images are stored only when the dataset is opened, so images of a dataset never opened can't appear for a later one with the same name.
+- A failed save of the wizard state no longer brings back an older session after a reload, and the wizard reopens on the step shown last.
 
 ### Security
 
-- All `npm audit` findings are fixed (2 critical, 7 high, 39 moderate), partly through `overrides` for minimatch and glob (#94).
+- All `npm audit` findings are fixed (2 critical, 7 high, 39 moderate), partly through `overrides` for minimatch and glob ([#94](https://github.com/visualengineers/glyphspace/pull/94)).
 
 ## 2026-11-09: Wizard redesign
 
-The preprocessing wizard was reworked along requirements A1–A15 ([spec](docs/specs/wizard-redesign.md)) (#72–#75, #77–#86, #88, merged with #76).
+The preprocessing wizard was reworked along requirements A1–A15 ([spec](docs/specs/wizard-redesign.md)) ([#72](https://github.com/visualengineers/glyphspace/pull/72)–[#75](https://github.com/visualengineers/glyphspace/pull/75), [#77](https://github.com/visualengineers/glyphspace/pull/77)–[#86](https://github.com/visualengineers/glyphspace/pull/86), [#88](https://github.com/visualengineers/glyphspace/pull/88), merged with [#76](https://github.com/visualengineers/glyphspace/pull/76)).
 
 ### Added
 
@@ -66,7 +80,7 @@ The preprocessing wizard was reworked along requirements A1–A15 ([spec](docs/s
 - Undo and redo for every change, with Ctrl+Z / Ctrl+Shift+Z, and **Start over**.
 - Explanations for terms and options, including animated previews of the projection methods.
 - Smart defaults: mostly empty and constant columns start deselected, near-unique text columns start as metadata, a fitting colour feature is suggested.
-- Columns can be used as **metadata**: shown in the tooltip, found by the search and exported, but not encoded or projected (#71).
+- Columns can be used as **metadata**: shown in the tooltip, found by the search and exported, but not encoded or projected ([#71](https://github.com/visualengineers/glyphspace/pull/71)).
 - Errors appear where they happen, in plain language, with a link to the step that fixes them (classes K1–K8). Problems that can be predicted are shown before processing starts.
 - Background projections can be cancelled one by one or all at once, and restarted one by one.
 - The review step links each setting back to the step where it is changed.
@@ -93,7 +107,7 @@ The preprocessing wizard was reworked along requirements A1–A15 ([spec](docs/s
 
 ## 2026-06-06: Sidebar, filters and saved datasets
 
-(#59, #70)
+([#59](https://github.com/visualengineers/glyphspace/pull/59), [#70](https://github.com/visualengineers/glyphspace/pull/70))
 
 ### Added
 
@@ -109,56 +123,56 @@ The preprocessing wizard was reworked along requirements A1–A15 ([spec](docs/s
 
 ### Fixed
 
-- Categorical filters (#70).
+- Categorical filters ([#70](https://github.com/visualengineers/glyphspace/pull/70)).
 - Histogram tooltips and the filter display in the sidebar.
 - The magic lens no longer hides glyphs under the cursor.
 
 ## 2026-01-24: Preprocessing wizard
 
-(#24, #34, #42, #43, #45, #47)
+([#24](https://github.com/visualengineers/glyphspace/pull/24), [#34](https://github.com/visualengineers/glyphspace/pull/34), [#42](https://github.com/visualengineers/glyphspace/pull/42), [#43](https://github.com/visualengineers/glyphspace/pull/43), [#45](https://github.com/visualengineers/glyphspace/pull/45), [#47](https://github.com/visualengineers/glyphspace/pull/47))
 
 ### Added
 
-- The preprocessing wizard: upload a CSV, choose and configure its columns, pick projection methods, and process it in the browser (#24).
-- Projections computed with DruidJS (#24). FastMap is computed first so the dashboard opens quickly; the other methods follow in the background (#47).
-- Category filters (#40) and category values in the histograms (#38).
-- Information in the canvas settings controls (#29).
+- The preprocessing wizard: upload a CSV, choose and configure its columns, pick projection methods, and process it in the browser ([#24](https://github.com/visualengineers/glyphspace/pull/24)).
+- Projections computed with DruidJS ([#24](https://github.com/visualengineers/glyphspace/pull/24)). FastMap is computed first so the dashboard opens quickly; the other methods follow in the background ([#47](https://github.com/visualengineers/glyphspace/pull/47)).
+- Category filters ([#40](https://github.com/visualengineers/glyphspace/pull/40)) and category values in the histograms ([#38](https://github.com/visualengineers/glyphspace/pull/38)).
+- Information in the canvas settings controls ([#29](https://github.com/visualengineers/glyphspace/pull/29)).
 
 ### Changed
 
-- Colour scales updated; the colour works with categorical data (#34).
-- Faster rendering of large datasets (spatial grid, cached geometry) (#42).
-- The magic lens shows enlarged glyphs and reacts faster (#45).
+- Colour scales updated; the colour works with categorical data ([#34](https://github.com/visualengineers/glyphspace/pull/34)).
+- Faster rendering of large datasets (spatial grid, cached geometry) ([#42](https://github.com/visualengineers/glyphspace/pull/42)).
+- The magic lens shows enlarged glyphs and reacts faster ([#45](https://github.com/visualengineers/glyphspace/pull/45)).
 - Uploads are limited to 50 MB.
 
 ### Fixed
 
-- The colour scale picker in a second canvas (#43).
+- The colour scale picker in a second canvas ([#43](https://github.com/visualengineers/glyphspace/pull/43)).
 - Glyphs vanishing on zoom, and the browser zooming on scroll over the magic lens.
 
 ## 2025-12-26: Restyling and magic lens
 
-(#25, #27)
+([#25](https://github.com/visualengineers/glyphspace/pull/25), [#27](https://github.com/visualengineers/glyphspace/pull/27))
 
 ### Added
 
 - A menubar with position, colour and glyph menus, **Fit all**, and navigation and settings controls per canvas.
 - Histograms of the data distribution, which also change the glyph features; a glyph legend; text search.
-- The magic lens shows glyphs instead of dots (#27).
+- The magic lens shows glyphs instead of dots ([#27](https://github.com/visualengineers/glyphspace/pull/27)).
 
 ### Changed
 
 - The canvas grid was restyled, and the menubar adapts to the window width.
-- The dashboard stretches to the window height (#23).
+- The dashboard stretches to the window height ([#23](https://github.com/visualengineers/glyphspace/pull/23)).
 
 ### Fixed
 
-- The magic lens was slow; it has a new render logic (#25, closes #1).
+- The magic lens was slow; it has a new render logic ([#25](https://github.com/visualengineers/glyphspace/pull/25), closes [#1](https://github.com/visualengineers/glyphspace/issues/1)).
 - Data of different timestamps was cached and loaded wrongly.
 
 ## 2025-11-20: Nutrients dataset
 
-(#21)
+([#21](https://github.com/visualengineers/glyphspace/pull/21))
 
 ### Added
 
@@ -166,16 +180,16 @@ The preprocessing wizard was reworked along requirements A1–A15 ([spec](docs/s
 
 ### Changed
 
-- The CLI (`tools/process.py`) follows the changes to the Python processing and recognises date columns better (#19).
+- The CLI (`tools/process.py`) follows the changes to the Python processing and recognises date columns better ([#19](https://github.com/visualengineers/glyphspace/pull/19)).
 
 ## 2025-07-21: More robust processing
 
-(#20)
+([#20](https://github.com/visualengineers/glyphspace/pull/20))
 
 ### Added
 
-- Animated transitions between projections (#4).
-- Download of a canvas as PNG (#9).
+- Animated transitions between projections ([#4](https://github.com/visualengineers/glyphspace/pull/4)).
+- Download of a canvas as PNG ([#9](https://github.com/visualengineers/glyphspace/pull/9)).
 - The MIT licence.
 
 ### Changed
