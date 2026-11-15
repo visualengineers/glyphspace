@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import * as THREE from 'three';
 import { ZoomLevel } from '../../shared/enum/zoom-level';
 import { panCamera } from '../../shared/helpers/three-helper';
-import { FIT_ANIMATION_DURATION_MS, FIT_MARGIN_FACTOR } from '../../shared/constants/canvas-constants';
+import { FIT_ANIMATION_DURATION_MS, FIT_MARGIN_FACTOR, ZOOM_LIMITS } from '../../shared/constants/canvas-constants';
 import { FULL_DETAIL_ZOOM, GLYPH_ZOOM } from '../../glyph/glyph-zoom';
 
 @Injectable()
@@ -35,13 +35,19 @@ export class CanvasCameraService {
   lastViewRect = { left: 0, right: 0, top: 0, bottom: 0 };
 
   initCamera(width: number, height: number): void {
+    // A canvas created while another is maximised has no size yet; the first
+    // resize with a size sets the real bounds (updateCameraBounds).
+    width = Math.max(width, 1);
+    height = Math.max(height, 1);
     this.camera = new THREE.OrthographicCamera(-width / 2, width / 2, height / 2, -height / 2, 1, 1000);
     this.camera.position.set(0, 0, 10);
     this.camera.zoom = 1;
     this.camera.updateProjectionMatrix();
   }
 
+  /** Take over the canvas size. A hidden canvas (0 × 0) keeps its last bounds. */
   updateCameraBounds(width: number, height: number): void {
+    if (width <= 0 || height <= 0) return;
     this.camera.left = width / -2;
     this.camera.right = width / 2;
     this.camera.top = height / 2;
@@ -59,21 +65,24 @@ export class CanvasCameraService {
     this.viewRect.top = this.camera.position.y + halfH;
   }
 
-  startFitAnimation(glyphGroup: THREE.Group): void {
+  /**
+   * Start easing the camera so that everything in `glyphGroup` fits the view.
+   * Returns false, and leaves the camera alone, when there is nothing to fit.
+   */
+  startFitAnimation(glyphGroup: THREE.Group): boolean {
     const box = new THREE.Box3().setFromObject(glyphGroup);
+    if (box.isEmpty()) return false;
     const size = box.getSize(new THREE.Vector3());
     const center = box.getCenter(new THREE.Vector3());
-
-    const margin = FIT_MARGIN_FACTOR;
-    const widthWithMargin = size.x * margin;
-    const heightWithMargin = size.y * margin;
 
     const cameraWidth = this.camera.right - this.camera.left;
     const cameraHeight = this.camera.top - this.camera.bottom;
 
-    const zoomX = cameraWidth / widthWithMargin;
-    const zoomY = cameraHeight / heightWithMargin;
-    const requiredZoom = Math.min(zoomX, zoomY);
+    // A single item or a line of items has no width or height: the other
+    // dimension decides, and the zoom stays within what wheel and pinch allow.
+    const zoomX = size.x > 0 ? cameraWidth / (size.x * FIT_MARGIN_FACTOR) : Infinity;
+    const zoomY = size.y > 0 ? cameraHeight / (size.y * FIT_MARGIN_FACTOR) : Infinity;
+    const requiredZoom = clampZoom(Math.min(zoomX, zoomY));
 
     const direction = new THREE.Vector3().subVectors(this.camera.position, this.target);
     const newTarget = center.clone();
@@ -86,6 +95,7 @@ export class CanvasCameraService {
     this.fitStartZoom = this.camera.zoom;
     this.fitEndZoom = requiredZoom;
     this.fitAnimationStartTime = performance.now();
+    return true;
   }
 
   /** Returns true if animation completed this frame */
@@ -109,11 +119,8 @@ export class CanvasCameraService {
     // Easing function: easeInOutQuad
     const easedT = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
 
-    const currentPosition = new THREE.Vector3().lerpVectors(this.fitStartPosition, this.fitEndPosition, easedT);
-    this.camera.position.copy(currentPosition);
-
-    const currentTarget = new THREE.Vector3().lerpVectors(this.fitStartTarget, this.fitEndTarget, easedT);
-    this.target.copy(currentTarget);
+    this.camera.position.lerpVectors(this.fitStartPosition, this.fitEndPosition, easedT);
+    this.target.lerpVectors(this.fitStartTarget, this.fitEndTarget, easedT);
 
     this.camera.zoom = THREE.MathUtils.lerp(this.fitStartZoom, this.fitEndZoom, easedT);
     this.camera.updateProjectionMatrix();
@@ -173,4 +180,10 @@ export class CanvasCameraService {
     this.touchCenter.x = ((cx - rect.left) / rect.width) * 2 - 1;
     this.touchCenter.y = -((cy - rect.top) / rect.height) * 2 + 1;
   }
+}
+
+/** A zoom within ZOOM_LIMITS; Infinity (nothing to measure) becomes the maximum. */
+export function clampZoom(zoom: number): number {
+  if (Number.isNaN(zoom)) return 1;
+  return THREE.MathUtils.clamp(zoom, ZOOM_LIMITS.min, ZOOM_LIMITS.max);
 }

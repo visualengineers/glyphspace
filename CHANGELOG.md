@@ -27,8 +27,10 @@ GlyphSpace has no version numbers yet, so releases are named by the date they re
 - Zooming from dots to glyphs no longer stalls the page as long: a flower glyph is drawn as one shape and one outline instead of one per petal, and the flower outline only at the highest zoom level, where it is visible ([#94](https://github.com/visualengineers/glyphspace/pull/94)).
 - The **Thumbnails** glyph type is now called **Image** ([#90](https://github.com/visualengineers/glyphspace/pull/90)).
 - The glyph type buttons show a small star, flower or picture next to their name. **Image** is off for a dataset without item images, and such a dataset opens with **Star** instead of grey placeholders ([#96](https://github.com/visualengineers/glyphspace/pull/96)).
-- Selections, histogram redraws and sidebar updates scale to tens of thousands of items: selections use a set, histograms redraw only when the colours change (no longer on every frame of the size slider), and canvas redraws no longer run change detection for the whole app.
-- Saved datasets are read into memory when first opened instead of all at startup.
+- Pointer handling and drawing of the canvases run outside Angular's change detection, which makes hovering and panning cheaper with several canvases ([#104](https://github.com/visualengineers/glyphspace/pull/104)).
+- The icon buttons on the canvases have accessible names for screen readers ([#104](https://github.com/visualengineers/glyphspace/pull/104)).
+- Selections, histogram redraws and sidebar updates scale to tens of thousands of items: selections use a set, histograms redraw only when the colours change (no longer on every frame of the size slider), and canvas redraws no longer run change detection for the whole app ([#105](https://github.com/visualengineers/glyphspace/pull/105)).
+- Saved datasets are read into memory when first opened instead of all at startup ([#105](https://github.com/visualengineers/glyphspace/pull/105)).
 
 ### Removed
 
@@ -53,20 +55,32 @@ GlyphSpace has no version numbers yet, so releases are named by the date they re
 - Step 1's file requirements no longer promise that `-x`/`-y` and latitude/longitude columns become positions; only the command-line tool uses them ([#92](https://github.com/visualengineers/glyphspace/pull/92)).
 - The help on background projections points to the canvas's position settings (**Pos**) instead of controls that don't exist ([#92](https://github.com/visualengineers/glyphspace/pull/92)).
 - Histograms in the hidden sidebar tab no longer cause invalid SVG errors in the console ([#94](https://github.com/visualengineers/glyphspace/pull/94)).
-- Choosing a bundled dataset that is still downloading no longer leaves the canvases blank; the dashboard switches once it has arrived. A dataset chosen during startup is no longer replaced by the start dataset.
-- Histogram brushes and category bars filter exactly the items counted in their bars. The brush snaps to whole bars, greys the same bars it filters, and stays on them when the sidebar is resized.
-- Category bars of the bundled datasets name the categories they hold (the "Beef Products" bar said "Baked Products"). The selection overlay marks the right bars and adds up the selections of all canvases.
-- Removing one selection under **FILTERS** keeps the other canvases' selections and the histogram brushes.
-- Removing a canvas removes its selection. Adding a canvas no longer resets the count of matching items.
-- Deleting the active dataset resets the filters. A failed deletion keeps the dataset and shows an error.
-- A dataset processed again under the same name no longer offers projections it lost.
-- The CSV export quotes its header, so a column label with a comma no longer shifts the columns.
-- A dataset that can't be saved in the browser, for example because storage is full, shows a warning instead of failing silently. A tab running an older version no longer makes saved datasets hang.
+- The canvases free the graphics memory of the glyphs they redraw; before, it grew with every zoom-level change, filter and hover until the browser lost the WebGL context ([#104](https://github.com/visualengineers/glyphspace/pull/104)).
+- Canvases hidden while another one is maximised are no longer blank after **Fit all**, loading a dataset or an import ([#104](https://github.com/visualengineers/glyphspace/pull/104)).
+- Items of the other canvases no longer stay scattered after the magic lens closes, and the lens no longer resets collision avoidance there ([#104](https://github.com/visualengineers/glyphspace/pull/104)).
+- A quick pan no longer pins a tooltip. A pinned tooltip scrolls with the mouse wheel, and clicks on it stay on it ([#104](https://github.com/visualengineers/glyphspace/pull/104)).
+- Pinch zoom no longer redraws every glyph on each finger movement ([#104](https://github.com/visualengineers/glyphspace/pull/104)).
+- Aggregation follows a projection switch, and every cluster keeps its ring ([#104](https://github.com/visualengineers/glyphspace/pull/104)).
+- Items that move into view without the camera moving (projection switch, collision avoidance) are drawn ([#104](https://github.com/visualengineers/glyphspace/pull/104)).
+- Collision avoidance applies to the new layout after a fit or a projection switch ([#104](https://github.com/visualengineers/glyphspace/pull/104)).
+- The item hovered in another canvas keeps pulsing when the hover moves from one item to the next ([#104](https://github.com/visualengineers/glyphspace/pull/104)).
+- Image glyphs are as large as their placeholder and no longer flicker when drawn small ([#104](https://github.com/visualengineers/glyphspace/pull/104)).
+- A dataset whose items all share a value on one axis is spread along the other instead of collapsing to a point ([#104](https://github.com/visualengineers/glyphspace/pull/104)).
+- `-` removes the last canvas and leaves the others as they are; removing the maximised canvas shows the others again ([#104](https://github.com/visualengineers/glyphspace/pull/104)).
+- Choosing a bundled dataset that is still downloading no longer leaves the canvases blank; the dashboard switches once it has arrived. A dataset chosen during startup is no longer replaced by the start dataset ([#105](https://github.com/visualengineers/glyphspace/pull/105)).
+- Histogram brushes and category bars filter exactly the items counted in their bars. The brush snaps to whole bars, greys the same bars it filters, and stays on them when the sidebar is resized ([#105](https://github.com/visualengineers/glyphspace/pull/105)).
+- Category bars of the bundled datasets name the categories they hold (the "Beef Products" bar said "Baked Products"). The selection overlay marks the right bars and adds up the selections of all canvases ([#105](https://github.com/visualengineers/glyphspace/pull/105)).
+- Removing one selection under **FILTERS** keeps the other canvases' selections and the histogram brushes ([#105](https://github.com/visualengineers/glyphspace/pull/105)).
+- Removing a canvas removes its selection. Adding a canvas no longer resets the count of matching items ([#105](https://github.com/visualengineers/glyphspace/pull/105)).
+- Deleting the active dataset resets the filters. A failed deletion keeps the dataset and shows an error ([#105](https://github.com/visualengineers/glyphspace/pull/105)).
+- A dataset processed again under the same name no longer offers projections it lost ([#105](https://github.com/visualengineers/glyphspace/pull/105)).
+- The CSV export quotes its header, so a column label with a comma no longer shifts the columns ([#105](https://github.com/visualengineers/glyphspace/pull/105)).
+- A dataset that can't be saved in the browser, for example because storage is full, shows a warning instead of failing silently. A tab running an older version no longer makes saved datasets hang ([#105](https://github.com/visualengineers/glyphspace/pull/105)).
 
 ### Security
 
 - All `npm audit` findings are fixed (2 critical, 7 high, 39 moderate), partly through `overrides` for minimatch and glob ([#94](https://github.com/visualengineers/glyphspace/pull/94)).
-- Values in the CSV export that a spreadsheet would run as formulas (starting with `=`, `+`, `-` or `@`) start with an apostrophe; plain numbers stay as they are.
+- Values in the CSV export that a spreadsheet would run as formulas (starting with `=`, `+`, `-` or `@`) start with an apostrophe; plain numbers stay as they are ([#105](https://github.com/visualengineers/glyphspace/pull/105)).
 
 ## 2026-11-09: Wizard redesign
 

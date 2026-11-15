@@ -6,6 +6,7 @@ import {
   AfterViewInit,
   OnDestroy,
   ChangeDetectionStrategy,
+  ChangeDetectorRef,
 } from '@angular/core';
 import * as THREE from 'three';
 import { GlyphObject } from '../../glyph/glyph-object';
@@ -18,6 +19,7 @@ import { GlyphSizeInfo } from '../../glyph/glyph-size-info';
 import { buildGlyphRenderConfig, GlyphRenderConfig } from '../../glyph/glyph-render-config';
 import { hasFeatureAxes } from '../../shared/enum/glyph-type';
 import { layoutLens } from './lens-layout';
+import { disposeObject } from '../../glyph/mesh-disposal';
 
 @Component({
   selector: 'app-magiclens',
@@ -65,12 +67,35 @@ export class MagiclensComponent implements AfterViewInit, OnDestroy {
   private readonly SCALE_UP_FACTOR = 1.2;
   private readonly ADAPT_THRESHOLD = 0.8; // Only adapt when near the limit
   private lastRenderTime = 0;
+  private destroyed = false;
 
   constructor(
     private config: ConfigService,
-    private thumbnails: ThumbnailService
+    private thumbnails: ThumbnailService,
+    private cdr: ChangeDetectorRef
   ) {
     this.sizeInfo.currentZoomLevel = ZoomLevel.high;
+  }
+
+  /**
+   * Update the lens's bindings (position, ring). The canvas moves the lens
+   * from pointer handlers that run outside Angular's zone.
+   */
+  refreshView(): void {
+    if (!this.destroyed) this.cdr.detectChanges();
+  }
+
+  /** Free the lens meshes and empty the lens scene. */
+  private clearLensScene(): void {
+    for (const wrapper of this.lensGlyphGroup.children) disposeObject(wrapper);
+    this.lensGlyphGroup.clear();
+  }
+
+  /** Draw the lens again, e.g. after an image arrived. */
+  private drawLens(): void {
+    if (this.magicLensActive && this.lensRenderer && !this.destroyed) {
+      this.lensRenderer.render(this.lensScene, this.lensCamera);
+    }
   }
 
   /** Lens glyphs get the radius of the layout; the lens camera shows world units as px. */
@@ -109,6 +134,8 @@ export class MagiclensComponent implements AfterViewInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.destroyed = true;
+    this.clearLensScene();
     this.lensRenderer.forceContextLoss?.(); // Optional for full GPU cleanup
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- intentional cleanup to release DOM reference
     this.lensRenderer.domElement = null!;
@@ -116,7 +143,6 @@ export class MagiclensComponent implements AfterViewInit, OnDestroy {
     this.lensScene = null!;
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- intentional cleanup to release camera reference
     this.lensCamera = null!;
-    this.lensGlyphGroup.clear();
     this.lensRenderer.dispose();
   }
 
@@ -124,7 +150,7 @@ export class MagiclensComponent implements AfterViewInit, OnDestroy {
     this.magicLensActive = !this.magicLensActive && doToggle;
     if (!this.magicLensActive) {
       this.clearLensGlyphs();
-      this.lensGlyphGroup.clear();
+      this.clearLensScene();
     } else {
       this.updatePositions(lastMousePosition);
       this.renderLens(lastMousePosition);
@@ -209,9 +235,9 @@ export class MagiclensComponent implements AfterViewInit, OnDestroy {
    */
   renderMagicLensGlyphs(timestamp: string, algorithm: string): void {
     const startTime = performance.now();
-    this.lensGlyphGroup.clear();
+    this.clearLensScene();
 
-    const renderConfig = buildGlyphRenderConfig(this.config, this.thumbnails);
+    const renderConfig = buildGlyphRenderConfig(this.config, this.thumbnails, () => this.drawLens());
     const glyphs = this.lensGlyphs;
     const layout = layoutLens(
       glyphs.map((glyph, i) => ({ ...this.lensPositions[i], extent: glyphExtent(glyph, renderConfig) })),

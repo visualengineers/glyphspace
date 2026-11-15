@@ -90,7 +90,7 @@ The `memory://` references are identifiers, not URLs, and nothing fetches them: 
 | Active filters and filtered count; the result is written to `GlyphObject.passive` | `FilterService` | Session |
 | `GlyphObject`s per dataset; schema and meta per dataset and timestamp | `DatasetCacheService` | Session |
 | The dataset collection (which datasets, timestamps and projections exist) | `DatasetCollectionService` | Session |
-| Per-canvas positions, meshes, visibility and clustering of every item | `GlyphObject.renderCache`, keyed by canvas id | Until the canvas is destroyed |
+| Per-canvas positions, meshes, visibility and clustering of every item | `GlyphObject.renderCache`, keyed by canvas id | Until the canvas is destroyed or switches dataset; replaced meshes are disposed |
 | Camera, scene, renderer, selection of one canvas | Component-level providers of `GlyphCanvasComponent` | Lifetime of the canvas |
 | Wizard state (versioned) | `PreprocessingService`, saved under the localStorage key `glyphspace_preprocessing_state` | Across reloads. See [specs/wizard-storage.md](../specs/wizard-storage.md) |
 | Imported datasets, and the ZIP archive of item images of each | `DatasetStorageService`, IndexedDB database `glyphspace-datasets`, stores `datasets` and `thumbnails` | Across reloads |
