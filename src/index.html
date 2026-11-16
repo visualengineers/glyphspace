@@ -2,6 +2,12 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
+    <!-- Content-Security-Policy: see docs/development/deployment.md#content-security-policy.
+         GitHub Pages can't send headers, so the policy is a meta tag (frame-ancestors isn't possible). -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'"
+    />
     <title>Glyphspace</title>
     <base href="/" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />

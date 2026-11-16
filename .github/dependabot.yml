@@ -1,0 +1,23 @@
+# Version updates for npm packages and the GitHub Actions used in CI (pinned by commit SHA).
+# Python packages are not listed: requirements-dev.txt follows the versions that ship with the
+# `pyodide` npm package, so they change together with it (`npm run test:tools` checks this).
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      angular:
+        patterns: ['@angular/*', '@angular-devkit/*', 'angular-eslint']
+      minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ['*']

@@ -12,6 +12,7 @@ import {
 import { FormsModule } from '@angular/forms';
 import { Subscription } from 'rxjs';
 import { PreprocessingWizardComponent } from '../preprocessing-wizard/preprocessing-wizard.component';
+import { AboutComponent } from './about/about.component';
 import { DataLoaderService } from '../services/data-loader.service';
 import { DataExportService } from '../services/data-export.service';
 import { ConfigService } from '../services/config.service';
@@ -20,7 +21,7 @@ import { ToastService } from '../services/toast.service';
 @Component({
   selector: 'app-menubar',
   standalone: true,
-  imports: [PreprocessingWizardComponent, FormsModule],
+  imports: [PreprocessingWizardComponent, FormsModule, AboutComponent],
   templateUrl: './menubar.component.html',
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./menubar.component.scss'],

@@ -18,6 +18,7 @@ Each architecture decision record (ADR) captures one decision: the situation, wh
 | [0010](0010-one-size-for-points-and-glyphs.md) | One size for points and glyphs, glyph radius from the dataset | Accepted | 2026-11-09 |
 | [0011](0011-existing-components-keep-eager-change-detection.md) | Existing components keep eager change detection; new ones use OnPush | Accepted | 2026-11-09 |
 | [0012](0012-glyphs-grow-slower-than-the-zoom.md) | Glyphs grow slower than the zoom | Accepted | 2026-11-09 |
+| [0013](0013-self-host-pyodide.md) | Serve Pyodide and its packages from the site itself | Accepted | 2026-11-14 |
 
 "Retroactive" means the ADR was written after the fact, from the code, commit messages and the [wizard redesign spec](../specs/wizard-redesign.md). Where the reasons were not written down at the time, the ADR says so instead of guessing.
 

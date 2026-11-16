@@ -3,7 +3,9 @@ import {
   PyArg,
   PyNamespace,
   PyodideCallRuntime,
+  ZIP_LIMITS,
   pythonCall,
+  removeUnpackedCall,
   runPythonCall,
   runPythonJson,
   unpackZipCall,
@@ -82,6 +84,18 @@ describe('unpackZipCall', () => {
 
       expect(call.code).not.toContain(value);
       expect(call.code).toContain(`unpack_flat(*${PY_ARGS})`);
+      expect(call.args).toEqual([value, ZIP_LIMITS.maxEntries, ZIP_LIMITS.maxFileBytes, ZIP_LIMITS.maxTotalBytes]);
+    }
+  });
+});
+
+describe('removeUnpackedCall', () => {
+  it('passes the folder as data, not as code', () => {
+    for (const value of MALICIOUS) {
+      const call = removeUnpackedCall(value);
+
+      expect(call.code).not.toContain(value);
+      expect(call.code).toContain(`remove_unpacked(*${PY_ARGS})`);
       expect(call.args).toEqual([value]);
     }
   });

@@ -9,40 +9,75 @@ GlyphSpace is a static site. One GitHub Actions workflow, `.github/workflows/dep
 ```mermaid
 flowchart LR
     PR[pull request] --> V
+    PR --> P
     Push[push to main] --> V
+    Push --> P
     subgraph V[job: verify]
-        L[lint] --> T[unit tests] --> B[production build] --> U[upload site artifact]
+        A[audit] --> L[lint, format, tool tests] --> T[unit tests] --> B[production build] --> U[upload Pages artifact]
     end
-    V -->|main only| D[job: deploy → gh-pages branch]
+    subgraph P[job: python]
+        PT[Python tests]
+    end
+    V -->|main only| D[job: deploy → GitHub Pages]
+    P -->|main only| D
 ```
 
 **verify** runs on every pull request and push (a newer run on the same ref cancels the older one):
 
-1. `npm ci` with the Node version from `.nvmrc`.
-2. `npm run lint`.
-3. `npx playwright install --with-deps --only-shell chromium`, then `npm run test:ci` with `CHROME_BIN` cleared ([ADR 0009](../decisions/0009-unit-tests-in-real-chromium-with-vitest.md)).
-4. `npm run build -- --base-href=/glyphspace/ --configuration production`.
-5. Writes `.nojekyll` and copies `3rdpartylicenses.txt` into `dist/glyphspace/browser/`.
-6. On `main` only: uploads `dist/glyphspace/browser/` as the artifact `site` (kept one day).
+1. `npm ci` with the Node version from `.nvmrc` (`.npmrc` sets `engine-strict`).
+2. `npm audit --omit=dev --audit-level=high`: a high or critical advisory in a package that reaches users fails the run. Dependabot (`.github/dependabot.yml`) proposes updates for all npm packages and the actions weekly.
+3. `npm run lint` (warnings fail too: `maxWarnings: 0` in `angular.json`), `npm run format:check`, `npm run test:tools`.
+4. `npx playwright install --with-deps --only-shell chromium`, then `npm run test:ci` with `CHROME_BIN` cleared ([ADR 0009](../decisions/0009-unit-tests-in-real-chromium-with-vitest.md)).
+5. Restores `.pyodide-packages/` from the cache (keyed by Pyodide's lock file and `pyodide-packages.json`), then `npm run build -- --base-href=/glyphspace/ --configuration production`, whose `prebuild` script downloads missing wheels and checks all of them.
+6. Copies `3rdpartylicenses.txt` into `dist/glyphspace/browser/`.
+7. On `main` only: uploads `dist/glyphspace/browser/` as the Pages artifact (kept one day).
 
-**deploy** runs only for pushes to `main`, after verify. It downloads the artifact and publishes it to the `gh-pages` branch with `peaceiris/actions-gh-pages` (Jekyll disabled). A running deploy is never cancelled (`cancel-in-progress: false`), but a deploy that is still waiting is replaced by a newer one, so only the latest of several quick pushes may be published.
+**python** runs the Python tests on Python 3.14 with `requirements-dev.txt`, which pins the package versions that ship with Pyodide.
 
-Permissions follow least privilege: the workflow can only read the repository; the deploy job alone may write.
+**deploy** runs only for pushes to `main`, after both jobs succeeded. `actions/deploy-pages` publishes the artifact to the `github-pages` environment; nothing is committed to a branch. A running deploy is never cancelled (`cancel-in-progress: false`), but a deploy that is still waiting is replaced by a newer one, so only the latest of several quick pushes may be published.
 
-The Python tests are not part of CI.
+Permissions follow least privilege: the workflow can only read the repository; the deploy job alone gets `pages: write` and `id-token: write`, and no job can write to the repository. Every action is pinned to a full commit SHA with its version in a comment, because a tag can be moved; Dependabot updates the SHAs. Every job has a `timeout-minutes`.
+
+### One-time repository setting
+
+Deploying with `actions/deploy-pages` needs **Settings → Pages → Build and deployment → Source: GitHub Actions** (instead of "Deploy from a branch" with `gh-pages`). After the switch, the `gh-pages` branch is no longer used and can be deleted.
 
 ## Build
 
 - `ng build` with the production configuration writes `dist/glyphspace/`. Only `browser/` is published.
 - Size budgets (`angular.json`): the initial bundle warns above 1.25 MB and fails above 1.7 MB; a component's styles warn above 40 kB and fail above 80 kB.
 - `src/assets/` is copied as is, including the bundled datasets, thumbnails and the Python modules that the Pyodide worker fetches at runtime.
+- `pyodide/` holds the wizard's Python runtime, about 40 MB ([ADR 0013](../decisions/0013-self-host-pyodide.md)): the Pyodide files from the `pyodide` npm package (`pyodide.mjs`, `pyodide.asm.mjs`, `pyodide.asm.wasm`, `python_stdlib.zip`, `pyodide-lock.json`) and the wheels of `src/app/workers/pyodide-packages.json` with their dependencies, which `tools/fetch-pyodide.mjs` downloads into `.pyodide-packages/` before every `npm run build` (the `prebuild` script). The script keeps a wheel only if its SHA-256 matches `pyodide-lock.json`, skips wheels it already has, and writes `THIRD-PARTY-LICENSES.txt` from the licence files in the wheels. Upgrading Pyodide means changing the `pyodide` version in `package.json`; everything else follows from its lock file.
+- Critical CSS inlining is off (`optimization.styles.inlineCritical: false`): it loads the stylesheet with an inline `onload` handler, which the Content-Security-Policy blocks. The global stylesheet is about 1 kB.
 - `src/licenses/*.txt` is published as `licenses/`.
 - The base href must match the Pages path (`/glyphspace/`). Assets are referenced relative to it (`assets/...`), so a different path only needs a different `--base-href`.
 
 ## Runtime dependencies outside the site
 
-The deployed site loads Pyodide and its packages (pandas, scikit-learn) from `https://cdn.jsdelivr.net/pyodide/v<version>/full/` in the background when the app starts (the Pyodide worker is created at start-up). The version is `PYODIDE_VERSION` in `src/app/workers/pyodide.worker.ts`. Everything else is in the build.
+None. The site serves everything it loads, including Pyodide and its Python packages ([ADR 0013](../decisions/0013-self-host-pyodide.md)); the browser contacts no other host.
+
+## Content-Security-Policy
+
+GitHub Pages can't send response headers, so `src/index.html` carries the policy as a `<meta http-equiv="Content-Security-Policy">` tag. It applies to the dev server too.
+
+| Directive | Value | Why |
+|---|---|---|
+| `default-src` | `'self'` | everything not listed below: own origin only |
+| `script-src` | `'self' 'wasm-unsafe-eval'` | the app's bundles and workers; no inline scripts. `'wasm-unsafe-eval'` lets Pyodide compile WebAssembly in browsers that apply the page's policy to its workers (Chromium doesn't; it gives the worker no policy because Pages sends no header) |
+| `style-src` | `'self' 'unsafe-inline'` | Angular adds component styles as `<style>` elements, and d3 and the templates set `style` attributes; a nonce would need a server |
+| `img-src` | `'self' data: blob:` | assets and item images; `data:`/`blob:` for images created in the browser |
+| `font-src`, `connect-src`, `worker-src` | `'self'` | the icon font, the datasets, Python modules and Pyodide files, the workers |
+| `object-src` | `'none'` | no plugins |
+| `base-uri`, `form-action` | `'self'`, `'none'` | no `<base>` hijacking, no form posts |
+
+A meta tag can't set `frame-ancestors`, so the policy doesn't prevent framing. When adding a feature that loads something from another origin, or uses an inline script, extend the policy here and in `src/index.html` together; a violation shows up as a console error.
 
 ## Licences
 
-GlyphSpace is MIT licensed. It bundles DruidJS, which is LGPL-3.0-or-later, so the site ships the LGPL and GPL texts and a notice (`src/licenses/README.txt`) under `licenses/`, plus `3rdpartylicenses.txt` with the licences of all bundled packages. Keep these when changing the build. Check a new dependency's licence before adding it.
+GlyphSpace is MIT licensed. The site ships:
+
+- under `licenses/` (from `src/licenses/`): the notice `README.txt`; the LGPL and GPL texts for DruidJS, which is LGPL-3.0-or-later and must be named with its version; the MPL-2.0 text for Pyodide and the CPython licence; the source and CC BY 4.0 licence of the bundled wine data;
+- `pyodide/THIRD-PARTY-LICENSES.txt`: the licences inside the Python wheels, written by `tools/fetch-pyodide.mjs`;
+- `3rdpartylicenses.txt`: the licences of all bundled npm packages, written by the Angular build.
+
+The menu bar's **ⓘ** button (`menubar/about/`) shows the data sources and links all three, so the notices are reachable from the app. `npm run test:tools` checks that the notices name the installed DruidJS and Pyodide versions; update `src/licenses/README.txt` and `DRUIDJS_VERSION` in `menubar/about/about.component.ts` when they change. Keep these when changing the build, and check a new dependency's licence before adding it.

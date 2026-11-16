@@ -4,7 +4,9 @@ import {
   DruidModule,
   DruidReducer,
   DruidSpec,
+  assertFiniteEmbedding,
   druidSpecFor,
+  prepareProjectionInput,
   runDruidProjection,
   runTsneProjection,
   toPositions,
@@ -55,14 +57,19 @@ function stubDruid(embedding: number[][]): { module: DruidModule; constructed: C
   return { module, constructed };
 }
 
+// Full rank, so the input reaches DruidJS (input of rank 0 or 1 is embedded without it).
 const FEATURES = [
   [1, 2, 3],
-  [4, 5, 6],
+  [4, 5, 7],
+  [0, 9, 1],
+  [6, 1, 4],
 ];
-const IDS = ['a', 7];
+const IDS = ['a', 7, 'c', 'd'];
 const EMBEDDING = [
   [0.1, 0.2],
   [0.3, 0.4],
+  [0.5, 0.6],
+  [0.7, 0.8],
 ];
 
 type SpecMethod = Exclude<ProjectionMethod, 'tsne'>;
@@ -146,11 +153,117 @@ describe('druidSpecFor with the real DruidJS', () => {
 });
 
 describe('toPositions', () => {
-  it('pairs each embedded point with its row id', () => {
-    expect(toPositions(EMBEDDING, IDS)).toEqual([
+  it('pairs each embedded point with its row id, as a string', () => {
+    expect(toPositions(EMBEDDING.slice(0, 2), IDS)).toEqual([
       { id: 'a', x: 0.1, y: 0.2 },
-      { id: 7, x: 0.3, y: 0.4 },
+      { id: '7', x: 0.3, y: 0.4 },
     ]);
+  });
+});
+
+describe('prepareProjectionInput', () => {
+  it('passes full-rank input through unchanged', () => {
+    expect(prepareProjectionInput(FEATURES)).toEqual({ kind: 'reduce', features: FEATURES });
+  });
+
+  it('drops constant columns', () => {
+    const withConstants = FEATURES.map(([a, b, c]) => [a, 5, b, c, 0]);
+
+    expect(prepareProjectionInput(withConstants)).toEqual({ kind: 'reduce', features: FEATURES });
+  });
+
+  it('places every item at the origin when nothing varies', () => {
+    expect(
+      prepareProjectionInput([
+        [1, 2],
+        [1, 2],
+        [1, 2],
+      ])
+    ).toEqual({
+      kind: 'exact',
+      embedding: [
+        [0, 0],
+        [0, 0],
+        [0, 0],
+      ],
+    });
+  });
+
+  /** The exact embedding of input that needs no DruidJS. */
+  function exactEmbedding(features: number[][]): number[][] {
+    const input = prepareProjectionInput(features);
+    if (input.kind !== 'exact') throw new Error('expected an exact embedding');
+    return input.embedding;
+  }
+
+  it('places items on a line, distances preserved, when one column varies', () => {
+    const embedding = exactEmbedding([
+      [1, 7],
+      [2, 7],
+      [4, 7],
+    ]);
+
+    [-4 / 3, -1 / 3, 5 / 3].forEach((x, i) => expect(embedding[i][0]).toBeCloseTo(x, 12));
+    expect(embedding.map(([, y]) => y)).toEqual([0, 0, 0]);
+  });
+
+  it('places items on a line when the columns only repeat each other', () => {
+    // b = 3 - 2a: the points lie on a line; the first and the last are sqrt(3² + 6²) apart
+    const embedding = exactEmbedding([
+      [0, 3],
+      [1, 1],
+      [3, -3],
+    ]);
+
+    expect(embedding.map(([, y]) => y)).toEqual([0, 0, 0]);
+    expect(embedding[2][0] - embedding[0][0]).toBeCloseTo(Math.hypot(3, 6), 12);
+  });
+
+  it('treats any two rows as a line', () => {
+    expect(
+      prepareProjectionInput([
+        [1, 2, 3],
+        [4, 6, 3],
+      ]).kind
+    ).toBe('exact');
+  });
+
+  it('rejects input without rows, ragged rows and non-finite values', () => {
+    expect(() => prepareProjectionInput([])).toThrowError('There are no rows to project.');
+    expect(() => prepareProjectionInput([[1, 2], [3]])).toThrowError(/Row 2 .* has 1 values instead of 2/);
+    expect(() =>
+      prepareProjectionInput([
+        [1, NaN],
+        [3, 4],
+      ])
+    ).toThrowError(/Invalid numeric value in row 1/);
+  });
+});
+
+describe('assertFiniteEmbedding', () => {
+  it('rejects NaN and infinite coordinates and a wrong number of points', () => {
+    expect(() =>
+      assertFiniteEmbedding(
+        'PCA',
+        [
+          [0, 1],
+          [NaN, 2],
+          [3, Infinity],
+        ],
+        3
+      )
+    ).toThrowError(/^PCA returned invalid coordinates for 2 of 3 items: the projection input is singular/);
+    expect(() => assertFiniteEmbedding('PCA', [[0, 1]], 2)).toThrowError('PCA returned 1 coordinates for 2 items.');
+    expect(() =>
+      assertFiniteEmbedding(
+        'PCA',
+        [
+          [0, 1],
+          [2, 3],
+        ],
+        2
+      )
+    ).not.toThrow();
   });
 });
 
@@ -161,14 +274,14 @@ describe('runDruidProjection', () => {
 
     const result = await runDruidProjection(
       load,
-      { className: 'ISOMAP', params: { d: 2, neighbors: 5 } },
+      { className: 'ISOMAP', params: { d: 2, neighbors: 3 } },
       FEATURES,
       IDS
     );
 
     expect(load).toHaveBeenCalledTimes(1);
     expect(constructed).toEqual([
-      { className: 'ISOMAP', data: FEATURES, params: { d: 2, neighbors: 5 }, transformCalls: [undefined] },
+      { className: 'ISOMAP', data: FEATURES, params: { d: 2, neighbors: 3 }, transformCalls: [undefined] },
     ]);
     expect(constructed[0].data).toBe(FEATURES);
     expect(result.positions).toEqual(toPositions(EMBEDDING, IDS));
@@ -186,6 +299,86 @@ describe('runDruidProjection', () => {
       ['PCA', { d: 2 }],
     ]);
   });
+
+  it('embeds input of rank 1 without DruidJS', async () => {
+    const load = vi.fn();
+
+    const result = await runDruidProjection(load, druidSpecFor('pca'), [[1], [2], [4]], ['x', 'y', 'z']);
+
+    expect(load).not.toHaveBeenCalled();
+    expect(result.positions.map(p => [p.id, p.y])).toEqual([
+      ['x', 0],
+      ['y', 0],
+      ['z', 0],
+    ]);
+  });
+
+  it('rejects more neighbours than rows before running DruidJS', async () => {
+    const load = vi.fn();
+    const spec = druidSpecFor('isomap', { isomapNeighbors: 4 });
+
+    await expect(runDruidProjection(load, spec, FEATURES, IDS)).rejects.toThrowError(
+      'ISOMAP: 4 neighbors exceed the 4 rows to project; choose fewer than 4 neighbors.'
+    );
+    await expect(
+      runDruidProjection(load, druidSpecFor('umap', { neighbors: 15, minDist: 0.1 }), FEATURES, IDS)
+    ).rejects.toThrowError(/^UMAP: 15 neighbors exceed the 4 rows/);
+    expect(load).not.toHaveBeenCalled();
+  });
+
+  it('rejects a non-finite embedding', async () => {
+    const { module } = stubDruid([
+      [0, 1],
+      [NaN, 0],
+      [1, 1],
+      [2, 2],
+    ]);
+
+    await expect(
+      runDruidProjection(() => Promise.resolve(module), druidSpecFor('pca'), FEATURES, IDS)
+    ).rejects.toThrowError(/^PCA returned invalid coordinates for 1 of 4 items/);
+  });
+
+  it('rejects ids that do not match the rows', async () => {
+    await expect(runDruidProjection(vi.fn(), druidSpecFor('pca'), FEATURES, ['a'])).rejects.toThrowError(
+      'The projection input has 4 rows but 1 ids.'
+    );
+  });
+});
+
+describe('runDruidProjection with the real DruidJS on degenerate input', () => {
+  const load = () => import('@saehrimnir/druidjs') as unknown as Promise<DruidModule>;
+  const rows = 60;
+  const ids = Array.from({ length: rows }, (_, i) => `r${i}`);
+  // DruidJS 0.9 returns NaN for FastMap and PCA on all of these.
+  const inputs: [string, number[][]][] = [
+    ['one column', Array.from({ length: rows }, (_, i) => [Math.sin(i)])],
+    ['one varying column next to constant ones', Array.from({ length: rows }, (_, i) => [Math.sin(i), 0.5, 0.5])],
+    ['two columns that repeat each other', Array.from({ length: rows }, (_, i) => [Math.sin(i), 2 * Math.sin(i) + 1])],
+    [
+      'two varying columns next to a constant one',
+      Array.from({ length: rows }, (_, i) => [Math.sin(i), 1, Math.cos(i * 1.3)]),
+    ],
+  ];
+
+  for (const [label, features] of inputs) {
+    for (const method of ['fastmap', 'pca'] as const) {
+      it(`${method}: a finite position for every item with ${label}`, async () => {
+        const { positions } = await runDruidProjection(load, druidSpecFor(method), features, ids);
+
+        expect(positions.map(p => p.id)).toEqual(ids);
+        expect(positions.every(p => Number.isFinite(p.x) && Number.isFinite(p.y))).toBe(true);
+      });
+    }
+  }
+
+  it('ISOMAP on many identical rows fails with a clear error instead of NaN positions', async () => {
+    const duplicates = Array.from({ length: rows }, (_, i) => [i % 3, (i % 3) * 0.5 + 1, i % 2]);
+
+    await expect(runDruidProjection(load, druidSpecFor('isomap'), duplicates, ids)).rejects.toThrowError(
+      /^ISOMAP returned invalid coordinates for \d+ of 60 items/
+    );
+  });
 });
 
 describe('runTsneProjection', () => {
@@ -197,13 +390,13 @@ describe('runTsneProjection', () => {
       () => Promise.resolve(module),
       FEATURES,
       IDS,
-      { perplexity: 12, iterations: 120 },
+      { perplexity: 3, iterations: 120 },
       (p, message) => progress.push([p, message])
     );
 
     expect(constructed.length).toBe(1);
     expect(constructed[0].className).toBe('TSNE');
-    expect(constructed[0].params).toEqual({ d: 2, perplexity: 12, epsilon: 10 });
+    expect(constructed[0].params).toEqual({ d: 2, perplexity: 3, epsilon: 10 });
     expect(constructed[0].transformCalls).toEqual([50, 50, 20]);
     expect(progress).toEqual([
       [42, 't-SNE: 50/120 iterations'],
@@ -229,5 +422,31 @@ describe('runTsneProjection', () => {
     const whole = new druid.TSNE(data, { d: 2, perplexity: 5, epsilon: 10 }).transform(60);
 
     expect(chunked.positions).toEqual(toPositions(whole, ids));
+  });
+
+  it('rejects a perplexity of at least the number of rows', async () => {
+    const load = vi.fn();
+
+    await expect(
+      runTsneProjection(load, FEATURES, IDS, { perplexity: 4, iterations: 50 }, () => undefined)
+    ).rejects.toThrowError('t-SNE perplexity 4 needs more than 4 rows; there are 4. Choose a perplexity below 4.');
+    expect(load).not.toHaveBeenCalled();
+  });
+
+  it('places rank-1 input on a line without iterating', async () => {
+    const load = vi.fn();
+    const progress: number[] = [];
+
+    const result = await runTsneProjection(
+      load,
+      [[1], [3], [2]],
+      ['a', 'b', 'c'],
+      { perplexity: 1, iterations: 50 },
+      p => progress.push(p)
+    );
+
+    expect(load).not.toHaveBeenCalled();
+    expect(result.positions.map(p => p.x)).toEqual([-1, 1, 0]);
+    expect(progress).toEqual([100]);
   });
 });

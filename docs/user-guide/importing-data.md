@@ -2,7 +2,7 @@
 
 _For people bringing their own CSV file into GlyphSpace._
 
-Click **Upload** in the menu bar to open the **Data Preprocessing Wizard**. It turns a CSV file into a dataset for the dashboard in six steps. Everything runs in your browser, and the file never leaves your machine. The wizard's Python runtime (Pyodide with pandas and scikit-learn) is downloaded from the jsDelivr CDN in the background when GlyphSpace starts, so you need an internet connection.
+Click **Upload** in the menu bar to open the **Data Preprocessing Wizard**. It turns a CSV file into a dataset for the dashboard in six steps. Everything runs in your browser, and the file never leaves your machine. The wizard's Python runtime (Pyodide with pandas and scikit-learn, about 40 MB) is downloaded from the GlyphSpace site, so the first import needs a connection to it.
 
 For what the CSV should look like, see [Preparing data](preparing-data.md).
 

@@ -1,0 +1,103 @@
+@use '../../../styles/variables' as v;
+
+/* Last item of the menu bar, pushed to its right end (in the mobile menu: to the right edge). */
+:host {
+  display: inline-flex;
+  margin-left: auto;
+}
+
+.about-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: v.$gray-600;
+  cursor: pointer;
+
+  &:hover {
+    background: v.$gray-100;
+    color: v.$gray-800;
+  }
+
+  &:focus-visible {
+    outline: 2px solid v.$ui-accent-blue;
+    outline-offset: 2px;
+  }
+
+  .material-icons {
+    font-size: 20px;
+  }
+}
+
+.about-dialog {
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100vh - 64px);
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  box-shadow: v.$shadow-md;
+  color: v.$gray-800;
+
+  &::backdrop {
+    background: rgba(0, 0, 0, 0.35);
+  }
+}
+
+.about-content {
+  padding: 16px 24px 24px;
+  font-size: 14px;
+  line-height: 1.5;
+
+  h3 {
+    margin: 16px 0 4px;
+    font-size: 14px;
+  }
+
+  p,
+  ul {
+    margin: 0 0 8px;
+  }
+
+  ul {
+    padding-left: 20px;
+  }
+
+  li + li {
+    margin-top: 4px;
+  }
+}
+
+.about-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+
+  h2 {
+    margin: 0;
+    font-size: 18px;
+  }
+}
+
+.close-btn {
+  display: inline-flex;
+  padding: 4px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: v.$gray-600;
+  cursor: pointer;
+
+  &:hover {
+    background: v.$gray-100;
+  }
+
+  &:focus-visible {
+    outline: 2px solid v.$ui-accent-blue;
+  }
+}

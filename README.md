@@ -12,7 +12,7 @@ See the running demo on Github pages: [https://visual-engineers.org/glyphspace/]
 
 ## Your own data
 
-- **In the browser:** the preprocessing wizard turns a CSV file into a dataset in six steps, entirely in your browser. Step 1 offers a Wine Quality (red) sample to try it (P. Cortez et al., UCI Machine Learning Repository, CC BY 4.0). See [Importing data](docs/user-guide/importing-data.md).
+- **In the browser:** the preprocessing wizard turns a CSV file into a dataset in six steps, entirely in your browser. Step 1 offers a Wine Quality (red) sample to try it (P. Cortez et al., UCI Machine Learning Repository, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), modified: ID column added). See [Importing data](docs/user-guide/importing-data.md).
 - **Bundled with the app:** `python tools/process.py <your_csv_file>` writes a dataset into `src/assets/data/`. See [Preparing data](docs/user-guide/preparing-data.md).
 
 The CSV conventions (ID column, pre-computed coordinates, latitude/longitude) are specified in [CSV input](docs/specs/csv-input.md), the resulting files in [Dataset format](docs/specs/dataset-format.md).

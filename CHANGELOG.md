@@ -11,6 +11,7 @@ GlyphSpace has no version numbers yet, so releases are named by the date they re
 - Documentation in `docs/`: a user guide, specifications of the data formats and worker protocols, architecture decision records, and development guides. This changelog ([#93](https://github.com/visualengineers/glyphspace/pull/93)).
 - Item images for imported datasets: Step 1 of the wizard takes an optional ZIP file with one picture per item, named after the item's ID (JPG, PNG or WebP). The **Image** glyph type shows them, and the dataset keeps them in the browser ([#92](https://github.com/visualengineers/glyphspace/pull/92)).
 - A **Size** slider in the sidebar's **Encoding** tab sets dots and glyphs together: a typical glyph of the dataset reaches about as far as the dot it replaces, so items keep their size when zooming from dots to glyphs ([#90](https://github.com/visualengineers/glyphspace/pull/90)).
+- An ⓘ button at the right end of the menu bar opens **About GlyphSpace**: the sources and licences of the bundled data, and the licences of DruidJS, Pyodide and the other software the site ships ([#106](https://github.com/visualengineers/glyphspace/pull/106)).
 
 ### Changed
 
@@ -31,6 +32,12 @@ GlyphSpace has no version numbers yet, so releases are named by the date they re
 - The icon buttons on the canvases have accessible names for screen readers ([#104](https://github.com/visualengineers/glyphspace/pull/104)).
 - Selections, histogram redraws and sidebar updates scale to tens of thousands of items: selections use a set, histograms redraw only when the colours change (no longer on every frame of the size slider), and canvas redraws no longer run change detection for the whole app ([#105](https://github.com/visualengineers/glyphspace/pull/105)).
 - Saved datasets are read into memory when first opened instead of all at startup ([#105](https://github.com/visualengineers/glyphspace/pull/105)).
+- The import wizard's Python runtime (Pyodide with pandas and scikit-learn, about 40 MB) now comes from the GlyphSpace site itself instead of the jsDelivr CDN. Only the packages in Pyodide's lock file are installed, each checked against its SHA-256 ([ADR 0013](docs/decisions/0013-self-host-pyodide.md)) ([#106](https://github.com/visualengineers/glyphspace/pull/106)).
+- GitHub Pages is deployed from GitHub Actions artifacts instead of the `gh-pages` branch, with every action pinned to a commit. CI also runs the Python tests, the formatting check and a dependency audit, and fails on lint warnings ([#106](https://github.com/visualengineers/glyphspace/pull/106)).
+- Node 26 is required by npm (`engine-strict`), and every checkout uses LF line endings (`.gitattributes`). A Windows working copy made before needs one re-checkout ([setup](docs/development/setup.md)) ([#106](https://github.com/visualengineers/glyphspace/pull/106)).
+- The Python runtime of the import wizard (about 40 MB) is loaded only when the wizard opens or an imported dataset's images are shown, no longer on every visit ([#107](https://github.com/visualengineers/glyphspace/pull/107)).
+- A Python worker that crashes or exceeds its time limit is replaced and gets the uploaded files back ([#107](https://github.com/visualengineers/glyphspace/pull/107)).
+- A column of the uploaded file without settings is reported as an error instead of being processed as a feature ([#107](https://github.com/visualengineers/glyphspace/pull/107)).
 
 ### Removed
 
@@ -76,11 +83,24 @@ GlyphSpace has no version numbers yet, so releases are named by the date they re
 - A dataset processed again under the same name no longer offers projections it lost ([#105](https://github.com/visualengineers/glyphspace/pull/105)).
 - The CSV export quotes its header, so a column label with a comma no longer shifts the columns ([#105](https://github.com/visualengineers/glyphspace/pull/105)).
 - A dataset that can't be saved in the browser, for example because storage is full, shows a warning instead of failing silently. A tab running an older version no longer makes saved datasets hang ([#105](https://github.com/visualengineers/glyphspace/pull/105)).
+- The sample data attribution in Step 1 links the CC BY 4.0 licence and says what was changed ([#106](https://github.com/visualengineers/glyphspace/pull/106)).
+- Items whose ID looks like a number (`007`, `1.0`, a 19-digit ID) keep their ID and their positions; before, they had no position in imported datasets ([#107](https://github.com/visualengineers/glyphspace/pull/107)).
+- An upload no longer fails with "Unexpected token 'N'" when a column has a single value, the file has a single row, or a value is infinite ([#107](https://github.com/visualengineers/glyphspace/pull/107)).
+- Dates written day first (`13/04/2021`, `01.04.2021`) are detected and encoded with every date. Before, every day above 12 became a missing value and the others were read month first ([#107](https://github.com/visualengineers/glyphspace/pull/107)).
+- One-hot features take the settings of their own column, not those of a column whose name starts theirs (`price` for `price_band_low`). Feature names that would collide are rejected ([#107](https://github.com/visualengineers/glyphspace/pull/107)).
+- Projections of degenerate input (one varying column, columns that repeat each other, two rows) place every item instead of leaving some without a position. Input that can't be embedded fails with a clear error ([#107](https://github.com/visualengineers/glyphspace/pull/107)).
+- Histograms of constant features show their bar where the items are ([#107](https://github.com/visualengineers/glyphspace/pull/107)).
+- An upload named `processed_features.csv` is no longer overwritten by processing ([#107](https://github.com/visualengineers/glyphspace/pull/107)).
+- After a reload on a slow connection, restoring the uploaded file no longer times out. A request that times out no longer holds up the next one ([#107](https://github.com/visualengineers/glyphspace/pull/107)).
+- Image ZIPs made on Windows (backslash folders) work. Duplicate image names, macOS resource forks and oversized archives are handled ([#107](https://github.com/visualengineers/glyphspace/pull/107)).
+- Bundled datasets open with UMAP again, as before [#100](https://github.com/visualengineers/glyphspace/pull/100), and their times are listed in date order ([#107](https://github.com/visualengineers/glyphspace/pull/107)).
+- The command-line tool handles small CSV files and leaves no partial dataset after an error. Columns such as `update` or `sentiment` are no longer read as dates ([#107](https://github.com/visualengineers/glyphspace/pull/107)).
 
 ### Security
 
 - All `npm audit` findings are fixed (2 critical, 7 high, 39 moderate), partly through `overrides` for minimatch and glob ([#94](https://github.com/visualengineers/glyphspace/pull/94)).
 - Values in the CSV export that a spreadsheet would run as formulas (starting with `=`, `+`, `-` or `@`) start with an apostrophe; plain numbers stay as they are ([#105](https://github.com/visualengineers/glyphspace/pull/105)).
+- The site has a Content-Security-Policy that allows only its own origin, and the browser contacts no other server ([#106](https://github.com/visualengineers/glyphspace/pull/106)).
 
 ## 2026-11-09: Wizard redesign
 
