@@ -25,6 +25,7 @@ describe('ThumbnailService', () => {
   const bitmap = {} as ImageBitmap;
   let unzip: ReturnType<typeof vi.fn>;
   let requestThumb: ReturnType<typeof vi.fn>;
+  let removeFolder: ReturnType<typeof vi.fn>;
   let stored: Map<string, Blob>;
   let sources: Record<string, string>;
   let withImages: Set<string>;
@@ -33,11 +34,12 @@ describe('ThumbnailService', () => {
   beforeEach(() => {
     unzip = vi.fn().mockResolvedValue(['1.png', '2.jpg']);
     requestThumb = vi.fn().mockReturnValue(of(bitmap));
+    removeFolder = vi.fn().mockResolvedValue(undefined);
     stored = new Map();
     sources = { wine: 'wasm' };
     withImages = new Set();
     service = new ThumbnailService(
-      { unzip, requestThumb } as unknown as DataProcessorService,
+      { unzip, requestThumb, removeFolder } as unknown as DataProcessorService,
       {
         saveThumbnailArchive: async (name: string, archive: Blob) => void stored.set(name, archive),
         getThumbnailArchive: async (name: string) => stored.get(name),
@@ -71,6 +73,19 @@ describe('ThumbnailService', () => {
 
     expect(await first('wine', '2')).toBe(bitmap);
     expect(unzip).toHaveBeenCalledTimes(1);
+  });
+
+  it('deletes the unpacked pictures of a replaced or forgotten archive from the worker', async () => {
+    await service.attachArchive('wine', new Blob(['zip']));
+    const [firstFolder] = unzip.mock.calls[0];
+
+    await service.attachArchive('wine', new Blob(['zip 2']));
+    const [secondFolder] = unzip.mock.calls[1];
+    expect(removeFolder).toHaveBeenCalledExactlyOnceWith(firstFolder);
+
+    service.forget('wine');
+    expect(removeFolder).toHaveBeenLastCalledWith(secondFolder);
+    expect(secondFolder).not.toBe(firstFolder);
   });
 
   it('has no pictures for a processed dataset without an archive', async () => {

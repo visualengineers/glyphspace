@@ -30,12 +30,13 @@ Every row is one item, named by its id.
 | Recognised column | named `id` in any case, surrounding spaces ignored (`is_id_column` in `src/assets/preprocessing_processor.py`); renamed to `ID` | same (`add_id_column_if_missing` in `tools/dataset_common.py`) |
 | Position | moved to the front | moved to the front |
 | No such column | ids `"0"`, `"1"`, … from the row index | same |
+| Values | read as text (`read_csv` in `src/assets/preprocessing_processor.py`): `007` stays `007`, a 19-digit id keeps every digit, `1.0` stays `1.0` | read as text too (`read_csv` in `tools/dataset_common.py`) |
 
 Ids must be unique. The dashboard keys items by id: for a repeated id it keeps the features of the first row, and the positions of the repeated rows overwrite each other.
 
 If several columns match, the wizard takes the one named exactly `ID`, or else the first (`_use_id_column` in `src/assets/preprocessing_processor_config.py`); the CLI takes the first. In the wizard the id column is detected as data type ID and starts as metadata, but processing uses it as the item id only, never as a metadata column or a feature.
 
-Item images for the Image glyph type are found by id. Bundled datasets: `src/assets/thumbnails/<dataset>/<id>.jpg` (see [Preparing data](../user-guide/preparing-data.md#thumbnails)). Wizard datasets: a ZIP archive chosen in Step 1, whose files are named `<id>.jpg`, `.jpeg`, `.png` or `.webp` (extension in any case). Folders inside the archive are flattened when it is unpacked (`unpack_flat` in `src/app/workers/pyodide-calls.ts`); `indexImages` in `src/app/services/thumbnail.service.ts` maps each file to its id.
+Item images for the Image glyph type are found by id. Bundled datasets: `src/assets/thumbnails/<dataset>/<id>.jpg` (see [Preparing data](../user-guide/preparing-data.md#thumbnails)). Wizard datasets: a ZIP archive chosen in Step 1, whose files are named `<id>.jpg`, `.jpeg`, `.png` or `.webp` (extension in any case). Folders inside the archive are flattened when it is unpacked (`unpack_flat` in `src/app/workers/pyodide-calls.ts`), whether the archive separates them with `/` or, as archives made on Windows may, with `\`; if two files have the same name, the first one is used. Other files and macOS resource forks are skipped. `indexImages` in `src/app/services/thumbnail.service.ts` maps each file to its id.
 
 ## Column types
 
@@ -62,6 +63,18 @@ Defaults per column (`createDefaultColumnConfig` in `src/app/preprocessing-wizar
 
 Coordinate columns are ordinary numeric features in the wizard; it does not create a geographic projection.
 
+A column whose statistics can't be computed is still listed in the profile, typed as text, with the reason in `profileError` (`_fallback_profile`): processing rejects a column without settings, so leaving it out would make the file unprocessable.
+
+#### Dates
+
+The type detection (rule 5), the Step 1 statistics and the encoding read dates with the same function, `parse_dates` in `src/assets/preprocessing_processor.py`:
+
+- Values that start with a four-digit year (`2021-04-13`, `2021/04/13`) are read year, month, day.
+- For the others the data decides whether the day or the month comes first: a first number above 12 can only be a day (`13/04/2021`), a second number above 12 only a day too (`04/13/2021`). When that evidence is even, dates written with dots (`01.04.2021`) are day first, others month first.
+- Each group is parsed with one inferred format, and value by value when that leaves values unparsed, so columns with mixed formats work. Values with different time zones are converted to UTC. Values that are no date become missing.
+
+The CLI parses dates with pandas' defaults (`_convert_date_columns`), month first.
+
 ### CLI
 
 Every column except `ID` becomes a feature column:
@@ -69,7 +82,7 @@ Every column except `ID` becomes a feature column:
 | Column | Encoding |
 |---|---|
 | numeric | the number |
-| not numeric, and the name contains `date` or `time` (any case) | seconds since the epoch; values that don't parse become missing |
+| not numeric, and one word of the name is `date`, `time`, `datetime` or `timestamp` (any case; words are split at non-letters and camelCase: `sold_date`, `dateOfBirth`, but not `update` or `runtime`; `is_date_name`) | seconds since the epoch; values that don't parse become missing |
 | other text with a single distinct value, counting a missing value as a value (`CARDINALITY_THRESHOLD` in `tools/process.py`) | one-hot (one 0/1 column) |
 | other text | label encoding of the sorted distinct values |
 
@@ -93,7 +106,8 @@ The wizard treats all of these as ordinary columns.
 |---|---|---|
 | Distinct values of a one-hot encoded column | 500 (`MAX_ONEHOT_UNIQUE`) | K7 |
 | Glyph features | 3–8 | K5 |
-| Time per worker request (profiling, processing) | 60 s (`DataProcessorService.sendRequestUntil`) | K6 |
+| Time per worker request (profiling, processing), from the moment the worker starts it | 60 s (`REQUEST_TIMEOUT_MS` in `DataProcessorService`) | K6 |
+| Item image ZIP (Step 1) | 200 MB; inside it at most 100 000 files, 32 MB per image and 512 MB of images (`ZIP_LIMITS` in `src/app/workers/pyodide-calls.ts`) | — |
 | Neighbour parameters of IsoMap, LLE, LTSA, UMAP | below the number of rows | K4 |
 
 The error classes are explained in [Troubleshooting](../user-guide/troubleshooting.md).

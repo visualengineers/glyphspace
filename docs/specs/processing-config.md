@@ -18,7 +18,7 @@ The configuration object the wizard sends with `processWithConfig`, what the Pyt
 |---|---|---|
 | `datasetName` | string | Name of the dataset. |
 | `timestamp` | string | Time of the dataset item: the upload day as `yyyymmdd` (UTC). The result is keyed `<datasetName>.<timestamp>`. |
-| `columns` | column config[] | One entry per column of the CSV, see below. |
+| `columns` | column config[] | One entry per column of the CSV, see below. A column of the file without an entry is an error: the file changed after it was configured (for example another file uploaded under the same name), and its unseen columns must not become features. |
 | `cleaning` | `{ removeDuplicates: boolean }` | Drop duplicate rows. |
 | `projections` | `ProjectionConfig` | Projection switches and parameters. Not used by Python (see [Projections](#projections)). |
 | `glyphFeatures` | string[] | Encoded feature names for the glyph rays. Used when there are 3–8; otherwise the first 5 features. |
@@ -47,14 +47,14 @@ Python still accepts three legacy values that the wizard no longer sends: the mi
 
 ## Order of operations
 
-1. **Read** the CSV. The id column (named `id` in any case, surrounding spaces ignored; see [CSV input](csv-input.md#id-column)) is moved to the front and renamed `ID`; without one, ids are generated from the row index.
+1. **Read** the CSV with `read_csv` (`src/assets/preprocessing_processor.py`), the reader Step 1 and Step 3 use too. The id column (named `id` in any case, surrounding spaces ignored; see [CSV input](csv-input.md#id-column)) is read as text, moved to the front and renamed `ID`; without one, ids are generated from the row index.
 2. **Fill** missing values per feature column.
 3. **Cap** outliers (strategy `cap`). Outliers are always detected on the original values, with `find_outliers` in `src/assets/preprocessing_processor.py`, the same function that produces Step 3's count.
 4. **Drop rows:** missing values of `remove_rows` columns and outliers of `remove` columns.
 5. **Drop duplicates** (`cleaning.removeDuplicates`), comparing the CSV's own columns on their original values and keeping the first row.
 6. **Encode** each feature column.
 7. **Scale** each feature column. Missing values left by `keep` are ignored by the scaling and set to 0 afterwards.
-8. **Export** the scaled matrix of the projection columns to `processed_features.csv` in the Pyodide file system.
+8. **Export** the scaled matrix of the projection columns to the file the worker names (`features_file`, `/glyphspace-output/processed_features.csv` in the Pyodide file system; `processed_features.csv` in the working directory by default).
 9. **Build** the dataset.
 
 If no rows are left after step 5, processing stops with an error (class K2).
@@ -84,9 +84,9 @@ Checked in this order:
 
 | Condition | Result |
 |---|---|
-| `dataType` is `date` | Seconds since the epoch, whatever the encoding; unparseable dates are missing. |
+| `dataType` is `date` | Seconds since the epoch, whatever the encoding; unparseable dates are missing. The dates are read by `parse_dates`, the parser that detected the type (see [CSV input](csv-input.md#dates)). |
 | `dataType` is `boolean`, or the column is boolean | 0.0 = false, 1.0 = true. Categories are the column's own labels for the two codes. |
-| `encoding` is `onehot`, or `none` on a non-numeric column | One 0/1 feature per distinct value, named `<column>_<value>`; missing values are the value `missing`. More than 500 distinct values (`MAX_ONEHOT_UNIQUE`) is an error (class K7), raised before any encoding starts. |
+| `encoding` is `onehot`, or `none` on a non-numeric column | One 0/1 feature per distinct value, named `<column>_<value>`; missing values are the value `missing`. More than 500 distinct values (`MAX_ONEHOT_UNIQUE`) is an error (class K7), raised before any encoding starts. A name that another feature has already (the value `b` of `a` next to a column `a_b`) is an error too, as in the CLI. |
 | `encoding` is `label` | One feature with codes 0, 1, … of the sorted distinct values (missing as `missing`); the categories are stored in the meta. |
 | `encoding` is `normalize` | Min-max to [0, 1]. |
 | `encoding` is `standardize` | z-score with the sample standard deviation. |
@@ -96,7 +96,7 @@ A constant column becomes 0 under `normalize` and `standardize`.
 
 ## Scaling
 
-Applied per feature after encoding. A one-hot feature `<column>_<value>` uses the scaling of `<column>`.
+Applied per feature after encoding. A one-hot feature `<column>_<value>` uses the scaling of `<column>`. The encoding records which column each feature comes from (`feature_sources`), so the scaling, `includeInProjection`, `isColorFeature`, the schema type and the tooltip value of a feature are always those of its own column, never of a column whose name merely starts the feature's name (`price` for `price_band_low`).
 
 | Scaling | Effect |
 |---|---|
@@ -109,7 +109,7 @@ A feature without any value is set to 0 before fitting.
 
 ## Projections
 
-Python computes no projections. It writes the scaled features of the projection columns to `processed_features.csv` (`ID` first) and returns an empty `positions` object. The main thread then reads that file (`getProcessedFeatures`), runs FastMap and the enabled background methods with DruidJS, and adds each result to the dataset (`storeProjectionPositions`). See [ADR 0003](../decisions/0003-druidjs-projections-in-web-workers.md) and [Processing pipeline](../development/processing-pipeline.md).
+Python computes no projections. It writes the scaled features of the projection columns to `/glyphspace-output/processed_features.csv` (`ID` first) and returns an empty `positions` object. The main thread then reads that file (`getProcessedFeatures`), runs FastMap and the enabled background methods with DruidJS, and adds each result to the dataset (`storeProjectionPositions`). See [ADR 0003](../decisions/0003-druidjs-projections-in-web-workers.md) and [Processing pipeline](../development/processing-pipeline.md).
 
 `ProjectionConfig` (`src/app/preprocessing-wizard/models/column-config.ts`) holds one `enable<Method>` switch per background method and the parameters `isomapNeighbors`, `lleNeighbors`, `ltsaNeighbors` (0 = DruidJS default), `tsnePerplexity`, `tsneIterations`, `umapNeighbors` and `umapMinDist`. Methods in `HIDDEN_PROJECTION_METHODS` never run, whatever their switch says.
 
@@ -134,9 +134,12 @@ Python computes no projections. It writes the scaled features of the projection 
 
 `features`, `schema` and `meta` follow the [dataset format](dataset-format.md). Glyph feature values are the scaled features min-max mapped to [0, 1]; the meta statistics are taken on the scaled values. Every error is re-raised as `Failed to process data: <message>`, and the wizard classifies the message (`src/app/preprocessing-wizard/shared/constants/wizard-error-classes.ts`).
 
+The result, like every JSON the Python modules return (`to_json`), is strict JSON: the worker parses it with `JSON.parse`, which rejects `NaN` and `Infinity`, so a non-finite number would be written as `null`. In the profile (`profile_data`) an undefined statistic, such as the standard deviation of a column with one value, is left out instead, and infinite values count neither in the statistics nor in the histogram.
+
 Progress is reported through `set_progress_callback` as `(step, progress, message)` with progress from 5 to 100.
 
 ## Compatibility
 
 - A config from an older wizard state must still process: a column without `role` is a feature, and unknown projection settings are dropped when the state is restored (see [Wizard storage](wizard-storage.md)).
 - An unknown scaling or role is an error, not ignored. So is an unknown missing-value strategy on a column that has missing values, and an unknown outlier strategy on an enabled feature column; elsewhere these values are never looked at.
+- A column of the file without a column config is an error; before, it was processed as an enabled feature with default settings.

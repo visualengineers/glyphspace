@@ -9,6 +9,7 @@ behaviour switched on (Copy-on-Write and the `str` dtype for text columns).
 """
 import importlib.util
 import json
+import re
 import sys
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
@@ -100,6 +101,14 @@ def test_a_column_without_any_value_becomes_0_without_warnings(recwarn):
 
     assert feature_column(result, '1') == [0.0, 0.0, 0.0]
     assert [str(w.message) for w in recwarn] == []
+
+
+def test_a_constant_column_is_counted_in_the_first_histogram_bin():
+    result = import_frame(with_id({'c': [5.0, 5.0, 5.0], 'x': [1.0, 2.0, 3.0]}))
+
+    histogram = result['meta']['features']['1']['histogram']
+    assert [key for key, density in histogram.items() if density > 0] == ['0']
+    assert result['meta']['features']['2']['histogram']['19'] > 0  # x = 1.0 at the top of its range
 
 
 def test_values_without_missing_ones_are_min_max_normalized_as_before():
@@ -258,6 +267,17 @@ def test_the_cli_imports_a_csv_with_a_one_hot_column(process):
         assert [p['id'] for p in written(f'position.{kind}')] == [f'r{i}' for i in range(40)]
 
 
+def test_the_cli_keeps_ids_as_written(process):
+    rows = ['id,x,y'] + [f'{i:03d},{i},{(i * 7) % 11}' for i in range(40)]
+    Path('edge.csv').write_text('\n'.join(rows) + '\n', encoding='utf-8')
+
+    process.process_csv_file('edge.csv')
+
+    expected = [f'{i:03d}' for i in range(40)]
+    assert [row['id'] for row in written('feature')] == expected
+    assert [p['id'] for p in written('position.pca')] == expected
+
+
 def test_the_cli_lists_the_written_datasets(process):
     process.process_csv_file(cli_csv())
 
@@ -292,7 +312,131 @@ def test_the_cli_lists_bundled_datasets_in_a_fixed_order(process):
 
     process.discover_datasets()
 
-    source = Path('src/default-dataset.ts').read_text(encoding='utf-8')
-    collection = json.loads(source.split('DEFAULT_DATASETCOLLECTION: DatasetCollection = ', 1)[1])
-    assert [dataset['dataset'] for dataset in collection] == ['wineqr', 'nutrients', 'alpha', 'zeta']
+    assert [dataset['dataset'] for dataset in listed()] == ['wineqr', 'nutrients', 'alpha', 'zeta']
 
+
+def listed() -> list[dict]:
+    """The dataset collection discover_datasets wrote to src/default-dataset.ts."""
+    source = Path('src/default-dataset.ts').read_text(encoding='utf-8')
+    return json.loads(source.split('DEFAULT_DATASETCOLLECTION: DatasetCollection = ', 1)[1])
+
+
+def dataset_files(*names: str) -> None:
+    for name in names:
+        Path(f'src/assets/data/{name}.json').write_text('[]', encoding='utf-8')
+
+
+def test_the_other_datasets_follow_alphabetically_ignoring_case(process):
+    dataset_files(*(f'{name}.01012026.feature' for name in ['Zeta', 'cars', 'alpha', 'Iris', 'wineqr']))
+
+    process.discover_datasets()
+
+    assert [dataset['dataset'] for dataset in listed()] == ['wineqr', 'alpha', 'cars', 'Iris', 'Zeta']
+
+
+def test_the_dataset_order_is_read_when_the_list_is_written(process, monkeypatch):
+    dataset_files('alpha.01012026.feature', 'wineqr.01012026.feature')
+    monkeypatch.setattr(process, 'DATASET_ORDER', ['alpha'])
+
+    process.discover_datasets()
+
+    assert [dataset['dataset'] for dataset in listed()] == ['alpha', 'wineqr']
+
+
+def test_the_projections_are_listed_umap_first_whatever_the_file_names(process):
+    # The dashboard opens a dataset's first projection. Sorting the file names
+    # (#100) put PCA first, so the bundled datasets opened with PCA, not UMAP.
+    dataset_files(*(f'edge.01012026.position.{name}' for name in ['zeta', 'tsne', 'pca', 'epsg', 'umap']))
+
+    process.discover_datasets()
+
+    [dataset] = listed()
+    assert list(dataset['items'][0]['algorithms']['position']) == ['umap', 'pca', 'tsne', 'epsg', 'zeta']
+
+
+def test_the_items_are_listed_in_date_order(process):
+    # ddmmyyyy sorted as text puts 02032026 before 15012026
+    dataset_files(*(f'edge.{time}.feature' for time in ['20112026', '02032026', '15012026']))
+
+    process.discover_datasets()
+
+    [dataset] = listed()
+    assert [item['time'] for item in dataset['items']] == ['15012026', '02032026', '20112026']
+
+
+def ts_literal(source: str):
+    """The value of the object literal in src/default-dataset.ts. The CLI writes JSON;
+    Prettier (lint-staged) rewrites it with unquoted keys and single quotes."""
+    body = source.split('DEFAULT_DATASETCOLLECTION: DatasetCollection = ', 1)[1].strip().rstrip(';')
+    body = re.sub(r"'([^'\\]*)'", lambda m: json.dumps(m.group(1)), body)
+    body = re.sub(r'([{,]\s*)([A-Za-z_]\w*)\s*:', r'\1"\2":', body)
+    body = re.sub(r',(\s*[}\]])', r'\1', body)
+    return json.loads(body)
+
+
+def test_the_committed_dataset_list_is_up_to_date(process):
+    """src/default-dataset.ts is what `python tools/process.py` writes for src/assets/data."""
+    repo = TOOLS.parent
+    committed = ts_literal((repo / 'src' / 'default-dataset.ts').read_text(encoding='utf-8'))
+
+    expected = process.ordered_datasets(dc.collect_datasets(str(repo / 'src' / 'assets' / 'data'), 'local'))
+    for entry in expected:
+        if process.has_item_images(entry['dataset'], str(repo / 'src' / 'assets' / 'thumbnails')):
+            entry['images'] = True
+
+    # json.dumps compares the order too: the dashboard opens the first dataset, time and projection
+    assert json.dumps(committed) == json.dumps(expected), 'run `python tools/process.py` to regenerate src/default-dataset.ts'
+    assert list(committed[0]['items'][0]['algorithms']['position'])[0] == 'umap'
+
+
+# --- Small and narrow CSV files ---------------------------------------------------------
+
+
+def small_csv(rows: int, columns: str = 'x') -> str:
+    names = columns.split(',')
+    lines = [','.join(names)] + [','.join(str((i * (j + 3)) % 7) for j in range(len(names))) for i in range(rows)]
+    Path('small.csv').write_text('\n'.join(lines) + '\n', encoding='utf-8')
+    return 'small.csv'
+
+
+def small_files() -> list[str]:
+    return sorted(path.name.split('.', 2)[2] for path in Path('src/assets/data').glob('small.*.json'))
+
+
+@pytest.mark.parametrize('rows, expected', [
+    (3, ['feature.json', 'meta.json', 'position.pca.json', 'schema.json']),  # too few for t-SNE and UMAP
+    (8, ['feature.json', 'meta.json', 'position.pca.json', 'position.tsne.json', 'position.umap.json', 'schema.json']),
+])
+def test_a_small_csv_with_one_feature_gets_the_projections_it_can_have(process, rows, expected):
+    process.process_csv_file(small_csv(rows))
+
+    assert small_files() == expected
+    [path] = Path('src/assets/data').glob('small.*.position.pca.json')
+    positions = json.loads(path.read_text(encoding='utf-8'))
+    assert len(positions) == rows and all(p['position']['y'] == 0.0 for p in positions)
+
+
+def test_a_failed_import_leaves_no_dataset_files(process, monkeypatch):
+    def failing(*_args):
+        raise RuntimeError('t-SNE failed')
+    monkeypatch.setattr(process, 'generate_tsne_positions', failing)
+
+    with pytest.raises(RuntimeError, match='t-SNE failed'):
+        process.process_csv_file(small_csv(10, 'x,y'))
+
+    assert small_files() == []
+
+
+@pytest.mark.parametrize('name, is_date', [
+    ('sold_date', True), ('Date', True), ('time', True), ('Timestamp', True), ('dateOfBirth', True),
+    ('start time', True), ('created-datetime', True),
+    ('sentiment', False), ('candidate', False), ('update', False), ('validated', False), ('runtime', False),
+])
+def test_a_date_column_is_recognised_by_a_word_of_its_name(name, is_date):
+    assert dc.is_date_name(name) is is_date
+
+
+def test_a_text_column_named_like_update_stays_text():
+    columns = dc.plan_features(with_id({'update': ['yes', 'no', 'yes']}), cardinality_threshold=1)
+
+    assert [column.encoding for column in columns] == ['label']

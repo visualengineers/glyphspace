@@ -33,7 +33,7 @@ export class ProjectionCancelledError extends Error {
 interface ProjectionRequest {
   method: ProjectionMethod;
   features: number[][];
-  ids: (string | number)[];
+  ids: string[];
   config?: ProjectionComputeConfig;
 }
 
@@ -209,10 +209,12 @@ export class ProjectionService {
   private runProjectionInWorker(
     method: ProjectionMethod,
     features: number[][],
-    ids: (string | number)[],
+    ids: readonly (string | number)[],
     config?: ProjectionComputeConfig
   ): Promise<ProjectionResult> {
-    return this.startJob({ method, features, ids, config });
+    // Ids are strings everywhere (parseCSVFeatures returns them so); String() only
+    // canonicalises ids a caller still holds as numbers, it never parses one.
+    return this.startJob({ method, features, ids: ids.map(String), config });
   }
 
   /**
@@ -344,8 +346,12 @@ export class ProjectionService {
    * Format: ID,feature1,feature2,...
    * pandas quotes fields that contain a comma (e.g. such an ID), so the rows are
    * read with a CSV parser, not split on commas.
+   *
+   * Ids stay the strings Python wrote: the dataset matches positions to items by
+   * that string, and converting a numeric-looking id would change it ("007" → 7,
+   * "1.0" → 1, a 19-digit id loses digits), leaving its item without a position.
    */
-  parseCSVFeatures(csvText: string): { features: number[][]; ids: (string | number)[] } {
+  parseCSVFeatures(csvText: string): { features: number[][]; ids: string[] } {
     try {
       const rows = csvParseRows(csvText.trim());
 
@@ -353,7 +359,7 @@ export class ProjectionService {
         throw new Error('CSV file is empty or has no data rows');
       }
 
-      const ids: (string | number)[] = [];
+      const ids: string[] = [];
       const features: number[][] = [];
 
       // Skip header row
@@ -366,8 +372,7 @@ export class ProjectionService {
         }
 
         // First column is ID
-        const id = values[0];
-        ids.push(isNaN(Number(id)) ? id : Number(id));
+        ids.push(values[0]);
 
         // Remaining columns are features
         const featureRow = values.slice(1).map(v => {
