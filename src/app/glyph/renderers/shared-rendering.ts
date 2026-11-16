@@ -5,6 +5,7 @@ import { GlyphSizeInfo } from '../glyph-size-info';
 import { ZoomLevel } from '../../shared/enum/zoom-level';
 import { axisAngle } from '../glyph-geometry';
 import { GlyphRenderContext } from './glyph-renderer';
+import { markShared } from '../mesh-disposal';
 
 /*
  * Reference grid behind the glyph (background disc, its ring and the axes).
@@ -19,14 +20,26 @@ const AXES_COLOR = 0xd4d4d4;
 /** Axis line width as a fraction of the glyph radius, so lines scale with the glyph. */
 const AXES_WIDTH = 0.015;
 
-// Shared geometry cache for performance (reuse common geometries)
+/*
+ * Geometries and materials shared by many glyphs (and all canvases). They are
+ * marked shared, so disposing a glyph mesh leaves them alone (mesh-disposal.ts).
+ * The geometry caches are keyed by radius and segment count and stay small.
+ */
 const geometryCache = {
   circles: new Map<string, THREE.CircleGeometry>(),
   rings: new Map<string, THREE.RingGeometry>(),
   spokes: new Map<string, THREE.BufferGeometry>(),
 };
 
-// Shared material cache for performance (reuse materials by color + options)
+/**
+ * Most materials one colour-keyed cache keeps. A continuous colour scale gives
+ * nearly every item a colour of its own; beyond the limit a glyph gets a
+ * material of its own, which is disposed with its mesh, so the caches can't
+ * grow with the number of colours ever drawn.
+ */
+export const MAX_SHARED_MATERIALS = 512;
+
+// Basic materials by colour and options.
 const materialCache = new Map<string, THREE.MeshBasicMaterial>();
 
 // Contour line materials by colour and width. A LineMaterial clones the whole
@@ -35,14 +48,23 @@ const materialCache = new Map<string, THREE.MeshBasicMaterial>();
 // orders transparent objects by depth, not by material.
 const lineMaterialCache = new Map<string, LineMaterial>();
 
+/** The cached value for `key`, created (and marked shared) if there is room; otherwise an unshared one. */
+function cached<T extends object>(cache: Map<string, T>, key: string, create: () => T, limit = Infinity): T {
+  const hit = cache.get(key);
+  if (hit) return hit;
+  const value = create();
+  if (cache.size >= limit) return value;
+  cache.set(key, markShared(value));
+  return value;
+}
+
 export function getCachedContourMaterial(color: string | number, linewidth: number): LineMaterial {
-  const key = `${color}_${linewidth}`;
-  let mat = lineMaterialCache.get(key);
-  if (!mat) {
-    mat = new LineMaterial({ color, linewidth, transparent: true, opacity: 0.9 });
-    lineMaterialCache.set(key, mat);
-  }
-  return mat;
+  return cached(
+    lineMaterialCache,
+    `${color}_${linewidth}`,
+    () => new LineMaterial({ color, linewidth, transparent: true, opacity: 0.9 }),
+    MAX_SHARED_MATERIALS
+  );
 }
 
 export function getCachedBasicMaterial(
@@ -50,32 +72,23 @@ export function getCachedBasicMaterial(
   options?: { side?: THREE.Side; transparent?: boolean; opacity?: number; depthTest?: boolean }
 ): THREE.MeshBasicMaterial {
   const key = `${color}_${options?.side ?? THREE.FrontSide}_${options?.transparent ?? false}_${options?.opacity ?? 1}_${options?.depthTest ?? true}`;
-  let mat = materialCache.get(key);
-  if (!mat) {
-    mat = new THREE.MeshBasicMaterial({ color, ...options });
-    materialCache.set(key, mat);
-  }
-  return mat;
+  return cached(materialCache, key, () => new THREE.MeshBasicMaterial({ color, ...options }), MAX_SHARED_MATERIALS);
 }
 
 export function getCachedCircleGeometry(radius: number, segments = 32): THREE.CircleGeometry {
-  const key = `${radius.toFixed(2)}_${segments}`;
-  let geom = geometryCache.circles.get(key);
-  if (!geom) {
-    geom = new THREE.CircleGeometry(radius, segments);
-    geometryCache.circles.set(key, geom);
-  }
-  return geom;
+  return cached(
+    geometryCache.circles,
+    `${radius.toFixed(2)}_${segments}`,
+    () => new THREE.CircleGeometry(radius, segments)
+  );
 }
 
 export function getCachedRingGeometry(innerRadius: number, outerRadius: number, segments = 32): THREE.RingGeometry {
-  const key = `${innerRadius.toFixed(2)}_${outerRadius.toFixed(2)}_${segments}`;
-  let geom = geometryCache.rings.get(key);
-  if (!geom) {
-    geom = new THREE.RingGeometry(innerRadius, outerRadius, segments);
-    geometryCache.rings.set(key, geom);
-  }
-  return geom;
+  return cached(
+    geometryCache.rings,
+    `${innerRadius.toFixed(2)}_${outerRadius.toFixed(2)}_${segments}`,
+    () => new THREE.RingGeometry(innerRadius, outerRadius, segments)
+  );
 }
 
 export function addBackgroundCircle(group: THREE.Group, sizeInfo: GlyphSizeInfo, ctx: GlyphRenderContext): void {
@@ -121,9 +134,7 @@ export function addCoordinateAxes(
  * glyph of that radius: a zoom-level change redraws all glyphs at once.
  */
 export function getCachedSpokesGeometry(count: number, radius: number): THREE.BufferGeometry {
-  const key = `${count}_${radius.toFixed(2)}`;
-  let geom = geometryCache.spokes.get(key);
-  if (!geom) {
+  return cached(geometryCache.spokes, `${count}_${radius.toFixed(2)}`, () => {
     const spokes = Array.from({ length: count }, (_, i) => {
       const spoke = new THREE.PlaneGeometry(radius * AXES_WIDTH, radius);
       spoke.translate(0, radius / 2, 0);
@@ -131,11 +142,10 @@ export function getCachedSpokesGeometry(count: number, radius: number): THREE.Bu
       spoke.rotateZ(axisAngle(i, count) - Math.PI / 2);
       return spoke;
     });
-    geom = mergeGeometries(spokes);
+    const merged = mergeGeometries(spokes);
     spokes.forEach(spoke => spoke.dispose());
-    geometryCache.spokes.set(key, geom);
-  }
-  return geom;
+    return merged;
+  });
 }
 
 export function addPlaceHolder(

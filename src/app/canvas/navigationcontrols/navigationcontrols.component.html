@@ -1,26 +1,40 @@
-<div class="nav-controls-panel" [class.visible]="visible">
+<div class="nav-controls-panel" [class.visible]="visible" role="toolbar" aria-label="Canvas mode">
   <!-- Navigation mode -->
   <button
+    type="button"
     class="nav-btn"
     [class.active]="!magicLenseStatus && !selectionMode"
+    [attr.aria-pressed]="!magicLenseStatus && !selectionMode"
     (click)="toggleNavigation.emit()"
+    aria-label="Navigation mode (N)"
     data-tooltip="Navigation Mode (N)"
   >
-    <span class="material-icons">open_with</span>
+    <span class="material-icons" aria-hidden="true">open_with</span>
   </button>
 
   <!-- Magic lens -->
-  <button class="nav-btn" (click)="toggleLens.emit()" [class.active]="magicLenseStatus" data-tooltip="Magic Lens (L)">
-    <span class="material-icons">search</span>
+  <button
+    type="button"
+    class="nav-btn"
+    (click)="toggleLens.emit()"
+    [class.active]="magicLenseStatus"
+    [attr.aria-pressed]="magicLenseStatus"
+    aria-label="Magic lens (L)"
+    data-tooltip="Magic Lens (L)"
+  >
+    <span class="material-icons" aria-hidden="true">search</span>
   </button>
 
   <!-- Selection mode -->
   <button
+    type="button"
     class="nav-btn"
     (click)="toggleSelection.emit()"
     [class.active]="selectionMode"
+    [attr.aria-pressed]="selectionMode"
+    aria-label="Selection mode (S)"
     data-tooltip="Selection Mode (S)"
   >
-    <span class="material-icons">north_west</span>
+    <span class="material-icons" aria-hidden="true">north_west</span>
   </button>
 </div>

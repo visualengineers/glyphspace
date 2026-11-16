@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { Observable } from 'rxjs';
 import { GlyphObject } from './glyph-object';
 import { GlyphSizeInfo } from './glyph-size-info';
 import { GlyphRenderConfig } from './glyph-render-config';
@@ -101,5 +102,42 @@ describe('GlyphObject', () => {
     const fill = mesh.children.find(child => child instanceof THREE.Mesh) as THREE.Mesh;
 
     expect((fill.material as THREE.MeshBasicMaterial).color.getHex()).not.toBe(glyph.highlightColor);
+  });
+
+  it('places a new mesh where the item is drawn, not where its previous mesh was', () => {
+    const glyph = createGlyph({ '1': 0.5, '2': 0.5, '3': 1 });
+    const sizeInfo = new GlyphSizeInfo();
+    const config = renderConfig(['1', '2', '3']);
+    const first = glyph.render(sizeInfo, 't', 'pca', 0, false, config) as THREE.Object3D;
+    glyph.getCacheObject(0, 't', 'pca').moveTo(5, 6);
+    first.position.set(300, 300, 0); // e.g. pushed aside by another canvas's magic lens
+
+    const second = glyph.render(sizeInfo, 't', 'pca', 0, false, config) as THREE.Object3D;
+
+    expect(second.position.toArray()).toEqual([5, 6, 0]);
+    expect(glyph.getMesh('t', 'pca', 0)).toBe(second);
+  });
+
+  it('records no mesh for an item that aggregation leaves out', () => {
+    const glyph = createGlyph({ '1': 0.5, '2': 0.5, '3': 1 });
+    const config = renderConfig(['1', '2', '3']);
+    glyph.render(new GlyphSizeInfo(), 't', 'pca', 0, true, config);
+    glyph.getCacheObject(0, 't', 'pca').isClustered = true;
+
+    expect(glyph.render(new GlyphSizeInfo(), 't', 'pca', 0, true, config)).toBeNull();
+    expect(glyph.getMesh('t', 'pca', 0)).toBeUndefined();
+  });
+
+  it('keeps what an image renderer stored on its mesh', () => {
+    const glyph = createGlyph({ '1': 0.5 });
+    const sizeInfo = new GlyphSizeInfo();
+    sizeInfo.currentZoomLevel = ZoomLevel.high;
+    const requestThumb = () => new Observable<null>();
+    const config = { ...renderConfig(['1'], GlyphType.Thumb), thumbnailResolver: { requestThumb } };
+
+    const mesh = glyph.render(sizeInfo, 't', 'pca', 0, false, config) as THREE.Object3D;
+
+    expect(mesh.userData['item'].deref()).toBe(glyph);
+    expect(mesh.userData['onDispose']).toHaveLength(1);
   });
 });
